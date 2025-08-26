@@ -1,0 +1,24 @@
+{
+  "name": "irukadark",
+  "version": "1.0.0",
+  "description": "Local AI Chat App (Off-mode only)",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "dev-tools": "electron . --dev --devtools"
+  },
+  "keywords": [
+    "electron",
+    "ai",
+    "chat"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1"
+  }
+}

@@ -1,0 +1,876 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #1f2937;
+}
+
+:root {
+  --primary: #ff4d6d;   /* pink */
+  --primary-2: #d946ef; /* fuchsia/purple */
+  --corner-radius: 16px;
+  --blur-strong: 40px;
+  --blur-light: 8px;
+  --shadow-window: 0 32px 64px -12px rgba(0, 0, 0, 0.25);
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+html:not(.theme-dark) .glass-effect {
+  /* ライトモードは常に白を維持（ウィンドウ透過時も白さを保つ） */
+  background: #ffffff;
+  border: none;
+}
+
+html.solid-window:not(.theme-dark) .glass-effect {
+  background: #ffffff !important;
+}
+
+html:not(.theme-dark) .message-user-content {
+  background-color: #ffffff !important;
+  color: #374151 !important;
+  border-color: #e5e7eb !important;
+}
+
+html:not(.theme-dark) .message-system {
+  background-color: #ffffff !important;
+  color: #374151 !important;
+  border-color: #e5e7eb !important;
+}
+
+/* ライトモード: メッセージ入力欄も薄いガラス効果 */
+html:not(.theme-dark) #messageInput {
+  /* ライトモードは常に白を維持 */
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.theme-dark .glass-effect {
+  /* ダークモードも元の色を維持。透過はウィンドウ不透明度で行う */
+  background: linear-gradient(145deg, #0b1021, #1a1446);
+  color: #e5e7eb;
+  border: none;
+}
+
+html.solid-window.theme-dark .glass-effect {
+  background: linear-gradient(145deg, #0b1021, #1a1446) !important;
+}
+
+
+/* header logo embedding removed */
+
+.theme-dark .message-user-content { background: linear-gradient(145deg, #1a1446, #0b1021); color: #e5e7eb; border-color: rgba(255,255,255,0.15); }
+.theme-dark .message-system { background: linear-gradient(145deg, #1a1446, #0b1021); color: #cbd5e1; border-color: rgba(255,255,255,0.12); }
+
+/* ダークモード: チャットテキストを白に */
+.theme-dark .message-ai-content { color: #ffffff; }
+.theme-dark .message-user-content { color: #ffffff; }
+
+/* Dark mode: header controls in white */
+/* header status removed */
+
+
+/* Layout */
+.h-screen {
+  height: 100vh;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+.items-center {
+  align-items: center;
+}
+
+
+.items-end {
+  align-items: flex-end;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+
+.justify-end {
+  justify-content: flex-end;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+.gap-3 {
+  gap: 0.75rem;
+}
+
+
+
+
+/* Sizing */
+.w-3 {
+  width: 0.75rem;
+}
+
+.w-4 {
+  width: 1rem;
+}
+
+
+.w-full {
+  width: 100%;
+}
+
+.h-3 {
+  height: 0.75rem;
+}
+
+.h-4 {
+  height: 1rem;
+}
+
+
+.h-10 {
+  height: 2.5rem;
+}
+
+
+
+/* Spacing */
+
+.px-3 {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+.px-4 {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.pt-4 {
+  padding-top: 1rem;
+}
+
+.pb-6 {
+  padding-bottom: 1.5rem;
+}
+
+.py-1 {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.py-1\.5 {
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
+}
+
+.py-2 {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+
+
+.mr-1 {
+  margin-right: 0.25rem;
+}
+
+
+
+
+/* Colors */
+
+
+.text-gray-500 {
+  color: #6b7280;
+}
+
+
+.text-gray-700 {
+  color: #374151;
+}
+
+
+/* Typography */
+.text-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+
+
+
+/* Borders */
+.border {
+  border-width: 1px;
+}
+
+.border-t {
+  border-top-width: 1px;
+}
+
+.border-b {
+  border-bottom-width: 1px;
+}
+
+
+.rounded {
+  border-radius: 0.25rem;
+}
+
+.rounded-md {
+  border-radius: 0.375rem;
+}
+
+.rounded-lg {
+  border-radius: 0.5rem;
+}
+
+
+.rounded-full {
+  border-radius: 9999px;
+}
+
+/* Positioning */
+.relative {
+  position: relative;
+}
+
+.absolute {
+  position: absolute;
+}
+
+.right-2 {
+  right: 0.5rem;
+}
+
+
+
+/* Overflow */
+.overflow-hidden {
+  overflow: hidden;
+}
+
+.overflow-y-auto {
+  overflow-y: auto;
+}
+
+
+/* Opacity */
+.opacity-50 {
+  opacity: 0.5;
+}
+
+/* Shadows */
+.shadow-sm {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.shadow-2xl { box-shadow: var(--shadow-window); }
+
+/* Transitions */
+
+.transition-all {
+  transition: all 0.15s ease-in-out;
+}
+
+.duration-200 {
+  transition-duration: 200ms;
+}
+
+/* Hover states */
+.hover\:scale-105:hover {
+  transform: scale(1.05);
+}
+
+/* Disabled states */
+.disabled\:cursor-not-allowed:disabled {
+  cursor: not-allowed;
+}
+
+.disabled\:opacity-50:disabled {
+  opacity: 0.5;
+}
+
+.disabled\:hover\:scale-100:disabled:hover {
+  transform: scale(1);
+}
+
+/* Focus states */
+.focus\:outline-none:focus {
+  outline: none;
+}
+
+.focus\:ring-2:focus {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+}
+
+.focus\:border-transparent:focus {
+  border-color: transparent;
+}
+
+/* Drag region */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.drag-region button {
+  -webkit-app-region: no-drag;
+}
+
+ 
+
+/* Header */
+
+/* Custom scrollbar */
+/* 全てのスクロールバーを非表示 */
+* {
+  /* Firefox / Edge (レガシー) */
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+*::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+}
+
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-thumb,
+*::-webkit-scrollbar-thumb:hover {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Message styles */
+.message-user-container {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+  padding: 0 0.75rem;
+}
+
+.message-user-content {
+  background-color: rgba(255, 255, 255, 0.7);
+  color: #374151;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  max-width: 85%;
+  word-wrap: break-word;
+  line-height: 1.5;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: var(--shadow-card);
+}
+
+.message-ai-container {
+  width: 100%;
+  margin-bottom: 1rem;
+  padding: 0 0.75rem;
+}
+
+.message-ai-content {
+  color: #1f2937;
+  font-size: 0.875rem;
+  word-wrap: break-word;
+  width: 100%;
+  line-height: 1.6;
+  padding-right: 0;
+  margin-right: 0;
+}
+
+
+.message-ai-content h1,
+.message-ai-content h2,
+.message-ai-content h3,
+.message-ai-content h4,
+.message-ai-content h5,
+.message-ai-content h6 {
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  padding-right: 0;
+}
+
+.message-ai-content h1 {
+  font-size: 1.125rem;
+}
+
+.message-ai-content h2 {
+  font-size: 1rem;
+}
+
+.message-ai-content h3 {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.message-ai-content p {
+  margin-bottom: 0.75rem;
+  padding-right: 0;
+}
+
+.message-ai-content ul,
+.message-ai-content ol {
+  margin-left: 1rem;
+  margin-bottom: 0.75rem;
+  padding-right: 0;
+}
+
+.message-ai-content li {
+  margin-bottom: 0.25rem;
+  padding-right: 0;
+}
+
+.message-ai-content ul li {
+  list-style-type: disc;
+}
+
+.message-ai-content ol li {
+  list-style-type: decimal;
+}
+
+.message-ai-content code {
+  background-color: #f3f4f6;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+/* Dark mode inline code override */
+.theme-dark .message-ai-content code {
+  background-color: rgba(255, 255, 255, 0.10);
+  color: #e5e7eb;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.message-ai-content pre {
+  background-color: #f3f4f6;
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  border: none !important;
+  overflow-x: auto;
+  margin-bottom: 0.75rem;
+  margin-right: 0;
+}
+
+/* Dark mode code block (no border) */
+.theme-dark .message-ai-content pre {
+  background-color: rgba(255, 255, 255, 0.10);
+  border: none !important;
+}
+
+.message-ai-content pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+.message-ai-content blockquote {
+  border-left: 4px solid #d1d5db;
+  padding-left: 1rem;
+  font-style: italic;
+  color: #6b7280;
+  margin-bottom: 0.75rem;
+  margin-right: 0;
+}
+
+.message-ai-content strong {
+  font-weight: 600;
+}
+
+.message-ai-content em {
+  font-style: italic;
+}
+
+.message-ai-content a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.message-ai-content a:hover {
+  color: #1d4ed8;
+}
+
+.message-system {
+  background-color: rgba(255, 255, 255, 0.6);
+  color: #6b7280;
+  font-size: 0.75rem;
+  /* 横は据え置き、上下をほんの少し拡大 */
+  padding: 0.95rem 0.75rem;
+  border-radius: 0.5rem;
+  text-align: left;
+  margin: 0.5rem 0;
+  margin-right: 0;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  width: 100%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+ 
+.message-system-compact {
+  font-size: 0.6875rem; /* ~11px */
+  /* コンパクト版も上下をわずかに広げる */
+  padding-top: 0.2rem;
+  padding-bottom: 0.2rem;
+  /* 2行まで表示（クリックで展開）*/
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  white-space: normal; /* 折返しを有効にしてクランプ可能に */
+  cursor: pointer;
+}
+
+/* 展開時は制限を解除し、元の折返しに戻す */
+.message-system-compact.expanded {
+  display: block;
+  -webkit-line-clamp: initial;
+  overflow: visible;
+  white-space: pre-wrap;
+}
+
+/* Animations */
+.message-enter {
+  animation: messageSlideIn 0.3s ease-out;
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* タイピングインジケーター */
+.typing-indicator-content {
+  padding: 0.75rem 0;
+  color: #6b7280;
+  font-size: 0.875rem;
+  width: 100%;
+  margin-right: 0;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 640px) {
+  .message-user-content {
+    max-width: 90%;
+    font-size: 0.8rem;
+    padding: 0.6rem 0.8rem;
+  }
+
+  .message-ai-content {
+    font-size: 0.8rem;
+    padding-right: 0;
+  }
+
+  .typing-indicator-content {
+    font-size: 0.8rem;
+  }
+
+  #chatHistory {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+}
+
+/* Status indicator */
+
+/* Bounce animation */
+.animate-bounce {
+  animation: bounce 1s infinite;
+}
+
+@keyframes bounce {
+
+  0%,
+  100% {
+    transform: translateY(-25%);
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+
+  50% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+}
+
+
+/* Utility classes */
+.inline {
+  display: inline;
+}
+
+.inline-flex {
+  display: inline-flex;
+}
+
+.hidden {
+  display: none;
+}
+
+/* チャット全体の改善 */
+#chatHistory {
+  scroll-behavior: smooth;
+  /* Allow the history pane to shrink to 0 so the window can be resized right up to the input area */
+  min-height: 0;
+  /* Remove bottom padding to avoid a gap when height is minimal (overrides py-4 class) */
+  padding-bottom: 0 !important;
+}
+
+/* チャット履歴のスクロールバー */
+#chatHistory::-webkit-scrollbar {
+  width: 4px;
+}
+
+#chatHistory::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#chatHistory::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+#chatHistory::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* メッセージ間のスペース調整 */
+.message-user-container+.message-ai-container,
+.message-ai-container+.message-user-container {
+  margin-top: 0.5rem;
+}
+
+
+/* Button styles */
+button {
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Header status removed */
+
+
+
+
+/* Send button explicit styles for consistency */
+#sendBtn {
+  position: absolute !important;
+  right: 0.5rem !important;  /* match right-2 */
+  bottom: calc(0.5rem + 1px) !important; /* nudge up by 1px from bottom */
+  background-color: transparent !important;
+  background-image: linear-gradient(135deg, var(--primary), var(--primary-2)) !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+  color: #ffffff !important;
+  border: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 9999px !important;
+  width: 1.625rem;  /* 26px */
+  height: 1.625rem; /* 26px */
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0; /* ensure perfect visual centering */
+  z-index: 1;
+}
+
+#sendBtn svg { position: static; }
+
+#sendBtn:hover:not(:disabled) {
+  filter: saturate(1.06) brightness(1.03);
+}
+
+/* dark mode send button uses same base styles */
+
+
+/* Glass effect */
+.glass-effect {
+  background: rgba(255, 255, 255, var(--glass-alpha-light, 0.2));
+  border: none;
+  border-radius: var(--corner-radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-window);
+}
+
+.backdrop-blur-sm { }
+
+
+/* Dark mode input styling */
+.theme-dark #messageInput {
+  /* ダークモードも元色を維持。透過はウィンドウ不透明度で行う */
+  background: linear-gradient(145deg, #1a1446, #0b1021);
+  color: #e5e7eb;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+/* Solid input backgrounds to match solid window (optional) */
+html.solid-window:not(.theme-dark) #messageInput {
+  background: #ffffff !important;
+}
+html.solid-window.theme-dark #messageInput {
+  background: linear-gradient(145deg, #1a1446, #0b1021) !important;
+}
+
+.theme-dark #messageInput::placeholder {
+  color: #9ca3af;
+}
+
+/* Chat input placeholder size */
+#messageInput::placeholder {
+  font-size: 12px;
+}
+
+
+/* Toasts */
+.toast-container {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 9999;
+}
+.toast {
+  background: rgba(17,24,39,0.92);
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  font-size: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  animation: toastIn .16s ease-out;
+}
+.toast.info { background: rgba(17,24,39,0.92); }
+.toast.error { background: rgba(190,24,93,0.95); }
+@keyframes toastIn { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: translateY(0);} }
+
+/* status indicator non-interactive styling */
+/* header status removed */
+
+
+
+
+
+/* Remove focus ring specifically for chat input */
+#messageInput:focus {
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Ensure input area reserves space for button and stays tidy (stable across sizes) */
+#inputWrapper { min-height: 40px; }
+#messageInput { padding-right: 44px; line-height: 1.35; }
+
+/* Chat input area: reduce top/bottom spacing */
+#inputArea {
+  padding-top: 0.5rem !important;   /* was 1rem via pt-4 */
+  padding-bottom: 0.25rem !important; /* was 1.5rem via pb-6 */
+}
+
+/* Dark mode chat tone & focus */
+.theme-dark .message-user-content {
+  background: linear-gradient(145deg, #1a1446, #0b1021);
+  color: #e5e7eb;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.theme-dark .message-system {
+  background: linear-gradient(145deg, #1a1446, #0b1021);
+  color: #cfd5e3;
+  border-color: rgba(255, 255, 255, 0.16);
+  text-align: left;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+/* Higher specificity to re-introduce a subtle focus ring in dark mode */
+.theme-dark #messageInput:focus {
+  box-shadow: 0 0 0 2px rgba(217, 70, 239, 0.35) !important;
+  border-color: rgba(255, 255, 255, 0.20) !important;
+}
+
+/* Slash command suggest */
+#inputWrapper { position: relative; }
+.slash-suggest {
+  position: absolute;
+  left: 0.25rem; /* 4px */
+  right: 2.75rem; /* keep clear of send button */
+  bottom: 2.75rem; /* sit above input */
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 10px;
+  box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+  padding: 4px;
+  z-index: 10;
+}
+.theme-dark .slash-suggest {
+  background: linear-gradient(145deg, rgba(26,20,70,0.88), rgba(11,16,33,0.88));
+  border-color: rgba(255,255,255,0.12);
+}
+.slash-suggest-list { max-height: 200px; overflow-y: auto; }
+.slash-suggest-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.slash-suggest-item .cmd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #111827; }
+.slash-suggest-item .desc { font-size: 12px; color: #6b7280; }
+.theme-dark .slash-suggest-item .cmd { color: #e5e7eb; }
+.theme-dark .slash-suggest-item .desc { color: #9ca3af; }
+.slash-suggest-item:hover, .slash-suggest-item.active { background: rgba(0,0,0,0.06); }
+.theme-dark .slash-suggest-item:hover, .theme-dark .slash-suggest-item.active { background: rgba(255,255,255,0.08); }
+
+/* Chat textarea base styling (light) */
+#messageInput {
+  line-height: 1.4;
+  font-size: 12px;
+  min-height: 2.25rem; /* ~36px */
+  max-height: 10rem;
+  overflow-y: auto;
+  resize: none;
+  border-radius: 0.5rem;
+  background-color: rgba(255, 255, 255, 0.60);
+  border: 1px solid rgba(255, 255, 255, 0.30);
+}
