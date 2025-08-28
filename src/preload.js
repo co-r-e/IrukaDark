@@ -23,5 +23,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Show the current application menu as a context menu at given coordinates
   showAppMenu: (pos) => ipcRenderer.invoke('ui:show-app-menu', pos),
   onExplainScreenshot: (callback) => ipcRenderer.on('explain-screenshot', (_e, payload) => callback(payload)),
-  onExplainScreenshotDetailed: (callback) => ipcRenderer.on('explain-screenshot-detailed', (_e, payload) => callback(payload))
+  onExplainScreenshotDetailed: (callback) => ipcRenderer.on('explain-screenshot-detailed', (_e, payload) => callback(payload)),
+  saveWebSearchSetting: (enabled) => ipcRenderer.invoke('save-web-search-setting', enabled),
+  getWebSearchEnabled: () => ipcRenderer.invoke('get-web-search-enabled')
 });

@@ -17,8 +17,13 @@ const I18N_STRINGS = {
         canceled: 'Canceled.',
         historyCleared: 'Chat history cleared.',
         historyCompacted: 'Compressed chat history with a summary.',
-        availableCommands: 'Available commands: /clear, /compact, /next, /contact',
+        availableCommands: 'Available commands: /clear, /compact, /next, /contact, /web (on/off/status)',
         sourcesBadge: 'Sources',
+        webSearchEnabled: 'Web Search enabled.',
+        webSearchDisabled: 'Web Search disabled.',
+        webSearchStatusOn: 'Web Search: ON',
+        webSearchStatusOff: 'Web Search: OFF',
+        webSearchHelp: 'Use /websearch on|off|status',
         noPreviousAI: 'No previous AI message to continue.'
     },
     ja: {
@@ -39,8 +44,13 @@ const I18N_STRINGS = {
         canceled: '中断しました。',
         historyCleared: '履歴をクリアしました。',
         historyCompacted: '履歴を要約して圧縮しました。',
-        availableCommands: '利用可能なコマンド: /clear, /compact, /next, /contact',
+        availableCommands: '利用可能なコマンド: /clear, /compact, /next, /contact, /web (on/off/status)',
         sourcesBadge: '参照',
+        webSearchEnabled: 'Web検索を有効にしました。',
+        webSearchDisabled: 'Web検索を無効にしました。',
+        webSearchStatusOn: 'Web検索: ON',
+        webSearchStatusOff: 'Web検索: OFF',
+        webSearchHelp: '/websearch on|off|status を使用できます',
         noPreviousAI: '直前のAIメッセージがありません。'
     }
 };
@@ -73,6 +83,8 @@ class IrukaDarkApp {
         this.chatHistoryData = [];
         // Auto-scroll control: disabled during detailed shortcut flow
         this.disableAutoScroll = false;
+        // Web search toggle (default from env or OFF)
+        this.webSearchEnabled = false;
         // Generation state
         this.isGenerating = false;
         this.cancelRequested = false;
@@ -237,6 +249,20 @@ class IrukaDarkApp {
         }
         // 初期言語の同期を非同期で実行
         this.initializeLanguage();
+        // Web検索設定の読み込み
+        this.loadWebSearchSetting();
+    }
+
+    async loadWebSearchSetting() {
+        try {
+            if (window.electronAPI && window.electronAPI.getWebSearchEnabled) {
+                const enabled = await window.electronAPI.getWebSearchEnabled();
+                this.webSearchEnabled = !!enabled;
+            }
+        } catch (error) {
+            console.error('Failed to load web search setting:', error);
+            this.webSearchEnabled = false;
+        }
     }
 
     async initializeLanguage() {
@@ -312,7 +338,7 @@ class IrukaDarkApp {
 
         try {
             const historyText = this.buildHistoryContext();
-            const response = await this.geminiService.generateTextExplanation(content, historyText);
+            const response = await this.geminiService.generateTextExplanation(content, historyText, this.webSearchEnabled);
             await this.flashSearchingIfSources(response);
             this.hideTypingIndicator();
             if (this.cancelRequested) { return; }
@@ -341,7 +367,7 @@ class IrukaDarkApp {
 
         try {
             const historyText = this.buildHistoryContext();
-            const response = await this.geminiService.generateDetailedExplanation(content, historyText);
+            const response = await this.geminiService.generateDetailedExplanation(content, historyText, this.webSearchEnabled);
             await this.flashSearchingIfSources(response);
             this.hideTypingIndicator();
             if (this.cancelRequested) { return; }
@@ -374,7 +400,7 @@ class IrukaDarkApp {
             this.syncHeader();
             this.showTypingIndicator();
             const historyText = this.buildHistoryContext();
-            const response = await this.geminiService.generateImageExplanation(data, mime, historyText);
+            const response = await this.geminiService.generateImageExplanation(data, mime, historyText, this.webSearchEnabled);
             await this.flashSearchingIfSources(response);
             this.hideTypingIndicator();
             if (this.cancelRequested) { return; }
@@ -406,7 +432,7 @@ class IrukaDarkApp {
             this.syncHeader();
             this.showTypingIndicator();
             const historyText = this.buildHistoryContext();
-            const response = await this.geminiService.generateImageDetailedExplanation(data, mime, historyText);
+            const response = await this.geminiService.generateImageDetailedExplanation(data, mime, historyText, this.webSearchEnabled);
             await this.flashSearchingIfSources(response);
             this.hideTypingIndicator();
             if (this.cancelRequested) { return; }
@@ -465,7 +491,7 @@ class IrukaDarkApp {
 
         try {
             const historyText = this.buildHistoryContext();
-            const response = await this.geminiService.generateResponse(message, historyText);
+            const response = await this.geminiService.generateResponse(message, historyText, this.webSearchEnabled);
             await this.flashSearchingIfSources(response);
             this.hideTypingIndicator();
             if (this.cancelRequested) { return; }
@@ -509,7 +535,7 @@ class IrukaDarkApp {
             try {
                 const historyText = this.buildHistoryContext(8000, 30);
                 this.showTypingIndicator();
-                const summary = await this.geminiService.generateHistorySummary(historyText);
+                const summary = await this.geminiService.generateHistorySummary(historyText, this.webSearchEnabled);
                 this.hideTypingIndicator();
                 if (this.cancelRequested) { return; }
                 // 履歴を要約のみで置き換え（コンパクト化）
@@ -531,7 +557,7 @@ class IrukaDarkApp {
                 if (!lastAI) { this.addMessage('system', getUIText('noPreviousAI')); return; }
                 const historyText = this.buildHistoryContext(8000, 30);
                 this.showTypingIndicator();
-                const cont = await this.geminiService.generateContinuation(String(lastAI.content || ''), historyText);
+                const cont = await this.geminiService.generateContinuation(String(lastAI.content || ''), historyText, this.webSearchEnabled);
                 this.hideTypingIndicator();
                 if (this.cancelRequested) { return; }
                 this.addMessage('ai', cont);
@@ -553,6 +579,37 @@ class IrukaDarkApp {
             return;
         }
 
+        // /websearch commands: on|off|status (aliases: /web)
+        if (lower.startsWith('/websearch') || lower.startsWith('/web ' ) || lower === '/web') {
+            const parts = cmd.split(/\s+/).map(s => s.trim()).filter(Boolean);
+            const act = (parts[1] || '').toLowerCase();
+            if (act === 'on') {
+                this.webSearchEnabled = true;
+                // Save to .env.local
+                if (window.electronAPI && window.electronAPI.saveWebSearchSetting) {
+                    window.electronAPI.saveWebSearchSetting(true);
+                }
+                this.addMessage('system', getUIText('webSearchEnabled'));
+                return;
+            }
+            if (act === 'off') {
+                this.webSearchEnabled = false;
+                // Save to .env.local
+                if (window.electronAPI && window.electronAPI.saveWebSearchSetting) {
+                    window.electronAPI.saveWebSearchSetting(false);
+                }
+                this.addMessage('system', getUIText('webSearchDisabled'));
+                return;
+            }
+            if (act === 'status' || act === 'state') {
+                this.addMessage('system', this.webSearchEnabled ? getUIText('webSearchStatusOn') : getUIText('webSearchStatusOff'));
+                return;
+            }
+            // default help
+            this.addMessage('system', getUIText('webSearchHelp'));
+            return;
+        }
+
         this.addMessage('system', getUIText('availableCommands'));
     }
 
@@ -561,7 +618,10 @@ class IrukaDarkApp {
             { key: '/clear', label: '/clear', desc: { en: 'Clear chat history', ja: '履歴をクリア' } },
             { key: '/compact', label: '/compact', desc: { en: 'Summarize and compact history', ja: '履歴を要約して圧縮' } },
             { key: '/next', label: '/next', desc: { en: 'Continue the last AI output', ja: '直前のAI回答の続きを生成' } },
-            { key: '/contact', label: '/contact', desc: { en: 'Open contact URL', ja: '連絡先URLを開く' } }
+            { key: '/contact', label: '/contact', desc: { en: 'Open contact URL', ja: '連絡先URLを開く' } },
+            { key: '/websearch on', label: '/websearch on', desc: { en: 'Enable Web Search', ja: 'Web検索を有効化' } },
+            { key: '/websearch off', label: '/websearch off', desc: { en: 'Disable Web Search', ja: 'Web検索を無効化' } },
+            { key: '/websearch status', label: '/websearch status', desc: { en: 'Show Web Search status', ja: 'Web検索の状態を表示' } }
         ];
         this.suggestIndex = -1;
         this.suggestVisible = false;
@@ -1058,11 +1118,11 @@ class GeminiService {
         }
     }
 
-    async requestText(prompt) {
+    async requestText(prompt, useWebSearch = false) {
         try {
             if (window.electronAPI && window.electronAPI.aiGenerate) {
                 const cfg = this.defaultGenerationConfig();
-                const result = await window.electronAPI.aiGenerate(prompt, { model: this.model, generationConfig: cfg });
+                const result = await window.electronAPI.aiGenerate(prompt, { model: this.model, generationConfig: cfg, useWebSearch: !!useWebSearch });
                 if (typeof result === 'string') return { text: result, sources: [] };
                 if (result && typeof result.text === 'string') return { text: result.text, sources: Array.isArray(result.sources) ? result.sources : [] };
                 return { text: getUIText('unexpectedResponse'), sources: [] };
@@ -1073,11 +1133,11 @@ class GeminiService {
         }
     }
 
-    async requestWithImage(prompt, imageBase64, mimeType = 'image/png') {
+    async requestWithImage(prompt, imageBase64, mimeType = 'image/png', useWebSearch = false) {
         try {
             if (window.electronAPI && window.electronAPI.aiGenerateWithImage) {
                 const cfg = this.defaultGenerationConfig();
-                const result = await window.electronAPI.aiGenerateWithImage(prompt, imageBase64, mimeType, { model: this.model, generationConfig: cfg });
+                const result = await window.electronAPI.aiGenerateWithImage(prompt, imageBase64, mimeType, { model: this.model, generationConfig: cfg, useWebSearch: !!useWebSearch });
                 if (typeof result === 'string') return { text: result, sources: [] };
                 if (result && typeof result.text === 'string') return { text: result.text, sources: Array.isArray(result.sources) ? result.sources : [] };
                 return { text: getUIText('unexpectedResponse'), sources: [] };
@@ -1088,13 +1148,13 @@ class GeminiService {
         }
     }
 
-    async generateResponse(userMessage, historyText = '') {
+    async generateResponse(userMessage, historyText = '', useWebSearch = false) {
         const prompt = this.buildTextOnlyPrompt(userMessage, historyText);
-        return this.requestText(prompt);
+        return this.requestText(prompt, useWebSearch);
     }
 
     /** テキストのみを解説する（UI言語に合わせて出力言語を切替） */
-    async generateTextExplanation(text, historyText = '') {
+    async generateTextExplanation(text, historyText = '', useWebSearch = false) {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
         const t = text.length > 8000 ? text.slice(0, 8000) + (lang === 'ja' ? ' …(一部省略)' : ' …(truncated)') : text;
         let prompt;
@@ -1109,13 +1169,13 @@ class GeminiService {
                 prompt = `Context (recent chat):\n${historyText}\n\n` + prompt;
             }
         }
-        return this.requestText(prompt);
+        return this.requestText(prompt, useWebSearch);
     }
 
     /**
      * 選択テキストの詳細説明（わかりやすく、段階的・例示を含める）
      */
-    async generateDetailedExplanation(text, historyText = '') {
+    async generateDetailedExplanation(text, historyText = '', useWebSearch = false) {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
         const t = text.length > 12000 ? text.slice(0, 12000) + (lang === 'ja' ? ' …(一部省略)' : ' …(truncated)') : text;
         let prompt;
@@ -1130,10 +1190,10 @@ class GeminiService {
                 prompt = `Recent chat context:\n${historyText}\n\n` + prompt;
             }
         }
-        return this.requestText(prompt);
+        return this.requestText(prompt, useWebSearch);
     }
 
-    async generateImageExplanation(imageBase64, mimeType = 'image/png', historyText = '') {
+    async generateImageExplanation(imageBase64, mimeType = 'image/png', historyText = '', useWebSearch = false) {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
         let prompt;
         if (lang === 'ja') {
@@ -1147,10 +1207,10 @@ class GeminiService {
                 prompt = `Recent chat context:\n${historyText}\n\n` + prompt;
             }
         }
-        return this.requestWithImage(prompt, imageBase64, mimeType);
+        return this.requestWithImage(prompt, imageBase64, mimeType, useWebSearch);
     }
 
-    async generateImageDetailedExplanation(imageBase64, mimeType = 'image/png', historyText = '') {
+    async generateImageDetailedExplanation(imageBase64, mimeType = 'image/png', historyText = '', useWebSearch = false) {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
         let prompt;
         if (lang === 'ja') {
@@ -1164,20 +1224,20 @@ class GeminiService {
                 prompt = `Recent chat context:\n${historyText}\n\n` + prompt;
             }
         }
-        return this.requestWithImage(prompt, imageBase64, mimeType);
+        return this.requestWithImage(prompt, imageBase64, mimeType, useWebSearch);
     }
 
-    async generateHistorySummary(historyText = '') {
+    async generateHistorySummary(historyText = '', useWebSearch = false) {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
         const base = (historyText || '').trim();
         if (!base) return lang === 'ja' ? '（履歴がありません）' : '(No history)';
         const prompt = (lang === 'ja')
             ? `以下は直近の会話履歴です。重要なポイントだけを日本語で3〜6行に簡潔に要約してください。箇条書き可。重複や冗長表現は避け、固有名詞・決定事項・未解決点を明確に示してください。\n\n${base}`
             : `Below is the recent conversation history. Summarize the key points in English in 3–6 short lines. Bullets are fine. Avoid redundancy and highlight proper nouns, decisions, and open items.\n\n${base}`;
-        return this.requestText(prompt);
+        return this.requestText(prompt, useWebSearch);
     }
 
-    async generateContinuation(previousText = '', historyText = '') {
+    async generateContinuation(previousText = '', historyText = '', useWebSearch = false) {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
         const t = previousText.length > 12000 ? previousText.slice(0, 12000) + (lang === 'ja' ? ' …(一部省略)' : ' …(truncated)') : previousText;
         let prompt;
@@ -1192,7 +1252,7 @@ class GeminiService {
                 prompt = `Recent chat context:\n${historyText}\n\n` + prompt;
             }
         }
-        return this.requestText(prompt);
+        return this.requestText(prompt, useWebSearch);
     }
 
     defaultGenerationConfig() { return { temperature: 0.7, topK: 40, topP: 0.95, maxOutputTokens: 2048 }; }

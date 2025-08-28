@@ -30,48 +30,6 @@ if (!envLoaded) {
 
 const isDev = process.env.NODE_ENV === 'development';
 
-// Track in-flight AI tasks per renderer (for cancelation)
-const inFlightTasks = new Map(); // key: webContents.id, value: { controller: AbortController, canceled: boolean }
-
-function setInFlight(sender, controller) {
-  try {
-    const id = sender && sender.id;
-    if (!id) return;
-    inFlightTasks.set(id, { controller, canceled: false });
-  } catch {}
-}
-
-function clearInFlight(sender, controller) {
-  try {
-    const id = sender && sender.id;
-    if (!id) return;
-    const cur = inFlightTasks.get(id);
-    if (cur && (!controller || cur.controller === controller)) inFlightTasks.delete(id);
-  } catch {}
-}
-
-function cancelInFlight(sender) {
-  try {
-    const id = sender && sender.id;
-    if (!id) return false;
-    const cur = inFlightTasks.get(id);
-    if (!cur) return false;
-    cur.canceled = true;
-    try { cur.controller && cur.controller.abort(); } catch {}
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function isCanceled(sender) {
-  try {
-    const id = sender && sender.id;
-    const cur = id ? inFlightTasks.get(id) : null;
-    return !!(cur && cur.canceled);
-  } catch { return false; }
-}
-
 function resolveApiKeys() {
   // Prefer explicit Gemini/GenAI keys; try generic/public keys last
   const order = [
@@ -288,7 +246,7 @@ async function restGenerateText(apiKey, modelBare, prompt, generationConfig, { u
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-    signal
+    signal: signal || undefined
   });
   if (!res.ok) {
     const t = await res.text();
@@ -314,7 +272,7 @@ async function restGenerateImage(apiKey, modelBare, prompt, imageBase64, mimeTyp
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-    signal
+    signal: signal || undefined
   });
   if (!res.ok) {
     const t = await res.text();
@@ -956,6 +914,13 @@ function handlePinAllSpacesChange(enabled) {
   createAppMenu();
 }
 
+// Web検索設定の保存
+function saveWebSearchSetting(enabled) {
+  const envPath = path.join(__dirname, '../.env.local');
+  upsertEnvVar(envPath, 'ENABLE_GOOGLE_SEARCH', enabled ? '1' : '0');
+  if (isDev) console.log(`Web search setting saved: ${enabled}`);
+}
+
 // アプリメニュー（Edit ロールを含む）- 多言語対応
 function createAppMenu() {
   const isMac = process.platform === 'darwin';
@@ -1163,9 +1128,22 @@ ipcMain.handle('get-ui-language', () => {
   return process.env.MENU_LANGUAGE || 'en';
 });
 
+// Web検索設定の保存
+ipcMain.handle('save-web-search-setting', (_e, enabled) => {
+  saveWebSearchSetting(enabled);
+  process.env.ENABLE_GOOGLE_SEARCH = enabled ? '1' : '0';
+  return true;
+});
+
 // 背景透過レベル
 ipcMain.handle('get-glass-level', () => {
   return process.env.GLASS_LEVEL || 'medium';
+});
+
+// Web検索設定の取得
+ipcMain.handle('get-web-search-enabled', () => {
+  // デフォルトはOFF ('0')
+  return process.env.ENABLE_GOOGLE_SEARCH !== '0';
 });
 
 // ウィンドウ不透明度
@@ -1175,7 +1153,7 @@ ipcMain.handle('get-window-opacity', () => {
 });
 
 // Gemini API proxy: execute in main (renderer never sees API key)
-ipcMain.handle('ai:generate', async (e, payload) => {
+ipcMain.handle('ai:generate', async (_e, payload) => {
   try {
     const keys = resolveApiKeys();
     if (!keys.length) return 'API key is not set. Please set GEMINI_API_KEY in .env.local file.';
@@ -1188,81 +1166,114 @@ ipcMain.handle('ai:generate', async (e, payload) => {
       topP: 0.95,
       maxOutputTokens: 2048,
     };
-    // Always allow grounding tools; the model may ignore them.
-    const useGoogleSearch = true;
+    // Prefer search when the prompt suggests web lookup; otherwise allow model to decide
+    // Do not emit heuristic search mode; rely on model output only
+    const useGoogleSearch = payload?.useWebSearch === true; // Use frontend's preference
 
     // Try requested model first, then a search-capable model
-    const searchPreferred = process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash-lite';
-    const modelsToTry = [requestedModel, searchPreferred];
-
-    // Prepare cancel controller for this sender
-    const controller = new AbortController();
-    setInFlight(e.sender, controller);
+    const searchPreferred = process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash';
+    // Remove duplicates
+    const modelsToTry = requestedModel === searchPreferred ? [requestedModel] : [requestedModel, searchPreferred];
 
     const isInvalid = (msg) => /API_KEY_INVALID|API key not valid/i.test(String(msg || ''));
     const tryOne = async (key) => {
-      for (const modelName of modelsToTry) {
-        if (isCanceled(e.sender)) throw new Error('CANCELLED');
-        const bare = modelCandidates(modelName)[0].replace(/^models\//, '');
-        // 1) REST with tools (cancelable)
-        try {
-          const r3 = await restGenerateText(key, bare, prompt, generationConfig, { useGoogleSearch: true, signal: controller.signal });
-          if (r3) return r3;
-        } catch (e) {
-          const m = e?.name === 'AbortError' ? 'CANCELLED' : (e?.message || '');
-          if (m === 'CANCELLED') throw new Error('CANCELLED');
-          if (isInvalid(m)) throw new Error('API_KEY_INVALID');
-        }
-        if (isCanceled(e.sender)) throw new Error('CANCELLED');
-        // 2) REST without tools (cancelable)
-        try {
-          const r4 = await restGenerateText(key, bare, prompt, generationConfig, { useGoogleSearch: false, signal: controller.signal });
-          if (r4) return r4;
-        } catch (e) {
-          const m = e?.name === 'AbortError' ? 'CANCELLED' : (e?.message || '');
-          if (m === 'CANCELLED') throw new Error('CANCELLED');
-          if (isInvalid(m)) throw new Error('API_KEY_INVALID');
-        }
-        if (isCanceled(e.sender)) throw new Error('CANCELLED');
-        // 3) SDK with tools
-        try {
-          const client = await getGenAIClientForKey(key);
-          const r1 = await sdkGenerateText(client, modelName, prompt, generationConfig, { useGoogleSearch: true });
-          if (r1) return r1;
-        } catch {}
-        if (isCanceled(e.sender)) throw new Error('CANCELLED');
-        // 4) SDK without tools
-        try {
-          const client = await getGenAIClientForKey(key);
-          const r2 = await sdkGenerateText(client, modelName, prompt, generationConfig, { useGoogleSearch: false });
-          if (r2) return r2;
-        } catch {}
-        if (isCanceled(e.sender)) throw new Error('CANCELLED');
+      // Create client once for SDK attempts
+      let client = null;
+      try {
+        client = await getGenAIClientForKey(key);
+      } catch (e) {
+        if (isDev) console.log('SDK client creation failed:', e?.message);
       }
-      throw new Error('All model attempts failed');
+
+      // AbortController for timeouts
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      try {
+        for (const modelName of modelsToTry) {
+          // 1) Try SDK with Google Search (most common success case)
+          if (client) {
+            try {
+              const r1 = await sdkGenerateText(client, modelName, prompt, generationConfig, { useGoogleSearch });
+              if (r1) {
+                clearTimeout(timeoutId);
+                return r1;
+              }
+            } catch (e) {
+              if (isDev) console.log(`SDK with tools failed for ${modelName}:`, e?.message);
+            }
+          }
+
+          // 2) Try REST with Google Search (fallback if SDK fails)
+          const bare = modelCandidates(modelName)[0].replace(/^models\//, '');
+          try {
+            const r3 = await restGenerateText(key, bare, prompt, generationConfig, { useGoogleSearch, signal: controller.signal });
+            if (r3) {
+              clearTimeout(timeoutId);
+              return r3;
+            }
+          } catch (e) {
+            const m = e?.message || '';
+            if (isInvalid(m)) {
+              clearTimeout(timeoutId);
+              throw new Error('API_KEY_INVALID');
+            }
+            if (e.name === 'AbortError') {
+              clearTimeout(timeoutId);
+              throw new Error('Request timed out');
+            }
+            if (isDev) console.log(`REST with tools failed for ${modelName}:`, m);
+          }
+
+          // Only try without tools if explicitly disabled in the future
+          if (!useGoogleSearch) {
+            // 3) SDK without tools
+            if (client) {
+              try {
+                const r2 = await sdkGenerateText(client, modelName, prompt, generationConfig, { useGoogleSearch: false });
+                if (r2) {
+                  clearTimeout(timeoutId);
+                  return r2;
+                }
+              } catch {}
+            }
+
+            // 4) REST without tools
+            try {
+              const r4 = await restGenerateText(key, bare, prompt, generationConfig, { useGoogleSearch: false, signal: controller.signal });
+              if (r4) {
+                clearTimeout(timeoutId);
+                return r4;
+              }
+            } catch (e) {
+              const m = e?.message || '';
+              if (isInvalid(m)) {
+                clearTimeout(timeoutId);
+                throw new Error('API_KEY_INVALID');
+              }
+            }
+          }
+        }
+        
+        clearTimeout(timeoutId);
+        throw new Error('All model attempts failed');
+      } catch (e) {
+        clearTimeout(timeoutId);
+        throw e;
+      }
     };
 
-    try {
-      for (const key of keys) {
-        try { const out = await tryOne(key); if (out) return out; } catch (e2) {
-          const msg = String(e2?.message || '');
-          if (msg === 'CANCELLED') return 'CANCELLED';
-          if (msg === 'API_KEY_INVALID') { continue; }
-          return `API error occurred: ${e2?.message || 'Unknown error'}`;
-        }
-      }
-      return 'API error occurred: No valid Gemini API key found. Please set a valid key (e.g., GEMINI_API_KEY) in .env.local.';
-    } finally {
-      clearInFlight(e.sender, controller);
+    for (const key of keys) {
+      try { const out = await tryOne(key); if (out) return out; } catch (e) { if (String(e?.message) === 'API_KEY_INVALID') { continue; } else { return `API error occurred: ${e?.message || 'Unknown error'}`; } }
     }
+    return 'API error occurred: No valid Gemini API key found. Please set a valid key (e.g., GEMINI_API_KEY) in .env.local.';
   } catch (err) {
-    const msg = err?.name === 'AbortError' ? 'CANCELLED' : (err?.message || 'Unknown error');
-    return msg === 'CANCELLED' ? 'CANCELLED' : `API error occurred: ${msg}`;
+    return `API error occurred: ${err?.message || 'Unknown error'}`;
   }
 });
 
 // Image-capable Gemini API proxy
-ipcMain.handle('ai:generate-with-image', async (e, payload) => {
+ipcMain.handle('ai:generate-with-image', async (_e, payload) => {
   try {
     const keys = resolveApiKeys();
     if (!keys.length) return 'API key is not set. Please set GEMINI_API_KEY in .env.local file.';
@@ -1278,79 +1289,106 @@ ipcMain.handle('ai:generate-with-image', async (e, payload) => {
       maxOutputTokens: 2048,
     };
     // Do not emit heuristic search mode; rely on model output only
-    const useGoogleSearch = true;
+    const useGoogleSearch = payload?.useWebSearch === true; // Use frontend's preference
     const searchPreferred = process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash';
-    const modelsToTry = [requestedModel, searchPreferred];
-
-    const controller = new AbortController();
-    setInFlight(e.sender, controller);
+    // Remove duplicates
+    const modelsToTry = requestedModel === searchPreferred ? [requestedModel] : [requestedModel, searchPreferred];
 
     const isInvalid = (msg) => /API_KEY_INVALID|API key not valid/i.test(String(msg || ''));
     const tryOne = async (key) => {
-      for (const modelName of modelsToTry) {
-        if (isCanceled(e.sender)) throw new Error('CANCELLED');
-        const bare = modelCandidates(modelName)[0].replace(/^models\//, '');
-        // 1) REST with tools (cancelable)
-        try {
-          const r3 = await restGenerateImage(key, bare, prompt, imageBase64, mimeType, generationConfig, { useGoogleSearch: true, signal: controller.signal });
-          if (r3) return r3;
-        } catch (e) {
-          const m = e?.name === 'AbortError' ? 'CANCELLED' : (e?.message || '');
-          if (m === 'CANCELLED') throw new Error('CANCELLED');
-          if (isInvalid(m)) throw new Error('API_KEY_INVALID');
-        }
-        if (isCanceled(e.sender)) throw new Error('CANCELLED');
-        // 2) REST without tools (cancelable)
-        try {
-          const r4 = await restGenerateImage(key, bare, prompt, imageBase64, mimeType, generationConfig, { useGoogleSearch: false, signal: controller.signal });
-          if (r4) return r4;
-        } catch (e) {
-          const m = e?.name === 'AbortError' ? 'CANCELLED' : (e?.message || '');
-          if (m === 'CANCELLED') throw new Error('CANCELLED');
-          if (isInvalid(m)) throw new Error('API_KEY_INVALID');
-        }
-        if (isCanceled(e.sender)) throw new Error('CANCELLED');
-        // 3) SDK with tools
-        try {
-          const client = await getGenAIClientForKey(key);
-          const r1 = await sdkGenerateImage(client, modelName, prompt, imageBase64, mimeType, generationConfig, { useGoogleSearch: true });
-          if (r1) return r1;
-        } catch {}
-        if (isCanceled(e.sender)) throw new Error('CANCELLED');
-        // 4) SDK without tools
-        try {
-          const client = await getGenAIClientForKey(key);
-          const r2 = await sdkGenerateImage(client, modelName, prompt, imageBase64, mimeType, generationConfig, { useGoogleSearch: false });
-          if (r2) return r2;
-        } catch {}
-        if (isCanceled(e.sender)) throw new Error('CANCELLED');
+      // Create client once for SDK attempts
+      let client = null;
+      try {
+        client = await getGenAIClientForKey(key);
+      } catch (e) {
+        if (isDev) console.log('SDK client creation failed:', e?.message);
       }
-      throw new Error('All model attempts failed');
+
+      // AbortController for timeouts
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout for images
+      
+      try {
+        for (const modelName of modelsToTry) {
+          // 1) Try SDK with Google Search (most common success case)
+          if (client) {
+            try {
+              const r1 = await sdkGenerateImage(client, modelName, prompt, imageBase64, mimeType, generationConfig, { useGoogleSearch });
+              if (r1) {
+                clearTimeout(timeoutId);
+                return r1;
+              }
+            } catch (e) {
+              if (isDev) console.log(`SDK with tools failed for ${modelName}:`, e?.message);
+            }
+          }
+
+          // 2) Try REST with Google Search (fallback if SDK fails)
+          const bare = modelCandidates(modelName)[0].replace(/^models\//, '');
+          try {
+            const r3 = await restGenerateImage(key, bare, prompt, imageBase64, mimeType, generationConfig, { useGoogleSearch, signal: controller.signal });
+            if (r3) {
+              clearTimeout(timeoutId);
+              return r3;
+            }
+          } catch (e) {
+            const m = e?.message || '';
+            if (isInvalid(m)) {
+              clearTimeout(timeoutId);
+              throw new Error('API_KEY_INVALID');
+            }
+            if (e.name === 'AbortError') {
+              clearTimeout(timeoutId);
+              throw new Error('Request timed out');
+            }
+            if (isDev) console.log(`REST with tools failed for ${modelName}:`, m);
+          }
+
+          // Only try without tools if explicitly disabled in the future
+          if (!useGoogleSearch) {
+            // 3) SDK without tools
+            if (client) {
+              try {
+                const r2 = await sdkGenerateImage(client, modelName, prompt, imageBase64, mimeType, generationConfig, { useGoogleSearch: false });
+                if (r2) {
+                  clearTimeout(timeoutId);
+                  return r2;
+                }
+              } catch {}
+            }
+
+            // 4) REST without tools
+            try {
+              const r4 = await restGenerateImage(key, bare, prompt, imageBase64, mimeType, generationConfig, { useGoogleSearch: false, signal: controller.signal });
+              if (r4) {
+                clearTimeout(timeoutId);
+                return r4;
+              }
+            } catch (e) {
+              const m = e?.message || '';
+              if (isInvalid(m)) {
+                clearTimeout(timeoutId);
+                throw new Error('API_KEY_INVALID');
+              }
+            }
+          }
+        }
+        
+        clearTimeout(timeoutId);
+        throw new Error('All model attempts failed');
+      } catch (e) {
+        clearTimeout(timeoutId);
+        throw e;
+      }
     };
 
-    try {
-      for (const key of keys) {
-        try { const out = await tryOne(key); if (out) return out; } catch (e2) {
-          const msg = String(e2?.message || '');
-          if (msg === 'CANCELLED') return 'CANCELLED';
-          if (msg === 'API_KEY_INVALID') { continue; }
-          return `API error occurred: ${e2?.message || 'Unknown error'}`;
-        }
-      }
-      return 'API error occurred: No valid Gemini API key found. Please set a valid key (e.g., GEMINI_API_KEY) in .env.local.';
-    } finally {
-      clearInFlight(e.sender, controller);
+    for (const key of keys) {
+      try { const out = await tryOne(key); if (out) return out; } catch (e) { if (String(e?.message) === 'API_KEY_INVALID') { continue; } else { return `API error occurred: ${e?.message || 'Unknown error'}`; } }
     }
+    return 'API error occurred: No valid Gemini API key found. Please set a valid key (e.g., GEMINI_API_KEY) in .env.local.';
   } catch (err) {
-    const msg = err?.name === 'AbortError' ? 'CANCELLED' : (err?.message || 'Unknown error');
-    return msg === 'CANCELLED' ? 'CANCELLED' : `API error occurred: ${msg}`;
+    return `API error occurred: ${err?.message || 'Unknown error'}`;
   }
-});
-
-// Renderer requests to cancel current AI work
-ipcMain.handle('ai:cancel', (e) => {
-  const ok = cancelInFlight(e.sender);
-  return !!ok;
 });
 
 // 別窓（透明ロゴ窓）
