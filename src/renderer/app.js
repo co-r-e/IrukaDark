@@ -38,7 +38,7 @@ const I18N_STRINGS = {
         accessibilityWarning: '自動コピーのため、システム設定 > プライバシーとセキュリティ > アクセシビリティ で許可が必要です。未許可の場合は手動でコピー（Cmd+C）してから実行してください。',
         shortcutRegistered: (accel) => `ショートカットを ${accel.replace('CommandOrControl', 'Cmd/Ctrl')} に設定しました`,
         failedToRegisterShortcut: 'ショートカットの登録に失敗しました。別のアプリと競合している可能性があります。',
-        placeholder: 'イルカダークに質問する...',
+        placeholder: 'イルカダークに質問する',
         send: '送信',
         stop: '停止',
         canceled: '中断しました。',
@@ -485,9 +485,14 @@ class IrukaDarkApp {
 
         this.addMessage('user', message);
         this.syncHeader();
-            // Default to thinking; will switch to searching only if result confirms sources
-            this.isSearching = false;
-            this.showTypingIndicator();
+        // Identity questions: answer directly with branded, short, unique line
+        if (this.maybeRespondIdentity(message)) {
+            this.messageInput?.focus();
+            return;
+        }
+        // Default to thinking; will switch to searching only if result confirms sources
+        this.isSearching = false;
+        this.showTypingIndicator();
 
         try {
             const historyText = this.buildHistoryContext();
@@ -510,6 +515,43 @@ class IrukaDarkApp {
             this.syncHeader();
             this.messageInput?.focus();
         }
+    }
+
+    // Return true if handled as identity question
+    maybeRespondIdentity(text) {
+        try {
+            const t = (text || '').trim();
+            if (!t) return false;
+            const isJa = (getCurrentUILanguage && getCurrentUILanguage() === 'ja');
+            const jaRe = /(あなた|君|お前).*(誰|だれ|何|なに)|自己紹介|どんな\s*(?:アプリ|AI)|誰が作っ|どこが作っ|開発者|作者|会社|何者|君は誰|あなたは誰/;
+            const enRe = /(who\s+are\s+you|what\s+are\s+you|tell\s+me\s+about\s+(?:you|yourself)|about\s+you|your\s+name|who\s+(?:made|created|built|developed)\s+you|what\s+company)/i;
+            const matched = isJa ? jaRe.test(t) : enRe.test(t);
+            if (!matched) return false;
+            const reply = this.pickIdentityResponse(isJa ? 'ja' : 'en');
+            this.addMessage('ai', reply);
+            return true;
+        } catch { return false; }
+    }
+
+    pickIdentityResponse(lang) {
+        const ja = [
+            'IrukaDarkです。CORe Inc（コーレ株式会社）製の小さな相棒AI。さっと答えます。',
+            '私はIrukaDark。CORe Inc（コーレ株式会社）生まれのデスクトップAIです。',
+            'IrukaDark—CORe Inc（コーレ株式会社）がつくった、軽快で手軽なAIです。',
+            '呼ばれて飛び出るIrukaDark。CORe Inc（コーレ株式会社）製、素早く要点を届けます。',
+            'どうも、IrukaDarkです。CORe Inc（コーレ株式会社）発のミニAI。日常の「ちょっと」を解決します。',
+            'IrukaDarkです。CORe Inc（コーレ株式会社）製。小さくても頼れる、常駐型AI。'
+        ];
+        const en = [
+            "I'm IrukaDark — a tiny desktop AI made by CORe Inc (コーレ株式会社).",
+            'Hi, IrukaDark here. Built at CORe Inc (コーレ株式会社) to help fast.',
+            'IrukaDark, crafted by CORe Inc (コーレ株式会社). Small app, quick answers.',
+            'I am IrukaDark, a lightweight helper AI by CORe Inc (コーレ株式会社).',
+            'IrukaDark — born at CORe Inc (コーレ株式会社). Here to keep things snappy.',
+            'Hey! I’m IrukaDark. Made by CORe Inc (コーレ株式会社) for instant help.'
+        ];
+        const arr = lang === 'ja' ? ja : en;
+        return arr[Math.floor(Math.random() * arr.length)];
     }
 
     async flashSearchingIfSources(_result) { /* no-op: always show thinking */ }
@@ -795,9 +837,8 @@ class IrukaDarkApp {
     `;
 
         this.chatHistory.appendChild(typingDiv);
-        if (!this.disableAutoScroll) {
-            this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
-        }
+        // Always ensure the typing indicator is visible
+        this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
     }
 
     hideTypingIndicator() {
