@@ -13,7 +13,7 @@
 - 範囲スクリーンショットの解説（対話的な範囲選択）
   - mac: Option+S（詳細: Option+Shift+S）
   - Win/Linux: Alt+S（詳細: Alt+Shift+S）
-- Gemini 2.5 Flash Lite 統合
+- Google GenAI SDK（@google/genai）経由のGemini統合（既定: 2.5 Flash Lite）
 - ロゴの小さな別窓を表示（メニューからON/OFF）
 - ダーク/ライト対応のミニマルUI
 
@@ -44,7 +44,8 @@ npm start
 
 `.env.local`ファイルに以下の環境変数を設定してください：
 
-- `GEMINI_API_KEY`（必須）: Gemini APIキー（[Google AI Studio](https://makersuite.google.com/app/apikey)で取得）
+- `GEMINI_API_KEY`（必須）: Google AI Studio の API キー
+- 代替: `GOOGLE_GENAI_API_KEY` / `GENAI_API_KEY` / `GOOGLE_API_KEY` / `NEXT_PUBLIC_GEMINI_API_KEY` / `NEXT_PUBLIC_GOOGLE_API_KEY`
 - `GEMINI_MODEL`（任意）: 既定は `gemini-2.5-flash-lite`（例: `gemini-1.5-pro`, `gemini-2.0-flash`）
 - `MENU_LANGUAGE`（任意）: `en` または `ja`（メニューからも切替可能）
 - `UI_THEME`（任意）: `light` または `dark`（メニューからも切替可能）
@@ -169,3 +170,11 @@ SVGファイルを使用することで、高解像度画面でもクリアに�
 MIT License
 
 詳細はリポジトリの [LICENSE](LICENSE) を参照してください。
+
+## 実装メモ
+- 可能なら `@google/genai` SDK を使用し、ローカルのSDK形状が合わない場合はRESTにフォールバックします。
+- 応答の取り出しは Responses API（`output_text`）と従来の candidates/parts 両形に対応しています。
+
+## トラブルシューティング
+- 400 API_KEY_INVALID が出る場合: Google AI Studio の有効なAPIキーを使用してください（一般的なGoogle API Keyでは動作しません）。
+- `.env.local` には上記のいずれかのキー変数を設定してください。複数ある場合は `GEMINI_API_KEY` が優先され、無効キーは自動でスキップされます。

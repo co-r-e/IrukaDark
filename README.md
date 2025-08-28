@@ -15,7 +15,7 @@ Lightweight local AI chat (macOS / Windows / experimental Linux). Explain select
 - Area screenshot explain (interactive selection)
   - mac: Option+S (detailed: Option+Shift+S)
   - Win/Linux: Alt+S (detailed: Alt+Shift+S)
-- Gemini 2.5 Flash Lite integration
+- Gemini integration via Google GenAI SDK (@google/genai) — default: 2.5 Flash Lite
 - Optional floating logo popup window (toggle from menu)
 - Clean, minimal UI with dark/light themes
 
@@ -43,13 +43,18 @@ npm start
 
 ## Environment Variables
 
-- `GEMINI_API_KEY` (required): Get from Google AI Studio
+- `GEMINI_API_KEY` (required): Google AI Studio API Key
+- Also supported: `GOOGLE_GENAI_API_KEY`, `GENAI_API_KEY`, `GOOGLE_API_KEY`, `NEXT_PUBLIC_GEMINI_API_KEY`, `NEXT_PUBLIC_GOOGLE_API_KEY`
 - `GEMINI_MODEL` (optional): Defaults to `gemini-2.5-flash-lite` (e.g. `gemini-1.5-pro`, `gemini-2.0-flash`)
 - `MENU_LANGUAGE` (optional): `en` or `ja` (can be changed from menu)
 - `UI_THEME` (optional): `light` or `dark` (can be changed from menu)
 - `GLASS_LEVEL` (optional): `low` | `medium` | `high`
 - `WINDOW_OPACITY` (optional): `1`, `0.95`, `0.9`, `0.85`, `0.8` (also in menu)
 - `PIN_ALL_SPACES` (optional): `1` to keep windows over all apps/spaces, `0` to limit to current space
+
+Notes:
+- Only Google AI Studio API Keys are supported; Vertex AI (service account/OAuth) is not wired in this repo.
+- If multiple variables are set, the app prefers `GEMINI_API_KEY` and will skip invalid keys automatically.
 
 ## Usage
 
@@ -136,3 +141,11 @@ Designed for local run: clone → .env.local → npm start. No installer/build a
 
 ## License
 MIT License. See `LICENSE`.
+
+## Implementation Notes
+- Primary path: `@google/genai` SDK. If the local SDK shape is incompatible, falls back to Gemini REST.
+- Response parsing supports Responses API (`output_text`) and classic candidates/parts shapes.
+
+## Troubleshooting
+- 400 API_KEY_INVALID: Use a valid Google AI Studio API Key. Generic Google API keys (e.g., Maps) will not work.
+- Ensure `.env.local` contains one of the supported key variables; prefer `GEMINI_API_KEY`.

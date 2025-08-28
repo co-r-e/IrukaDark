@@ -1,7 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  getApiKey: () => ipcRenderer.invoke('get-api-key'),
   getModel: () => ipcRenderer.invoke('get-model'),
   getUILanguage: () => ipcRenderer.invoke('get-ui-language'),
   getUITheme: () => ipcRenderer.invoke('get-ui-theme'),
@@ -12,7 +11,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   aiGenerateWithImage: (prompt, imageBase64, mimeType = 'image/png', options = {}) =>
     ipcRenderer.invoke('ai:generate-with-image', { prompt, imageBase64, mimeType, ...options }),
   onLanguageChanged: (callback) => ipcRenderer.on('language-changed', (_e, lang) => callback(lang)),
-  onGlassLevelChanged: (callback) => ipcRenderer.on('glass-level-changed', (_e, level) => callback(level)),
   onWindowOpacityChanged: (callback) => ipcRenderer.on('window-opacity-changed', (_e, value) => callback(value)),
   onExplainClipboard: (callback) => ipcRenderer.on('explain-clipboard', (_e, text) => callback(text)),
   onExplainClipboardDetailed: (callback) => ipcRenderer.on('explain-clipboard-detailed', (_e, text) => callback(text)),

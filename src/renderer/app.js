@@ -175,7 +175,6 @@ class IrukaDarkApp {
         const on = (name, cb) => { try { return window.electronAPI && window.electronAPI[name] ? window.electronAPI[name](cb) : undefined; } catch {} };
         on('onThemeChanged', (theme) => this.applyTheme(theme));
         on('onLanguageChanged', (lang) => { CURRENT_LANG = lang || 'en'; this.updateUILanguage(); });
-        on('onGlassLevelChanged', (level) => this.applyGlassLevel(level));
         on('onWindowOpacityChanged', (value) => this.applySolidWindowClass(value));
         on('onExplainClipboard', (text) => this.handleExplainClipboard(text));
         on('onExplainClipboardDetailed', (text) => this.handleExplainClipboardDetailed(text));

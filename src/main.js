@@ -29,11 +29,242 @@ if (!envLoaded) {
 }
 
 const isDev = process.env.NODE_ENV === 'development';
+
+function resolveApiKeys() {
+  // Prefer explicit Gemini/GenAI keys; try generic/public keys last
+  const order = [
+    'GEMINI_API_KEY',
+    'GOOGLE_GENAI_API_KEY',
+    'GENAI_API_KEY',
+    // Less specific keys at the end (may be for other Google APIs)
+    'GOOGLE_API_KEY',
+    'NEXT_PUBLIC_GEMINI_API_KEY',
+    'NEXT_PUBLIC_GOOGLE_API_KEY'
+  ];
+  const seen = new Set();
+  const result = [];
+  for (const name of order) {
+    const v = process.env[name];
+    if (v && String(v).trim()) {
+      const val = String(v).trim();
+      if (!seen.has(val)) { seen.add(val); result.push(val); }
+    }
+  }
+  return result;
+}
+
 if (isDev) {
-  console.log('GEMINI_API_KEY loaded:', process.env.GEMINI_API_KEY ? 'Yes' : 'No');
+  const hasAnyKey = resolveApiKeys().length > 0;
+  console.log('Any GenAI API key loaded:', hasAnyKey ? 'Yes' : 'No');
   console.log('GEMINI_MODEL set:', process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite');
   console.log('MENU_LANGUAGE set:', process.env.MENU_LANGUAGE || 'en');
   console.log('UI_THEME set:', process.env.UI_THEME || 'dark');
+}
+
+// Lazy-load Google GenAI SDK (@google/genai) in CommonJS context (Electron main)
+async function getGenAIClientForKey(apiKey) {
+  if (!global.__irukadark_genai_clients) global.__irukadark_genai_clients = new Map();
+  const cache = global.__irukadark_genai_clients;
+  if (cache.has(apiKey)) return cache.get(apiKey);
+  try {
+    // @google/genai is ESM; use dynamic import from CJS
+    const mod = await import('@google/genai');
+    if (!apiKey) throw new Error('GEMINI_API_KEY is not set.');
+
+    // New SDK may export GoogleAI or GoogleGenerativeAI
+    let Ctor = mod.GoogleAI || mod.GoogleGenerativeAI || mod.default || null;
+    if (!Ctor) {
+      // try to discover a likely constructor
+      for (const k of Object.keys(mod)) {
+        const val = mod[k];
+        if (typeof val === 'function' && /Google|Gen|AI/i.test(k)) { Ctor = val; break; }
+      }
+    }
+    if (!Ctor) throw new Error('Unable to find Google GenAI client export.');
+
+    let client = null;
+    // Try both construction patterns: (apiKey) and ({ apiKey })
+    try { client = new Ctor(apiKey); } catch {}
+    if (!client) {
+      try { client = new Ctor({ apiKey }); } catch {}
+    }
+    if (!client) throw new Error('Failed to create Google GenAI client instance.');
+
+    cache.set(apiKey, client);
+    return client;
+  } catch (e) {
+    // Re-throw with a friendly message; callers catch and present to UI
+    const msg = e && e.message ? e.message : String(e);
+    // Attempt a transparent fallback to older SDK if available
+    try {
+      const legacy = await import('@google/generative-ai');
+      if (!apiKey) throw new Error('GEMINI_API_KEY is not set.');
+      const L = legacy.GoogleGenerativeAI || legacy.default;
+      if (!L) throw new Error(msg);
+      const client = new L(apiKey);
+      cache.set(apiKey, client);
+      return client;
+    } catch (_) {
+      throw new Error(`Failed to initialize Google GenAI SDK (@google/genai). ${msg}`);
+    }
+  }
+}
+
+function extractTextFromSDKResult(result) {
+  try {
+    if (!result) return '';
+    // Normalize common access point
+    const r = result.response || result;
+
+    // Convenience text() (older style)
+    if (r && typeof r.text === 'function') {
+      try { const t = r.text(); if (t) return t; } catch {}
+    }
+
+    // New Responses API convenience field
+    if (typeof r?.output_text === 'string' && r.output_text) {
+      return r.output_text;
+    }
+
+    // Candidates -> content -> parts -> text
+    const candidates = r?.candidates || result?.candidates || [];
+    if (Array.isArray(candidates) && candidates.length) {
+      const parts = candidates[0]?.content?.parts || candidates[0]?.content || [];
+      if (Array.isArray(parts)) {
+        const text = parts.map(p => (typeof p?.text === 'string' ? p.text : '')).join('');
+        if (text) return text;
+      } else if (typeof parts?.text === 'string') {
+        return parts.text;
+      }
+    }
+
+    // outputs/output shape
+    const outputs = r?.outputs || r?.output || null;
+    if (Array.isArray(outputs) && outputs.length) {
+      const content = outputs[0]?.content || outputs[0] || [];
+      if (Array.isArray(content)) {
+        const t = content.map(p => (typeof p?.text === 'string' ? p.text : '')).join('');
+        if (t) return t;
+      } else if (typeof content?.text === 'string') {
+        return content.text;
+      }
+    }
+  } catch {}
+  return '';
+}
+
+function modelCandidates(original) {
+  const raw = String(original || '').trim();
+  const bare = raw.replace(/^models\//, '');
+  const withPrefix = `models/${bare}`;
+  return Array.from(new Set([bare, withPrefix]));
+}
+
+async function restGenerateText(apiKey, modelBare, prompt, generationConfig) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelBare}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const body = {
+    contents: [{ parts: [{ text: String(prompt || '') }] }],
+    generationConfig: generationConfig || undefined,
+  };
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`API Error: ${res.status} - ${t}`);
+  }
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  return (typeof text === 'string' && text.length) ? text : 'Unexpected response from API.';
+}
+
+async function restGenerateImage(apiKey, modelBare, prompt, imageBase64, mimeType, generationConfig) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelBare}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const body = {
+    contents: [{
+      parts: [ { text: String(prompt || '') }, { inlineData: { data: String(imageBase64 || ''), mimeType: String(mimeType || 'image/png') } } ]
+    }],
+    generationConfig: generationConfig || undefined,
+  };
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`API Error: ${res.status} - ${t}`);
+  }
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  return (typeof text === 'string' && text.length) ? text : 'Unexpected response from API.';
+}
+
+async function sdkGenerateText(genAI, modelName, prompt, generationConfig) {
+  const candidates = modelCandidates(modelName);
+  // Try getGenerativeModel path first
+  if (genAI && typeof genAI.getGenerativeModel === 'function') {
+    for (const m of candidates) {
+      try {
+        const model = genAI.getGenerativeModel({ model: m, generationConfig });
+        try {
+          const r1 = await model.generateContent(String(prompt));
+          const t1 = extractTextFromSDKResult(r1);
+          if (t1) return t1;
+        } catch {}
+        try {
+          const r2 = await model.generateContent({ input: String(prompt) });
+          const t2 = extractTextFromSDKResult(r2);
+          if (t2) return t2;
+        } catch {}
+      } catch {}
+    }
+  }
+  // Try Responses API
+  if (genAI && genAI.responses && typeof genAI.responses.generate === 'function') {
+    for (const m of candidates) {
+      try {
+        const r = await genAI.responses.generate({ model: m, input: String(prompt) });
+        const t = extractTextFromSDKResult(r);
+        if (t) return t;
+      } catch {}
+    }
+  }
+  return '';
+}
+
+async function sdkGenerateImage(genAI, modelName, prompt, imageBase64, mimeType, generationConfig) {
+  const candidates = modelCandidates(modelName);
+  const imagePart = { inlineData: { data: String(imageBase64 || ''), mimeType: String(mimeType || 'image/png') } };
+  if (genAI && typeof genAI.getGenerativeModel === 'function') {
+    for (const m of candidates) {
+      try {
+        const model = genAI.getGenerativeModel({ model: m, generationConfig });
+        try {
+          const r1 = await model.generateContent([ { text: String(prompt) }, imagePart ]);
+          const t1 = extractTextFromSDKResult(r1);
+          if (t1) return t1;
+        } catch {}
+        try {
+          const r2 = await model.generateContent({ input: [ { text: String(prompt) }, imagePart ] });
+          const t2 = extractTextFromSDKResult(r2);
+          if (t2) return t2;
+        } catch {}
+      } catch {}
+    }
+  }
+  if (genAI && genAI.responses && typeof genAI.responses.generate === 'function') {
+    for (const m of candidates) {
+      try {
+        const r = await genAI.responses.generate({ model: m, input: [ { text: String(prompt) }, imagePart ] });
+        const t = extractTextFromSDKResult(r);
+        if (t) return t;
+      } catch {}
+    }
+  }
+  return '';
 }
 
 try {
@@ -567,7 +798,6 @@ function createAppMenu() {
   const isMac = process.platform === 'darwin';
   const currentLang = getCurrentLanguage();
   const t = menuTranslations[currentLang] || menuTranslations.en;
-  const glassLevel = process.env.GLASS_LEVEL || 'medium';
   const windowOpacity = parseFloat(process.env.WINDOW_OPACITY || '1');
   const pinAllSpaces = !['0','false','off'].includes(String(process.env.PIN_ALL_SPACES || '1').toLowerCase());
 
@@ -692,23 +922,6 @@ function createAppMenu() {
   Menu.setApplicationMenu(menu);
 }
 
-// 透過レベルの保存/反映（UIレイヤー側）
-function handleGlassLevelChange(level) {
-  try {
-    const envPath = path.join(__dirname, '../.env.local');
-    upsertEnvVar(envPath, 'GLASS_LEVEL', level);
-    process.env.GLASS_LEVEL = level;
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('glass-level-changed', level);
-    }
-    if (typeof popupWindow !== 'undefined' && popupWindow && !popupWindow.isDestroyed()) {
-      popupWindow.webContents.send('glass-level-changed', level);
-    }
-    createAppMenu();
-  } catch (e) {
-    if (isDev) console.warn('Failed to change glass level:', e?.message);
-  }
-}
 
 // ウィンドウ不透明度の保存/反映（ウィンドウレイヤー）
 function handleWindowOpacityChange(opacity) {
@@ -742,10 +955,7 @@ app.on('activate', () => {
   }
 });
 
-ipcMain.handle('get-api-key', () => {
-  const apiKey = process.env.GEMINI_API_KEY || '';
-  return apiKey;
-});
+// Removed unused get-api-key; renderer never requests raw keys.
 
 ipcMain.handle('get-model', () => {
   const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
@@ -804,34 +1014,43 @@ ipcMain.handle('get-window-opacity', () => {
 // Gemini API proxy: execute in main (renderer never sees API key)
 ipcMain.handle('ai:generate', async (_e, payload) => {
   try {
-    const apiKey = process.env.GEMINI_API_KEY || '';
-    if (!apiKey) return 'API key is not set. Please set GEMINI_API_KEY in .env.local file.';
+    const keys = resolveApiKeys();
+    if (!keys.length) return 'API key is not set. Please set GEMINI_API_KEY in .env.local file.';
     const prompt = String(payload?.prompt ?? '');
     if (!prompt) return '';
-    const model = String(payload?.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite');
+    const modelName = String(payload?.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite');
     const generationConfig = payload?.generationConfig || {
       temperature: 0.7,
       topK: 40,
       topP: 0.95,
       maxOutputTokens: 2048,
     };
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    const body = {
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig,
+
+    const isInvalid = (msg) => /API_KEY_INVALID|API key not valid/i.test(String(msg || ''));
+    const tryOne = async (key) => {
+      // SDK first
+      try {
+        const client = await getGenAIClientForKey(key);
+        const t = await sdkGenerateText(client, modelName, prompt, generationConfig);
+        if (t) return t;
+      } catch (e) {
+        // Try REST for better error detail
+      }
+      // REST fallback
+      const bare = modelCandidates(modelName)[0].replace(/^models\//, '');
+      try {
+        return await restGenerateText(key, bare, prompt, generationConfig);
+      } catch (e) {
+        const m = e?.message || '';
+        if (isInvalid(m)) throw new Error('API_KEY_INVALID');
+        throw e;
+      }
     };
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    if (!res.ok) {
-      const t = await res.text();
-      return `API Error: ${res.status} - ${t}`;
+
+    for (const key of keys) {
+      try { const out = await tryOne(key); if (out) return out; } catch (e) { if (String(e?.message) === 'API_KEY_INVALID') { continue; } else { return `API error occurred: ${e?.message || 'Unknown error'}`; } }
     }
-    const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    return (typeof text === 'string' && text.length) ? text : 'Unexpected response from API.';
+    return 'API error occurred: No valid Gemini API key found. Please set a valid key (e.g., GEMINI_API_KEY) in .env.local.';
   } catch (err) {
     return `API error occurred: ${err?.message || 'Unknown error'}`;
   }
@@ -840,41 +1059,45 @@ ipcMain.handle('ai:generate', async (_e, payload) => {
 // Image-capable Gemini API proxy
 ipcMain.handle('ai:generate-with-image', async (_e, payload) => {
   try {
-    const apiKey = process.env.GEMINI_API_KEY || '';
-    if (!apiKey) return 'API key is not set. Please set GEMINI_API_KEY in .env.local file.';
+    const keys = resolveApiKeys();
+    if (!keys.length) return 'API key is not set. Please set GEMINI_API_KEY in .env.local file.';
     const prompt = String(payload?.prompt ?? '');
     const imageBase64 = String(payload?.imageBase64 || '');
     const mimeType = String(payload?.mimeType || 'image/png');
     if (!prompt || !imageBase64) return '';
-    const model = String(payload?.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite');
+    const modelName = String(payload?.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite');
     const generationConfig = payload?.generationConfig || {
       temperature: 0.7,
       topK: 40,
       topP: 0.95,
       maxOutputTokens: 2048,
     };
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    const body = {
-      contents: [{
-        parts: [
-          { text: prompt },
-          { inlineData: { mimeType, data: imageBase64 } }
-        ]
-      }],
-      generationConfig,
+
+    const isInvalid = (msg) => /API_KEY_INVALID|API key not valid/i.test(String(msg || ''));
+    const tryOne = async (key) => {
+      // SDK first
+      try {
+        const client = await getGenAIClientForKey(key);
+        const t = await sdkGenerateImage(client, modelName, prompt, imageBase64, mimeType, generationConfig);
+        if (t) return t;
+      } catch (e) {
+        // proceed to REST for error detail
+      }
+      // REST fallback
+      const bare = modelCandidates(modelName)[0].replace(/^models\//, '');
+      try {
+        return await restGenerateImage(key, bare, prompt, imageBase64, mimeType, generationConfig);
+      } catch (e) {
+        const m = e?.message || '';
+        if (isInvalid(m)) throw new Error('API_KEY_INVALID');
+        throw e;
+      }
     };
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    if (!res.ok) {
-      const t = await res.text();
-      return `API Error: ${res.status} - ${t}`;
+
+    for (const key of keys) {
+      try { const out = await tryOne(key); if (out) return out; } catch (e) { if (String(e?.message) === 'API_KEY_INVALID') { continue; } else { return `API error occurred: ${e?.message || 'Unknown error'}`; } }
     }
-    const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    return (typeof text === 'string' && text.length) ? text : 'Unexpected response from API.';
+    return 'API error occurred: No valid Gemini API key found. Please set a valid key (e.g., GEMINI_API_KEY) in .env.local.';
   } catch (err) {
     return `API error occurred: ${err?.message || 'Unknown error'}`;
   }
