@@ -7,6 +7,7 @@ const I18N_STRINGS = {
         apiError: 'API error occurred:',
         textNotRetrieved: 'Text could not be retrieved',
         thinking: 'Thinking...',
+        searching: 'Searching the web...',
         accessibilityWarning: 'For automatic copying, please grant permission in System Preferences > Security & Privacy > Accessibility.',
         shortcutRegistered: (accel) => `Shortcut set to ${accel.replace('CommandOrControl', 'Cmd/Ctrl')}`,
         failedToRegisterShortcut: 'Failed to register shortcut. There may be a conflict with another app.',
@@ -15,6 +16,7 @@ const I18N_STRINGS = {
         historyCleared: 'Chat history cleared.',
         historyCompacted: 'Compressed chat history with a summary.',
         availableCommands: 'Available commands: /clear, /compact, /next, /contact',
+        sourcesBadge: 'Sources',
         noPreviousAI: 'No previous AI message to continue.'
     },
     ja: {
@@ -25,6 +27,7 @@ const I18N_STRINGS = {
         apiError: 'APIエラーが発生しました:',
         textNotRetrieved: 'テキストが取得できませんでした',
         thinking: '考え中...',
+        searching: 'Web検索中...',
         accessibilityWarning: '自動コピーのため、システム設定 > プライバシーとセキュリティ > アクセシビリティ で許可が必要です。未許可の場合は手動でコピー（Cmd+C）してから実行してください。',
         shortcutRegistered: (accel) => `ショートカットを ${accel.replace('CommandOrControl', 'Cmd/Ctrl')} に設定しました`,
         failedToRegisterShortcut: 'ショートカットの登録に失敗しました。別のアプリと競合している可能性があります。',
@@ -33,6 +36,7 @@ const I18N_STRINGS = {
         historyCleared: '履歴をクリアしました。',
         historyCompacted: '履歴を要約して圧縮しました。',
         availableCommands: '利用可能なコマンド: /clear, /compact, /next, /contact',
+        sourcesBadge: '参照',
         noPreviousAI: '直前のAIメッセージがありません。'
     }
 };
@@ -65,6 +69,7 @@ class IrukaDarkApp {
         this.chatHistoryData = [];
         // Auto-scroll control: disabled during detailed shortcut flow
         this.disableAutoScroll = false;
+        this.isSearching = false;
         this.initializeElements();
         this.bindEvents();
         this.updateUILanguage();
@@ -182,6 +187,7 @@ class IrukaDarkApp {
         on('onExplainScreenshot', (payload) => this.handleExplainScreenshot(payload));
         on('onExplainScreenshotDetailed', (payload) => this.handleExplainScreenshotDetailed(payload));
         on('onAccessibilityWarning', () => this.addMessage('system', getUIText('accessibilityWarning')));
+        // Heuristic/off-channel search mode updates removed; rely on model output only
         on('onShortcutRegistered', (accel) => {
                 if (!accel) {
                     this.showToast(getUIText('failedToRegisterShortcut'), 'error', 3600);
@@ -288,6 +294,7 @@ class IrukaDarkApp {
         try {
             const historyText = this.buildHistoryContext();
             const response = await this.geminiService.generateTextExplanation(content, historyText);
+            await this.flashSearchingIfSources(response);
             this.hideTypingIndicator();
             this.addMessage('ai', response);
             // ステータス表示はヘッダーのみ同期
@@ -314,6 +321,7 @@ class IrukaDarkApp {
         try {
             const historyText = this.buildHistoryContext();
             const response = await this.geminiService.generateDetailedExplanation(content, historyText);
+            await this.flashSearchingIfSources(response);
             this.hideTypingIndicator();
             this.addMessage('ai', response);
             this.syncHeader();
@@ -344,6 +352,7 @@ class IrukaDarkApp {
             this.showTypingIndicator();
             const historyText = this.buildHistoryContext();
             const response = await this.geminiService.generateImageExplanation(data, mime, historyText);
+            await this.flashSearchingIfSources(response);
             this.hideTypingIndicator();
             this.addMessage('ai', response);
             this.syncHeader();
@@ -373,6 +382,7 @@ class IrukaDarkApp {
             this.showTypingIndicator();
             const historyText = this.buildHistoryContext();
             const response = await this.geminiService.generateImageDetailedExplanation(data, mime, historyText);
+            await this.flashSearchingIfSources(response);
             this.hideTypingIndicator();
             this.addMessage('ai', response);
             this.syncHeader();
@@ -422,11 +432,14 @@ class IrukaDarkApp {
 
         this.addMessage('user', message);
         this.syncHeader();
+            // Default to thinking; will switch to searching only if result confirms sources
+            this.isSearching = false;
             this.showTypingIndicator();
 
         try {
             const historyText = this.buildHistoryContext();
             const response = await this.geminiService.generateResponse(message, historyText);
+            await this.flashSearchingIfSources(response);
             this.hideTypingIndicator();
             this.addMessage('ai', response);
             // 入力へフォーカスを戻す（連投が快適に）
@@ -442,6 +455,18 @@ class IrukaDarkApp {
             this.messageInput?.focus();
         }
     }
+
+    async flashSearchingIfSources(result) {
+        try {
+            const hasSources = !!(result && Array.isArray(result.sources) && result.sources.length);
+            if (!hasSources) return;
+            this.isSearching = true;
+            this.updateTypingIndicatorLabel();
+            await new Promise(r => setTimeout(r, 300));
+        } catch {}
+    }
+
+    // no-op: renderer no longer predicts search mode; main process informs
 
     async handleSlashCommand(input) {
         const cmd = (input || '').trim();
@@ -634,7 +659,7 @@ class IrukaDarkApp {
             <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
             <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
           </div>
-          <span class="text-sm text-gray-500">${getUIText('thinking')}</span>
+          <span class="thinking-small text-gray-500" data-role="typing-label">${getUIText(this.isSearching ? 'searching' : 'thinking')}</span>
         </div>
       </div>
     `;
@@ -650,6 +675,16 @@ class IrukaDarkApp {
         if (typingIndicator) {
             typingIndicator.remove();
         }
+        this.isSearching = false;
+    }
+
+    updateTypingIndicatorLabel() {
+        try {
+            const el = document.querySelector('#typing-indicator [data-role="typing-label"]');
+            if (el) {
+                el.textContent = getUIText(this.isSearching ? 'searching' : 'thinking');
+            }
+        } catch {}
     }
 
     addMessage(type, content) {
@@ -667,15 +702,65 @@ class IrukaDarkApp {
         </div>
       `;
         } else if (type === 'ai') {
-            const markdownContent = this.renderMarkdown(content);
-            this.chatHistoryData.push({ role: 'assistant', content });
-            messageDiv.innerHTML = `
-        <div class="message-ai-container">
-          <div class="message-ai-content">
-            ${markdownContent}
-          </div>
-        </div>
-      `;
+            const isObj = content && typeof content === 'object' && !Array.isArray(content);
+            let text = isObj ? String(content.text || '') : String(content || '');
+            let sources = isObj && Array.isArray(content.sources) ? content.sources.filter(s => s && s.url) : [];
+
+            // If no structured sources, try to parse inline "出典/Sources" block from text and remove it
+            if (!sources.length) {
+                try {
+                    const parsed = this.parseInlineSourcesFromText(text);
+                    if (parsed && parsed.sources && parsed.sources.length) {
+                        text = parsed.text;
+                        sources = parsed.sources;
+                    }
+                } catch {}
+            }
+
+            const markdownContent = this.renderMarkdown(text);
+            this.chatHistoryData.push({ role: 'assistant', content: text });
+            // Build DOM to allow badge + accordion below
+            const container = document.createElement('div');
+            container.className = 'message-ai-container';
+            const contentEl = document.createElement('div');
+            contentEl.className = 'message-ai-content';
+            contentEl.innerHTML = markdownContent;
+            container.appendChild(contentEl);
+            if (sources.length > 0) {
+                const badge = document.createElement('span');
+                badge.className = 'source-badge';
+                badge.textContent = getUIText('sourcesBadge') || 'Sources';
+                const acc = document.createElement('div');
+                acc.className = 'source-accordion hidden';
+                const list = document.createElement('ul');
+                list.className = 'source-list';
+                sources.forEach((s, i) => {
+                    const li = document.createElement('li');
+                    const a = document.createElement('a');
+                    a.href = s.url;
+                    a.textContent = s.title || s.url;
+                    a.rel = 'noopener noreferrer';
+                    a.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        try { if (window.electronAPI && window.electronAPI.openExternal) { window.electronAPI.openExternal(String(s.url)); } } catch {}
+                    });
+                    li.appendChild(a);
+                    list.appendChild(li);
+                });
+                acc.appendChild(list);
+                // Toggle behavior
+                badge.addEventListener('click', () => {
+                    acc.classList.toggle('hidden');
+                });
+                // Place badge at the end of content
+                const badgeWrap = document.createElement('div');
+                badgeWrap.className = 'source-badge-wrap';
+                badgeWrap.appendChild(badge);
+                container.appendChild(badgeWrap);
+                // Append accordion under the AI content block
+                container.appendChild(acc);
+            }
+            messageDiv.appendChild(container);
         } else if (type === 'system-question') {
             // ショートカット由来のシステム表示（2行まで表示し、クリックで展開/折りたたみ）
             messageDiv.className = 'message-enter';
@@ -776,6 +861,53 @@ class IrukaDarkApp {
         return div.innerHTML;
     }
 
+    // Parse trailing inline sources block like "出典:" or "Sources:" and extract links
+    parseInlineSourcesFromText(text) {
+        try {
+            if (!text || typeof text !== 'string') return { text, sources: [] };
+            const markers = [
+                '出典', '参考', '参考文献', '参考資料',
+                'Sources', 'References', 'Citations'
+            ];
+            const pattern = new RegExp(`(?:\n|^)\s*(?:${markers.join('|')})\s*[:：]?\s*\n([\s\S]+)$`, 'i');
+            const m = text.match(pattern);
+            if (!m) return { text, sources: [] };
+            const block = m[1] || '';
+            const lines = block.split(/\n+/).map(s => s.trim()).filter(Boolean);
+            const sources = [];
+            for (const line of lines) {
+                // markdown link [title](url)
+                const md = line.match(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/i);
+                if (md) {
+                    sources.push({ title: md[1], url: md[2] });
+                    continue;
+                }
+                // plain URL with optional title
+                const urlMatch = line.match(/(https?:\/\/[^\s)]+)(?:\s*[\-–—:]\s*(.+))?$/i);
+                if (urlMatch) {
+                    const url = urlMatch[1];
+                    const title = urlMatch[2] || url;
+                    sources.push({ title, url });
+                    continue;
+                }
+                // leading bullet then title/url
+                const bullet = line.replace(/^[-*・\d.\)\]]\s*/, '');
+                const urlInBullet = bullet.match(/(https?:\/\/[^\s)]+)/i);
+                if (urlInBullet) {
+                    const url = urlInBullet[1];
+                    const title = bullet.replace(url, '').trim() || url;
+                    sources.push({ title, url });
+                    continue;
+                }
+            }
+            if (!sources.length) return { text, sources: [] };
+            const newText = text.slice(0, m.index).trimEnd();
+            return { text: newText, sources };
+        } catch {
+            return { text, sources: [] };
+        }
+    }
+
     syncHeader() { }
 
     toggleTheme() { this.createIconsEnhanced(); }
@@ -840,12 +972,14 @@ class GeminiService {
         try {
             if (window.electronAPI && window.electronAPI.aiGenerate) {
                 const cfg = this.defaultGenerationConfig();
-                const text = await window.electronAPI.aiGenerate(prompt, { model: this.model, generationConfig: cfg });
-                return typeof text === 'string' ? text : getUIText('unexpectedResponse');
+                const result = await window.electronAPI.aiGenerate(prompt, { model: this.model, generationConfig: cfg });
+                if (typeof result === 'string') return { text: result, sources: [] };
+                if (result && typeof result.text === 'string') return { text: result.text, sources: Array.isArray(result.sources) ? result.sources : [] };
+                return { text: getUIText('unexpectedResponse'), sources: [] };
             }
-            return getUIText('apiUnavailable');
+            return { text: getUIText('apiUnavailable'), sources: [] };
         } catch (error) {
-            return `${getUIText('apiError')} ${error?.message || 'Unknown error'}`;
+            return { text: `${getUIText('apiError')} ${error?.message || 'Unknown error'}`, sources: [] };
         }
     }
 
@@ -853,12 +987,14 @@ class GeminiService {
         try {
             if (window.electronAPI && window.electronAPI.aiGenerateWithImage) {
                 const cfg = this.defaultGenerationConfig();
-                const text = await window.electronAPI.aiGenerateWithImage(prompt, imageBase64, mimeType, { model: this.model, generationConfig: cfg });
-                return typeof text === 'string' ? text : getUIText('unexpectedResponse');
+                const result = await window.electronAPI.aiGenerateWithImage(prompt, imageBase64, mimeType, { model: this.model, generationConfig: cfg });
+                if (typeof result === 'string') return { text: result, sources: [] };
+                if (result && typeof result.text === 'string') return { text: result.text, sources: Array.isArray(result.sources) ? result.sources : [] };
+                return { text: getUIText('unexpectedResponse'), sources: [] };
             }
-            return getUIText('apiUnavailable');
+            return { text: getUIText('apiUnavailable'), sources: [] };
         } catch (error) {
-            return `${getUIText('apiError')} ${error?.message || 'Unknown error'}`;
+            return { text: `${getUIText('apiError')} ${error?.message || 'Unknown error'}`, sources: [] };
         }
     }
 

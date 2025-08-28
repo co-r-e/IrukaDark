@@ -719,6 +719,34 @@ button:disabled {
 
 /* dark mode send button uses same base styles */
 
+/* Sources badge + accordion */
+.source-badge-wrap { margin-top: 6px; }
+.source-badge {
+  display: inline-block;
+  font-size: 10px;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 9999px;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(255,255,255,0.7);
+  color: #111827;
+}
+.theme-dark .source-badge {
+  background: rgba(255,255,255,0.12);
+  color: #e5e7eb;
+}
+.source-accordion { margin-top: 6px; }
+.source-list { list-style: none; padding-left: 0; margin: 0; }
+.source-list li { margin: 2px 0; }
+.source-list a { color: inherit; text-decoration: underline; opacity: 0.9; }
+.source-list a:hover { opacity: 1; }
+
+/* Typing indicator text size */
+.thinking-small {
+  font-size: 10px;
+}
+
 
 /* Glass effect */
 .glass-effect {

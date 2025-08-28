@@ -153,6 +153,80 @@ function extractTextFromSDKResult(result) {
   return '';
 }
 
+function extractSourcesFromSDKResult(result) {
+  try {
+    const r = result?.response || result || {};
+    // Candidates-level grounding metadata
+    const cand = (r.candidates && r.candidates[0]) || (result.candidates && result.candidates[0]) || {};
+    const gm = cand.groundingMetadata || cand.grounding_metadata || r.groundingMetadata || r.grounding_metadata || {};
+    let attrs = gm.groundingAttributions || gm.grounding_attributions || [];
+    if (!Array.isArray(attrs)) attrs = [];
+    const out = [];
+    for (const a of attrs) {
+      const web = a?.web || a?.webSearchResult || a?.source || a?.site || null;
+      if (!web) continue;
+      const url = web.uri || web.url || web.link || '';
+      const title = web.title || web.pageTitle || web.name || url || '';
+      if (url) out.push({ url, title: String(title || url) });
+    }
+    // Fallback: try generic citations field
+    const cites = r.citations || r.citationMetadata || cand.citationMetadata || null;
+    const citeItems = cites?.citations || cites?.sources || [];
+    if (Array.isArray(citeItems)) {
+      for (const c of citeItems) {
+        const url = c?.uri || c?.url || '';
+        const title = c?.title || c?.publicationTitle || url || '';
+        if (url) out.push({ url, title: String(title || url) });
+      }
+    }
+    // Deduplicate by url
+    const seen = new Set();
+    return out.filter(s => {
+      if (!s || !s.url) return false;
+      const key = String(s.url).trim();
+      if (seen.has(key)) return false;
+      seen.add(key); return true;
+    });
+  } catch {
+    return [];
+  }
+}
+
+function extractSourcesFromRESTData(data) {
+  try {
+    const cand = data?.candidates?.[0] || {};
+    const gm = cand.groundingMetadata || cand.grounding_metadata || data?.groundingMetadata || {};
+    let attrs = gm.groundingAttributions || gm.grounding_attributions || [];
+    if (!Array.isArray(attrs)) attrs = [];
+    const out = [];
+    for (const a of attrs) {
+      const web = a?.web || a?.webSearchResult || a?.source || null;
+      if (!web) continue;
+      const url = web.uri || web.url || '';
+      const title = web.title || web.pageTitle || url || '';
+      if (url) out.push({ url, title: String(title || url) });
+    }
+    const cites = cand.citationMetadata || data?.citationMetadata || null;
+    const citeItems = cites?.citations || [];
+    if (Array.isArray(citeItems)) {
+      for (const c of citeItems) {
+        const url = c?.uri || c?.url || '';
+        const title = c?.title || url || '';
+        if (url) out.push({ url, title: String(title || url) });
+      }
+    }
+    const seen = new Set();
+    return out.filter(s => {
+      if (!s || !s.url) return false;
+      const key = String(s.url).trim();
+      if (seen.has(key)) return false;
+      seen.add(key); return true;
+    });
+  } catch {
+    return [];
+  }
+}
+
 function modelCandidates(original) {
   const raw = String(original || '').trim();
   const bare = raw.replace(/^models\//, '');
@@ -160,11 +234,13 @@ function modelCandidates(original) {
   return Array.from(new Set([bare, withPrefix]));
 }
 
-async function restGenerateText(apiKey, modelBare, prompt, generationConfig) {
+async function restGenerateText(apiKey, modelBare, prompt, generationConfig, { useGoogleSearch = false } = {}) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelBare}:generateContent?key=${encodeURIComponent(apiKey)}`;
   const body = {
     contents: [{ parts: [{ text: String(prompt || '') }] }],
     generationConfig: generationConfig || undefined,
+    // Enable Google Search grounding when requested (API supports tools)
+    tools: useGoogleSearch ? [{ googleSearch: {} }] : undefined,
   };
   const res = await fetch(url, {
     method: 'POST',
@@ -177,16 +253,19 @@ async function restGenerateText(apiKey, modelBare, prompt, generationConfig) {
   }
   const data = await res.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  return (typeof text === 'string' && text.length) ? text : 'Unexpected response from API.';
+  const sources = extractSourcesFromRESTData(data);
+  const outText = (typeof text === 'string' && text.length) ? text : 'Unexpected response from API.';
+  return { text: outText, sources };
 }
 
-async function restGenerateImage(apiKey, modelBare, prompt, imageBase64, mimeType, generationConfig) {
+async function restGenerateImage(apiKey, modelBare, prompt, imageBase64, mimeType, generationConfig, { useGoogleSearch = false } = {}) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelBare}:generateContent?key=${encodeURIComponent(apiKey)}`;
   const body = {
     contents: [{
       parts: [ { text: String(prompt || '') }, { inlineData: { data: String(imageBase64 || ''), mimeType: String(mimeType || 'image/png') } } ]
     }],
     generationConfig: generationConfig || undefined,
+    tools: useGoogleSearch ? [{ googleSearch: {} }] : undefined,
   };
   const res = await fetch(url, {
     method: 'POST',
@@ -199,25 +278,40 @@ async function restGenerateImage(apiKey, modelBare, prompt, imageBase64, mimeTyp
   }
   const data = await res.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  return (typeof text === 'string' && text.length) ? text : 'Unexpected response from API.';
+  const sources = extractSourcesFromRESTData(data);
+  const outText = (typeof text === 'string' && text.length) ? text : 'Unexpected response from API.';
+  return { text: outText, sources };
 }
 
-async function sdkGenerateText(genAI, modelName, prompt, generationConfig) {
+async function sdkGenerateText(genAI, modelName, prompt, generationConfig, { useGoogleSearch = false } = {}) {
   const candidates = modelCandidates(modelName);
   // Try getGenerativeModel path first
   if (genAI && typeof genAI.getGenerativeModel === 'function') {
     for (const m of candidates) {
       try {
         const model = genAI.getGenerativeModel({ model: m, generationConfig });
+        // Attempt call-level tools payload (newer pattern)
+        try {
+          const r0 = await model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: String(prompt) }] }],
+            tools: useGoogleSearch ? [{ googleSearch: {} }] : undefined,
+            generationConfig,
+          });
+          const t0 = extractTextFromSDKResult(r0);
+          const s0 = extractSourcesFromSDKResult(r0);
+          if (t0) return { text: t0, sources: s0 };
+        } catch {}
         try {
           const r1 = await model.generateContent(String(prompt));
           const t1 = extractTextFromSDKResult(r1);
-          if (t1) return t1;
+          const s1 = extractSourcesFromSDKResult(r1);
+          if (t1) return { text: t1, sources: s1 };
         } catch {}
         try {
           const r2 = await model.generateContent({ input: String(prompt) });
           const t2 = extractTextFromSDKResult(r2);
-          if (t2) return t2;
+          const s2 = extractSourcesFromSDKResult(r2);
+          if (t2) return { text: t2, sources: s2 };
         } catch {}
       } catch {}
     }
@@ -226,31 +320,50 @@ async function sdkGenerateText(genAI, modelName, prompt, generationConfig) {
   if (genAI && genAI.responses && typeof genAI.responses.generate === 'function') {
     for (const m of candidates) {
       try {
-        const r = await genAI.responses.generate({ model: m, input: String(prompt) });
+        const r = await genAI.responses.generate({
+          model: m,
+          input: String(prompt),
+          tools: useGoogleSearch ? [{ googleSearch: {} }] : undefined,
+          // groundingConfig omitted for compatibility
+        });
         const t = extractTextFromSDKResult(r);
-        if (t) return t;
+        const s = extractSourcesFromSDKResult(r);
+        if (t) return { text: t, sources: s };
       } catch {}
     }
   }
   return '';
 }
 
-async function sdkGenerateImage(genAI, modelName, prompt, imageBase64, mimeType, generationConfig) {
+async function sdkGenerateImage(genAI, modelName, prompt, imageBase64, mimeType, generationConfig, { useGoogleSearch = false } = {}) {
   const candidates = modelCandidates(modelName);
   const imagePart = { inlineData: { data: String(imageBase64 || ''), mimeType: String(mimeType || 'image/png') } };
   if (genAI && typeof genAI.getGenerativeModel === 'function') {
     for (const m of candidates) {
       try {
         const model = genAI.getGenerativeModel({ model: m, generationConfig });
+        // Attempt call-level tools payload
+        try {
+          const r0 = await model.generateContent({
+            contents: [{ role: 'user', parts: [ { text: String(prompt) }, imagePart ] }],
+            tools: useGoogleSearch ? [{ googleSearch: {} }] : undefined,
+            generationConfig,
+          });
+          const t0 = extractTextFromSDKResult(r0);
+          const s0 = extractSourcesFromSDKResult(r0);
+          if (t0) return { text: t0, sources: s0 };
+        } catch {}
         try {
           const r1 = await model.generateContent([ { text: String(prompt) }, imagePart ]);
           const t1 = extractTextFromSDKResult(r1);
-          if (t1) return t1;
+          const s1 = extractSourcesFromSDKResult(r1);
+          if (t1) return { text: t1, sources: s1 };
         } catch {}
         try {
           const r2 = await model.generateContent({ input: [ { text: String(prompt) }, imagePart ] });
           const t2 = extractTextFromSDKResult(r2);
-          if (t2) return t2;
+          const s2 = extractSourcesFromSDKResult(r2);
+          if (t2) return { text: t2, sources: s2 };
         } catch {}
       } catch {}
     }
@@ -258,9 +371,15 @@ async function sdkGenerateImage(genAI, modelName, prompt, imageBase64, mimeType,
   if (genAI && genAI.responses && typeof genAI.responses.generate === 'function') {
     for (const m of candidates) {
       try {
-        const r = await genAI.responses.generate({ model: m, input: [ { text: String(prompt) }, imagePart ] });
+        const r = await genAI.responses.generate({
+          model: m,
+          input: [ { text: String(prompt) }, imagePart ],
+          tools: useGoogleSearch ? [{ googleSearch: {} }] : undefined,
+          // groundingConfig omitted
+        });
         const t = extractTextFromSDKResult(r);
-        if (t) return t;
+        const s = extractSourcesFromSDKResult(r);
+        if (t) return { text: t, sources: s };
       } catch {}
     }
   }
@@ -1018,33 +1137,56 @@ ipcMain.handle('ai:generate', async (_e, payload) => {
     if (!keys.length) return 'API key is not set. Please set GEMINI_API_KEY in .env.local file.';
     const prompt = String(payload?.prompt ?? '');
     if (!prompt) return '';
-    const modelName = String(payload?.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite');
+    const requestedModel = String(payload?.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite');
     const generationConfig = payload?.generationConfig || {
       temperature: 0.7,
       topK: 40,
       topP: 0.95,
       maxOutputTokens: 2048,
     };
+    // Prefer search when the prompt suggests web lookup; otherwise allow model to decide
+    // Do not emit heuristic search mode; rely on model output only
+    const useGoogleSearch = true; // enable tools; model may choose not to use them
+
+    // Try requested model first, then a search-capable model
+    const searchPreferred = process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash';
+    const modelsToTry = [requestedModel, searchPreferred];
 
     const isInvalid = (msg) => /API_KEY_INVALID|API key not valid/i.test(String(msg || ''));
     const tryOne = async (key) => {
-      // SDK first
-      try {
-        const client = await getGenAIClientForKey(key);
-        const t = await sdkGenerateText(client, modelName, prompt, generationConfig);
-        if (t) return t;
-      } catch (e) {
-        // Try REST for better error detail
+      for (const modelName of modelsToTry) {
+        // 1) SDK with tools
+        try {
+          const client = await getGenAIClientForKey(key);
+          const r1 = await sdkGenerateText(client, modelName, prompt, generationConfig, { useGoogleSearch: true });
+          if (r1) return r1;
+        } catch {}
+        // 2) SDK without tools
+        try {
+          const client = await getGenAIClientForKey(key);
+          const r2 = await sdkGenerateText(client, modelName, prompt, generationConfig, { useGoogleSearch: false });
+          if (r2) return r2;
+        } catch {}
+        // 3) REST with tools
+        const bare = modelCandidates(modelName)[0].replace(/^models\//, '');
+        try {
+          const r3 = await restGenerateText(key, bare, prompt, generationConfig, { useGoogleSearch: true });
+          if (r3) return r3;
+        } catch (e) {
+          const m = e?.message || '';
+          if (isInvalid(m)) throw new Error('API_KEY_INVALID');
+        }
+        // 4) REST without tools
+        try {
+          const r4 = await restGenerateText(key, bare, prompt, generationConfig, { useGoogleSearch: false });
+          if (r4) return r4;
+        } catch (e) {
+          const m = e?.message || '';
+          if (isInvalid(m)) throw new Error('API_KEY_INVALID');
+          // Continue to next model
+        }
       }
-      // REST fallback
-      const bare = modelCandidates(modelName)[0].replace(/^models\//, '');
-      try {
-        return await restGenerateText(key, bare, prompt, generationConfig);
-      } catch (e) {
-        const m = e?.message || '';
-        if (isInvalid(m)) throw new Error('API_KEY_INVALID');
-        throw e;
-      }
+      throw new Error('All model attempts failed');
     };
 
     for (const key of keys) {
@@ -1065,33 +1207,53 @@ ipcMain.handle('ai:generate-with-image', async (_e, payload) => {
     const imageBase64 = String(payload?.imageBase64 || '');
     const mimeType = String(payload?.mimeType || 'image/png');
     if (!prompt || !imageBase64) return '';
-    const modelName = String(payload?.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite');
+    const requestedModel = String(payload?.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite');
     const generationConfig = payload?.generationConfig || {
       temperature: 0.7,
       topK: 40,
       topP: 0.95,
       maxOutputTokens: 2048,
     };
+    // Do not emit heuristic search mode; rely on model output only
+    const useGoogleSearch = true;
+    const searchPreferred = process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash';
+    const modelsToTry = [requestedModel, searchPreferred];
 
     const isInvalid = (msg) => /API_KEY_INVALID|API key not valid/i.test(String(msg || ''));
     const tryOne = async (key) => {
-      // SDK first
-      try {
-        const client = await getGenAIClientForKey(key);
-        const t = await sdkGenerateImage(client, modelName, prompt, imageBase64, mimeType, generationConfig);
-        if (t) return t;
-      } catch (e) {
-        // proceed to REST for error detail
+      for (const modelName of modelsToTry) {
+        // 1) SDK with tools
+        try {
+          const client = await getGenAIClientForKey(key);
+          const r1 = await sdkGenerateImage(client, modelName, prompt, imageBase64, mimeType, generationConfig, { useGoogleSearch: true });
+          if (r1) return r1;
+        } catch {}
+        // 2) SDK without tools
+        try {
+          const client = await getGenAIClientForKey(key);
+          const r2 = await sdkGenerateImage(client, modelName, prompt, imageBase64, mimeType, generationConfig, { useGoogleSearch: false });
+          if (r2) return r2;
+        } catch {}
+        // 3) REST with tools
+        const bare = modelCandidates(modelName)[0].replace(/^models\//, '');
+        try {
+          const r3 = await restGenerateImage(key, bare, prompt, imageBase64, mimeType, generationConfig, { useGoogleSearch: true });
+          if (r3) return r3;
+        } catch (e) {
+          const m = e?.message || '';
+          if (isInvalid(m)) throw new Error('API_KEY_INVALID');
+        }
+        // 4) REST without tools
+        try {
+          const r4 = await restGenerateImage(key, bare, prompt, imageBase64, mimeType, generationConfig, { useGoogleSearch: false });
+          if (r4) return r4;
+        } catch (e) {
+          const m = e?.message || '';
+          if (isInvalid(m)) throw new Error('API_KEY_INVALID');
+          // Continue to next model
+        }
       }
-      // REST fallback
-      const bare = modelCandidates(modelName)[0].replace(/^models\//, '');
-      try {
-        return await restGenerateImage(key, bare, prompt, imageBase64, mimeType, generationConfig);
-      } catch (e) {
-        const m = e?.message || '';
-        if (isInvalid(m)) throw new Error('API_KEY_INVALID');
-        throw e;
-      }
+      throw new Error('All model attempts failed');
     };
 
     for (const key of keys) {
