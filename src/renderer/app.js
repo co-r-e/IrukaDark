@@ -456,15 +456,7 @@ class IrukaDarkApp {
         }
     }
 
-    async flashSearchingIfSources(result) {
-        try {
-            const hasSources = !!(result && Array.isArray(result.sources) && result.sources.length);
-            if (!hasSources) return;
-            this.isSearching = true;
-            this.updateTypingIndicatorLabel();
-            await new Promise(r => setTimeout(r, 300));
-        } catch {}
-    }
+    async flashSearchingIfSources(_result) { /* no-op: always show thinking */ }
 
     // no-op: renderer no longer predicts search mode; main process informs
 
@@ -659,7 +651,7 @@ class IrukaDarkApp {
             <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
             <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
           </div>
-          <span class="thinking-small text-gray-500" data-role="typing-label">${getUIText(this.isSearching ? 'searching' : 'thinking')}</span>
+          <span class="thinking-small text-gray-500" data-role="typing-label">${getUIText('thinking')}</span>
         </div>
       </div>
     `;
@@ -681,9 +673,7 @@ class IrukaDarkApp {
     updateTypingIndicatorLabel() {
         try {
             const el = document.querySelector('#typing-indicator [data-role="typing-label"]');
-            if (el) {
-                el.textContent = getUIText(this.isSearching ? 'searching' : 'thinking');
-            }
+            if (el) { el.textContent = getUIText('thinking'); }
         } catch {}
     }
 

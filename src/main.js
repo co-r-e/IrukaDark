@@ -1149,7 +1149,7 @@ ipcMain.handle('ai:generate', async (_e, payload) => {
     const useGoogleSearch = true; // enable tools; model may choose not to use them
 
     // Try requested model first, then a search-capable model
-    const searchPreferred = process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash';
+    const searchPreferred = process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash-lite';
     const modelsToTry = [requestedModel, searchPreferred];
 
     const isInvalid = (msg) => /API_KEY_INVALID|API key not valid/i.test(String(msg || ''));
