@@ -13,6 +13,8 @@ const I18N_STRINGS = {
         failedToRegisterShortcut: 'Failed to register shortcut. There may be a conflict with another app.',
         placeholder: 'Ask IrukaDark...',
         send: 'Send',
+        stop: 'Stop',
+        canceled: 'Canceled.',
         historyCleared: 'Chat history cleared.',
         historyCompacted: 'Compressed chat history with a summary.',
         availableCommands: 'Available commands: /clear, /compact, /next, /contact',
@@ -33,6 +35,8 @@ const I18N_STRINGS = {
         failedToRegisterShortcut: 'ショートカットの登録に失敗しました。別のアプリと競合している可能性があります。',
         placeholder: 'イルカダークに質問する...',
         send: '送信',
+        stop: '停止',
+        canceled: '中断しました。',
         historyCleared: '履歴をクリアしました。',
         historyCompacted: '履歴を要約して圧縮しました。',
         availableCommands: '利用可能なコマンド: /clear, /compact, /next, /contact',
@@ -69,6 +73,9 @@ class IrukaDarkApp {
         this.chatHistoryData = [];
         // Auto-scroll control: disabled during detailed shortcut flow
         this.disableAutoScroll = false;
+        // Generation state
+        this.isGenerating = false;
+        this.cancelRequested = false;
         this.isSearching = false;
         this.initializeElements();
         this.bindEvents();
@@ -91,6 +98,8 @@ class IrukaDarkApp {
         document.documentElement.lang = currentLang;
         // no header status element anymore
         this.updateStaticHTMLText();
+        // Refresh send/stop button tooltip in current language
+        try { this.updateSendButtonIcon(); } catch {}
     }
 
     // HTML内の静的テキストを更新するメソッド
@@ -128,7 +137,13 @@ class IrukaDarkApp {
     // JSによるアクセント適用は不要（CSSで一元管理）
 
     bindEvents() {
-        this.sendBtn.addEventListener('click', () => this.sendMessage());
+        this.sendBtn.addEventListener('click', () => {
+            if (this.isGenerating) {
+                this.cancelGeneration();
+            } else {
+                this.sendMessage();
+            }
+        });
         // Right-click anywhere to show the app (menubar) menu as context menu
         window.addEventListener('contextmenu', (e) => {
             try {
@@ -157,7 +172,11 @@ class IrukaDarkApp {
             if (this.messageInput && /\n$/.test(this.messageInput.value)) {
                 this.messageInput.value = this.messageInput.value.replace(/\n+$/,'');
             }
-            this.sendMessage();
+            if (this.isGenerating) {
+                this.cancelGeneration();
+            } else {
+                this.sendMessage();
+            }
         };
         this.messageInput.addEventListener('keydown', (e) => {
             if (this.handleSlashSuggestKeydown(e)) return;
@@ -296,11 +315,13 @@ class IrukaDarkApp {
             const response = await this.geminiService.generateTextExplanation(content, historyText);
             await this.flashSearchingIfSources(response);
             this.hideTypingIndicator();
+            if (this.cancelRequested) { return; }
             this.addMessage('ai', response);
             // ステータス表示はヘッダーのみ同期
             this.syncHeader();
         } catch (e) {
             this.hideTypingIndicator();
+            if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) { return; }
             this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
             this.syncHeader();
         }
@@ -323,10 +344,12 @@ class IrukaDarkApp {
             const response = await this.geminiService.generateDetailedExplanation(content, historyText);
             await this.flashSearchingIfSources(response);
             this.hideTypingIndicator();
+            if (this.cancelRequested) { return; }
             this.addMessage('ai', response);
             this.syncHeader();
         } catch (e) {
             this.hideTypingIndicator();
+            if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) { return; }
             this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
             this.syncHeader();
         } finally {
@@ -354,10 +377,12 @@ class IrukaDarkApp {
             const response = await this.geminiService.generateImageExplanation(data, mime, historyText);
             await this.flashSearchingIfSources(response);
             this.hideTypingIndicator();
+            if (this.cancelRequested) { return; }
             this.addMessage('ai', response);
             this.syncHeader();
         } catch (e) {
             this.hideTypingIndicator();
+            if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) { return; }
             this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
             this.syncHeader();
         }
@@ -384,10 +409,12 @@ class IrukaDarkApp {
             const response = await this.geminiService.generateImageDetailedExplanation(data, mime, historyText);
             await this.flashSearchingIfSources(response);
             this.hideTypingIndicator();
+            if (this.cancelRequested) { return; }
             this.addMessage('ai', response);
             this.syncHeader();
         } catch (e) {
             this.hideTypingIndicator();
+            if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) { return; }
             this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
             this.syncHeader();
         } finally {
@@ -441,6 +468,7 @@ class IrukaDarkApp {
             const response = await this.geminiService.generateResponse(message, historyText);
             await this.flashSearchingIfSources(response);
             this.hideTypingIndicator();
+            if (this.cancelRequested) { return; }
             this.addMessage('ai', response);
             // 入力へフォーカスを戻す（連投が快適に）
             this.messageInput?.focus();
@@ -448,8 +476,10 @@ class IrukaDarkApp {
             // ステータス更新はヘッダーのみ同期
             this.syncHeader();
         } catch (error) {
-            // log suppressed in production
             this.hideTypingIndicator();
+            if (this.cancelRequested || /CANCELLED|Abort/i.test(String(error?.message || ''))) {
+                return;
+            }
             this.addMessage('system', `${getUIText('errorOccurred')}: ${error.message}`);
             this.syncHeader();
             this.messageInput?.focus();
@@ -481,6 +511,7 @@ class IrukaDarkApp {
                 this.showTypingIndicator();
                 const summary = await this.geminiService.generateHistorySummary(historyText);
                 this.hideTypingIndicator();
+                if (this.cancelRequested) { return; }
                 // 履歴を要約のみで置き換え（コンパクト化）
                 this.chatHistoryData = [ { role: 'assistant', content: summary } ];
                 // 表示上はAIメッセージとして要約を追加
@@ -488,6 +519,7 @@ class IrukaDarkApp {
                 this.addMessage('system', getUIText('historyCompacted'));
             } catch (e) {
                 this.hideTypingIndicator();
+                if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) { return; }
                 this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
             }
             return;
@@ -501,9 +533,11 @@ class IrukaDarkApp {
                 this.showTypingIndicator();
                 const cont = await this.geminiService.generateContinuation(String(lastAI.content || ''), historyText);
                 this.hideTypingIndicator();
+                if (this.cancelRequested) { return; }
                 this.addMessage('ai', cont);
             } catch (e) {
                 this.hideTypingIndicator();
+                if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) { return; }
                 this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
             }
             return;
@@ -638,8 +672,52 @@ class IrukaDarkApp {
     }
 
     
+    setGenerating(on) {
+        this.isGenerating = !!on;
+        if (on) this.cancelRequested = false;
+        try { this.updateSendButtonIcon(); } catch {}
+    }
+
+    updateSendButtonIcon() {
+        try {
+            if (!this.sendBtn) return;
+            if (this.isGenerating) {
+                // Stop icon (square)
+                this.sendBtn.innerHTML = `
+                    <svg class="w-4 h-4 no-gradient" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <rect x="6" y="6" width="12" height="12"></rect>
+                    </svg>
+                `;
+                this.sendBtn.title = getUIText('stop');
+            } else {
+                // Send icon (paper plane)
+                this.sendBtn.innerHTML = `
+                    <svg class="w-4 h-4 no-gradient" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M22 2L11 13"></path>
+                      <path d="M22 2L15 22L11 13L2 9L22 2Z"></path>
+                    </svg>
+                `;
+                this.sendBtn.title = getUIText('send');
+            }
+        } catch {}
+    }
+
+    cancelGeneration() {
+        try {
+            this.cancelRequested = true;
+            if (window?.electronAPI?.cancelAI) {
+                // Best-effort cancel on main process
+                window.electronAPI.cancelAI().catch(() => {});
+            }
+        } catch {}
+        this.hideTypingIndicator();
+        this.setGenerating(false);
+        this.addMessage('system', getUIText('canceled'));
+        this.syncHeader();
+    }
 
     showTypingIndicator() {
+        this.setGenerating(true);
         const typingDiv = document.createElement('div');
         typingDiv.id = 'typing-indicator';
         typingDiv.className = 'message-ai-container';
@@ -668,6 +746,7 @@ class IrukaDarkApp {
             typingIndicator.remove();
         }
         this.isSearching = false;
+        this.setGenerating(false);
     }
 
     updateTypingIndicatorLabel() {
@@ -766,13 +845,34 @@ class IrukaDarkApp {
                 }
             } catch {}
             this.chatHistoryData.push({ role: 'user', content });
-        } else {
-            // Avoid double styling: keep outer wrapper neutral
+        } else if (type === 'system') {
+            // すべてのシステムメッセージはコンパクト表示に統一（2行クランプ、クリックで展開）
             messageDiv.className = 'message-enter';
-            messageDiv.innerHTML = '<div class="message-system">' +
-                '<i data-lucide="info" class="w-3 h-3 inline mr-1"></i>' +
+            messageDiv.innerHTML = '<div class="message-system message-system-compact">' +
                 this.escapeHtml(content) +
                 '</div>';
+            try {
+                const el = messageDiv.querySelector('.message-system-compact');
+                if (el) {
+                    el.addEventListener('click', () => {
+                        el.classList.toggle('expanded');
+                    });
+                }
+            } catch {}
+        } else {
+            // Fallback: treat as compact system style for consistency
+            messageDiv.className = 'message-enter';
+            messageDiv.innerHTML = '<div class="message-system message-system-compact">' +
+                this.escapeHtml(content) +
+                '</div>';
+            try {
+                const el = messageDiv.querySelector('.message-system-compact');
+                if (el) {
+                    el.addEventListener('click', () => {
+                        el.classList.toggle('expanded');
+                    });
+                }
+            } catch {}
         }
 
         this.chatHistory.appendChild(messageDiv);

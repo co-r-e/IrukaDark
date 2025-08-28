@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   aiGenerate: (prompt, options = {}) => ipcRenderer.invoke('ai:generate', { prompt, ...options }),
   aiGenerateWithImage: (prompt, imageBase64, mimeType = 'image/png', options = {}) =>
     ipcRenderer.invoke('ai:generate-with-image', { prompt, imageBase64, mimeType, ...options }),
+  cancelAI: () => ipcRenderer.invoke('ai:cancel'),
   onLanguageChanged: (callback) => ipcRenderer.on('language-changed', (_e, lang) => callback(lang)),
   onWindowOpacityChanged: (callback) => ipcRenderer.on('window-opacity-changed', (_e, value) => callback(value)),
   onExplainClipboard: (callback) => ipcRenderer.on('explain-clipboard', (_e, text) => callback(text)),
