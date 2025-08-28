@@ -2,13 +2,14 @@
 
 [日本語 (Japanese)](README.ja.md)
 
-Lightweight local AI chat (macOS / Windows / experimental Linux). Explain selected text or chat normally. Area screenshot explain is available on macOS/Windows/Linux.
+Lightweight local AI chat (macOS / Windows / experimental Linux). Explain selected text or chat normally. Area screenshot explain is available on macOS/Windows/Linux. For “who are you?”-type prompts, the app replies with a short, branded identity line (IrukaDark by CORe Inc/コーレ株式会社).
 
 ## Features
 
 - Always-on-top chat window (frameless, resizable)
 - Show over all apps/spaces (macOS full-screen too) — toggle from menu
 - Right-click anywhere to open the application menu at the cursor
+- Identity auto-reply for “who are you?”/“tell me about yourself” prompts (short, branded)
 - Explain selected text via global shortcut
   - Concise: mac: Option+A / Win/Linux: Alt+A
   - Detailed: mac: Option+Shift+A / Win/Linux: Alt+Shift+A
@@ -31,6 +32,7 @@ npm install
 cp .env.example .env.local
 # Edit .env.local and set GEMINI_API_KEY
 ```
+   - Do not ship `.env.local` in distributions.
 
 3) Start the app
 ```bash
@@ -46,11 +48,13 @@ npm start
 - `GEMINI_API_KEY` (required): Google AI Studio API Key
 - Also supported: `GOOGLE_GENAI_API_KEY`, `GENAI_API_KEY`, `GOOGLE_API_KEY`, `NEXT_PUBLIC_GEMINI_API_KEY`, `NEXT_PUBLIC_GOOGLE_API_KEY`
 - `GEMINI_MODEL` (optional): Defaults to `gemini-2.5-flash-lite` (e.g. `gemini-1.5-pro`, `gemini-2.0-flash`)
+- `WEB_SEARCH_MODEL` (optional): Preferred model when web search is enabled (default: `gemini-2.5-flash`)
 - `MENU_LANGUAGE` (optional): `en` or `ja` (can be changed from menu)
 - `UI_THEME` (optional): `light` or `dark` (can be changed from menu)
 - `GLASS_LEVEL` (optional): `low` | `medium` | `high`
 - `WINDOW_OPACITY` (optional): `1`, `0.95`, `0.9`, `0.85`, `0.8` (also in menu)
 - `PIN_ALL_SPACES` (optional): `1` to keep windows over all apps/spaces, `0` to limit to current space
+- `ENABLE_GOOGLE_SEARCH` (optional): `1` to enable grounded web search (default: `0`)
 
 Notes:
 - Only Google AI Studio API Keys are supported; Vertex AI (service account/OAuth) is not wired in this repo.
@@ -66,12 +70,14 @@ Notes:
    - Screenshot explain (detailed): mac: Option+Shift+S / Win/Linux: Alt+Shift+S
 3) You can also chat normally by typing and sending
 4) Right-click anywhere to open the application menu at the cursor
+   - Even in detailed shortcut flows, the view auto-scrolls to the “Thinking…” indicator.
 
 ### Slash Commands
 - `/clear`: Clear chat history
 - `/compact`: Summarize and compact recent history
 - `/next`: Continue the last AI message
 - `/contact`: Open the contact page (fixed: https://co-r-e.net/contact)
+- `/websearch on|off|status` (alias: `/web`): Toggle or check web search
 
 ### Command Suggestions
 - Type `/` in the input to open suggestions
@@ -138,6 +144,7 @@ Designed for local run: clone → .env.local → npm start. No installer/build a
 - Screenshots are captured only when you press Option/Alt+S and choose an area; the captured image is sent to Gemini API for analysis.
 - Global explain uses selected text via clipboard (macOS auto-copy requires Accessibility)
 - You can always copy manually (Cmd/Ctrl+C) before using the shortcut
+ - API keys are used only in the Electron main process, never exposed to the renderer.
 
 ## License
 MIT License. See `LICENSE`.

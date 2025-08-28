@@ -1,12 +1,13 @@
 # IrukaDark
 
-ローカル実行のAIチャット（macOS / Windows / Linux（実験的））。選択テキストの解説や通常チャットに加え、範囲選択スクリーンショットの解説も可能です（各OS対応）。
+ローカル実行のAIチャット（macOS / Windows / Linux（実験的））。選択テキストの解説や通常チャットに加え、範囲選択スクリーンショットの解説も可能です（各OS対応）。「誰？」等の自己紹介系には、CORe Inc（コーレ株式会社）製のIrukaDarkであることを短くユニークに返答します。
 
 ## 機能
 
 - 常に最前面に表示されるチャットウィンドウ（フレームレス・リサイズ可）
 - 全アプリ・全スペース（フルスクリーン上含む）で表示（メニューで切替）
 - 右クリックでアプリケーションメニューをカーソル位置に表示
+- 自己紹介の自動応答（「誰？」「どんなアプリ？」等に短くブランド回答）
 - 選択テキストをショートカットで即解説
   - 簡潔: mac: Option+A / Win/Linux: Alt+A
   - 詳細: mac: Option+Shift+A / Win/Linux: Alt+Shift+A
@@ -30,6 +31,7 @@ npm install
 cp .env.example .env.local
 # .env.localファイルを編集してAPIキーを設定
 ```
+   - `.env.local` は配布物に含めません（APIキー保護）。
 
 3. アプリの起動:
 ```bash
@@ -47,11 +49,13 @@ npm start
 - `GEMINI_API_KEY`（必須）: Google AI Studio の API キー
 - 代替: `GOOGLE_GENAI_API_KEY` / `GENAI_API_KEY` / `GOOGLE_API_KEY` / `NEXT_PUBLIC_GEMINI_API_KEY` / `NEXT_PUBLIC_GOOGLE_API_KEY`
 - `GEMINI_MODEL`（任意）: 既定は `gemini-2.5-flash-lite`（例: `gemini-1.5-pro`, `gemini-2.0-flash`）
+- `WEB_SEARCH_MODEL`（任意）: ウェブ検索併用時に優先するモデル（既定: `gemini-2.5-flash`）
 - `MENU_LANGUAGE`（任意）: `en` または `ja`（メニューからも切替可能）
 - `UI_THEME`（任意）: `light` または `dark`（メニューからも切替可能）
 - `GLASS_LEVEL`（任意）: `low` | `medium` | `high`
 - `WINDOW_OPACITY`（任意）: `1`, `0.95`, `0.90`, `0.85`, `0.80`（メニューにも項目あり）
 - `PIN_ALL_SPACES`（任意）: `1` で全アプリ・全スペースで前面固定、`0` で現在のスペース内に限定
+- `ENABLE_GOOGLE_SEARCH`（任意）: `1` でウェブ検索による根拠付けを有効化（既定: `0`）
 
 ## 使用方法
 
@@ -63,6 +67,7 @@ npm start
    - スクリーンショット解説（詳細）: mac: Option+Shift+S / Win/Linux: Alt+Shift+S
 3. 通常のチャットとしても利用できます（入力して送信）
 4. 右クリックでアプリケーションメニューをカーソル位置に表示
+   - 詳細ショートカット中でも「考え中…」表示までは自動でスクロールします。
 
 ### スラッシュコマンド
 
@@ -70,6 +75,7 @@ npm start
 - `/compact`: 直近の履歴を要約してコンパクト化
 - `/next`: 直前のAIメッセージの続きを生成
 - `/contact`: 連絡先ページを開く（固定: https://co-r-e.net/contact）
+- `/websearch on|off|status`（`/web` でも可）: ウェブ検索の有効/無効/状態
 
 ### コマンド候補（サジェスト）
 - 入力欄で「/」を入力すると候補が開きます
@@ -164,6 +170,7 @@ SVGファイルを使用することで、高解像度画面でもクリアに�
 - スクリーンショットは、Option/Alt+S を押して範囲選択した時のみ取得し、解説のために Gemini API へ送信します（保存はしません）。
 - Option/Alt+A 使用時は選択テキストを自動取得（macOSはアクセシビリティ権限が必要）
 - 自動取得が不要な場合は手動コピー（Cmd/Ctrl+C）で代替可能
+ - APIキーはElectronのメインプロセスでのみ使用され、レンダラには渡されません。
 
 ## ライセンス
 
