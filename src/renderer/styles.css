@@ -10,8 +10,8 @@ body {
 }
 
 :root {
-  --primary: #ff4d6d;   /* pink */
-  --primary-2: #d946ef; /* fuchsia/purple */
+  --primary: #ff4d6d;
+  --primary-2: #d946ef;
   --corner-radius: 16px;
   --blur-strong: 40px;
   --blur-light: 8px;
@@ -20,7 +20,6 @@ body {
 }
 
 html:not(.theme-dark) .glass-effect {
-  /* ライトモードは常に白を維持（ウィンドウ透過時も白さを保つ） */
   background: #ffffff;
   border: none;
 }
@@ -43,13 +42,11 @@ html:not(.theme-dark) .message-system {
 
 /* ライトモード: メッセージ入力欄も薄いガラス効果 */
 html:not(.theme-dark) #messageInput {
-  /* ライトモードは常に白を維持 */
   background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .theme-dark .glass-effect {
-  /* ダークモードも元の色を維持。透過はウィンドウ不透明度で行う */
   background: linear-gradient(145deg, #0b1021, #1a1446);
   color: #e5e7eb;
   border: none;
@@ -60,20 +57,13 @@ html.solid-window.theme-dark .glass-effect {
 }
 
 
-/* header logo embedding removed */
-
 .theme-dark .message-user-content { background: linear-gradient(145deg, #1a1446, #0b1021); color: #e5e7eb; border-color: rgba(255,255,255,0.15); }
 .theme-dark .message-system { background: linear-gradient(145deg, #1a1446, #0b1021); color: #cbd5e1; border-color: rgba(255,255,255,0.12); }
 
-/* ダークモード: チャットテキストを白に */
 .theme-dark .message-ai-content { color: #ffffff; }
 .theme-dark .message-user-content { color: #ffffff; }
 
-/* Dark mode: header controls in white */
-/* header status removed */
 
-
-/* Layout */
 .h-screen {
   height: 100vh;
 }

@@ -1060,7 +1060,7 @@ class IrukaDarkApp {
 
     syncHeader() { }
 
-    toggleTheme() { this.createIconsEnhanced(); }
+    
 
     async applyThemeFromSystem() {
         try {
@@ -1109,14 +1109,7 @@ class GeminiService {
         }
     }
 
-    parseCandidateText(data) {
-        try {
-            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-            return typeof text === 'string' && text.length ? text : null;
-        } catch {
-            return null;
-        }
-    }
+    
 
     async requestText(prompt, useWebSearch = false) {
         try {
