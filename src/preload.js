@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   aiGenerate: (prompt, options = {}) => ipcRenderer.invoke('ai:generate', { prompt, ...options }),
   aiGenerateWithImage: (prompt, imageBase64, mimeType = 'image/png', options = {}) =>
     ipcRenderer.invoke('ai:generate-with-image', { prompt, imageBase64, mimeType, ...options }),
+  // Cancel current in-flight AI request (shortcut-only)
+  cancelAI: () => ipcRenderer.invoke('cancel-ai'),
   onLanguageChanged: (cb) => ipcRenderer.on('language-changed', (_e, lang) => cb(lang)),
   onWindowOpacityChanged: (cb) => ipcRenderer.on('window-opacity-changed', (_e, v) => cb(v)),
   onExplainClipboard: (cb) => ipcRenderer.on('explain-clipboard', (_e, t) => cb(t)),

@@ -30,6 +30,11 @@ if (!envLoaded) {
 
 const isDev = process.env.NODE_ENV === 'development';
 
+// Track current in-flight AI request for cancellation (shortcut-only)
+let currentAIController = null;        // AbortController of the active REST call
+let currentAIKind = null;              // 'shortcut' | 'chat' | null
+let currentAICancelFlag = null;        // { user: boolean } when cancel requested by user
+
 function resolveApiKeys() {
   // Prefer explicit Gemini/GenAI keys; try generic/public keys last
   const order = [
@@ -1085,6 +1090,18 @@ app.on('activate', () => {
 
 // Removed unused get-api-key; renderer never requests raw keys.
 
+// Allow renderer to cancel the current in-flight shortcut AI request
+ipcMain.handle('cancel-ai', () => {
+  try {
+    if (currentAIKind === 'shortcut' && currentAIController) {
+      try { if (currentAICancelFlag) currentAICancelFlag.user = true; } catch {}
+      try { currentAIController.abort(); } catch {}
+      return true;
+    }
+  } catch {}
+  return false;
+});
+
 ipcMain.handle('get-model', () => {
   const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
   return model;
@@ -1159,6 +1176,8 @@ ipcMain.handle('ai:generate', async (_e, payload) => {
     if (!keys.length) return 'API key is not set. Please set GEMINI_API_KEY in .env.local file.';
     const prompt = String(payload?.prompt ?? '');
     if (!prompt) return '';
+    const source = String(payload?.source || 'chat');
+    const isShortcut = source === 'shortcut';
     const requestedModel = String(payload?.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite');
     const generationConfig = payload?.generationConfig || {
       temperature: 0.7,
@@ -1185,27 +1204,37 @@ ipcMain.handle('ai:generate', async (_e, payload) => {
         if (isDev) console.log('SDK client creation failed:', e?.message);
       }
 
-      // AbortController for timeouts
+      // AbortController for timeouts/cancel
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const cancelFlag = { user: false };
+      // Timeout: Web検索ONなら60秒、OFFは従来（30秒）
+      const timeoutMs = useGoogleSearch ? 60000 : 30000;
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      // Expose as current for user-initiated cancel (shortcutのみ対象)
+      currentAIController = controller;
+      currentAIKind = isShortcut ? 'shortcut' : 'chat';
+      currentAICancelFlag = cancelFlag;
       
       try {
         for (const modelName of modelsToTry) {
-          // 1) Try SDK with Google Search (most common success case)
-          if (client) {
-            try {
-              const r1 = await sdkGenerateText(client, modelName, prompt, generationConfig, { useGoogleSearch });
-              if (r1) {
-                clearTimeout(timeoutId);
-                return r1;
+          const bare = modelCandidates(modelName)[0].replace(/^models\//, '');
+
+          if (!isShortcut) {
+            // 1) Try SDK with Google Search
+            if (client) {
+              try {
+                const r1 = await sdkGenerateText(client, modelName, prompt, generationConfig, { useGoogleSearch });
+                if (r1) {
+                  clearTimeout(timeoutId);
+                  return r1;
+                }
+              } catch (e) {
+                if (isDev) console.log(`SDK with tools failed for ${modelName}:`, e?.message);
               }
-            } catch (e) {
-              if (isDev) console.log(`SDK with tools failed for ${modelName}:`, e?.message);
             }
           }
 
-          // 2) Try REST with Google Search (fallback if SDK fails)
-          const bare = modelCandidates(modelName)[0].replace(/^models\//, '');
+          // 2) REST with Google Search
           try {
             const r3 = await restGenerateText(key, bare, prompt, generationConfig, { useGoogleSearch, signal: controller.signal });
             if (r3) {
@@ -1220,15 +1249,16 @@ ipcMain.handle('ai:generate', async (_e, payload) => {
             }
             if (e.name === 'AbortError') {
               clearTimeout(timeoutId);
+              // Differentiate user-cancel vs timeout
+              if (cancelFlag.user) throw new Error('CANCELLED');
               throw new Error('Request timed out');
             }
             if (isDev) console.log(`REST with tools failed for ${modelName}:`, m);
           }
 
-          // Only try without tools if explicitly disabled in the future
+          // Without tools only when search is OFF
           if (!useGoogleSearch) {
-            // 3) SDK without tools
-            if (client) {
+            if (!isShortcut && client) {
               try {
                 const r2 = await sdkGenerateText(client, modelName, prompt, generationConfig, { useGoogleSearch: false });
                 if (r2) {
@@ -1237,8 +1267,6 @@ ipcMain.handle('ai:generate', async (_e, payload) => {
                 }
               } catch {}
             }
-
-            // 4) REST without tools
             try {
               const r4 = await restGenerateText(key, bare, prompt, generationConfig, { useGoogleSearch: false, signal: controller.signal });
               if (r4) {
@@ -1260,6 +1288,9 @@ ipcMain.handle('ai:generate', async (_e, payload) => {
       } catch (e) {
         clearTimeout(timeoutId);
         throw e;
+      } finally {
+        // Clear current controller if it is ours
+        try { if (currentAIController === controller) { currentAIController = null; currentAIKind = null; currentAICancelFlag = null; } } catch {}
       }
     };
 
@@ -1281,6 +1312,8 @@ ipcMain.handle('ai:generate-with-image', async (_e, payload) => {
     const imageBase64 = String(payload?.imageBase64 || '');
     const mimeType = String(payload?.mimeType || 'image/png');
     if (!prompt || !imageBase64) return '';
+    const source = String(payload?.source || 'chat');
+    const isShortcut = source === 'shortcut';
     const requestedModel = String(payload?.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite');
     const generationConfig = payload?.generationConfig || {
       temperature: 0.7,
@@ -1304,27 +1337,36 @@ ipcMain.handle('ai:generate-with-image', async (_e, payload) => {
         if (isDev) console.log('SDK client creation failed:', e?.message);
       }
 
-      // AbortController for timeouts
+      // AbortController for timeouts/cancel
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout for images
+      const cancelFlag = { user: false };
+      // Timeout: Web検索ONなら60秒、OFFは従来（画像は45秒）
+      const timeoutMs = useGoogleSearch ? 60000 : 45000;
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      currentAIController = controller;
+      currentAIKind = isShortcut ? 'shortcut' : 'chat';
+      currentAICancelFlag = cancelFlag;
       
       try {
         for (const modelName of modelsToTry) {
-          // 1) Try SDK with Google Search (most common success case)
-          if (client) {
-            try {
-              const r1 = await sdkGenerateImage(client, modelName, prompt, imageBase64, mimeType, generationConfig, { useGoogleSearch });
-              if (r1) {
-                clearTimeout(timeoutId);
-                return r1;
+          const bare = modelCandidates(modelName)[0].replace(/^models\//, '');
+
+          if (!isShortcut) {
+            // 1) Try SDK with Google Search
+            if (client) {
+              try {
+                const r1 = await sdkGenerateImage(client, modelName, prompt, imageBase64, mimeType, generationConfig, { useGoogleSearch });
+                if (r1) {
+                  clearTimeout(timeoutId);
+                  return r1;
+                }
+              } catch (e) {
+                if (isDev) console.log(`SDK with tools failed for ${modelName}:`, e?.message);
               }
-            } catch (e) {
-              if (isDev) console.log(`SDK with tools failed for ${modelName}:`, e?.message);
             }
           }
 
-          // 2) Try REST with Google Search (fallback if SDK fails)
-          const bare = modelCandidates(modelName)[0].replace(/^models\//, '');
+          // 2) REST with Google Search
           try {
             const r3 = await restGenerateImage(key, bare, prompt, imageBase64, mimeType, generationConfig, { useGoogleSearch, signal: controller.signal });
             if (r3) {
@@ -1339,15 +1381,14 @@ ipcMain.handle('ai:generate-with-image', async (_e, payload) => {
             }
             if (e.name === 'AbortError') {
               clearTimeout(timeoutId);
+              if (cancelFlag.user) throw new Error('CANCELLED');
               throw new Error('Request timed out');
             }
             if (isDev) console.log(`REST with tools failed for ${modelName}:`, m);
           }
 
-          // Only try without tools if explicitly disabled in the future
           if (!useGoogleSearch) {
-            // 3) SDK without tools
-            if (client) {
+            if (!isShortcut && client) {
               try {
                 const r2 = await sdkGenerateImage(client, modelName, prompt, imageBase64, mimeType, generationConfig, { useGoogleSearch: false });
                 if (r2) {
@@ -1356,8 +1397,6 @@ ipcMain.handle('ai:generate-with-image', async (_e, payload) => {
                 }
               } catch {}
             }
-
-            // 4) REST without tools
             try {
               const r4 = await restGenerateImage(key, bare, prompt, imageBase64, mimeType, generationConfig, { useGoogleSearch: false, signal: controller.signal });
               if (r4) {
@@ -1379,6 +1418,8 @@ ipcMain.handle('ai:generate-with-image', async (_e, payload) => {
       } catch (e) {
         clearTimeout(timeoutId);
         throw e;
+      } finally {
+        try { if (currentAIController === controller) { currentAIController = null; currentAIKind = null; currentAICancelFlag = null; } } catch {}
       }
     };
 
