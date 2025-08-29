@@ -2,7 +2,7 @@
 
 [日本語 (Japanese)](README.ja.md)
 
-Lightweight local AI chat (macOS / Windows / experimental Linux). Explain selected text or chat normally. Area screenshot explain is available on macOS/Windows/Linux. For “who are you?”-type prompts, the app replies with a short, branded identity line (IrukaDark by CORe Inc/コーレ株式会社).
+Lightweight local AI chat (macOS / Windows / experimental Linux). Explain selected text or chat normally. Area screenshot explain is available on macOS/Windows/Linux.
 
 ## Features
 
@@ -76,7 +76,7 @@ Notes:
 - `/clear`: Clear chat history
 - `/compact`: Summarize and compact recent history
 - `/next`: Continue the last AI message
-- `/contact`: Open the contact page (fixed: https://co-r-e.net/contact)
+- `/contact`: Open the contact page
 - `/websearch on|off|status` (alias: `/web`): Toggle or check web search
 
 ### Command Suggestions

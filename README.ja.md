@@ -1,6 +1,6 @@
 # IrukaDark
 
-ローカル実行のAIチャット（macOS / Windows / Linux（実験的））。選択テキストの解説や通常チャットに加え、範囲選択スクリーンショットの解説も可能です（各OS対応）。「誰？」等の自己紹介系には、CORe Inc（コーレ株式会社）製のIrukaDarkであることを短くユニークに返答します。
+ローカル実行のAIチャット（macOS / Windows / Linux（実験的））。選択テキストの解説や通常チャットに加え、範囲選択スクリーンショットの解説も可能です（各OS対応）。
 
 ## 機能
 
@@ -74,7 +74,7 @@ npm start
 - `/clear`: チャット履歴をクリア
 - `/compact`: 直近の履歴を要約してコンパクト化
 - `/next`: 直前のAIメッセージの続きを生成
-- `/contact`: 連絡先ページを開く（固定: https://co-r-e.net/contact）
+- `/contact`: 連絡先ページを開く
 - `/websearch on|off|status`（`/web` でも可）: ウェブ検索の有効/無効/状態
 
 ### コマンド候補（サジェスト）
@@ -134,21 +134,7 @@ npm start
 
 本プロジェクトは「git clone → .env.local → npm start」でのローカル実行を前提としています。アプリ配布用のビルドは行いません。
 
-## カスタマイズ
-
-### ロゴとファビコンの変更
-
-アプリ内のアイコン画像を変更するには：
-
-1. **ファビコン**: `/src/renderer/assets/icons/favicon.svg` を置き換え
-2. **別窓ロゴ**: `/src/renderer/assets/icons/irukadark_logo.svg` を置き換え
-
-SVGファイルを使用することで、高解像度画面でもクリアに表示されます。
-
-### 推奨仕様
-- **ファビコン**: 32x32px、シンプルなデザイン
-- **ロゴ**: 40x40px、アプリのテーマに合わせたデザイン
-
+ 
 ## 補足・注意
 
 - macOS / Windows に対応（Linuxは実験的サポート）

@@ -1287,6 +1287,8 @@ class GeminiService {
         return this.requestWithImage(prompt, imageBase64, mimeType, useWebSearch, 'shortcut');
     }
 
+    
+
     async generateHistorySummary(historyText = '', useWebSearch = false) {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
         const base = (historyText || '').trim();
