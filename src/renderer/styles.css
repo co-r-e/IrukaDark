@@ -851,7 +851,7 @@ html.solid-window.theme-dark #messageInput {
 .slash-suggest {
   position: absolute;
   left: 0.25rem; /* 4px */
-  right: 2.75rem; /* keep clear of send button */
+  right: 0.75rem; /* wider than before; still leaves a margin */
   bottom: 2.75rem; /* sit above input */
   background: rgba(255, 255, 255, 0.85);
   border: 1px solid rgba(0,0,0,0.08);

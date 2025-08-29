@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="src/renderer/assets/icons/irukadark_logo.svg" alt="IrukaDark" width="120" />
+</p>
+
 # IrukaDark
 
 ローカル実行のAIチャット（macOS / Windows / Linux（実験的））。選択テキストの解説や通常チャットに加え、範囲選択スクリーンショットの解説も可能です（各OS対応）。

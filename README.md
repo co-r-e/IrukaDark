@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="src/renderer/assets/icons/irukadark_logo.svg" alt="IrukaDark" width="120" />
+</p>
+
 # IrukaDark
 
 [日本語 (Japanese)](README.ja.md)

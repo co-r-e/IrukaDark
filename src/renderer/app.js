@@ -723,6 +723,13 @@ class IrukaDarkApp {
             div.innerHTML = `<span class="cmd">${c.label}</span><span class="desc">${(c.desc?.[lang] || c.label)}</span>`;
             this.suggestList.appendChild(div);
         });
+        // Keep the active item visible when navigating
+        try {
+            const active = this.suggestList.querySelector('.slash-suggest-item.active');
+            if (active && typeof active.scrollIntoView === 'function') {
+                active.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            }
+        } catch {}
     }
 
     showSlashSuggest(items) {
