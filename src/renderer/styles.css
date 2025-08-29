@@ -817,6 +817,10 @@ html.solid-window.theme-dark #messageInput {
 #inputWrapper { min-height: 40px; }
 #messageInput { padding-right: 44px; line-height: 1.35; }
 
+/*!
+ * IrukaDark — (c) 2025 CORe Inc (コーレ株式会社).
+ * License: MIT. See https://github.com/mokuwaki0517/IrukaDark/blob/HEAD/LICENSE
+ */
 /* Chat input area: reduce top/bottom spacing */
 #inputArea {
   padding-top: 0.5rem !important;   /* was 1rem via pt-4 */
