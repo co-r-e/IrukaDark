@@ -37,6 +37,40 @@ const isDev = process.env.NODE_ENV === 'development';
 // Track current in-flight AI request for cancellation (shortcut-only)
 let currentAIController = null;        // AbortController of the active REST call
 let currentAIKind = null;              // 'shortcut' | 'chat' | null
+
+// Track clipboard text freshness (trimmed text + last change time)
+let clipboardTextSnapshot = '';
+let clipboardChangedAt = 0; // 0 means unknown age
+let clipboardWatcher = null;
+
+function startClipboardWatcher() {
+  try {
+    // Initialize snapshot without setting changedAt, so old content is treated as unknown (stale)
+    try { clipboardTextSnapshot = (clipboard.readText() || '').trim(); } catch { clipboardTextSnapshot = ''; }
+    clipboardChangedAt = 0;
+    if (clipboardWatcher) { try { clearInterval(clipboardWatcher); } catch {} }
+    clipboardWatcher = setInterval(() => {
+      try {
+        const t = (clipboard.readText() || '').trim();
+        if (t && t !== clipboardTextSnapshot) {
+          clipboardTextSnapshot = t;
+          clipboardChangedAt = Date.now();
+        }
+      } catch {}
+    }, 250);
+  } catch {}
+}
+
+function isClipboardTextStale(text, thresholdMs = 3000) {
+  try {
+    const current = (clipboard.readText() || '').trim();
+    // Only judge age if the provided text matches current clipboard text
+    if (!text || text.trim() !== current) return false;
+  } catch { /* if cannot read, fall through to conservative check */ }
+  // Unknown age -> treat as stale
+  if (!clipboardChangedAt) return true;
+  return (Date.now() - clipboardChangedAt) >= thresholdMs;
+}
 let currentAICancelFlag = null;        // { user: boolean } when cancel requested by user
 
 function resolveApiKeys() {
@@ -585,7 +619,12 @@ async function tryCopySelectedText() {
     attempts++;
     if (now && now !== before) {
       if (isDev) console.log(`Clipboard changed after ${attempts} attempts:`, `"${now.substring(0, 50)}..."`);
-      return now.trim();
+      // Update freshness tracker immediately
+      try {
+        clipboardTextSnapshot = (now || '').trim();
+        clipboardChangedAt = Date.now();
+      } catch {}
+      return (now || '').trim();
     }
     last = now;
     const elapsed = Date.now() - start;
@@ -679,6 +718,8 @@ async function captureInteractiveArea() {
 }
 
 app.whenReady().then(async () => {
+  // Start monitoring clipboard changes to determine freshness
+  startClipboardWatcher();
   try {
     const userData = app.getPath('userData');
     const prefsPath = path.join(userData, 'irukadark.prefs.json');
@@ -714,9 +755,16 @@ app.whenReady().then(async () => {
                 if (!mainWindow.isVisible()) mainWindow.show();
                 mainWindow.focus();
                 if (text) {
-                  mainWindow.webContents.send(detailed ? 'explain-clipboard-detailed' : 'explain-clipboard', text);
+                  // If clipboard text is older than threshold, show short system message only
+                  if (isClipboardTextStale(text, 3000)) {
+                    // Send empty to let renderer choose localized message
+                    mainWindow.webContents.send('explain-clipboard-error', '');
+                  } else {
+                    mainWindow.webContents.send(detailed ? 'explain-clipboard-detailed' : 'explain-clipboard', text);
+                  }
                 } else {
-                  mainWindow.webContents.send('explain-clipboard-error', 'テキストが取得できませんでした。\n\n対処方法:\n1. テキストを選択した状態でCmd+Cを押して手動コピー\n2. その後もう一度ショートカットを押す\n3. または、システム環境設定 > プライバシーとセキュリティ > アクセシビリティ で許可を確認');
+                  // Send empty to let renderer choose localized message
+                  mainWindow.webContents.send('explain-clipboard-error', '');
                 }
               }
             } catch (e) {

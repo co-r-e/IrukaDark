@@ -789,10 +789,10 @@ html.solid-window.theme-dark #messageInput {
 .toast {
   background: rgba(17,24,39,0.92);
   color: #fff;
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 6px 10px; /* smaller */
+  border-radius: 8px; /* smaller */
   box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-  font-size: 12px;
+  font-size: 11px; /* smaller */
   border: 1px solid rgba(255,255,255,0.12);
   animation: toastIn .16s ease-out;
 }
