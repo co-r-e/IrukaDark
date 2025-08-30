@@ -29,5 +29,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onExplainScreenshot: (cb) => ipcRenderer.on('explain-screenshot', (_e, p) => cb(p)),
   onExplainScreenshotDetailed: (cb) => ipcRenderer.on('explain-screenshot-detailed', (_e, p) => cb(p)),
   saveWebSearchSetting: (enabled) => ipcRenderer.invoke('save-web-search-setting', enabled),
-  getWebSearchEnabled: () => ipcRenderer.invoke('get-web-search-enabled')
+  getWebSearchEnabled: () => ipcRenderer.invoke('get-web-search-enabled'),
+  // Popup interactions
+  notifyPopupPointer: (phase) => ipcRenderer.invoke('popup:pointer', String(phase || '')),
+  getPopupBounds: () => ipcRenderer.invoke('popup:get-bounds'),
+  setPopupPosition: (x, y) => ipcRenderer.invoke('popup:set-position', { x: Number(x)||0, y: Number(y)||0 })
 });

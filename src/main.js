@@ -1487,6 +1487,9 @@ ipcMain.handle('ai:generate-with-image', async (_e, payload) => {
 // 別窓（透明ロゴ窓）
 let popupWindow = null;
 let mainInitiallyShown = false;
+let popupPointerDown = false;
+let popupMovedSinceDown = false;
+let popupDownBounds = null;
 
 function createPopupWindow() {
   if (popupWindow && !popupWindow.isDestroyed()) {
@@ -1570,9 +1573,78 @@ function createPopupWindow() {
     } catch {}
   };
   popupWindow.on('move', positionMainAbovePopup);
+  popupWindow.on('move', () => { if (popupPointerDown) popupMovedSinceDown = true; });
   popupWindow.on('resize', positionMainAbovePopup);
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.on('resize', positionMainAbovePopup);
   }
   positionMainAbovePopup();
 }
+
+// IPC from popup renderer: pointer phases to detect stationary click-release
+ipcMain.handle('popup:pointer', (_e, phase) => {
+  try {
+    const p = String(phase || '').toLowerCase();
+    if (!popupWindow || popupWindow.isDestroyed()) return false;
+    if (p === 'down') {
+      popupPointerDown = true;
+      popupMovedSinceDown = false;
+      try { popupDownBounds = popupWindow.getBounds(); } catch { popupDownBounds = null; }
+      return true;
+    }
+    if (p === 'up') {
+      const wasDown = popupPointerDown;
+      popupPointerDown = false;
+      let moved = !!popupMovedSinceDown;
+      popupMovedSinceDown = false;
+      // Fallback precise check: compare bounds equality between down and current
+      try {
+        if (popupDownBounds) {
+          const cur = popupWindow.getBounds();
+          if (cur && typeof cur.x === 'number' && typeof cur.y === 'number') {
+            const same = cur.x === popupDownBounds.x && cur.y === popupDownBounds.y;
+            moved = moved || !same ? moved : false; // if same, keep moved as-is (likely false)
+          }
+        }
+      } catch {}
+      popupDownBounds = null;
+      if (wasDown && !moved) {
+        // Stationary click-release: toggle main window visibility
+        try {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            if (mainWindow.isVisible()) {
+              mainWindow.hide();
+            } else {
+              mainWindow.show();
+              mainWindow.focus();
+            }
+          }
+        } catch {}
+      }
+      return true;
+    }
+  } catch {}
+  return false;
+});
+
+// Popup window bounds helpers for manual drag
+ipcMain.handle('popup:get-bounds', () => {
+  try {
+    if (popupWindow && !popupWindow.isDestroyed()) {
+      return popupWindow.getBounds();
+    }
+  } catch {}
+  return null;
+});
+
+ipcMain.handle('popup:set-position', (_e, pos) => {
+  try {
+    if (!popupWindow || popupWindow.isDestroyed()) return false;
+    const x = Math.round(Number(pos?.x) || 0);
+    const y = Math.round(Number(pos?.y) || 0);
+    popupWindow.setPosition(x, y);
+    return true;
+  } catch {
+    return false;
+  }
+});

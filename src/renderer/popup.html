@@ -26,16 +26,13 @@
             justify-content: center;
             position: relative;
             cursor: move;
-            -webkit-app-region: drag;
+            -webkit-app-region: no-drag; /* manual drag via JS to allow click detection */
         }
         
         .logo {
             width: 84px;
             height: 84px;
-            transition: all 0.3s ease;
-        }
-        .logo:hover {
-            transform: scale(1.05);
+            /* No hover/active scaling */
         }
         .fallback-logo {
             width: 84px;
@@ -71,6 +68,50 @@
 
     </div>
 
-    
-</body>
-</html>
+    <script>
+      (function(){
+        try {
+          const api = window.electronAPI || {};
+          const sendPhase = (p) => { try { api.notifyPopupPointer && api.notifyPopupPointer(p); } catch {} };
+          const getBounds = async () => { try { return await api.getPopupBounds(); } catch { return null; } };
+          const setPos = async (x, y) => { try { await api.setPopupPosition(x, y); } catch {} };
+
+          const downEv = 'onpointerdown' in window ? 'pointerdown' : 'mousedown';
+          const moveEv = 'onpointermove' in window ? 'pointermove' : 'mousemove';
+          const upEv = 'onpointerup' in window ? 'pointerup' : 'mouseup';
+
+          let dragging = false;
+          let startScreenX = 0, startScreenY = 0;
+          let startBounds = null;
+          let moved = false;
+
+          const onDown = async (e) => {
+            try { e.preventDefault(); } catch {}
+            startBounds = await getBounds();
+            if (!startBounds) return;
+            dragging = true;
+            moved = false;
+            startScreenX = e.screenX; startScreenY = e.screenY;
+            try { if (e.pointerId != null && e.target?.setPointerCapture) { e.target.setPointerCapture(e.pointerId); } } catch {}
+            sendPhase('down');
+          };
+          const onMove = async (e) => {
+            if (!dragging || !startBounds) return;
+            const dx = e.screenX - startScreenX;
+            const dy = e.screenY - startScreenY;
+            if (Math.abs(dx) + Math.abs(dy) > 0) moved = true;
+            await setPos(startBounds.x + dx, startBounds.y + dy);
+          };
+          const onUp = async (e) => {
+            if (!dragging) return;
+            dragging = false;
+            sendPhase('up'); // main decides toggle based on actual movement
+          };
+          document.addEventListener(downEv, onDown, { capture: true });
+          document.addEventListener(moveEv, onMove, { capture: true });
+          document.addEventListener(upEv, onUp, { capture: true });
+        } catch {}
+      })();
+    </script>
+    </body>
+    </html>
