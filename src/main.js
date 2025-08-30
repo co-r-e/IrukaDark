@@ -462,7 +462,6 @@ const menuTranslations = {
     transparencyLow: 'Less Transparent',
     about: 'About',
     hide: 'Hide',
-    hideothers: 'Hide Others',
     unhide: 'Show All',
     quit: 'Quit',
     undo: 'Undo',
@@ -473,7 +472,7 @@ const menuTranslations = {
     pasteAndMatchStyle: 'Paste and Match Style',
     delete: 'Delete',
     selectAll: 'Select All',
-    togglefullscreen: 'Toggle Fullscreen',
+    
     
     language: 'Language',
     languageEnglish: 'English',
@@ -501,7 +500,6 @@ const menuTranslations = {
     transparencyLow: '弱（ほぼ不透過）',
     about: 'IrukaDarkについて',
     hide: 'IrukaDarkを隠す',
-    hideothers: 'その他を隠す',
     unhide: 'すべて表示',
     quit: 'IrukaDarkを終了',
     undo: '元に戻す',
@@ -512,7 +510,7 @@ const menuTranslations = {
     pasteAndMatchStyle: 'スタイルを合わせて貼り付け',
     delete: '削除',
     selectAll: 'すべてを選択',
-    togglefullscreen: '全画面表示',
+    
     
     language: '言語',
     languageEnglish: 'English',
@@ -1004,9 +1002,7 @@ function createAppMenu() {
   const viewMenu = {
     label: t.view,
     submenu: [
-      { role: 'togglefullscreen', label: t.togglefullscreen },
       
-      { type: 'separator' },
       {
         label: t.appearance,
         submenu: [
@@ -1093,7 +1089,6 @@ function createAppMenu() {
         { role: 'about', label: t.about },
         { type: 'separator' },
         { role: 'hide', label: t.hide },
-        { role: 'hideothers', label: t.hideothers },
         { role: 'unhide', label: t.unhide },
         { type: 'separator' },
         { role: 'quit', label: t.quit }
