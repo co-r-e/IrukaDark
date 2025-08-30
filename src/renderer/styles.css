@@ -672,10 +672,6 @@ button:disabled {
   opacity: 0.5;
 }
 
-/* Header status removed */
-
-
-
 
 /* Send button explicit styles for consistency */
 #sendBtn {
@@ -747,7 +743,7 @@ button:disabled {
   box-shadow: var(--shadow-window);
 }
 
-.backdrop-blur-sm { }
+
 
 
 /* Dark mode input styling */
@@ -801,7 +797,6 @@ html.solid-window.theme-dark #messageInput {
 @keyframes toastIn { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: translateY(0);} }
 
 /* status indicator non-interactive styling */
-/* header status removed */
 
 
 

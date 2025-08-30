@@ -872,7 +872,7 @@ app.on('will-quit', () => {
   try { globalShortcut.unregisterAll(); } catch {}
 });
 
-// 開発用メニューは不要（常時本番運用）
+
 
 // 言語設定の保存
 function upsertEnvVar(envPath, key, value) {
@@ -1140,7 +1140,7 @@ app.on('activate', () => {
   }
 });
 
-// Removed unused get-api-key; renderer never requests raw keys.
+
 
 // Allow renderer to cancel the current in-flight shortcut AI request
 ipcMain.handle('cancel-ai', () => {

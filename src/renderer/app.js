@@ -94,7 +94,6 @@ class IrukaDarkApp {
         // Generation state
         this.isGenerating = false;
         this.cancelRequested = false;
-        this.isSearching = false;
         this.initializeElements();
         this.bindEvents();
         this.updateUILanguage();
@@ -151,9 +150,7 @@ class IrukaDarkApp {
         this.chatHistory = document.getElementById('chatHistory');
 
     }
-
-    // JSによるアクセント適用は不要（CSSで一元管理）
-
+    
     bindEvents() {
         this.sendBtn.addEventListener('click', () => {
             if (this.isGenerating) {
@@ -224,7 +221,6 @@ class IrukaDarkApp {
         on('onExplainScreenshot', (payload) => this.handleExplainScreenshot(payload));
         on('onExplainScreenshotDetailed', (payload) => this.handleExplainScreenshotDetailed(payload));
         on('onAccessibilityWarning', () => this.addMessage('system', getUIText('accessibilityWarning')));
-        // Heuristic/off-channel search mode updates removed; rely on model output only
         on('onShortcutRegistered', (accel) => {
                 if (!accel) {
                     this.showToast(getUIText('failedToRegisterShortcut'), 'error', 3600);
@@ -328,7 +324,7 @@ class IrukaDarkApp {
         if (solid) html.classList.add('solid-window'); else html.classList.remove('solid-window');
     }
 
-    // 旧メニュー機能は無効化（バツボタンで閉じる運用へ）
+    
 
     /**
      * クリップボードのテキストを解説する（画像は送付しないテキスト専用モード）
@@ -339,6 +335,8 @@ class IrukaDarkApp {
         const token = ++this.shortcutRequestId;
         const content = (text || '').trim();
         if (!content) return;
+        // 詳細（Option+Shift+S/A）と同じ挙動: 自動スクロールを一時停止
+        this.disableAutoScroll = true;
         // システムメッセージ（?アイコン）として、AIに送るテキストをそのまま表示
         this.addMessage('system-question', content);
         // ステータス更新はヘッダーのみ同期
@@ -348,7 +346,7 @@ class IrukaDarkApp {
         try {
             const historyText = this.buildHistoryContext();
             const response = await this.geminiService.generateTextExplanation(content, historyText, this.webSearchEnabled);
-            await this.flashSearchingIfSources(response);
+            
             if (token !== this.shortcutRequestId) { return; }
             this.hideTypingIndicator();
             if (this.cancelRequested) { return; }
@@ -360,6 +358,9 @@ class IrukaDarkApp {
             this.hideTypingIndicator();
             this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
             this.syncHeader();
+        } finally {
+            // 自動スクロールを元に戻す
+            this.disableAutoScroll = false;
         }
     }
 
@@ -380,7 +381,7 @@ class IrukaDarkApp {
         try {
             const historyText = this.buildHistoryContext();
             const response = await this.geminiService.generateDetailedExplanation(content, historyText, this.webSearchEnabled);
-            await this.flashSearchingIfSources(response);
+            
             if (token !== this.shortcutRequestId) { return; }
             this.hideTypingIndicator();
             if (this.cancelRequested) { return; }
@@ -418,7 +419,7 @@ class IrukaDarkApp {
             this.showTypingIndicator();
             const historyText = this.buildHistoryContext();
             const response = await this.geminiService.generateImageExplanation(data, mime, historyText, this.webSearchEnabled);
-            await this.flashSearchingIfSources(response);
+            
             if (token !== this.shortcutRequestId) { return; }
             this.hideTypingIndicator();
             if (this.cancelRequested) { return; }
@@ -456,7 +457,7 @@ class IrukaDarkApp {
             this.showTypingIndicator();
             const historyText = this.buildHistoryContext();
             const response = await this.geminiService.generateImageDetailedExplanation(data, mime, historyText, this.webSearchEnabled);
-            await this.flashSearchingIfSources(response);
+            
             if (token !== this.shortcutRequestId) { return; }
             this.hideTypingIndicator();
             if (this.cancelRequested) { return; }
@@ -525,14 +526,15 @@ class IrukaDarkApp {
             this.messageInput?.focus();
             return;
         }
-        // Default to thinking; will switch to searching only if result confirms sources
-        this.isSearching = false;
+        // Default to thinking indicator only
+        // 詳細ショートカットと同じUI挙動に統一: 生成中は自動スクロールを抑制
+        this.disableAutoScroll = true;
         this.showTypingIndicator();
 
         try {
             const historyText = this.buildHistoryContext();
             const response = await this.geminiService.generateResponse(message, historyText, this.webSearchEnabled);
-            await this.flashSearchingIfSources(response);
+            
             this.hideTypingIndicator();
             if (this.cancelRequested) { return; }
             this.addMessage('ai', response);
@@ -549,6 +551,9 @@ class IrukaDarkApp {
             this.addMessage('system', `${getUIText('errorOccurred')}: ${error.message}`);
             this.syncHeader();
             this.messageInput?.focus();
+        } finally {
+            // 自動スクロールの設定を元に戻す
+            this.disableAutoScroll = false;
         }
     }
 
@@ -563,7 +568,10 @@ class IrukaDarkApp {
             const matched = isJa ? jaRe.test(t) : enRe.test(t);
             if (!matched) return false;
             const reply = this.pickIdentityResponse(isJa ? 'ja' : 'en');
-            this.addMessage('ai', reply);
+            // 詳細ショートカットと同じUI挙動: 出力時は自動スクロール抑制
+            const prev = this.disableAutoScroll;
+            this.disableAutoScroll = true;
+            try { this.addMessage('ai', reply); } finally { this.disableAutoScroll = prev; }
             return true;
         } catch { return false; }
     }
@@ -589,7 +597,7 @@ class IrukaDarkApp {
         return arr[Math.floor(Math.random() * arr.length)];
     }
 
-    async flashSearchingIfSources(_result) { /* no-op: always show thinking */ }
+    
 
     // no-op: renderer no longer predicts search mode; main process informs
 
@@ -610,6 +618,8 @@ class IrukaDarkApp {
 
         if (lower === '/compact') {
             try {
+                // 詳細ショートカットと同じUI挙動
+                this.disableAutoScroll = true;
                 const historyText = this.buildHistoryContext(8000, 30);
                 this.showTypingIndicator();
                 const summary = await this.geminiService.generateHistorySummary(historyText, this.webSearchEnabled);
@@ -624,12 +634,16 @@ class IrukaDarkApp {
                 this.hideTypingIndicator();
                 if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) { return; }
                 this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
+            } finally {
+                this.disableAutoScroll = false;
             }
             return;
         }
 
         if (lower === '/next') {
             try {
+                // 詳細ショートカットと同じUI挙動
+                this.disableAutoScroll = true;
                 const lastAI = [...(this.chatHistoryData || [])].reverse().find(m => m && m.role === 'assistant' && m.content);
                 if (!lastAI) { this.addMessage('system', getUIText('noPreviousAI')); return; }
                 const historyText = this.buildHistoryContext(8000, 30);
@@ -642,6 +656,8 @@ class IrukaDarkApp {
                 this.hideTypingIndicator();
                 if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) { return; }
                 this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
+            } finally {
+                this.disableAutoScroll = false;
             }
             return;
         }
@@ -888,15 +904,8 @@ class IrukaDarkApp {
         if (typingIndicator) {
             typingIndicator.remove();
         }
-        this.isSearching = false;
+        
         this.setGenerating(false);
-    }
-
-    updateTypingIndicatorLabel() {
-        try {
-            const el = document.querySelector('#typing-indicator [data-role="typing-label"]');
-            if (el) { el.textContent = getUIText('thinking'); }
-        } catch {}
     }
 
     addMessage(type, content) {
