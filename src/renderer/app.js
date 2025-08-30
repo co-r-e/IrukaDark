@@ -412,8 +412,8 @@ class IrukaDarkApp {
             this.disableAutoScroll = true;
             const lang = getCurrentUILanguage();
             const question = (lang === 'ja')
-                ? 'スクリーンショットの概要'
-                : 'Screenshot Summary';
+                ? '選択範囲の解説'
+                : 'Selection Explanation';
             this.addMessage('system-question', question);
             this.syncHeader();
             this.showTypingIndicator();
@@ -450,8 +450,8 @@ class IrukaDarkApp {
             this.disableAutoScroll = true;
             const lang = getCurrentUILanguage();
             const question = (lang === 'ja')
-                ? 'スクリーンショットの詳細'
-                : 'Screenshot Details';
+                ? '選択範囲の解説'
+                : 'Selection Explanation';
             this.addMessage('system-question', question);
             this.syncHeader();
             this.showTypingIndicator();
@@ -1282,12 +1282,12 @@ class GeminiService {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
         let prompt;
         if (lang === 'ja') {
-            prompt = '次のスクリーンショットの内容を日本語で簡潔に説明してください。重要な要素や文脈があれば触れてください。';
+            prompt = '次の内容を日本語で簡潔に説明してください。重要な要素や文脈があれば触れてください。';
             if (historyText && historyText.trim()) {
                 prompt = `【チャット履歴（直近）】\n${historyText}\n\n` + prompt;
             }
         } else {
-            prompt = 'Briefly describe what is shown in this screenshot in clear English. Mention key elements and context if apparent.';
+            prompt = 'Briefly describe what is shown in this content in clear English. Mention key elements and context if apparent.';
             if (historyText && historyText.trim()) {
                 prompt = `Recent chat context:\n${historyText}\n\n` + prompt;
             }
@@ -1299,12 +1299,12 @@ class GeminiService {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
         let prompt;
         if (lang === 'ja') {
-            prompt = '次のスクリーンショットを、非専門家にも分かるように、重要点→理由→具体例→注意点の順で、必要に応じて箇条書きで丁寧に説明してください。文脈が推測できる場合は簡潔に触れてください。';
+            prompt = '次の内容を、非専門家にも分かるように、重要点→理由→具体例→注意点の順で、必要に応じて箇条書きで丁寧に説明してください。文脈が推測できる場合は簡潔に触れてください。';
             if (historyText && historyText.trim()) {
                 prompt = `【チャット履歴（直近）】\n${historyText}\n\n` + prompt;
             }
         } else {
-            prompt = 'Explain the screenshot for non-experts with structure: key points → reasons → examples → caveats. Use bullets where helpful and note likely context if apparent.';
+            prompt = 'Explain the content for non-experts with structure: key points → reasons → examples → caveats. Use bullets where helpful and note likely context if apparent.';
             if (historyText && historyText.trim()) {
                 prompt = `Recent chat context:\n${historyText}\n\n` + prompt;
             }
