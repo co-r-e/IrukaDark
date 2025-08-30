@@ -407,6 +407,8 @@ class IrukaDarkApp {
             const data = payload && payload.data ? String(payload.data) : '';
             const mime = payload && payload.mimeType ? String(payload.mimeType) : 'image/png';
             if (!data) return; // キャンセル等
+            // 詳細版（Option+Shift+S）と同じスクロール挙動に合わせるため一時的に自動スクロールを抑制
+            this.disableAutoScroll = true;
             const lang = getCurrentUILanguage();
             const question = (lang === 'ja')
                 ? 'スクリーンショットの概要'
@@ -427,6 +429,9 @@ class IrukaDarkApp {
             this.hideTypingIndicator();
             this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
             this.syncHeader();
+        } finally {
+            // 詳細版同様、処理完了後に自動スクロールを元に戻す
+            this.disableAutoScroll = false;
         }
     }
 
