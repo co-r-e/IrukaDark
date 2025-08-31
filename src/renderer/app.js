@@ -662,6 +662,27 @@ class IrukaDarkApp {
             return;
         }
 
+        if (lower === '/table') {
+            try {
+                this.disableAutoScroll = true;
+                const lastAI = [...(this.chatHistoryData || [])].reverse().find(m => m && m.role === 'assistant' && m.content);
+                if (!lastAI) { this.addMessage('system', getUIText('noPreviousAI')); return; }
+                const historyText = this.buildHistoryContext(8000, 30);
+                this.showTypingIndicator();
+                const table = await this.geminiService.generateTableFromText(String(lastAI.content || ''), historyText, this.webSearchEnabled);
+                this.hideTypingIndicator();
+                if (this.cancelRequested) { return; }
+                this.addMessage('ai', table);
+            } catch (e) {
+                this.hideTypingIndicator();
+                if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) { return; }
+                this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
+            } finally {
+                this.disableAutoScroll = false;
+            }
+            return;
+        }
+
         if (lower === '/contact') {
             try {
                 const fixed = 'https://co-r-e.net/contact';
@@ -711,6 +732,7 @@ class IrukaDarkApp {
             { key: '/clear', label: '/clear', desc: { en: 'Clear chat history', ja: '履歴をクリア' } },
             { key: '/compact', label: '/compact', desc: { en: 'Summarize and compact history', ja: '履歴を要約して圧縮' } },
             { key: '/next', label: '/next', desc: { en: 'Continue the last AI output', ja: '直前のAI回答の続きを生成' } },
+            { key: '/table', label: '/table', desc: { en: 'Reformat last AI output into a table', ja: '直前のAI出力を表に変換' } },
             { key: '/contact', label: '/contact', desc: { en: 'Open contact URL', ja: '連絡先URLを開く' } },
             { key: '/websearch on', label: '/websearch on', desc: { en: 'Enable Web Search', ja: 'Web検索を有効化' } },
             { key: '/websearch off', label: '/websearch off', desc: { en: 'Disable Web Search', ja: 'Web検索を無効化' } },
@@ -946,6 +968,18 @@ class IrukaDarkApp {
             const contentEl = document.createElement('div');
             contentEl.className = 'message-ai-content';
             contentEl.innerHTML = markdownContent;
+            // Wrap tables for horizontal scrolling in chat output
+            try {
+                const tables = contentEl.querySelectorAll('table');
+                tables.forEach((tbl) => {
+                    if (!tbl.closest('.md-table-wrap')) {
+                        const wrap = document.createElement('div');
+                        wrap.className = 'md-table-wrap';
+                        tbl.parentNode.insertBefore(wrap, tbl);
+                        wrap.appendChild(tbl);
+                    }
+                });
+            } catch {}
             container.appendChild(contentEl);
             if (sources.length > 0) {
                 const badge = document.createElement('span');
@@ -1082,7 +1116,7 @@ class IrukaDarkApp {
         if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
             try {
                 if (marked && marked.setOptions) {
-                    marked.setOptions({ breaks: true });
+                    marked.setOptions({ breaks: true, gfm: true });
                 }
             } catch (e) {
                 // log suppressed in production
@@ -1312,6 +1346,23 @@ class GeminiService {
         return this.requestWithImage(prompt, imageBase64, mimeType, useWebSearch, 'shortcut');
     }
 
+    async generateTableFromText(text, historyText = '', useWebSearch = false) {
+        const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
+        const t = String(text || '');
+        let prompt;
+        if (lang === 'ja') {
+            prompt = `次のテキストを、GFM（GitHub Flavored Markdown）の表に変換してください。\n\n要件:\n- ヘッダー行の直後に区切り行（|---|---|...|）を必ず入れる\n- 表以外の説明文やコードブロックは出力しない（表のみ）\n- 列は内容に合わせて2〜6列程度に整理（不可能なら「項目 | 値」の2列）\n- 最大20行程度に要約し、長文は適度に省略\n- URLやコードは適切に切り、可読性を保つ\n- ヘッダー名・セル内容は日本語で簡潔に（固有名詞は原文を維持可）\n\n対象テキスト:\n${t}`;
+            if (historyText && historyText.trim()) {
+                prompt = `【チャット履歴（直近）】\n${historyText}\n\n` + prompt;
+            }
+        } else {
+            prompt = `Convert the following text into a well-formed GitHub Flavored Markdown (GFM) table.\n\nRequirements:\n- Include a header row AND the separator row (|---|---|...) right after it\n- Output ONLY the table (no explanations, no code fences)\n- Choose 2–6 columns that best fit the content (fallback to "Key | Value" if structure is unclear)\n- Limit to about 20 rows; truncate long content sensibly\n- Keep URLs/code readable\n- Write all headers and cell values in English. Translate any non-English content into concise, natural English while preserving proper nouns.\n\nText:\n${t}`;
+            if (historyText && historyText.trim()) {
+                prompt = `Recent chat context:\n${historyText}\n\n` + prompt;
+            }
+        }
+        return this.requestText(prompt, useWebSearch, 'chat');
+    }
     
 
     async generateHistorySummary(historyText = '', useWebSearch = false) {
