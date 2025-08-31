@@ -592,50 +592,122 @@ function triggerMacCopyShortcut() {
   }
 }
 
-async function tryCopySelectedText() {
-  const before = clipboard.readText() || '';
-  if (isDev) console.log('Clipboard before copy:', before ? `"${before.substring(0, 50)}..."` : 'empty');
+// Bring our main window to foreground (best-effort) without changing UI layout
+function bringAppToFront() {
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (!mainWindow.isVisible()) mainWindow.show();
+      mainWindow.focus();
+    }
+  } catch {}
+}
 
-  if (process.platform === 'darwin') {
-    try {
-      const trusted = systemPreferences.isTrustedAccessibilityClient(false);
-      if (trusted) {
-        triggerMacCopyShortcut();
-      } else {
-        if (isDev) console.log('Accessibility not trusted: skipping automated Cmd+C');
-      }
-    } catch {}
-  }
+// Trim-safe clipboard text read
+function readClipboardTextTrimmed() {
+  try { return (clipboard.readText() || '').trim(); } catch { return ''; }
+}
 
+// Adaptive poll for clipboard change; returns new non-empty text or ''
+async function pollClipboardChange(beforeText, maxWaitMs) {
   const start = Date.now();
-  const maxWait = 900;
-  const fastPhase = 300;
-  let last = before;
+  let last = beforeText;
   let attempts = 0;
-  while (Date.now() - start < maxWait) {
-    const now = clipboard.readText() || '';
+  while (Date.now() - start < maxWaitMs) {
+    const now = readClipboardTextTrimmed();
     attempts++;
-    if (now && now !== before) {
+    if (now && now !== beforeText) {
       if (isDev) console.log(`Clipboard changed after ${attempts} attempts:`, `"${now.substring(0, 50)}..."`);
-      // Update freshness tracker immediately
-      try {
-        clipboardTextSnapshot = (now || '').trim();
-        clipboardChangedAt = Date.now();
-      } catch {}
-      return (now || '').trim();
+      try { clipboardTextSnapshot = now; clipboardChangedAt = Date.now(); } catch {}
+      return now;
     }
     last = now;
     const elapsed = Date.now() - start;
-    const interval = elapsed < fastPhase ? 20 : 50;
+    const interval = elapsed < 240 ? 18 : (elapsed < 900 ? 45 : 90);
     await delay(interval);
   }
+  return last && last.trim() ? last.trim() : '';
+}
 
-  if (last && last.trim()) {
-    if (isDev) console.log('Using fallback clipboard content:', `"${last.substring(0, 50)}..."`);
-    return last.trim();
-  }
-  if (isDev) console.log('No text found in clipboard');
+// Windows: send Ctrl+C to frontmost app (best-effort, no external deps)
+function windowsSendCtrlC() {
+  try {
+    // Prefer COM WScript.Shell for SendKeys; fall back to WinForms
+    const cmd = `powershell -NoProfile -NonInteractive -WindowStyle Hidden -Command "try { $ws = New-Object -ComObject WScript.Shell; $ws.SendKeys('^c'); exit 0 } catch { try { Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('^c'); exit 0 } catch { exit 1 } }"`;
+    exec(cmd, () => {});
+  } catch {}
+}
+
+// Linux: try to read PRIMARY selection (X11/Wayland). Returns text or ''
+async function linuxReadPrimarySelection() {
+  const run = (cmd) => new Promise((resolve) => exec(cmd, (err, stdout) => resolve(err ? '' : String(stdout || ''))));
+  try {
+    // Wayland wl-clipboard
+    let out = await run("sh -lc 'command -v wl-paste >/dev/null 2>&1 && wl-paste --no-newline --primary 2>/dev/null'");
+    if (out && out.trim()) return out.trim();
+    // xclip (X11)
+    out = await run("sh -lc 'command -v xclip >/dev/null 2>&1 && xclip -selection primary -o 2>/dev/null'");
+    if (out && out.trim()) return out.trim();
+    // xsel (X11)
+    out = await run("sh -lc 'command -v xsel >/dev/null 2>&1 && xsel -o -p 2>/dev/null'");
+    if (out && out.trim()) return out.trim();
+  } catch {}
   return '';
+}
+
+async function tryCopySelectedText() {
+  const before = readClipboardTextTrimmed();
+  if (isDev) console.log('Clipboard before copy:', before ? `"${before.substring(0, 50)}..."` : 'empty');
+
+  const platform = process.platform;
+  const envMaxWait = Number.parseInt(process.env.CLIPBOARD_MAX_WAIT_MS || '', 10);
+  const macMaxWait = Number.isFinite(envMaxWait) && envMaxWait > 0 ? envMaxWait : 1800;
+  const winMaxWait = Number.isFinite(envMaxWait) && envMaxWait > 0 ? envMaxWait : 1500;
+  const linMaxWait = Number.isFinite(envMaxWait) && envMaxWait > 0 ? envMaxWait : 800;
+
+  if (platform === 'darwin') {
+    let axTrusted = false;
+    try { axTrusted = systemPreferences.isTrustedAccessibilityClient(false); } catch {}
+    if (axTrusted) {
+      triggerMacCopyShortcut();
+    } else {
+      try { systemPreferences.isTrustedAccessibilityClient(true); } catch {}
+      if (isDev) console.log('Accessibility not trusted: requested OS permission prompt');
+    }
+    // Phase 1: fast poll for a short window before bringing our app frontmost
+    const fastStart = Date.now();
+    while (Date.now() - fastStart < Math.min(220, macMaxWait)) {
+      const now = readClipboardTextTrimmed();
+      if (now && now !== before) {
+        try { clipboardTextSnapshot = now; clipboardChangedAt = Date.now(); } catch {}
+        return now;
+      }
+      await delay(18);
+    }
+    // Phase 2: bring front (to surface paste permission dialog) and continue polling for the remainder
+    bringAppToFront();
+    const remaining = Math.max(0, macMaxWait - (Date.now() - fastStart));
+    const polled = await pollClipboardChange(before, remaining);
+    if (polled) return polled;
+    if (isDev) console.log('No text found in clipboard (macOS)');
+    return '';
+  }
+
+  if (platform === 'win32') {
+    // Best effort: ask the foreground app to copy
+    windowsSendCtrlC();
+    const polled = await pollClipboardChange(before, winMaxWait);
+    if (polled) return polled;
+    // fallback: just read current clipboard as-is
+    return readClipboardTextTrimmed();
+  }
+
+  // linux
+  const polled = await pollClipboardChange(before, linMaxWait);
+  if (polled) return polled;
+  // Try PRIMARY selection (no copy required)
+  const primary = await linuxReadPrimarySelection();
+  if (primary) return primary;
+  return readClipboardTextTrimmed();
 }
 
 // Cross-platform interactive area screenshot
@@ -742,6 +814,13 @@ app.whenReady().then(async () => {
   
   createWindow();
 
+  // Preflight permissions on first launch (macOS): Accessibility + Screen Recording
+  try {
+    setTimeout(() => {
+      preflightPermissionsOnce();
+    }, 400);
+  } catch {}
+
   try {
     const registerShortcut = (accel, detailed = false) => {
       try {
@@ -749,21 +828,16 @@ app.whenReady().then(async () => {
           (async () => {
             try {
               const text = await tryCopySelectedText();
-              if (mainWindow && !mainWindow.isDestroyed()) {
-                if (!mainWindow.isVisible()) mainWindow.show();
-                mainWindow.focus();
-                if (text) {
-                  // If clipboard text is older than threshold, show short system message only
-                  if (isClipboardTextStale(text, 3000)) {
-                    // Send empty to let renderer choose localized message
-                    mainWindow.webContents.send('explain-clipboard-error', '');
-                  } else {
-                    mainWindow.webContents.send(detailed ? 'explain-clipboard-detailed' : 'explain-clipboard', text);
-                  }
-                } else {
-                  // Send empty to let renderer choose localized message
+              if (!mainWindow || mainWindow.isDestroyed()) return;
+              if (text) {
+                // If clipboard text is older than threshold, show short system message only
+                if (isClipboardTextStale(text, 3000)) {
                   mainWindow.webContents.send('explain-clipboard-error', '');
+                } else {
+                  mainWindow.webContents.send(detailed ? 'explain-clipboard-detailed' : 'explain-clipboard', text);
                 }
+              } else {
+                mainWindow.webContents.send('explain-clipboard-error', '');
               }
             } catch (e) {
               if (isDev) console.warn('Clipboard explain failed:', e?.message);
@@ -864,11 +938,89 @@ app.whenReady().then(async () => {
       }
     } catch {}
   }
+
+  // Warm up SDK module and client once (non-blocking) to avoid first-call cold start
+  try {
+    setTimeout(async () => {
+      try {
+        const keys = resolveApiKeys();
+        if (keys && keys.length) {
+          await getGenAIClientForKey(keys[0]).catch(() => {});
+        }
+      } catch {}
+    }, 0);
+  } catch {}
 });
 
 app.on('will-quit', () => {
   try { globalShortcut.unregisterAll(); } catch {}
 });
+
+// --- Permissions preflight (macOS) ---
+function getPrefsPath() {
+  try { return path.join(app.getPath('userData'), 'irukadark.prefs.json'); } catch { return ''; }
+}
+
+function loadPrefs() {
+  const prefsPath = getPrefsPath();
+  try {
+    if (prefsPath && fs.existsSync(prefsPath)) {
+      const raw = fs.readFileSync(prefsPath, 'utf8');
+      return (JSON.parse(raw || '{}') || {});
+    }
+  } catch {}
+  return {};
+}
+
+function savePrefs(prefs) {
+  try {
+    const prefsPath = getPrefsPath();
+    if (!prefsPath) return;
+    fs.mkdirSync(path.dirname(prefsPath), { recursive: true });
+    fs.writeFileSync(prefsPath, JSON.stringify(prefs || {}, null, 2), 'utf8');
+  } catch {}
+}
+
+function preflightPermissionsOnce() {
+  if (process.platform !== 'darwin') return;
+  const prefs = loadPrefs();
+  if (prefs && prefs.PERMISSIONS_PREFLIGHT_DONE) return;
+  try { preflightAccessibility(); } catch {}
+  try { preflightScreenRecording(); } catch {}
+  // Pasteboard permission (Ventura+) is prompted on access; ensure frontmost then read once
+  try {
+    bringAppToFront();
+    try { clipboard.readText(); } catch {}
+  } catch {}
+  try {
+    const p = loadPrefs();
+    p.PERMISSIONS_PREFLIGHT_DONE = true;
+    savePrefs(p);
+  } catch {}
+}
+
+function preflightAccessibility() {
+  try {
+    const trusted = systemPreferences.isTrustedAccessibilityClient(false);
+    if (!trusted) {
+      // Request OS prompt; user may allow in System Settings
+      try { systemPreferences.isTrustedAccessibilityClient(true); } catch {}
+    }
+  } catch {}
+}
+
+function preflightScreenRecording() {
+  try {
+    // Attempt a minimal offscreen capture to trigger permission prompt without saving user content
+    const tmpDir = app.getPath('temp');
+    const file = path.join(tmpDir, `irukadark_perm_${Date.now()}.png`);
+    // Capture a 1x1 rectangle from (0,0) quietly; if permission is missing, OS will prompt
+    const cmd = `screencapture -x -R 0,0,1,1 "${file}"`;
+    exec(cmd, () => {
+      try { if (fs.existsSync(file)) fs.unlinkSync(file); } catch {}
+    });
+  } catch {}
+}
 
 
 
@@ -1226,12 +1378,23 @@ ipcMain.handle('ai:generate', async (_e, payload) => {
     const source = String(payload?.source || 'chat');
     const isShortcut = source === 'shortcut';
     const requestedModel = String(payload?.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite');
-    const generationConfig = payload?.generationConfig || {
+    let generationConfig = payload?.generationConfig || {
       temperature: 0.7,
       topK: 40,
       topP: 0.95,
       maxOutputTokens: 2048,
     };
+    // Speed up shortcut responses by clamping output and slightly narrower sampling
+    if (isShortcut) {
+      const maxTokEnv = Number.parseInt(process.env.SHORTCUT_MAX_TOKENS || '', 10);
+      const cap = Number.isFinite(maxTokEnv) && maxTokEnv > 0 ? maxTokEnv : 512;
+      generationConfig = {
+        ...generationConfig,
+        maxOutputTokens: Math.min(cap, Number(generationConfig.maxOutputTokens || 2048)),
+        topK: Math.min(32, Number(generationConfig.topK || 40)),
+        topP: Math.min(0.90, Number(generationConfig.topP || 0.95)),
+      };
+    }
     // Prefer search when the prompt suggests web lookup; otherwise allow model to decide
     // Do not emit heuristic search mode; rely on model output only
     const useGoogleSearch = payload?.useWebSearch === true; // Use frontend's preference
@@ -1362,12 +1525,22 @@ ipcMain.handle('ai:generate-with-image', async (_e, payload) => {
     const source = String(payload?.source || 'chat');
     const isShortcut = source === 'shortcut';
     const requestedModel = String(payload?.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite');
-    const generationConfig = payload?.generationConfig || {
+    let generationConfig = payload?.generationConfig || {
       temperature: 0.7,
       topK: 40,
       topP: 0.95,
       maxOutputTokens: 2048,
     };
+    if (isShortcut) {
+      const maxTokEnv = Number.parseInt(process.env.SHORTCUT_MAX_TOKENS || '', 10);
+      const cap = Number.isFinite(maxTokEnv) && maxTokEnv > 0 ? maxTokEnv : 512;
+      generationConfig = {
+        ...generationConfig,
+        maxOutputTokens: Math.min(cap, Number(generationConfig.maxOutputTokens || 2048)),
+        topK: Math.min(32, Number(generationConfig.topK || 40)),
+        topP: Math.min(0.90, Number(generationConfig.topP || 0.95)),
+      };
+    }
     // Do not emit heuristic search mode; rely on model output only
     const useGoogleSearch = payload?.useWebSearch === true; // Use frontend's preference
     const searchPreferred = process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash';
