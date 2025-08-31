@@ -1282,7 +1282,7 @@ class GeminiService {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
         let prompt;
         if (lang === 'ja') {
-            prompt = '次の内容を日本語で簡潔に説明してください。重要な要素や文脈があれば触れてください。';
+            prompt = '次の内容を、日本語で簡潔に説明してください。重要な要素や文脈があれば触れてください。';
             if (historyText && historyText.trim()) {
                 prompt = `【チャット履歴（直近）】\n${historyText}\n\n` + prompt;
             }
