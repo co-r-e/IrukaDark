@@ -59,6 +59,10 @@ npm start
 - `WINDOW_OPACITY` (optional): `1`, `0.95`, `0.9`, `0.85`, `0.8` (also in menu)
 - `PIN_ALL_SPACES` (optional): `1` to keep windows over all apps/spaces, `0` to limit to current space
 - `ENABLE_GOOGLE_SEARCH` (optional): `1` to enable grounded web search (default: `0`)
+- `CLIPBOARD_MAX_WAIT_MS` (optional): Max wait for detecting a fresh copy after the shortcut (default: 1200ms)
+- `SHORTCUT_MAX_TOKENS` (optional): Max output tokens for shortcut flows (Option/Alt+A,S). Default 1024; effective range 1–2048
+
+
 
 Notes:
 - Only Google AI Studio API Keys are supported; Vertex AI (service account/OAuth) is not wired in this repo.
@@ -97,7 +101,9 @@ Notes:
   - Detailed explain: Option+Shift+A (fallback: Cmd+Option+Shift+A)
   - Screenshot explain: Option+S (fallback: Cmd+Option+S)
   - Screenshot explain (detailed): Option+Shift+S (fallback: Cmd+Option+Shift+S)
-- Permissions: May require Accessibility for auto-copy
+- Permissions: The app will preflight permissions on first launch (non-blocking)
+  - Accessibility for auto-copy (Cmd+C injection)
+  - Screen Recording for area screenshots (to allow interactive capture)
   - System Settings > Privacy & Security > Accessibility
   - If not granted, use manual copy (Cmd+C) then Option+A
 - Show over all apps/spaces: toggle via View > Appearance > “Show Over All Apps/Spaces”
@@ -110,6 +116,7 @@ Notes:
   - Screenshot explain: Alt+S (fallback: Ctrl+Alt+S)
   - Screenshot explain (detailed): Alt+Shift+S (fallback: Ctrl+Alt+Shift+S)
 - Permissions: None required
+- Auto-copy: On Alt+A the app sends Ctrl+C to the foreground app and then reads the clipboard. If no fresh copy is detected, it shows an error instead of reusing stale clipboard content.
 - Screenshot explain launches the Windows Snipping UI (ms-screenclip) for area selection and reads the clipped image from the clipboard.
 - If nothing appears, ensure Snipping Tool is enabled and clipboard access is allowed.
 
@@ -128,6 +135,7 @@ Notes:
   - Screenshot explain (detailed): Alt+Shift+S (fallback: Ctrl+Alt+Shift+S)
 - Permissions: None required
 - Screenshot explain attempts (in order): gnome-screenshot, Spectacle, grim+slurp (Wayland), or maim (X11). If none are available, the shortcut does nothing.
+- When a fresh clipboard copy is not detected on Alt+A, the app tries to read the PRIMARY selection (wl-paste/xclip/xsel). If that is unavailable or empty, it shows an error.
 - Behavior may differ across Wayland/X11 setups. Ensure one of the above tools is installed for area capture.
 
 ## Permissions

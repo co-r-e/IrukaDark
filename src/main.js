@@ -32,6 +32,8 @@ if (!envLoaded) {
   }
 }
 
+// (Reverted) Do not auto-load .env.example as defaults; only .env.local and OS envs are used
+
 const isDev = process.env.NODE_ENV === 'development';
 
 // Track current in-flight AI request for cancellation (shortcut-only)
@@ -660,9 +662,10 @@ async function tryCopySelectedText() {
 
   const platform = process.platform;
   const envMaxWait = Number.parseInt(process.env.CLIPBOARD_MAX_WAIT_MS || '', 10);
-  const macMaxWait = Number.isFinite(envMaxWait) && envMaxWait > 0 ? envMaxWait : 1800;
-  const winMaxWait = Number.isFinite(envMaxWait) && envMaxWait > 0 ? envMaxWait : 1500;
-  const linMaxWait = Number.isFinite(envMaxWait) && envMaxWait > 0 ? envMaxWait : 800;
+  const defaultMaxWait = 1200; // unified default across OS
+  const macMaxWait = Number.isFinite(envMaxWait) && envMaxWait > 0 ? envMaxWait : defaultMaxWait;
+  const winMaxWait = Number.isFinite(envMaxWait) && envMaxWait > 0 ? envMaxWait : defaultMaxWait;
+  const linMaxWait = Number.isFinite(envMaxWait) && envMaxWait > 0 ? envMaxWait : defaultMaxWait;
 
   if (platform === 'darwin') {
     let axTrusted = false;
@@ -697,8 +700,8 @@ async function tryCopySelectedText() {
     windowsSendCtrlC();
     const polled = await pollClipboardChange(before, winMaxWait);
     if (polled) return polled;
-    // fallback: just read current clipboard as-is
-    return readClipboardTextTrimmed();
+    // No change detected: treat as failure (do not reuse stale clipboard)
+    return '';
   }
 
   // linux
@@ -707,7 +710,8 @@ async function tryCopySelectedText() {
   // Try PRIMARY selection (no copy required)
   const primary = await linuxReadPrimarySelection();
   if (primary) return primary;
-  return readClipboardTextTrimmed();
+  // No change and no PRIMARY selection: treat as failure
+  return '';
 }
 
 // Cross-platform interactive area screenshot
@@ -1387,7 +1391,7 @@ ipcMain.handle('ai:generate', async (_e, payload) => {
     // Speed up shortcut responses by clamping output and slightly narrower sampling
     if (isShortcut) {
       const maxTokEnv = Number.parseInt(process.env.SHORTCUT_MAX_TOKENS || '', 10);
-      const cap = Number.isFinite(maxTokEnv) && maxTokEnv > 0 ? maxTokEnv : 512;
+      const cap = Number.isFinite(maxTokEnv) && maxTokEnv > 0 ? maxTokEnv : 1024;
       generationConfig = {
         ...generationConfig,
         maxOutputTokens: Math.min(cap, Number(generationConfig.maxOutputTokens || 2048)),
@@ -1533,7 +1537,7 @@ ipcMain.handle('ai:generate-with-image', async (_e, payload) => {
     };
     if (isShortcut) {
       const maxTokEnv = Number.parseInt(process.env.SHORTCUT_MAX_TOKENS || '', 10);
-      const cap = Number.isFinite(maxTokEnv) && maxTokEnv > 0 ? maxTokEnv : 512;
+      const cap = Number.isFinite(maxTokEnv) && maxTokEnv > 0 ? maxTokEnv : 1024;
       generationConfig = {
         ...generationConfig,
         maxOutputTokens: Math.min(cap, Number(generationConfig.maxOutputTokens || 2048)),
