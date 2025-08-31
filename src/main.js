@@ -32,7 +32,7 @@ if (!envLoaded) {
   }
 }
 
-// (Reverted) Do not auto-load .env.example as defaults; only .env.local and OS envs are used
+// Only .env.local and OS env vars are loaded (no .env.example at runtime)
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -1399,8 +1399,7 @@ ipcMain.handle('ai:generate', async (_e, payload) => {
         topP: Math.min(0.90, Number(generationConfig.topP || 0.95)),
       };
     }
-    // Prefer search when the prompt suggests web lookup; otherwise allow model to decide
-    // Do not emit heuristic search mode; rely on model output only
+    // Prefer search only when explicitly enabled by the renderer
     const useGoogleSearch = payload?.useWebSearch === true; // Use frontend's preference
 
     // Try requested model first, then a search-capable model
@@ -1545,7 +1544,7 @@ ipcMain.handle('ai:generate-with-image', async (_e, payload) => {
         topP: Math.min(0.90, Number(generationConfig.topP || 0.95)),
       };
     }
-    // Do not emit heuristic search mode; rely on model output only
+    // Search only when explicitly enabled by the renderer
     const useGoogleSearch = payload?.useWebSearch === true; // Use frontend's preference
     const searchPreferred = process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash';
     // Remove duplicates
@@ -1564,7 +1563,7 @@ ipcMain.handle('ai:generate-with-image', async (_e, payload) => {
       // AbortController for timeouts/cancel
       const controller = new AbortController();
       const cancelFlag = { user: false };
-      // Timeout: Web検索ONなら60秒、OFFは従来（画像は45秒）
+      // Timeout: Web検索ON=60秒、OFF=45秒
       const timeoutMs = useGoogleSearch ? 60000 : 45000;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
       currentAIController = controller;

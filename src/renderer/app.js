@@ -599,7 +599,7 @@ class IrukaDarkApp {
 
     
 
-    // no-op: renderer no longer predicts search mode; main process informs
+    
 
     async handleSlashCommand(input) {
         const cmd = (input || '').trim();
@@ -1087,10 +1087,7 @@ class IrukaDarkApp {
             let text = lines.join('\n');
             if (text.length > maxChars) text = text.slice(-maxChars);
             return text;
-        } catch (e) {
-            // log suppressed in production
-            return '';
-        }
+        } catch (e) { return ''; }
     }
 
     // Toast helper
@@ -1107,9 +1104,7 @@ class IrukaDarkApp {
                     div.parentNode.removeChild(div);
                 }
             }, timeout);
-        } catch (e) {
-            // log suppressed in production
-        }
+        } catch (e) {}
     }
 
     renderMarkdown(content) {
@@ -1118,9 +1113,7 @@ class IrukaDarkApp {
                 if (marked && marked.setOptions) {
                     marked.setOptions({ breaks: true, gfm: true });
                 }
-            } catch (e) {
-                // log suppressed in production
-            }
+            } catch (e) {}
             // マークダウンをHTMLに変換
             const rawHtml = marked.parse(content);
             // XSS攻撃を防ぐためにサニタイズ
@@ -1457,9 +1450,7 @@ IrukaDarkApp.prototype.createIconsEnhanced = function() {
             }
         };
         requestAnimationFrame(() => setTimeout(() => stagedApply(5), 0));
-    } catch (e) {
-        // log suppressed in production
-    }
+    } catch (e) {}
 };
 
 IrukaDarkApp.prototype.applyIconGradients = function() {
@@ -1472,9 +1463,7 @@ IrukaDarkApp.prototype.applyIconGradients = function() {
 
         // 明示的にグラデ非対象のアイコンはグラデ属性を外して白に委ねる
         // テーマトグルアイコンは存在しないため処理なし
-    } catch (e) {
-        // log suppressed in production
-    }
+    } catch (e) {}
 };
 
 IrukaDarkApp.prototype.applyGradientToSvg = function(svg) {
@@ -1516,9 +1505,7 @@ IrukaDarkApp.prototype.applyGradientToSvg = function(svg) {
         targets.forEach(el => el.setAttribute('stroke', `url(#${gradId})`));
 
         svg.setAttribute('data-irukadark-gradient', '1');
-    } catch (e) {
-        // log suppressed in production
-    }
+    } catch (e) {}
 };
 
 IrukaDarkApp.prototype.removeGradientFromSvg = function(svg) {
@@ -1531,9 +1518,7 @@ IrukaDarkApp.prototype.removeGradientFromSvg = function(svg) {
             if (s && /url\(#/.test(s)) el.removeAttribute('stroke');
         });
         svg.removeAttribute('data-irukadark-gradient');
-    } catch (e) {
-        // log suppressed in production
-    }
+    } catch (e) {}
 };
 
 // Auto-size helper for chat textarea
@@ -1550,9 +1535,7 @@ IrukaDarkApp.prototype.autosizeMessageInput = function(reset = false) {
         el.style.height = 'auto';
         const next = Math.min(Math.max(el.scrollHeight, min), max);
         el.style.height = `${next}px`;
-    } catch (e) {
-        // log suppressed in production
-    }
+    } catch (e) {}
 };
 
 
