@@ -80,6 +80,9 @@ Notes:
 4) Right-click anywhere to open the application menu at the cursor
    - Even in detailed shortcut flows, the view auto-scrolls to the “Thinking…” indicator.
 
+#### Heads‑up
+- On some machines, the auto‑copy used by Option/Alt+A can be blocked by OS settings, permissions, or other apps. If quick explain fails, use Option/Alt+S (area screenshot explain) instead — it works reliably in most cases and is often sufficient.
+
 ### Slash Commands
 - `/clear`: Clear chat history
 - `/compact`: Summarize and compact recent history
