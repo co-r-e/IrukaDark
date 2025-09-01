@@ -683,6 +683,28 @@ class IrukaDarkApp {
             return;
         }
 
+        // Clarify last AI output: /What do you mean?
+        if (lower === '/what do you mean?') {
+            try {
+                this.disableAutoScroll = true;
+                const lastAI = [...(this.chatHistoryData || [])].reverse().find(m => m && m.role === 'assistant' && m.content);
+                if (!lastAI) { this.addMessage('system', getUIText('noPreviousAI')); return; }
+                const historyText = this.buildHistoryContext(8000, 30);
+                this.showTypingIndicator();
+                const clarified = await this.geminiService.generateClarificationFromText(String(lastAI.content || ''), historyText, this.webSearchEnabled);
+                this.hideTypingIndicator();
+                if (this.cancelRequested) { return; }
+                this.addMessage('ai', clarified);
+            } catch (e) {
+                this.hideTypingIndicator();
+                if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) { return; }
+                this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
+            } finally {
+                this.disableAutoScroll = false;
+            }
+            return;
+        }
+
         if (lower === '/contact') {
             try {
                 const fixed = 'https://co-r-e.net/contact';
@@ -729,14 +751,21 @@ class IrukaDarkApp {
 
     initSlashSuggest() {
         this.slashCommands = [
+            // 1) New command at the top
+            { key: '/what do you mean?', label: '/What do you mean?', desc: { en: 'Clarify the last AI output', ja: '直前のAI出力をわかりやすく説明' } },
+            // 2) /next second
+            { key: '/next', label: '/next', desc: { en: 'Continue the last AI output', ja: '直前のAI回答の続きを生成' } },
+            // 3) /table third
+            { key: '/table', label: '/table', desc: { en: 'Reformat last AI output into a table', ja: '直前のAI出力を表に変換' } },
+
+            // Others
             { key: '/clear', label: '/clear', desc: { en: 'Clear chat history', ja: '履歴をクリア' } },
             { key: '/compact', label: '/compact', desc: { en: 'Summarize and compact history', ja: '履歴を要約して圧縮' } },
-            { key: '/next', label: '/next', desc: { en: 'Continue the last AI output', ja: '直前のAI回答の続きを生成' } },
-            { key: '/table', label: '/table', desc: { en: 'Reformat last AI output into a table', ja: '直前のAI出力を表に変換' } },
-            { key: '/contact', label: '/contact', desc: { en: 'Open contact URL', ja: '連絡先URLを開く' } },
             { key: '/websearch on', label: '/websearch on', desc: { en: 'Enable Web Search', ja: 'Web検索を有効化' } },
             { key: '/websearch off', label: '/websearch off', desc: { en: 'Disable Web Search', ja: 'Web検索を無効化' } },
-            { key: '/websearch status', label: '/websearch status', desc: { en: 'Show Web Search status', ja: 'Web検索の状態を表示' } }
+            { key: '/websearch status', label: '/websearch status', desc: { en: 'Show Web Search status', ja: 'Web検索の状態を表示' } },
+            // 4) /contact must be last
+            { key: '/contact', label: '/contact', desc: { en: 'Open contact URL', ja: '連絡先URLを開く' } }
         ];
         this.suggestIndex = -1;
         this.suggestVisible = false;
@@ -1356,7 +1385,27 @@ class GeminiService {
         }
         return this.requestText(prompt, useWebSearch, 'chat');
     }
-    
+
+    /**
+     * Clarify the previous AI output in simpler, more concrete terms.
+     */
+    async generateClarificationFromText(previousText = '', historyText = '', useWebSearch = false) {
+        const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
+        const t = previousText.length > 12000 ? previousText.slice(0, 12000) + (lang === 'ja' ? ' …(一部省略)' : ' …(truncated)') : previousText;
+        let prompt;
+        if (lang === 'ja') {
+            prompt = `次の直前のAI出力について、「どういうこと？」に答えるつもりで、よりわかりやすく具体的に説明してください。\n\n要件:\n- 重要な結論→理由→具体例→次の一手の順で、5〜8行の箇条書き\n- 難しい用語はその場で短く定義（かっこ書き可）\n- 比喩や日常の例を1つ入れる\n- 原文の意図は保ちつつ、平易な日本語に言い換える\n\n【直前のAI出力】\n${t}`;
+            if (historyText && historyText.trim()) {
+                prompt = `【チャット履歴（直近）】\n${historyText}\n\n` + prompt;
+            }
+        } else {
+            prompt = `Please clarify the previous AI output as if answering "What do you mean?"\n\nRequirements:\n- 5–8 bullet lines in this order: key point → why → concrete example → next action\n- Define any jargon briefly in-place\n- Include one relatable, everyday example or analogy\n- Keep the original intent but use simple, plain English\n\n[Previous AI output]\n${t}`;
+            if (historyText && historyText.trim()) {
+                prompt = `Recent chat context:\n${historyText}\n\n` + prompt;
+            }
+        }
+        return this.requestText(prompt, useWebSearch, 'chat');
+    }
 
     async generateHistorySummary(historyText = '', useWebSearch = false) {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
