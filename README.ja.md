@@ -187,3 +187,4 @@ MIT License
 ## トラブルシューティング
 - 400 API_KEY_INVALID が出る場合: Google AI Studio の有効なAPIキーを使用してください（一般的なGoogle API Keyでは動作しません）。
 - `.env.local` には上記のいずれかのキー変数を設定してください。複数ある場合は `GEMINI_API_KEY` が優先され、無効キーは自動でスキップされます。
+- Option/Alt+A がうまく動かない場合: 一度 手動でコピー（mac は Cmd+C、Windows/Linux は Ctrl+C）を押して、すぐに Option/Alt+A を押してみてください。新しいクリップボードの取得を検知できた場合に実行されます。

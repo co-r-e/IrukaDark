@@ -171,3 +171,4 @@ MIT License. See `LICENSE`.
 ## Troubleshooting
 - 400 API_KEY_INVALID: Use a valid Google AI Studio API Key. Generic Google API keys (e.g., Maps) will not work.
 - Ensure `.env.local` contains one of the supported key variables; prefer `GEMINI_API_KEY`.
+- If Option/Alt+A doesn’t work: Press manual copy once (mac: Cmd+C; Windows/Linux: Ctrl+C), then immediately press Option/Alt+A. This helps the app detect a fresh clipboard and proceed.
