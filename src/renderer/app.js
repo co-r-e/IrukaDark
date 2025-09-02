@@ -351,6 +351,7 @@ class IrukaDarkApp {
             this.hideTypingIndicator();
             if (this.cancelRequested) { return; }
             this.addMessage('ai', response);
+            try { window.electronAPI && window.electronAPI.ensureVisible && window.electronAPI.ensureVisible(false); } catch {}
             // ステータス表示はヘッダーのみ同期
             this.syncHeader();
         } catch (e) {
@@ -386,6 +387,7 @@ class IrukaDarkApp {
             this.hideTypingIndicator();
             if (this.cancelRequested) { return; }
             this.addMessage('ai', response);
+            try { window.electronAPI && window.electronAPI.ensureVisible && window.electronAPI.ensureVisible(false); } catch {}
             this.syncHeader();
         } catch (e) {
             if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) { return; }

@@ -594,6 +594,53 @@ function triggerMacCopyShortcut() {
   }
 }
 
+// macOS: read selected text via Accessibility (AX) without using the clipboard
+async function macReadSelectedTextViaAX() {
+  return await new Promise((resolve) => {
+    try {
+      const script = `
+        try
+          tell application "System Events"
+            set procs to (every process whose frontmost is true)
+            if procs is {} then return ""
+            set p to item 1 of procs
+            set theFocused to missing value
+            try
+              set theFocused to value of attribute "AXFocusedUIElement" of p
+            on error
+              try
+                set theFocused to value of attribute "AXFocusedUIElement" of window 1 of p
+              on error
+                return ""
+              end try
+            end try
+            try
+              set sel to value of attribute "AXSelectedText" of theFocused
+              if sel is missing value then set sel to ""
+              return sel as text
+            on error
+              try
+                set val to value of theFocused
+                if val is missing value then set val to ""
+                return val as text
+              on error
+                return ""
+              end try
+            end try
+          end tell
+        on error
+          return ""
+        end try`;
+      const cmd = `osascript -e '${script.replace(/\n/g, ' ')}'`;
+      exec(cmd, (err, stdout) => {
+        if (err) { resolve(''); return; }
+        const out = String(stdout || '').replace(/\r/g, '').trim();
+        resolve(out);
+      });
+    } catch { resolve(''); }
+  });
+}
+
 // Bring our main window to foreground (best-effort) without changing UI layout
 function bringAppToFront() {
   try {
@@ -668,50 +715,93 @@ async function tryCopySelectedText() {
   const linMaxWait = Number.isFinite(envMaxWait) && envMaxWait > 0 ? envMaxWait : defaultMaxWait;
 
   if (platform === 'darwin') {
-    let axTrusted = false;
-    try { axTrusted = systemPreferences.isTrustedAccessibilityClient(false); } catch {}
-    if (axTrusted) {
-      triggerMacCopyShortcut();
-    } else {
-      try { systemPreferences.isTrustedAccessibilityClient(true); } catch {}
-      if (isDev) console.log('Accessibility not trusted: requested OS permission prompt');
-    }
-    // Phase 1: fast poll for a short window before bringing our app frontmost
-    const fastStart = Date.now();
-    while (Date.now() - fastStart < Math.min(220, macMaxWait)) {
-      const now = readClipboardTextTrimmed();
-      if (now && now !== before) {
-        try { clipboardTextSnapshot = now; clipboardChangedAt = Date.now(); } catch {}
-        return now;
+    // Make sure IrukaDark is not the active app while retrieving selection
+    let didHideApp = false;
+    try {
+      if (typeof app?.isHidden === 'function' && !app.isHidden()) {
+        didHideApp = true;
+        try { app.hide(); } catch {}
+        await delay(140);
       }
-      await delay(18);
+    } catch {}
+
+    try {
+      // 1) Primary: Try Accessibility selected text without touching the clipboard
+      const axText = (await macReadSelectedTextViaAX()) || '';
+      if (axText && axText.trim()) {
+        try { clipboardTextSnapshot = axText.trim(); clipboardChangedAt = Date.now(); } catch {}
+        return axText.trim();
+      }
+
+      // Do not prompt or change focus during shortcut — avoid stealing focus.
+      // Attempt keystroke regardless of AX trust; if not permitted, it will simply have no effect.
+      try { triggerMacCopyShortcut(); } catch {}
+
+      // Poll for the entire allowed window without ever bringing our app frontmost
+      const polled = await pollClipboardChange(before, macMaxWait);
+      if (polled) return polled;
+      if (isDev) console.log('No text found in clipboard (macOS)');
+      return '';
+    } finally {
+      // Unhide app non-activating (best-effort)
+      if (didHideApp) {
+        try {
+          const wins = (BrowserWindow.getAllWindows ? BrowserWindow.getAllWindows() : []).filter(w => !w.isDestroyed());
+          for (const w of wins) { try { typeof w.showInactive === 'function' ? w.showInactive() : w.show(); } catch {} }
+        } catch {}
+      }
     }
-    // Phase 2: bring front (to surface paste permission dialog) and continue polling for the remainder
-    bringAppToFront();
-    const remaining = Math.max(0, macMaxWait - (Date.now() - fastStart));
-    const polled = await pollClipboardChange(before, remaining);
-    if (polled) return polled;
-    if (isDev) console.log('No text found in clipboard (macOS)');
-    return '';
   }
 
   if (platform === 'win32') {
-    // Best effort: ask the foreground app to copy
-    windowsSendCtrlC();
-    const polled = await pollClipboardChange(before, winMaxWait);
-    if (polled) return polled;
-    // No change detected: treat as failure (do not reuse stale clipboard)
-    return '';
+    // If our app is focused, hide all its windows briefly so Ctrl+C targets the underlying app
+    const appWindowFocused = !!BrowserWindow.getFocusedWindow();
+    let windowsToRestore = [];
+    if (appWindowFocused) {
+      try {
+        windowsToRestore = (BrowserWindow.getAllWindows ? BrowserWindow.getAllWindows() : []).filter(w => !w.isDestroyed() && w.isVisible());
+        for (const w of windowsToRestore) { try { w.hide(); } catch {} }
+        await delay(100);
+      } catch {}
+    }
+    try {
+      // Best effort: ask the (now foreground) app to copy
+      windowsSendCtrlC();
+      const polled = await pollClipboardChange(before, winMaxWait);
+      if (polled) return polled;
+      return '';
+    } finally {
+      if (windowsToRestore && windowsToRestore.length) {
+        for (const w of windowsToRestore) { try { typeof w.showInactive === 'function' ? w.showInactive() : w.show(); } catch {} }
+        // Do not refocus our window; keep user's focus on their app
+      }
+    }
   }
 
   // linux
-  const polled = await pollClipboardChange(before, linMaxWait);
-  if (polled) return polled;
-  // Try PRIMARY selection (no copy required)
-  const primary = await linuxReadPrimarySelection();
-  if (primary) return primary;
-  // No change and no PRIMARY selection: treat as failure
-  return '';
+  // If our app is focused, briefly hide windows to avoid swallowing focus
+  const appWindowFocused = !!BrowserWindow.getFocusedWindow();
+  let windowsToRestore = [];
+  if (appWindowFocused) {
+    try {
+      windowsToRestore = (BrowserWindow.getAllWindows ? BrowserWindow.getAllWindows() : []).filter(w => !w.isDestroyed() && w.isVisible());
+      for (const w of windowsToRestore) { try { w.hide(); } catch {} }
+      await delay(80);
+    } catch {}
+  }
+  try {
+    const polled = await pollClipboardChange(before, linMaxWait);
+    if (polled) return polled;
+    // Try PRIMARY selection (no copy required)
+    const primary = await linuxReadPrimarySelection();
+    if (primary) return primary;
+    return '';
+  } finally {
+    if (windowsToRestore && windowsToRestore.length) {
+      for (const w of windowsToRestore) { try { typeof w.showInactive === 'function' ? w.showInactive() : w.show(); } catch {} }
+      // Do not refocus our window; keep user's focus on their app
+    }
+  }
 }
 
 // Cross-platform interactive area screenshot
@@ -1318,6 +1408,29 @@ ipcMain.handle('open-external', (_e, url) => {
   try {
     if (typeof url === 'string' && url.startsWith('https://')) {
       shell.openExternal(url);
+      return true;
+    }
+  } catch {}
+  return false;
+});
+
+// Ensure main window becomes visible (optionally without focusing)
+ipcMain.handle('ui:ensure-visible', (_e, opts) => {
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      const wantFocus = !!(opts && opts.focus);
+      if (!mainWindow.isVisible()) {
+        try {
+          if (typeof mainWindow.showInactive === 'function' && !wantFocus) {
+            mainWindow.showInactive();
+          } else {
+            mainWindow.show();
+          }
+        } catch { mainWindow.show(); }
+      }
+      if (wantFocus) {
+        try { mainWindow.focus(); } catch {}
+      }
       return true;
     }
   } catch {}

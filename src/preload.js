@@ -34,4 +34,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   notifyPopupPointer: (phase) => ipcRenderer.invoke('popup:pointer', String(phase || '')),
   getPopupBounds: () => ipcRenderer.invoke('popup:get-bounds'),
   setPopupPosition: (x, y) => ipcRenderer.invoke('popup:set-position', { x: Number(x)||0, y: Number(y)||0 })
+  ,
+  ensureVisible: (focus = false) => ipcRenderer.invoke('ui:ensure-visible', { focus })
 });

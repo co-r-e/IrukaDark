@@ -172,3 +172,7 @@ MIT License. See `LICENSE`.
 - 400 API_KEY_INVALID: Use a valid Google AI Studio API Key. Generic Google API keys (e.g., Maps) will not work.
 - Ensure `.env.local` contains one of the supported key variables; prefer `GEMINI_API_KEY`.
 - If Option/Alt+A doesn’t work: Press manual copy once (mac: Cmd+C; Windows/Linux: Ctrl+C), then immediately press Option/Alt+A. This helps the app detect a fresh clipboard and proceed.
+- Focus gotcha (Option/Alt+A): The shortcut sends Cmd/Ctrl+C to the foreground app. If IrukaDark is focused (frontmost), the copy targets IrukaDark, so no fresh clipboard is detected and the action fails. Fix:
+  - Click the app that holds the selection to bring it to the front, then press Option/Alt+A.
+  - Or press manual copy in that app (mac: Cmd+C; Windows/Linux: Ctrl+C) and immediately press Option/Alt+A.
+  - If the floating window makes clicking the target app tricky, temporarily disable View > Appearance > “Show Over All Apps/Spaces”, click the target app, then try again.

@@ -188,3 +188,7 @@ MIT License
 - 400 API_KEY_INVALID が出る場合: Google AI Studio の有効なAPIキーを使用してください（一般的なGoogle API Keyでは動作しません）。
 - `.env.local` には上記のいずれかのキー変数を設定してください。複数ある場合は `GEMINI_API_KEY` が優先され、無効キーは自動でスキップされます。
 - Option/Alt+A がうまく動かない場合: 一度 手動でコピー（mac は Cmd+C、Windows/Linux は Ctrl+C）を押して、すぐに Option/Alt+A を押してみてください。新しいクリップボードの取得を検知できた場合に実行されます。
+- フォーカスの注意（Option/Alt+A）: このショートカットは「現在フォーカスされているアプリ」に Cmd/Ctrl+C を送出します。IrukaDark が前面（フォーカス）になっていると、コピー対象が IrukaDark になり新しいクリップボードを検知できず失敗します。対処:
+  - 目的のアプリ（テキストを選択しているウィンドウ）を一度クリックして前面にしてから Option/Alt+A を押す。
+  - 目的のアプリで手動コピー（mac: Cmd+C／Windows/Linux: Ctrl+C）→ すぐに Option/Alt+A。
+  - クリックしづらい場合は、メニュー「表示 > 外観 > 全アプリ・全スペースで表示」を一時的にOFFにして、対象アプリをクリックしてから実行する。
