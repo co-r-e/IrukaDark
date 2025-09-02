@@ -35,6 +35,10 @@ if (!envLoaded) {
 // Only .env.local and OS env vars are loaded (no .env.example at runtime)
 
 const isDev = process.env.NODE_ENV === 'development';
+// Timings for temporary hide/show during shortcut copy
+const HIDE_DELAY_MS_MAC = 140;
+const HIDE_DELAY_MS_WIN = 100;
+const HIDE_DELAY_MS_LIN = 80;
 
 // Track current in-flight AI request for cancellation (shortcut-only)
 let currentAIController = null;        // AbortController of the active REST call
@@ -641,6 +645,19 @@ async function macReadSelectedTextViaAX() {
   });
 }
 
+// Show a window without stealing focus when possible
+function showWindowNonActivating(win) {
+  try {
+    if (!win || win.isDestroyed()) return;
+    if (typeof win.showInactive === 'function') win.showInactive(); else win.show();
+  } catch {}
+}
+
+// Safe wrapper to get all BrowserWindows
+function getAllWindowsSafe() {
+  try { return (BrowserWindow.getAllWindows ? BrowserWindow.getAllWindows() : []).filter(w => !!w && !w.isDestroyed()); } catch { return []; }
+}
+
 // Bring our main window to foreground (best-effort) without changing UI layout
 function bringAppToFront() {
   try {
@@ -721,7 +738,7 @@ async function tryCopySelectedText() {
       if (typeof app?.isHidden === 'function' && !app.isHidden()) {
         didHideApp = true;
         try { app.hide(); } catch {}
-        await delay(140);
+        await delay(HIDE_DELAY_MS_MAC);
       }
     } catch {}
 
@@ -746,8 +763,8 @@ async function tryCopySelectedText() {
       // Unhide app non-activating (best-effort)
       if (didHideApp) {
         try {
-          const wins = (BrowserWindow.getAllWindows ? BrowserWindow.getAllWindows() : []).filter(w => !w.isDestroyed());
-          for (const w of wins) { try { typeof w.showInactive === 'function' ? w.showInactive() : w.show(); } catch {} }
+          const wins = getAllWindowsSafe();
+          for (const w of wins) { showWindowNonActivating(w); }
         } catch {}
       }
     }
@@ -759,9 +776,9 @@ async function tryCopySelectedText() {
     let windowsToRestore = [];
     if (appWindowFocused) {
       try {
-        windowsToRestore = (BrowserWindow.getAllWindows ? BrowserWindow.getAllWindows() : []).filter(w => !w.isDestroyed() && w.isVisible());
+        windowsToRestore = getAllWindowsSafe().filter(w => w.isVisible());
         for (const w of windowsToRestore) { try { w.hide(); } catch {} }
-        await delay(100);
+        await delay(HIDE_DELAY_MS_WIN);
       } catch {}
     }
     try {
@@ -772,7 +789,7 @@ async function tryCopySelectedText() {
       return '';
     } finally {
       if (windowsToRestore && windowsToRestore.length) {
-        for (const w of windowsToRestore) { try { typeof w.showInactive === 'function' ? w.showInactive() : w.show(); } catch {} }
+        for (const w of windowsToRestore) { showWindowNonActivating(w); }
         // Do not refocus our window; keep user's focus on their app
       }
     }
@@ -784,9 +801,9 @@ async function tryCopySelectedText() {
   let windowsToRestore = [];
   if (appWindowFocused) {
     try {
-      windowsToRestore = (BrowserWindow.getAllWindows ? BrowserWindow.getAllWindows() : []).filter(w => !w.isDestroyed() && w.isVisible());
+      windowsToRestore = getAllWindowsSafe().filter(w => w.isVisible());
       for (const w of windowsToRestore) { try { w.hide(); } catch {} }
-      await delay(80);
+      await delay(HIDE_DELAY_MS_LIN);
     } catch {}
   }
   try {
@@ -798,7 +815,7 @@ async function tryCopySelectedText() {
     return '';
   } finally {
     if (windowsToRestore && windowsToRestore.length) {
-      for (const w of windowsToRestore) { try { typeof w.showInactive === 'function' ? w.showInactive() : w.show(); } catch {} }
+      for (const w of windowsToRestore) { showWindowNonActivating(w); }
       // Do not refocus our window; keep user's focus on their app
     }
   }
@@ -1421,11 +1438,7 @@ ipcMain.handle('ui:ensure-visible', (_e, opts) => {
       const wantFocus = !!(opts && opts.focus);
       if (!mainWindow.isVisible()) {
         try {
-          if (typeof mainWindow.showInactive === 'function' && !wantFocus) {
-            mainWindow.showInactive();
-          } else {
-            mainWindow.show();
-          }
+          if (!wantFocus) showWindowNonActivating(mainWindow); else mainWindow.show();
         } catch { mainWindow.show(); }
       }
       if (wantFocus) {
