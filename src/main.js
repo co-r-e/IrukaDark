@@ -39,6 +39,9 @@ const isDev = process.env.NODE_ENV === 'development';
 const HIDE_DELAY_MS_MAC = 140;
 const HIDE_DELAY_MS_WIN = 100;
 const HIDE_DELAY_MS_LIN = 80;
+// Initial layout
+const INITIAL_SHOW_MAIN = ['1','true','on'].includes(String(process.env.SHOW_MAIN_ON_START || '1').toLowerCase());
+const INITIAL_POPUP_MARGIN_RIGHT = Number.isFinite(parseInt(process.env.POPUP_MARGIN_RIGHT || '', 10)) ? parseInt(process.env.POPUP_MARGIN_RIGHT, 10) : 0;
 
 // Track current in-flight AI request for cancellation (shortcut-only)
 let currentAIController = null;        // AbortController of the active REST call
@@ -577,7 +580,10 @@ function createWindow() {
   } catch {}
 
   mainWindow.loadFile('src/renderer/index.html');
-  try { mainWindow.once('ready-to-show', () => mainWindow.show()); } catch {}
+  try {
+    // Do not show automatically; popup controls visibility and user actions/shortcuts unhide as needed
+    mainWindow.once('ready-to-show', () => { if (INITIAL_SHOW_MAIN) mainWindow.show(); });
+  } catch {}
   mainWindow.webContents.once('did-finish-load', () => {
     createPopupWindow();
   });
@@ -1795,14 +1801,16 @@ function createPopupWindow() {
   }
 
   const mainBounds = mainWindow.getBounds();
-
-  const popupX = mainBounds.x; // メインウィンドウと同じ水平位置
-  const popupY = mainBounds.y + mainBounds.height - 10; // メインウィンドウの下側（-10pxで重なる）
-
   const popupWidth = 84;
   const popupHeight = 84;
+  // 初期配置: 右端寄り・縦中央。ユーザー作業の邪魔にならない位置。
+  const primary = screen.getPrimaryDisplay();
+  const wa = primary && primary.workArea ? primary.workArea : { x: 0, y: 0, width: 1200, height: 800 };
+  const popupX = Math.round(wa.x + wa.width - popupWidth - Math.max(0, INITIAL_POPUP_MARGIN_RIGHT));
+  const popupY = Math.round(wa.y + Math.max(0, Math.floor((wa.height - popupHeight) / 2)));
+  // メインはポップアップの少し上（重なり気味）に配置するが、初期表示は環境変数で制御
   const mainX = popupX + Math.round((popupWidth - mainBounds.width) / 2);
-  const mainY = popupY - mainBounds.height - 10;
+  const mainY = popupY - mainBounds.height + 10;
 
   popupWindow = new BrowserWindow({
     width: popupWidth,
@@ -1863,7 +1871,7 @@ function createPopupWindow() {
       targetY = Math.min(Math.max(targetY, wa.y), wa.y + wa.height - mainBounds.height);
 
       mainWindow.setPosition(Math.round(targetX), Math.round(targetY));
-      if (!mainInitiallyShown) {
+      if (!mainInitiallyShown && INITIAL_SHOW_MAIN) {
         mainWindow.show();
         mainInitiallyShown = true;
       }

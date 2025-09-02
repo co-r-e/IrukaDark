@@ -61,6 +61,8 @@ npm start
 - `ENABLE_GOOGLE_SEARCH` (optional): `1` to enable grounded web search (default: `0`)
 - `CLIPBOARD_MAX_WAIT_MS` (optional): Max wait for detecting a fresh copy after the shortcut (default: 1200ms)
 - `SHORTCUT_MAX_TOKENS` (optional): Max output tokens for shortcut flows (Option/Alt+A,S). Default 1024; effective range 1–2048
+ - `SHOW_MAIN_ON_START` (optional): `1` to show the main window on launch (default: `0`, start hidden)
+ - `POPUP_MARGIN_RIGHT` (optional): Initial right margin (in px) for the logo popup. Default: `24`
 
 
 
@@ -79,6 +81,11 @@ Notes:
 3) You can also chat normally by typing and sending
 4) Right-click anywhere to open the application menu at the cursor
    - Even in detailed shortcut flows, the view auto-scrolls to the “Thinking…” indicator.
+
+Initial Layout
+- On launch the logo popup appears near the right edge, vertically centered. The main window starts hidden by default.
+- Click the logo to toggle the main window.
+- When Option/Alt+A produces an answer, the main window auto‑unhides non‑activating so you can see the result.
 
 #### Heads‑up
 - On some machines, the auto‑copy used by Option/Alt+A can be blocked by OS settings, permissions, or other apps. If quick explain fails, use Option/Alt+S (area screenshot explain) instead — it works reliably in most cases and is often sufficient.
