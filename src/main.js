@@ -567,15 +567,15 @@ function createWindow() {
     try { mainWindow.setOpacity(savedOpacity); } catch {}
   }
 
-  // Place main window at bottom-right of the primary display
+  // Provisional placement (kept inside the work area to avoid Windows auto-snap)
   try {
     const d = screen.getPrimaryDisplay();
     const wa = d && d.workArea ? d.workArea : { x: 0, y: 0, width: 0, height: 0 };
     const [w, h] = mainWindow.getSize();
-    const rightOverhang = 40;
-    const bottomMargin = 0;
-    const posX = Math.round(wa.x + wa.width - w + rightOverhang);
-    const posY = Math.round(wa.y + wa.height - h - bottomMargin);
+    const marginRight = 16;
+    const marginBottom = 12;
+    const posX = Math.round(wa.x + wa.width - w - marginRight);
+    const posY = Math.round(wa.y + wa.height - h - marginBottom);
     mainWindow.setPosition(posX, posY);
   } catch {}
 
