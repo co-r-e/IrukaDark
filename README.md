@@ -24,24 +24,73 @@ Lightweight local AI chat (macOS / Windows / experimental Linux). Explain select
 - Optional floating logo popup window (toggle from menu)
 - Clean, minimal UI with dark/light themes
 
-## Setup (Common)
+## Beginner Setup (Step‑by‑step)
 
-1) Install dependencies
+This is a friendly, no‑experience‑required guide from nothing to “running”. Take it slow; you can’t break anything.
+
+1) What you need (free)
+- Internet connection
+- A Google account (to get a Gemini API key)
+
+2) Install Node.js (the runtime the app needs)
+- Download and install the LTS version from https://nodejs.org/
+- Check versions after install:
+  - macOS/Linux (Terminal): `node -v` and `npm -v`
+  - Windows (PowerShell): `node -v` and `npm -v`
+  - Aim for Node 18+ and npm 9+
+
+3) Get this project onto your computer
+- Recommended (Git):
+  ```bash
+  git clone https://github.com/mokuwaki0517/IrukaDark.git
+  cd IrukaDark
+  ```
+- No Git? Click “Code > Download ZIP” on GitHub, unzip, then open that folder in Terminal/PowerShell.
+
+4) Install dependencies (takes a few minutes)
 ```bash
 npm install
 ```
+Notes: Warnings are usually fine. If you see ERRORS, check your internet or proxy settings.
 
-2) Configure environment variables
-```bash
-cp .env.example .env.local
-# Edit .env.local and set GEMINI_API_KEY
+5) Create `.env.local` (your private settings)
+- macOS/Linux:
+  ```bash
+  cp .env.example .env.local
+  ```
+- Windows:
+  - PowerShell: `Copy-Item .env.example .env.local`
+  - Or create a new file named `.env.local` in the project folder
+    - Important: Save as “All files”, not `.txt`; keep the name exactly `.env.local`.
+
+6) Get a Gemini API key
+- Open Google AI Studio and create an API Key (free tier available). Copy the key string.
+- Use an AI Studio API key (not a Vertex AI service account key).
+
+7) Put the key into `.env.local`
+Open `.env.local` in any text editor and add this line:
+```env
+GEMINI_API_KEY=paste_the_key_here
 ```
-   - Do not ship `.env.local` in distributions.
+Tips:
+- No spaces around `=`
+- No quotes around the key
+- No extra spaces at the start/end of the line
 
-3) Start the app
+8) Start the app
 ```bash
 npm start
 ```
+First run notes:
+- macOS may ask for Accessibility and Screen Recording permissions. Please grant them (you can change later in System Settings).
+- You’ll see a small logo near the right edge. Click it to show/hide the main window.
+- Select some text in any app and press Option/Alt+A to get an instant explanation.
+
+9) Common pitfalls (quick fixes)
+- `API_KEY_INVALID`: The key in `.env.local` is wrong or not an AI Studio key. Check for spaces or quotes.
+- `npm install` fails: Network/proxy issues are common. Retry later or configure HTTPS proxy (ask your network admin).
+- Option/Alt+A does nothing: On macOS, grant Accessibility. On Windows/Linux, make sure text is selected in the foreground app. Manual copy (Cmd/Ctrl+C) then Option/Alt+A also works.
+- Can’t find the window: Click the logo; or when Option/Alt+A returns an answer, the app auto‑unhides non‑activating.
 
 ### Prerequisites
 - Node.js 18+ (LTS recommended)

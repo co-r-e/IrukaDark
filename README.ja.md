@@ -22,26 +22,78 @@
 - ロゴの小さな別窓を表示（メニューからON/OFF）
 - ダーク/ライト対応のミニマルUI
 
-## セットアップ（共通）
+## 初心者向けセットアップ（かんたん・丁寧）
 
-1. 依存関係のインストール:
+以下は「開発をやったことがない」方向けの、最短で動かすための手順です。ゆっくり一歩ずつ進めてください。途中でつまずいたら、最後の「よくあるつまずき」を見てください。
+
+1) 事前に用意するもの（無料）
+- インターネット接続
+- Google アカウント（Gemini API キーの取得に必要）
+
+2) Node.js を入れる（アプリを動かすための土台）
+- 公式サイトから LTS（安定版）をダウンロードしてインストールします。
+  - macOS/Windows: https://nodejs.org/ja の「LTS」を選択
+  - Linux: ディストリ配布の Node でもOK（18以上）
+- 入れたらバージョンを確認します。
+  - macOS/Linux: ターミナルを開いて `node -v` と `npm -v`
+  - Windows: 「PowerShell」を開いて `node -v` と `npm -v`
+  - 目安: Node 18以上 / npm 9以上 が表示されればOK
+
+3) このプロジェクトを手元に用意する
+- できれば Git で clone（推奨）
+  - macOS/Linux（ターミナル）/Windows（PowerShell）で実行:
+    ```bash
+    git clone https://github.com/mokuwaki0517/IrukaDark.git
+    cd IrukaDark
+    ```
+- Git がない場合は、GitHubの「Code > Download ZIP」でダウンロード→解凍→そのフォルダをターミナル/PowerShellで開きます。
+
+4) 依存パッケージを入れる（少し時間がかかります）
 ```bash
 npm install
 ```
+・途中でWARNINGが出ても、基本は問題ありません。ERROR のときはネット接続やプロキシ設定を確認してください。
 
-2. 環境変数の設定:
-`.env.local`ファイルを作成し、Gemini APIキーを設定してください：
-```bash
-cp .env.example .env.local
-# .env.localファイルを編集してAPIキーを設定
-```
-   - `.env.local` は配布物に含めません（APIキー保護）。
-   
+5) .env.local を作る（設定ファイル）
+- まず雛形をコピー（macOS/Linux）:
+  ```bash
+  cp .env.example .env.local
+  ```
+- Windows では次のどちらか:
+  - PowerShell で: `Copy-Item .env.example .env.local`
+  - もしくは新規作成: エクスプローラーでプロジェクト直下に「.env.local」という名前のファイルを作成
+    - 注意: 拡張子 `.txt` が付かないように「ファイルの種類: すべてのファイル」を選んで保存
 
-3. アプリの起動:
+6) Gemini API キーを取得する
+- ブラウザで Google AI Studio にアクセスし、API キーを作成します（無料枠あり）。
+  - キーの名称は何でもOK。発行された英数字の文字列をコピーします。
+  - 注意: Vertex AI（サービスアカウント）ではなく「Google AI Studio の API キー」を使ってください。
+
+7) .env.local を編集してキーを入れる
+- お好みのエディタ（メモ帳・TextEdit でOK）で `.env.local` を開き、次のように1行だけ追記/編集します:
+  ```env
+  GEMINI_API_KEY=ここに発行したキーを貼り付け
+  ```
+- ポイント:
+  - `=` の左右にスペースを入れない
+  - かっこや引用符（`"` や `'`）は付けない
+  - 行頭・行末の余分な空白を入れない
+
+8) アプリを起動する
 ```bash
 npm start
 ```
+- 初回のみ、macOS では「アクセシビリティ」や「画面収録」の許可ダイアログが出ることがあります。指示に従って許可してください（後から「システム設定 > プライバシーとセキュリティ」で変更可）。
+- 起動後、右下あたりにロゴが表示されます。クリックでメインウィンドウの表示/非表示を切り替えられます。
+- 何か文章を選択して Option/Alt+A を押すと、内容を要約・解説してくれます。
+
+9) よくあるつまずき（まずはここをチェック）
+- `API_KEY_INVALID` と表示: `.env.local` のキーが間違っている可能性。貼り付けミス（空白・引用符）やキー種別（Google AI StudioのAPIキーか）を確認。
+- `npm install` が失敗: ネットワーク・プロキシの影響が考えられます。時間をおいて再実行、または会社ネットワークのプロキシ設定（HTTPS_PROXY/NO_PROXY）を管理者に相談。
+- Option/Alt+A が無反応: macOS は「アクセシビリティ」の許可が必要。Windows/Linux は前面アプリに選択テキストがあるか確認。手動でコピー（Cmd/Ctrl+C）→ すぐに Option/Alt+A でも可。
+- ウィンドウが見当たらない: ロゴをクリック、または Option/Alt+A で回答が出ると自動で表示されます。
+
+---
 
 ### 前提ソフト/バージョン（共通）
 - Node.js 18 以上（LTS 推奨）
