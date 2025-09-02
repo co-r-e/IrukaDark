@@ -1,6 +1,6 @@
 /*!
  * IrukaDark — (c) 2025 CORe Inc (コーレ株式会社).
- * License: MIT. See https://github.com/mokuwaki0517/IrukaDark/blob/HEAD/LICENSE
+ * License: MIT. See https://github.com/co-r-e/IrukaDark/blob/HEAD/LICENSE
  */
 const I18N_STRINGS = {
     en: {

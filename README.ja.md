@@ -42,11 +42,37 @@
 3) このプロジェクトを手元に用意する
 - できれば Git で clone（推奨）
   - macOS/Linux（ターミナル）/Windows（PowerShell）で実行:
-    ```bash
-    git clone https://github.com/mokuwaki0517/IrukaDark.git
-    cd IrukaDark
-    ```
-- Git がない場合は、GitHubの「Code > Download ZIP」でダウンロード→解凍→そのフォルダをターミナル/PowerShellで開きます。
+    - SSH（SSH鍵を設定済みの方）
+      ```bash
+      git clone git@github.com:co-r-e/IrukaDark.git
+      cd IrukaDark
+      ```
+    - HTTPS（SSH未設定の方向け）
+      ```bash
+      git clone https://github.com/co-r-e/IrukaDark.git
+      cd IrukaDark
+      ```
+- 推奨は Git clone ですが、Git がない場合は ZIP でもOK です。
+  - GitHub の「Code > Download ZIP」でダウンロード → 解凍（展開）
+  - フォルダ名は `IrukaDark-main` などになることがあります（そのままでOK）
+  - 次の手順で「そのフォルダをターミナル/PowerShellで開く」か「ターミナルからそのフォルダへ移動（cd）」します。
+    - macOS（Finder → ターミナルで開く）
+      1. Finderで解凍したフォルダを表示
+      2. ターミナルを開く
+      3. `cd ` と半角スペースを入力し、フォルダをターミナルへドラッグ&ドロップ → Enter
+         （例）`cd /Users/あなたの名前/Downloads/IrukaDark-main`
+      4. `pwd` で場所が合っているか確認
+    - Windows（エクスプローラー → PowerShellで開く）
+      1. エクスプローラーで解凍したフォルダを開く
+      2. Windows 11: 右クリック > 「ターミナルで開く」
+         Windows 10: フォルダ内の空白で Shift+右クリック > 「PowerShell ウィンドウをここで開く」
+         もしくはアドレスバーに `powershell` と入力して Enter
+      3. `Get-Location` で場所が合っているか確認
+    - Linux（ファイルマネージャ → ターミナルで開く）
+      1. ファイルマネージャで解凍したフォルダを開く
+      2. 右クリック > 「端末で開く」（ディストリにより表記が異なります）
+      3. もしメニューがない場合は、既存の端末で `cd` して移動
+         （例）`cd ~/Downloads/IrukaDark-main`
 
 4) 依存パッケージを入れる（少し時間がかかります）
 ```bash
@@ -55,14 +81,58 @@ npm install
 ・途中でWARNINGが出ても、基本は問題ありません。ERROR のときはネット接続やプロキシ設定を確認してください。
 
 5) .env.local を作る（設定ファイル）
-- まず雛形をコピー（macOS/Linux）:
+目的: プロジェクト直下（IrukaDark フォルダの中）に「.env.local」という名前のファイルを用意します。
+
+方法A: 雛形からコピー（いちばん簡単）
+- macOS/Linux（ターミナル）:
   ```bash
   cp .env.example .env.local
   ```
-- Windows では次のどちらか:
-  - PowerShell で: `Copy-Item .env.example .env.local`
-  - もしくは新規作成: エクスプローラーでプロジェクト直下に「.env.local」という名前のファイルを作成
-    - 注意: 拡張子 `.txt` が付かないように「ファイルの種類: すべてのファイル」を選んで保存
+- Windows（PowerShell）:
+  ```powershell
+  Copy-Item .env.example .env.local
+  ```
+
+方法B: 右クリック/GUIで新規作成
+- Windows（エクスプローラー）
+  1. IrukaDark フォルダを開く
+  2. 右クリック > 新規作成 > テキスト ドキュメント
+  3. できた「新しいテキスト ドキュメント.txt」を「.env.local」にリネーム
+  4. 拡張子を変更するか聞かれたら「はい」
+  5. 以降はこのファイルをメモ帳で開いて編集します
+  （メモ帳から作成する場合: [ファイル] > [名前を付けて保存]、名前を「.env.local」、ファイルの種類を「すべてのファイル」、エンコードは「UTF-8」を選んで保存）
+- macOS（Finder + TextEdit）
+  1. TextEdit を起動 > 新規作成
+  2. メニュー [フォーマット] > [標準テキストにする]（Shift+Cmd+T）
+  3. [ファイル] > [保存]、名前を「.env.local」、場所は IrukaDark フォルダを指定
+  4. 「.env.local」という名前でそのまま保存（拡張子の警告が出てもOK）
+  （Finder単独では拡張子なしの新規ファイルが作りにくいため、TextEditの保存を使うのが確実です）
+- Linux（ファイルマネージャ or エディタ）
+  1. gedit / Mousepad などのテキストエディタを開く
+  2. 空のまま [名前を付けて保存]、名前を「.env.local」、場所は IrukaDark フォルダ
+  3. 文字コードは UTF-8 を選択
+
+方法C: コマンドで新規作成
+- macOS/Linux:
+  ```bash
+  touch .env.local
+  ```
+- Windows（PowerShell）:
+  ```powershell
+  New-Item -Path .env.local -ItemType File -Force
+  ```
+
+できた場所の確認（大事）
+- macOS/Linux:
+  ```bash
+  pwd         # いまの場所が IrukaDark か確認
+  ls -la .env.local
+  ```
+- Windows（PowerShell）:
+  ```powershell
+  Get-Location        # いまの場所が IrukaDark か確認
+  dir -Force .env.local
+  ```
 
 6) Gemini API キーを取得する
 - ブラウザで Google AI Studio にアクセスし、API キーを作成します（無料枠あり）。
@@ -70,14 +140,30 @@ npm install
   - 注意: Vertex AI（サービスアカウント）ではなく「Google AI Studio の API キー」を使ってください。
 
 7) .env.local を編集してキーを入れる
-- お好みのエディタ（メモ帳・TextEdit でOK）で `.env.local` を開き、次のように1行だけ追記/編集します:
-  ```env
-  GEMINI_API_KEY=ここに発行したキーを貼り付け
-  ```
-- ポイント:
-  - `=` の左右にスペースを入れない
-  - かっこや引用符（`"` や `'`）は付けない
-  - 行頭・行末の余分な空白を入れない
+編集方法（お好きな方法でOK）
+- GUIエディタで開く:
+  - Windows: `.env.local` を右クリック > メモ帳で開く > 1行だけ書いて保存
+  - macOS: `.env.local` を右クリック > このアプリケーションで開く > テキストエディット
+  - Linux: gedit / Mousepad などで開く
+- コマンドラインで開く:
+  - macOS/Linux: `nano .env.local` で開いて編集、Ctrl+O で保存、Ctrl+X で閉じる
+  - Windows（PowerShell）: `notepad .env.local`
+
+書く内容（1行だけ）
+```env
+GEMINI_API_KEY=ここに発行したキーを貼り付け
+```
+
+注意ポイント（超重要）
+- `=` の左右にスペースを入れない
+- 引用符（`"` や `'`）で囲まない
+- 行頭・行末の空白を入れない
+- 保存場所が IrukaDark フォルダ直下であること（間違ってホームフォルダに保存しない）
+- このファイルは秘密情報です（Git等にアップしない）
+
+保存できたかの確認
+- macOS/Linux: `cat .env.local`
+- Windows: `type .env.local`
 
 8) アプリを起動する
 ```bash

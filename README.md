@@ -41,11 +41,37 @@ This is a friendly, no‑experience‑required guide from nothing to “running�
 
 3) Get this project onto your computer
 - Recommended (Git):
-  ```bash
-  git clone https://github.com/mokuwaki0517/IrukaDark.git
-  cd IrukaDark
-  ```
-- No Git? Click “Code > Download ZIP” on GitHub, unzip, then open that folder in Terminal/PowerShell.
+  - SSH (if your SSH key is set up)
+    ```bash
+    git clone git@github.com:co-r-e/IrukaDark.git
+    cd IrukaDark
+    ```
+  - HTTPS (if you don't use SSH)
+    ```bash
+    git clone https://github.com/co-r-e/IrukaDark.git
+    cd IrukaDark
+    ```
+- Recommended is Git clone, but ZIP works too if you don’t use Git:
+  - Click “Code > Download ZIP” on GitHub, download, then unzip (extract)
+  - The folder name may be `IrukaDark-main` (that’s fine)
+  - Now open that folder in Terminal/PowerShell or cd into it:
+    - macOS (Finder → open in Terminal)
+      1) Show the unzipped folder in Finder
+      2) Open Terminal
+      3) Type `cd ` (note the trailing space), then drag the folder from Finder into Terminal, press Enter
+         Example: `cd /Users/you/Downloads/IrukaDark-main`
+      4) Check with `pwd`
+    - Windows (Explorer → open in PowerShell/Terminal)
+      1) Open the unzipped folder in Explorer
+      2) Windows 11: Right‑click → “Open in Terminal”
+         Windows 10: Shift+Right‑click in the folder background → “Open PowerShell window here”
+         Or type `powershell` in the Explorer address bar and press Enter
+      3) Check with `Get-Location`
+    - Linux (file manager → open in terminal)
+      1) Open the unzipped folder
+      2) Right‑click → “Open in Terminal” (wording varies by distro)
+      3) If not available, use an existing terminal and `cd` there
+         Example: `cd ~/Downloads/IrukaDark-main`
 
 4) Install dependencies (takes a few minutes)
 ```bash
@@ -54,28 +80,87 @@ npm install
 Notes: Warnings are usually fine. If you see ERRORS, check your internet or proxy settings.
 
 5) Create `.env.local` (your private settings)
+Goal: create a file named `.env.local` in the project folder (IrukaDark).
+
+Method A: Copy from the template (easiest)
 - macOS/Linux:
   ```bash
   cp .env.example .env.local
   ```
-- Windows:
-  - PowerShell: `Copy-Item .env.example .env.local`
-  - Or create a new file named `.env.local` in the project folder
-    - Important: Save as “All files”, not `.txt`; keep the name exactly `.env.local`.
+- Windows (PowerShell):
+  ```powershell
+  Copy-Item .env.example .env.local
+  ```
+
+Method B: Create it via GUI (right‑click)
+- Windows (Explorer)
+  1) Open the IrukaDark folder
+  2) Right‑click > New > Text Document
+  3) Rename the new file to `.env.local`
+  4) If Windows warns about changing the extension, click “Yes”
+  5) Open it in Notepad and edit it in the next step
+  (From Notepad: File > Save As…; File name: `.env.local`; Save as type: “All Files”; Encoding: “UTF‑8”.)
+- macOS (Finder + TextEdit)
+  1) Open TextEdit > New Document
+  2) Format > Make Plain Text (Shift+Cmd+T)
+  3) File > Save, name: `.env.local`, location: the IrukaDark folder
+  4) Save even if warned about extension
+  (Finder itself doesn’t create dotfiles easily; using TextEdit’s Save is the most reliable.)
+- Linux (File manager or editor)
+  1) Open your text editor (gedit/Mousepad/etc.)
+  2) Save As `.env.local` into the IrukaDark folder (UTF‑8)
+
+Method C: Create it with a command
+- macOS/Linux:
+  ```bash
+  touch .env.local
+  ```
+- Windows (PowerShell):
+  ```powershell
+  New-Item -Path .env.local -ItemType File -Force
+  ```
+
+Verify location (important)
+- macOS/Linux:
+  ```bash
+  pwd
+  ls -la .env.local
+  ```
+- Windows (PowerShell):
+  ```powershell
+  Get-Location
+  dir -Force .env.local
+  ```
 
 6) Get a Gemini API key
 - Open Google AI Studio and create an API Key (free tier available). Copy the key string.
 - Use an AI Studio API key (not a Vertex AI service account key).
 
 7) Put the key into `.env.local`
-Open `.env.local` in any text editor and add this line:
+Edit with whichever you prefer
+- GUI editors:
+  - Windows: Right‑click `.env.local` > Open with Notepad > add one line then save
+  - macOS: Right‑click `.env.local` > Open With > TextEdit
+  - Linux: gedit/Mousepad/etc.
+- Command line:
+  - macOS/Linux: `nano .env.local` (save: Ctrl+O, exit: Ctrl+X)
+  - Windows (PowerShell): `notepad .env.local`
+
+Write exactly one line
 ```env
 GEMINI_API_KEY=paste_the_key_here
 ```
-Tips:
+
+Important tips
 - No spaces around `=`
 - No quotes around the key
-- No extra spaces at the start/end of the line
+- No leading/trailing spaces
+- Save the file inside the IrukaDark folder (not your home folder)
+- Keep this file private (don’t upload it to Git)
+
+Confirm it’s saved
+- macOS/Linux: `cat .env.local`
+- Windows: `type .env.local`
 
 8) Start the app
 ```bash
