@@ -1431,7 +1431,7 @@ ipcMain.handle('open-external', (_e, url) => {
   return false;
 });
 
-// Ensure main window becomes visible (optionally without focusing)
+// Ensure main window becomes visible (optionally with focus)
 ipcMain.handle('ui:ensure-visible', (_e, opts) => {
   try {
     if (mainWindow && !mainWindow.isDestroyed()) {

@@ -351,6 +351,7 @@ class IrukaDarkApp {
             this.hideTypingIndicator();
             if (this.cancelRequested) { return; }
             this.addMessage('ai', response);
+            // If the window was hidden, unhide it non-activating so user sees the result
             try { window.electronAPI && window.electronAPI.ensureVisible && window.electronAPI.ensureVisible(false); } catch {}
             // ステータス表示はヘッダーのみ同期
             this.syncHeader();
@@ -387,6 +388,7 @@ class IrukaDarkApp {
             this.hideTypingIndicator();
             if (this.cancelRequested) { return; }
             this.addMessage('ai', response);
+            // Ensure the window is visible (do not steal focus)
             try { window.electronAPI && window.electronAPI.ensureVisible && window.electronAPI.ensureVisible(false); } catch {}
             this.syncHeader();
         } catch (e) {

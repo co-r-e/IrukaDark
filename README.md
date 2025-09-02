@@ -82,11 +82,15 @@ Notes:
 
 #### Heads‑up
 - On some machines, the auto‑copy used by Option/Alt+A can be blocked by OS settings, permissions, or other apps. If quick explain fails, use Option/Alt+S (area screenshot explain) instead — it works reliably in most cases and is often sufficient.
+ - On macOS, the app first tries to read selected text via Accessibility (AX) without touching the clipboard; only if that fails does it fall back to sending Cmd+C.
+ - If the main window is hidden when Option/Alt+A succeeds, it automatically reappears non‑activating so you can see the answer (your current app keeps focus).
 
 ### Slash Commands
 - `/clear`: Clear chat history
 - `/compact`: Summarize and compact recent history
 - `/next`: Continue the last AI message
+- `/table`: Reformat the last AI output into a table
+- `/what do you mean?`: Clarify the last AI output in simpler terms
 - `/contact`: Open the contact page
 - `/websearch on|off|status` (alias: `/web`): Toggle or check web search
 
@@ -142,7 +146,7 @@ Notes:
 - Behavior may differ across Wayland/X11 setups. Ensure one of the above tools is installed for area capture.
 
 ## Permissions
-- macOS: Accessibility for auto-copy (optional)
+- macOS: Accessibility for auto-copy and AX selection read (required for Option+A)
 - Windows/Linux: No extra permissions
 
 ## Run-Only (No Build)
@@ -172,6 +176,11 @@ MIT License. See `LICENSE`.
 - 400 API_KEY_INVALID: Use a valid Google AI Studio API Key. Generic Google API keys (e.g., Maps) will not work.
 - Ensure `.env.local` contains one of the supported key variables; prefer `GEMINI_API_KEY`.
 - If Option/Alt+A doesn’t work: Press manual copy once (mac: Cmd+C; Windows/Linux: Ctrl+C), then immediately press Option/Alt+A. This helps the app detect a fresh clipboard and proceed.
+ - Focus gotcha (Option/Alt+A): The shortcut sends Cmd/Ctrl+C to the foreground app. If IrukaDark is focused (frontmost), the copy targets IrukaDark, so no fresh clipboard is detected and the action fails. Fix:
+   - Click the app that holds the selection to bring it to the front, then press Option/Alt+A.
+   - Or press manual copy in that app (mac: Cmd+C; Windows/Linux: Ctrl+C) and immediately press Option/Alt+A.
+   - If the floating window makes clicking the target app tricky, temporarily disable View > Appearance > “Show Over All Apps/Spaces”, click the target app, then try again.
+ - If the main window remains hidden after an answer, it should auto‑unhide non‑activating. If it doesn’t, check View > Appearance > “Show Over All Apps/Spaces”.
 - Focus gotcha (Option/Alt+A): The shortcut sends Cmd/Ctrl+C to the foreground app. If IrukaDark is focused (frontmost), the copy targets IrukaDark, so no fresh clipboard is detected and the action fails. Fix:
   - Click the app that holds the selection to bring it to the front, then press Option/Alt+A.
   - Or press manual copy in that app (mac: Cmd+C; Windows/Linux: Ctrl+C) and immediately press Option/Alt+A.
