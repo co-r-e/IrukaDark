@@ -876,6 +876,15 @@ html.solid-window.theme-dark #messageInput {
 #inputWrapper { min-height: 40px; }
 #messageInput { padding-right: 44px; line-height: 1.35; }
 
+/* RTL adjustments: flip send button and input padding */
+html[dir="rtl"] #messageInput { padding-left: 44px; padding-right: 12px; }
+html[dir="rtl"] #sendBtn { left: 0.5rem; right: auto; }
+
+/* Prefer right alignment for RTL content */
+html[dir="rtl"] .message-system { text-align: right; }
+html[dir="rtl"] .message-ai-content th,
+html[dir="rtl"] .message-ai-content td { text-align: right; }
+
 /*!
  * IrukaDark — (c) 2025 CORe Inc (コーレ株式会社).
  * License: MIT. See https://github.com/co-r-e/IrukaDark/blob/HEAD/LICENSE
