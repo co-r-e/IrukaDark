@@ -1524,6 +1524,34 @@ app.whenReady().then(async () => {
       if (registerShortcut(c, true)) { detailedUsed = c; break; }
     }
 
+    // Pure translation (all OS): Option+R (fallback Cmd/Ctrl+Alt+R)
+    const translateCandidates = ['Alt+R', 'CommandOrControl+Alt+R'];
+    let translateUsed = '';
+    for (const c of translateCandidates) {
+      try {
+        const ok = globalShortcut.register(c, () => {
+          (async () => {
+            try {
+              const text = await tryCopySelectedText();
+              if (!mainWindow || mainWindow.isDestroyed()) return;
+              if (text) {
+                if (isClipboardTextStale(text, 3000)) {
+                  mainWindow.webContents.send('explain-clipboard-error', '');
+                } else {
+                  mainWindow.webContents.send('translate-clipboard', text);
+                }
+              } else {
+                mainWindow.webContents.send('explain-clipboard-error', '');
+              }
+            } catch (e) {
+              if (isDev) console.warn('Clipboard translate failed:', e?.message);
+            }
+          })();
+        });
+        if (ok) { translateUsed = c; break; }
+      } catch {}
+    }
+
     // Screenshot explain (all OS): Option+S (fallback Cmd/Ctrl+Option/Alt+S)
     const screenshotCandidates = ['Alt+S', 'CommandOrControl+Alt+S'];
     let screenshotUsed = '';
@@ -1576,6 +1604,7 @@ app.whenReady().then(async () => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('shortcut-registered', baseUsed);
         mainWindow.webContents.send('shortcut-detailed-registered', detailedUsed);
+        mainWindow.webContents.send('shortcut-translate-registered', translateUsed);
       }
     } catch {}
 

@@ -29,7 +29,8 @@ const I18N_STRINGS = {
         webSearchStatusOff: 'Web Search: OFF',
         webSearchHelp: 'Use /websearch on|off|status',
         noPreviousAI: 'No previous AI message to continue.',
-        selectionExplanation: 'Selection Explanation'
+        selectionExplanation: 'Selection Explanation',
+        selectionTranslation: 'Translate Selection'
     },
     ja: {
         errorOccurred: 'エラーが発生しました',
@@ -57,7 +58,8 @@ const I18N_STRINGS = {
         webSearchStatusOff: 'Web検索: OFF',
         webSearchHelp: '/websearch on|off|status を使用できます',
         noPreviousAI: '直前のAIメッセージがありません。',
-        selectionExplanation: '選択範囲の解説'
+        selectionExplanation: '選択範囲の解説',
+        selectionTranslation: '選択範囲の翻訳'
     },
     // Spanish (Spain)
     es: {
@@ -680,6 +682,7 @@ class IrukaDarkApp {
         on('onWindowOpacityChanged', (value) => this.applySolidWindowClass(value));
         on('onExplainClipboard', (text) => this.handleExplainClipboard(text));
         on('onExplainClipboardDetailed', (text) => this.handleExplainClipboardDetailed(text));
+        on('onTranslateClipboard', (text) => this.handleTranslateClipboard(text));
         on('onExplainClipboardError', (msg) => this.showToast(msg || getUIText('textNotRetrieved'), 'error'));
         on('onExplainScreenshot', (payload) => this.handleExplainScreenshot(payload));
         on('onExplainScreenshotDetailed', (payload) => this.handleExplainScreenshotDetailed(payload));
@@ -705,6 +708,17 @@ class IrukaDarkApp {
                 if (isMacUA) display = display.replace(/\bAlt\b/g, 'Option');
                 // 既定想定は Alt+Shift+A（Mac表示: Option+Shift+A）
                 if (accel && accel !== 'Alt+Shift+A') {
+                    this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
+                }
+        });
+        on('onShortcutTranslateRegistered', (accel) => {
+                if (!accel) return; // 登録に失敗した場合は無通知
+                const isMacUA = typeof navigator !== 'undefined' && /Mac/.test(navigator.userAgent);
+                let display = (accel || '')
+                    .replace('CommandOrControl', 'Cmd/Ctrl');
+                if (isMacUA) display = display.replace(/\bAlt\b/g, 'Option');
+                // 既定想定は Alt+R（Mac表示: Option+R）
+                if (accel && accel !== 'Alt+R') {
                     this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
                 }
         });
@@ -861,6 +875,39 @@ class IrukaDarkApp {
             this.syncHeader();
         } finally {
             // Re-enable auto-scroll after the detailed flow completes
+            this.disableAutoScroll = false;
+        }
+    }
+
+    /**
+     * 選択テキストの純粋な翻訳（出力のみ、説明なし）
+     */
+    async handleTranslateClipboard(text) {
+        await this.cancelActiveShortcut();
+        const token = ++this.shortcutRequestId;
+        const content = (text || '').trim();
+        if (!content) return;
+        // 翻訳中は自動スクロールを抑制
+        this.disableAutoScroll = true;
+        this.addMessage('system-question', getUIText('selectionTranslation'));
+        this.syncHeader();
+        this.showTypingIndicator();
+
+        try {
+            const response = await this.geminiService.generatePureTranslation(content);
+            if (token !== this.shortcutRequestId) { return; }
+            this.hideTypingIndicator();
+            if (this.cancelRequested) { return; }
+            this.addMessage('ai', response);
+            // 表示のみ（フォーカスは奪わない）
+            try { window.electronAPI && window.electronAPI.ensureVisible && window.electronAPI.ensureVisible(false); } catch {}
+            this.syncHeader();
+        } catch (e) {
+            if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) { return; }
+            this.hideTypingIndicator();
+            this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
+            this.syncHeader();
+        } finally {
             this.disableAutoScroll = false;
         }
     }
@@ -1751,6 +1798,33 @@ class GeminiService {
     async generateResponse(userMessage, historyText = '', useWebSearch = false) {
         const prompt = this.buildTextOnlyPrompt(userMessage, historyText);
         return this.requestText(prompt, useWebSearch, 'chat');
+    }
+
+    /** 純粋な翻訳（UI言語に翻訳、説明なし・訳文のみ） */
+    async generatePureTranslation(text) {
+        const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
+        const t = text.length > 12000 ? text.slice(0, 12000) + ' …(truncated)' : text;
+        const nameMap = {
+            'en': 'English', 'ja': 'Japanese', 'es': 'Spanish', 'es-419': 'Latin American Spanish',
+            'zh-Hans': 'Simplified Chinese', 'zh-Hant': 'Traditional Chinese', 'hi': 'Hindi', 'pt-BR': 'Brazilian Portuguese',
+            'fr': 'French', 'de': 'German', 'ar': 'Arabic', 'ru': 'Russian', 'ko': 'Korean', 'id': 'Indonesian',
+            'vi': 'Vietnamese', 'th': 'Thai', 'it': 'Italian', 'tr': 'Turkish'
+        };
+        const targetName = nameMap[lang] || 'English';
+        const targetCode = lang;
+        const prompt = `Translate the text strictly into ${targetName} (${targetCode}).
+
+Rules:
+- Output the translation only. No preface, notes, or explanations.
+- Preserve formatting (Markdown, line breaks, lists) and code blocks as-is.
+- Keep URLs, code identifiers, and proper nouns unchanged when appropriate.
+- If the source includes multiple languages, translate all non-${targetName} parts into ${targetName}.
+
+Text:
+${t}`;
+        // Web search is unnecessary for pure translation
+        const res = await this.requestText(prompt, false, 'shortcut');
+        return res;
     }
 
     /** テキストのみを解説する（UI言語に合わせて出力言語を切替） */
