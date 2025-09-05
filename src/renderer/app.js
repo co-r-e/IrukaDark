@@ -1503,6 +1503,22 @@ class IrukaDarkApp {
             const contentEl = document.createElement('div');
             contentEl.className = 'message-ai-content';
             contentEl.innerHTML = markdownContent;
+            // Open any link in default browser instead of navigating inside the app
+            try {
+                contentEl.addEventListener('click', (ev) => {
+                    try {
+                        const a = ev.target && ev.target.closest ? ev.target.closest('a[href]') : null;
+                        if (!a) return;
+                        const href = a.getAttribute('href') || '';
+                        if (/^https?:\/\//i.test(href)) {
+                            ev.preventDefault();
+                            if (window.electronAPI && window.electronAPI.openExternal) {
+                                window.electronAPI.openExternal(href);
+                            }
+                        }
+                    } catch {}
+                }, true);
+            } catch {}
             // Wrap tables for horizontal scrolling in chat output
             try {
                 const tables = contentEl.querySelectorAll('table');

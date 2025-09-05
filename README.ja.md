@@ -4,7 +4,9 @@
 
 # IrukaDark
 
-ローカル実行のAIチャット（macOS / Windows / Linux（実験的））。選択テキストの解説や通常チャットに加え、範囲選択スクリーンショットの解説も可能です（各OS対応）。
+ローカル実行のAIチャット（macOS / Windows / Linux（実験的））。選択テキストの解説・翻訳や通常チャットに加え、範囲選択スクリーンショットの解説も可能です（各OS対応）。
+
+[English](README.md)
 
 ## 機能
 
@@ -15,6 +17,8 @@
 - 選択テキストをショートカットで即解説
   - 簡潔: mac: Option+A / Win/Linux: Alt+A
   - 詳細: mac: Option+Shift+A / Win/Linux: Alt+Shift+A
+- 選択テキストの翻訳（グローバルショートカット）
+  - mac: Option+R / Win/Linux: Alt+R
 - 範囲スクリーンショットの解説（対話的な範囲選択）
   - mac: Option+S（詳細: Option+Shift+S）
   - Win/Linux: Alt+S（詳細: Alt+Shift+S）
@@ -170,7 +174,7 @@ GEMINI_API_KEY=ここに発行したキーを貼り付け
 npm start
 ```
 - 初回のみ、macOS では「アクセシビリティ」や「画面収録」の許可ダイアログが出ることがあります。指示に従って許可してください（後から「システム設定 > プライバシーとセキュリティ」で変更可）。
-- 起動後、右下あたりにロゴが表示されます。クリックでメインウィンドウの表示/非表示を切り替えられます。
+- 起動直後にメインウィンドウが表示されます（既定設定）。さらに、画面右寄りに小さなロゴも表示され、クリックでメインウィンドウの表示/非表示を切り替えられます。
 - 何か文章を選択して Option/Alt+A を押すと、内容を要約・解説してくれます。
 
 9) よくあるつまずき（まずはここをチェック）
@@ -201,8 +205,8 @@ npm start
 - `ENABLE_GOOGLE_SEARCH`（任意）: `1` でウェブ検索による根拠付けを有効化（既定: `0`）
 - `CLIPBOARD_MAX_WAIT_MS`（任意）: ショートカット後に新規コピーを検知する最大待機時間（既定: 1200ms）
 - `SHORTCUT_MAX_TOKENS`（任意）: ショートカット経路（Option/Alt+A,S）の最大出力トークン数。既定 1024、実効範囲 1〜2048
- - `SHOW_MAIN_ON_START`（任意）: `1` で起動時にメインウィンドウを表示（既定: `0` で非表示スタート）
- - `POPUP_MARGIN_RIGHT`（任意）: ロゴ別窓の右端からの初期マージン（px）。既定: `24`
+ - `SHOW_MAIN_ON_START`（任意）: `1` で起動時にメインウィンドウを表示（既定: `1`）
+ - `POPUP_MARGIN_RIGHT`（任意）: ロゴ別窓の右端からの初期マージン（px）。既定: `0`
 
  
 
@@ -212,6 +216,7 @@ npm start
 2. テキストを選択してショートカット実行
    - 簡潔: mac: Option+A / Win/Linux: Alt+A
    - 詳細: mac: Option+Shift+A / Win/Linux: Alt+Shift+A
+   - 翻訳: mac: Option+R / Win/Linux: Alt+R（UI言語へ純粋に翻訳）
    - スクリーンショット解説: mac: Option+S / Win/Linux: Alt+S（範囲選択して解説）
    - スクリーンショット解説（詳細）: mac: Option+Shift+S / Win/Linux: Alt+Shift+S
 3. 通常のチャットとしても利用できます（入力して送信）
@@ -219,9 +224,10 @@ npm start
    - 詳細ショートカット中でも「考え中…」表示までは自動でスクロールします。
 
 初期配置
-- 起動時はロゴ別窓が「画面右寄り・縦中央」に表示され、メインウィンドウは非表示（既定）。
+- 起動時はロゴ別窓が「画面右寄り・縦中央」に表示され、メインウィンドウは表示（既定、`SHOW_MAIN_ON_START` で変更可）。
 - ロゴをクリックするとメインウィンドウの表示/非表示を切替。
 - Option/Alt+A で回答が生成された場合は、自動的に非アクティブ表示でメインを復帰します。
+ - チャット出力中のリンクは、常に既定のブラウザで開きます（アプリ内では遷移しません）。
 
 #### 注意
 - 一部のPC環境では、Option/Alt+A の自動コピーがOS設定・権限・他アプリの影響でうまく動作しない場合があります。その際は Option/Alt+S のスクリーンショット解説をお使いください。多くのケースで十分実用的にご利用いただけます。
@@ -250,6 +256,7 @@ npm start
 - グローバルショートカット:
   - 即解説: Option+A（競合時は Cmd+Option+A に自動切替）
   - 詳細解説: Option+Shift+A（競合時は Cmd+Option+Shift+A に自動切替）
+  - 翻訳: Option+R（競合時は Cmd+Option+R に自動切替）
   - スクリーンショット解説: Option+S（競合時は Cmd+Option+S に自動切替）
   - スクリーンショット解説（詳しく）: Option+Shift+S（競合時は Cmd+Option+Shift+S に自動切替）
 - 権限: 初回起動時に権限のプリフライト（確認）を自動で行います（UI変更なし・非ブロッキング）
@@ -264,6 +271,7 @@ npm start
 - グローバルショートカット:
   - 即解説: Alt+A（競合時は Ctrl+Alt+A に自動切替）
   - 詳細解説: Alt+Shift+A（競合時は Ctrl+Alt+Shift+A に自動切替）
+  - 翻訳: Alt+R（競合時は Ctrl+Alt+R に自動切替）
   - スクリーンショット解説: Alt+S（競合時は Ctrl+Alt+S に自動切替）
   - スクリーンショット解説（詳しく）: Alt+Shift+S（競合時は Ctrl+Alt+Shift+S に自動切替）
   - 実装: WindowsのスニッピングUI（ms-screenclip）を起動し、選択後にクリップボードの画像を読み取ります。
@@ -282,6 +290,7 @@ npm start
 - グローバルショートカット:
   - 即解説: Alt+A（競合時は Ctrl+Alt+A に自動切替）
   - 詳細解説: Alt+Shift+A（競合時は Ctrl+Alt+Shift+A に自動切替）
+  - 翻訳: Alt+R（競合時は Ctrl+Alt+R に自動切替）
   - スクリーンショット解説: Alt+S（競合時は Ctrl+Alt+S に自動切替）
   - スクリーンショット解説（詳しく）: Alt+Shift+S（競合時は Ctrl+Alt+Shift+S に自動切替）
 - 権限: 追加権限は不要

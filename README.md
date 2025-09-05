@@ -6,7 +6,7 @@
 
 [日本語 (Japanese)](README.ja.md)
 
-Lightweight local AI chat (macOS / Windows / experimental Linux). Explain selected text or chat normally. Area screenshot explain is available on macOS/Windows/Linux.
+Lightweight local AI chat (macOS / Windows / experimental Linux). Explain or translate selected text, or chat normally. Area screenshot explain is available on macOS/Windows/Linux.
 
 ## Features
 
@@ -17,6 +17,8 @@ Lightweight local AI chat (macOS / Windows / experimental Linux). Explain select
 - Explain selected text via global shortcut
   - Concise: mac: Option+A / Win/Linux: Alt+A
   - Detailed: mac: Option+Shift+A / Win/Linux: Alt+Shift+A
+- Translate selected text via global shortcut
+  - mac: Option+R / Win/Linux: Alt+R
 - Area screenshot explain (interactive selection)
   - mac: Option+S (detailed: Option+Shift+S)
   - Win/Linux: Alt+S (detailed: Alt+Shift+S)
@@ -168,7 +170,7 @@ npm start
 ```
 First run notes:
 - macOS may ask for Accessibility and Screen Recording permissions. Please grant them (you can change later in System Settings).
-- You’ll see a small logo near the right edge. Click it to show/hide the main window.
+- The main window opens by default. You’ll also see a small logo near the right edge; click it to show/hide the main window.
 - Select some text in any app and press Option/Alt+A to get an instant explanation.
 
 9) Common pitfalls (quick fixes)
@@ -195,8 +197,8 @@ First run notes:
 - `ENABLE_GOOGLE_SEARCH` (optional): `1` to enable grounded web search (default: `0`)
 - `CLIPBOARD_MAX_WAIT_MS` (optional): Max wait for detecting a fresh copy after the shortcut (default: 1200ms)
 - `SHORTCUT_MAX_TOKENS` (optional): Max output tokens for shortcut flows (Option/Alt+A,S). Default 1024; effective range 1–2048
- - `SHOW_MAIN_ON_START` (optional): `1` to show the main window on launch (default: `0`, start hidden)
- - `POPUP_MARGIN_RIGHT` (optional): Initial right margin (in px) for the logo popup. Default: `24`
+ - `SHOW_MAIN_ON_START` (optional): `1` to show the main window on launch (default: `1`)
+ - `POPUP_MARGIN_RIGHT` (optional): Initial right margin (in px) for the logo popup. Default: `0`
 
 
 
@@ -210,6 +212,7 @@ Notes:
 2) Select text and press the global shortcut
    - Concise: mac: Option+A / Win/Linux: Alt+A
    - Detailed: mac: Option+Shift+A / Win/Linux: Alt+Shift+A
+   - Translate: mac: Option+R / Win/Linux: Alt+R (pure translation into the UI language)
    - Screenshot explain: mac: Option+S / Win/Linux: Alt+S (interactive area selection)
    - Screenshot explain (detailed): mac: Option+Shift+S / Win/Linux: Alt+Shift+S
 3) You can also chat normally by typing and sending
@@ -217,9 +220,10 @@ Notes:
    - Even in detailed shortcut flows, the view auto-scrolls to the “Thinking…” indicator.
 
 Initial Layout
-- On launch the logo popup appears near the right edge, vertically centered. The main window starts hidden by default.
+- On launch the logo popup appears near the right edge, vertically centered. The main window starts shown by default (configurable via `SHOW_MAIN_ON_START`).
 - Click the logo to toggle the main window.
-- When Option/Alt+A produces an answer, the main window auto‑unhides non‑activating so you can see the result.
+- When Option/Alt+A produces an answer, the main window auto‑unhides non‑activating so you can see the result if it was hidden.
+ - Any link in chat output opens in your default browser (never inside the app window).
 
 #### Heads‑up
 - On some machines, the auto‑copy used by Option/Alt+A can be blocked by OS settings, permissions, or other apps. If quick explain fails, use Option/Alt+S (area screenshot explain) instead — it works reliably in most cases and is often sufficient.
@@ -247,6 +251,7 @@ Initial Layout
 - Global shortcuts:
   - Quick explain: Option+A (fallback: Cmd+Option+A)
   - Detailed explain: Option+Shift+A (fallback: Cmd+Option+Shift+A)
+  - Translate: Option+R (fallback: Cmd+Option+R)
   - Screenshot explain: Option+S (fallback: Cmd+Option+S)
   - Screenshot explain (detailed): Option+Shift+S (fallback: Cmd+Option+Shift+S)
 - Permissions: The app will preflight permissions on first launch (non-blocking)
@@ -261,6 +266,7 @@ Initial Layout
 - Global shortcuts:
   - Quick explain: Alt+A (fallback: Ctrl+Alt+A)
   - Detailed explain: Alt+Shift+A (fallback: Ctrl+Alt+Shift+A)
+  - Translate: Alt+R (fallback: Ctrl+Alt+R)
   - Screenshot explain: Alt+S (fallback: Ctrl+Alt+S)
   - Screenshot explain (detailed): Alt+Shift+S (fallback: Ctrl+Alt+Shift+S)
 - Permissions: None required
@@ -279,6 +285,7 @@ Initial Layout
 - Global shortcuts:
   - Quick explain: Alt+A (fallback: Ctrl+Alt+A)
   - Detailed explain: Alt+Shift+A (fallback: Ctrl+Alt+Shift+A)
+  - Translate: Alt+R (fallback: Ctrl+Alt+R)
   - Screenshot explain: Alt+S (fallback: Ctrl+Alt+S)
   - Screenshot explain (detailed): Alt+Shift+S (fallback: Ctrl+Alt+Shift+S)
 - Permissions: None required
@@ -297,6 +304,7 @@ Designed for local run: clone → .env.local → npm start. No installer/build a
 - Send: Enter (Shift+Enter for newline)
 - Global explain (concise): mac: Option+A / Win/Linux: Alt+A (actual binding is shown via toast on startup if fallback applied)
 - Global explain (detailed): mac: Option+Shift+A / Win/Linux: Alt+Shift+A (falls back to Ctrl+Alt+Shift+A where needed)
+- Translate selection: mac: Option+R / Win/Linux: Alt+R (pure translation into the UI language)
 - Suggestion list: ArrowUp/Down or Tab/Shift+Tab to move, Enter to confirm, Esc to close
 - Edit: Standard copy/paste/select-all shortcuts (Cmd or Ctrl)
 
@@ -322,7 +330,4 @@ MIT License. See `LICENSE`.
    - Or press manual copy in that app (mac: Cmd+C; Windows/Linux: Ctrl+C) and immediately press Option/Alt+A.
    - If the floating window makes clicking the target app tricky, temporarily disable View > Appearance > “Show Over All Apps/Spaces”, click the target app, then try again.
  - If the main window remains hidden after an answer, it should auto‑unhide non‑activating. If it doesn’t, check View > Appearance > “Show Over All Apps/Spaces”.
-- Focus gotcha (Option/Alt+A): The shortcut sends Cmd/Ctrl+C to the foreground app. If IrukaDark is focused (frontmost), the copy targets IrukaDark, so no fresh clipboard is detected and the action fails. Fix:
-  - Click the app that holds the selection to bring it to the front, then press Option/Alt+A.
-  - Or press manual copy in that app (mac: Cmd+C; Windows/Linux: Ctrl+C) and immediately press Option/Alt+A.
-  - If the floating window makes clicking the target app tricky, temporarily disable View > Appearance > “Show Over All Apps/Spaces”, click the target app, then try again.
+ 

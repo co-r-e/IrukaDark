@@ -1098,6 +1098,28 @@ function createWindow() {
     }
   });
 
+  // Always open external HTTP(S) links in the user's default browser
+  try {
+    const isExternalHttpUrl = (u) => {
+      try { return /^https?:\/\//i.test(String(u || '')); } catch { return false; }
+    };
+    // Links that would open a new window (target=_blank, window.open)
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+      if (isExternalHttpUrl(url)) {
+        try { shell.openExternal(url); } catch {}
+        return { action: 'deny' };
+      }
+      return { action: 'allow' };
+    });
+    // In-page navigations to external URLs
+    mainWindow.webContents.on('will-navigate', (e, url) => {
+      if (isExternalHttpUrl(url)) {
+        try { e.preventDefault(); } catch {}
+        try { shell.openExternal(url); } catch {}
+      }
+    });
+  } catch {}
+
   try {
     // Respect env setting (default: enabled)
     const pinAll = !['0','false','off'].includes(String(process.env.PIN_ALL_SPACES || '1').toLowerCase());
@@ -2017,7 +2039,7 @@ ipcMain.handle('get-ui-theme', () => {
 
 ipcMain.handle('open-external', (_e, url) => {
   try {
-    if (typeof url === 'string' && url.startsWith('https://')) {
+    if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
       shell.openExternal(url);
       return true;
     }
