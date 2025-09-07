@@ -1,4 +1,3 @@
-// Renderer script for the AI settings prompt window
 (() => {
   const $ = (id) => document.getElementById(id);
   const state = { password: false };
@@ -48,10 +47,8 @@
     setTimeout(() => { try { $('val').focus(); $('val').select(); } catch {} }, 0);
   });
 
-  // Fallback: if preload injection failed, at least set dark theme by default
   document.addEventListener('DOMContentLoaded', () => {
     try { applyTheme('dark'); } catch {}
     initEvents();
   });
 })();
-

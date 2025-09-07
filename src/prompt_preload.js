@@ -1,6 +1,3 @@
-/*!
- * IrukaDark Prompt Preload — small bridge for modal input dialog
- */
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronPrompt', {
@@ -8,4 +5,3 @@ contextBridge.exposeInMainWorld('electronPrompt', {
   submit: (value) => ipcRenderer.send('prompt:submit', { value: String(value ?? '') }),
   cancel: () => ipcRenderer.send('prompt:cancel')
 });
-

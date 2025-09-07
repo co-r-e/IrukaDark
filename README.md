@@ -206,6 +206,15 @@ Notes:
 - Only Google AI Studio API Keys are supported; Vertex AI (service account/OAuth) is not wired in this repo.
 - If multiple variables are set, the app prefers `GEMINI_API_KEY` and will skip invalid keys automatically.
 
+### Settings storage and portable mode
+
+- By default, IrukaDark saves and reads settings only from the user data directory:
+  - macOS: `~/Library/Application Support/IrukaDark/irukadark.prefs.json`
+  - Windows: `%APPDATA%/IrukaDark/irukadark.prefs.json`
+  - Linux: `~/.config/IrukaDark/irukadark.prefs.json`
+- `.env.local` is no longer loaded by default (even in development). Use the in‑app menu (Right‑click → IrukaDark → AI Settings) to set `GEMINI_API_KEY`, `GEMINI_MODEL`, and `WEB_SEARCH_MODEL` at runtime.
+- Portable mode: enable it via an OS environment variable `PORTABLE_MODE=1` before launching. In portable mode, settings are saved to and read from `.env.local` in the app folder.
+
 ## Usage
 
 1) Launch the app
@@ -218,6 +227,23 @@ Notes:
 3) You can also chat normally by typing and sending
 4) Right-click anywhere to open the application menu at the cursor
    - Even in detailed shortcut flows, the view auto-scrolls to the “Thinking…” indicator.
+
+## Build Distributables
+
+1) Install dev deps (electron + electron-builder)
+```bash
+npm install
+```
+2) Build for your OS
+```bash
+# macOS
+npm run dist:mac
+# Windows
+npm run dist:win
+# Linux
+npm run dist:linux
+```
+Outputs appear in the `dist/` folder (e.g., `.dmg`, `.exe`, `.AppImage`). For macOS code signing/notarization and Windows code signing, provide credentials via environment variables or electron-builder config as needed. If you don’t sign, macOS Gatekeeper and Windows SmartScreen may warn on first run.
 
 Initial Layout
 - On launch the logo popup appears near the right edge, vertically centered. The main window starts shown by default (configurable via `SHOW_MAIN_ON_START`).

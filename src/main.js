@@ -7,32 +7,26 @@ const { exec } = require('child_process');
 const path = require('path');
 
 const fs = require('fs');
-const dotenv = require('dotenv');
-
-const envPaths = [
-  path.join(__dirname, '../.env.local'),
-  path.join(process.cwd(), '.env.local'),
-  path.join(__dirname, '../../.env.local')
-];
-
 let envLoaded = false;
-for (const envPath of envPaths) {
-  if (fs.existsSync(envPath)) {
-    if (process.env.NODE_ENV === 'development') console.log('Loading .env.local from:', envPath);
-    dotenv.config({ path: envPath });
-    envLoaded = true;
-    break;
+try {
+  const portableFlag = String(process.env.PORTABLE_MODE || process.env.ALLOW_ENV_LOCAL || '').trim().toLowerCase();
+  const allowEnvLocal = portableFlag && portableFlag !== '0' && portableFlag !== 'false' && portableFlag !== 'off';
+  if (allowEnvLocal) {
+    const dotenv = require('dotenv');
+    const envPaths = [
+      path.join(__dirname, '../.env.local'),
+      path.join(process.cwd(), '.env.local'),
+      path.join(__dirname, '../../.env.local')
+    ];
+    for (const envPath of envPaths) {
+      if (fs.existsSync(envPath)) {
+        dotenv.config({ path: envPath });
+        envLoaded = true;
+        break;
+      }
+    }
   }
-}
-
-if (!envLoaded) {
-  if (process.env.NODE_ENV === 'development') {
-    console.warn('No .env.local file found in any of the expected locations');
-    console.log('Tried paths:', envPaths);
-  }
-}
-
-// Only .env.local and OS env vars are loaded (no .env.example at runtime)
+} catch {}
 
 const isDev = process.env.NODE_ENV === 'development';
 // Timings for temporary hide/show during shortcut copy
@@ -83,35 +77,39 @@ function isClipboardTextStale(text, thresholdMs = 3000) {
 let currentAICancelFlag = null;        // { user: boolean } when cancel requested by user
 
 function resolveApiKeys() {
-  // Prefer explicit Gemini/GenAI keys; try generic/public keys last
   const order = [
     'GEMINI_API_KEY',
     'GOOGLE_GENAI_API_KEY',
     'GENAI_API_KEY',
-    // Less specific keys at the end (may be for other Google APIs)
     'GOOGLE_API_KEY',
     'NEXT_PUBLIC_GEMINI_API_KEY',
     'NEXT_PUBLIC_GOOGLE_API_KEY'
   ];
   const seen = new Set();
-  const result = [];
-  for (const name of order) {
-    const v = process.env[name];
-    if (v && String(v).trim()) {
-      const val = String(v).trim();
-      if (!seen.has(val)) { seen.add(val); result.push(val); }
+  const out = [];
+  // 1) userData prefs first
+  try {
+    const prefs = loadPrefs();
+    for (const k of order) {
+      const v = prefs?.[k];
+      if (v && String(v).trim() && !seen.has(String(v).trim())) {
+        seen.add(String(v).trim());
+        out.push(String(v).trim());
+      }
+    }
+  } catch {}
+  // 2) process.env (OS/.env.local/migrated)
+  for (const k of order) {
+    const v = process.env[k];
+    if (v && String(v).trim() && !seen.has(String(v).trim())) {
+      seen.add(String(v).trim());
+      out.push(String(v).trim());
     }
   }
-  return result;
+  return out;
 }
 
-if (isDev) {
-  const hasAnyKey = resolveApiKeys().length > 0;
-  console.log('Any GenAI API key loaded:', hasAnyKey ? 'Yes' : 'No');
-  console.log('GEMINI_MODEL set:', process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite');
-  console.log('MENU_LANGUAGE set:', process.env.MENU_LANGUAGE || 'en');
-  console.log('UI_THEME set:', process.env.UI_THEME || 'dark');
-}
+ 
 
 // Lazy-load Google GenAI SDK (@google/genai) in CommonJS context (Electron main)
 async function getGenAIClientForKey(apiKey) {
@@ -450,7 +448,7 @@ function getCurrentLanguage() {
   return process.env.MENU_LANGUAGE || 'en';
 }
 
-// Small modal input dialog for editing simple settings
+ 
 async function openInputDialog({ title = 'Input', label = '', placeholder = '', value = '', password = false, lang = 'en' } = {}) {
   return await new Promise((resolve) => {
     try {
@@ -1162,7 +1160,7 @@ function createWindow() {
     transparent: true,
     resizable: true,
     show: false,
-    icon: path.resolve(__dirname, 'renderer/assets/icons/icon.png'),
+    icon: path.resolve(__dirname, 'renderer/assets/icons/IrukaDark_desktopicon.png'),
     opacity: 1.0,
     webPreferences: {
       nodeIntegration: false,
@@ -1197,15 +1195,14 @@ function createWindow() {
   } catch {}
 
   try {
-    // Respect env setting (default: enabled)
-    const pinAll = !['0','false','off'].includes(String(process.env.PIN_ALL_SPACES || '1').toLowerCase());
+    const pinAll = !['0','false','off'].includes(String(getPref('PIN_ALL_SPACES') || process.env.PIN_ALL_SPACES || '1').toLowerCase());
     mainWindow.setAlwaysOnTop(true, pinAll ? 'screen-saver' : 'floating');
     if (process.platform === 'darwin') {
       mainWindow.setVisibleOnAllWorkspaces(!!pinAll, { visibleOnFullScreen: !!pinAll });
     }
   } catch {}
 
-  const savedOpacity = parseFloat(process.env.WINDOW_OPACITY || '1');
+  const savedOpacity = parseFloat(getPref('WINDOW_OPACITY') || process.env.WINDOW_OPACITY || '1');
   if (!Number.isNaN(savedOpacity)) {
     try { mainWindow.setOpacity(savedOpacity); } catch {}
   }
@@ -1231,7 +1228,7 @@ function createWindow() {
     createPopupWindow();
   });
 
-  const iconPath = path.resolve(__dirname, 'renderer/assets/icons/icon.png');
+  const iconPath = path.resolve(__dirname, 'renderer/assets/icons/IrukaDark_desktopicon.png');
   mainWindow.setIcon(iconPath);
 }
 
@@ -1559,14 +1556,54 @@ app.whenReady().then(async () => {
       if (prefs.MENU_LANGUAGE) {
         process.env.MENU_LANGUAGE = String(prefs.MENU_LANGUAGE);
       }
+      if (prefs.UI_THEME) {
+        process.env.UI_THEME = String(prefs.UI_THEME);
+      }
+      if (typeof prefs.PIN_ALL_SPACES !== 'undefined') {
+        process.env.PIN_ALL_SPACES = String(prefs.PIN_ALL_SPACES);
+      }
+      if (typeof prefs.WINDOW_OPACITY !== 'undefined') {
+        process.env.WINDOW_OPACITY = String(prefs.WINDOW_OPACITY);
+      }
+      if (typeof prefs.ENABLE_GOOGLE_SEARCH !== 'undefined') {
+        process.env.ENABLE_GOOGLE_SEARCH = String(prefs.ENABLE_GOOGLE_SEARCH);
+      }
+      if (prefs.GLASS_LEVEL) {
+        process.env.GLASS_LEVEL = String(prefs.GLASS_LEVEL);
+      }
+      if (prefs.GEMINI_API_KEY) {
+        process.env.GEMINI_API_KEY = String(prefs.GEMINI_API_KEY);
+      }
+      if (prefs.GEMINI_MODEL) {
+        process.env.GEMINI_MODEL = String(prefs.GEMINI_MODEL);
+      }
+      if (prefs.WEB_SEARCH_MODEL) {
+        process.env.WEB_SEARCH_MODEL = String(prefs.WEB_SEARCH_MODEL);
+      }
     }
+  } catch {}
+
+  // One-time migration: if .env.local provided values and prefs are empty, copy them into prefs
+  try {
+    const p = loadPrefs();
+    let changed = false;
+    const maybeCopy = (k) => { if (!p[k] && process.env[k]) { p[k] = String(process.env[k]); changed = true; } };
+    maybeCopy('GEMINI_API_KEY');
+    maybeCopy('GEMINI_MODEL');
+    maybeCopy('WEB_SEARCH_MODEL');
+    maybeCopy('UI_THEME');
+    maybeCopy('PIN_ALL_SPACES');
+    maybeCopy('ENABLE_GOOGLE_SEARCH');
+    maybeCopy('WINDOW_OPACITY');
+    maybeCopy('GLASS_LEVEL');
+    if (changed) savePrefs(p);
   } catch {}
   try {
     if (process.platform === 'darwin' && typeof app.setAboutPanelOptions === 'function') {
       app.setAboutPanelOptions({
         applicationName: 'IrukaDark',
         applicationVersion: app.getVersion(),
-        iconPath: path.resolve(__dirname, 'renderer/assets/icons/icon.png')
+        iconPath: path.resolve(__dirname, 'renderer/assets/icons/IrukaDark_desktopicon.png')
       });
     }
   } catch {}
@@ -1770,6 +1807,37 @@ function savePrefs(prefs) {
   } catch {}
 }
 
+function isPortableMode() {
+  const v = String(process.env.PORTABLE_MODE || '').trim().toLowerCase();
+  return v && v !== '0' && v !== 'false' && v !== 'off';
+}
+
+function getPref(key) {
+  try { const p = loadPrefs(); return p ? p[key] : undefined; } catch { return undefined; }
+}
+
+function setPref(key, value) {
+  try {
+    if (isPortableMode()) {
+      const envPath = path.join(__dirname, '../.env.local');
+      if (value === undefined || value === null || value === '') {
+        // remove line
+        let envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
+        const lines = envContent.split('\n').filter(Boolean).filter(line => !line.startsWith(`${key}=`));
+        fs.writeFileSync(envPath, lines.join('\n') + (lines.length ? '\n' : ''), 'utf8');
+      } else {
+        upsertEnvVar(envPath, key, String(value));
+      }
+      return true;
+    }
+    const p = loadPrefs();
+    if (value === undefined || value === null || value === '') { delete p[key]; }
+    else { p[key] = value; }
+    savePrefs(p);
+    return true;
+  } catch { return false; }
+}
+
 function preflightPermissionsOnce() {
   if (process.platform !== 'darwin') return;
   const prefs = loadPrefs();
@@ -1823,21 +1891,7 @@ function upsertEnvVar(envPath, key, value) {
 }
 
 function saveLanguageSetting(language) {
-  const envPath = path.join(__dirname, '../.env.local');
-  upsertEnvVar(envPath, 'MENU_LANGUAGE', language);
-  // ユーザーデータにも保存
-  try {
-    const userData = app.getPath('userData');
-    const prefsPath = path.join(userData, 'irukadark.prefs.json');
-    let prefs = {};
-    try {
-      if (fs.existsSync(prefsPath)) prefs = JSON.parse(fs.readFileSync(prefsPath, 'utf8') || '{}') || {};
-    } catch {}
-    prefs.MENU_LANGUAGE = language;
-    fs.mkdirSync(path.dirname(prefsPath), { recursive: true });
-    fs.writeFileSync(prefsPath, JSON.stringify(prefs, null, 2), 'utf8');
-  } catch {}
-  if (isDev) console.log(`Language setting saved: ${language}`);
+  try { setPref('MENU_LANGUAGE', language); } catch {}
 }
 
 // メニュー言語切り替えハンドラー
@@ -1860,9 +1914,7 @@ function handleLanguageChange(language) {
 
 // テーマ設定の保存
 function saveThemeSetting(theme) {
-  const envPath = path.join(__dirname, '../.env.local');
-  upsertEnvVar(envPath, 'UI_THEME', theme);
-  if (isDev) console.log(`Theme setting saved: ${theme}`);
+  try { setPref('UI_THEME', String(theme)); } catch {}
 }
 
 function handleThemeChange(theme) {
@@ -1881,9 +1933,7 @@ function handleThemeChange(theme) {
 
 // 全アプリ・全スペース表示の保存/適用
 function savePinAllSpacesSetting(enabled) {
-  const envPath = path.join(__dirname, '../.env.local');
-  upsertEnvVar(envPath, 'PIN_ALL_SPACES', enabled ? '1' : '0');
-  if (isDev) console.log(`Pin all spaces saved: ${enabled}`);
+  try { setPref('PIN_ALL_SPACES', enabled ? '1' : '0'); } catch {}
 }
 
 function applyPinAllSpaces(enabled) {
@@ -1912,9 +1962,7 @@ function handlePinAllSpacesChange(enabled) {
 
 // Web検索設定の保存
 function saveWebSearchSetting(enabled) {
-  const envPath = path.join(__dirname, '../.env.local');
-  upsertEnvVar(envPath, 'ENABLE_GOOGLE_SEARCH', enabled ? '1' : '0');
-  if (isDev) console.log(`Web search setting saved: ${enabled}`);
+  try { setPref('ENABLE_GOOGLE_SEARCH', enabled ? '1' : '0'); } catch {}
 }
 
 // アプリメニュー（Edit ロールを含む）- 多言語対応
@@ -1922,21 +1970,18 @@ function createAppMenu() {
   const isMac = process.platform === 'darwin';
   const currentLang = getCurrentLanguage();
   const t = menuTranslations[currentLang] || menuTranslations.en;
-  const windowOpacity = parseFloat(process.env.WINDOW_OPACITY || '1');
-  const pinAllSpaces = !['0','false','off'].includes(String(process.env.PIN_ALL_SPACES || '1').toLowerCase());
+  const windowOpacity = parseFloat(getPref('WINDOW_OPACITY') || process.env.WINDOW_OPACITY || '1');
+  const pinAllSpaces = !['0','false','off'].includes(String(getPref('PIN_ALL_SPACES') || process.env.PIN_ALL_SPACES || '1').toLowerCase());
+  const curTheme = String(getPref('UI_THEME') || process.env.UI_THEME || 'dark');
   const lang = currentLang;
 
   const promptSetEnv = async (key, { title, label, placeholder = '', password = false, defaultValue = '' } = {}) => {
-    const envPath = path.join(__dirname, '../.env.local');
     const val = await openInputDialog({ title, label, placeholder, value: defaultValue, password, lang });
-    if (val === null) return; // cancelled
+    if (val === null) return;
     try {
-      upsertEnvVar(envPath, key, String(val));
-      process.env[key] = String(val);
-      if (isDev) console.log(`${key} updated via menu.`);
-    } catch (e) {
-      if (isDev) console.warn(`Failed to update ${key}:`, e?.message || e);
-    }
+      setPref(key, String(val));
+    } catch {}
+    try { process.env[key] = String(val); } catch {}
     createAppMenu();
   };
 
@@ -1965,13 +2010,13 @@ function createAppMenu() {
           {
             label: t.themeLight,
             type: 'radio',
-            checked: (process.env.UI_THEME || 'dark') === 'light',
+            checked: curTheme === 'light',
             click: () => handleThemeChange('light')
           },
           {
             label: t.themeDark,
             type: 'radio',
-            checked: (process.env.UI_THEME || 'dark') === 'dark',
+            checked: curTheme === 'dark',
             click: () => handleThemeChange('dark')
           },
           { type: 'separator' },
@@ -1992,7 +2037,6 @@ function createAppMenu() {
             checked: !!pinAllSpaces,
             click: (menuItem) => handlePinAllSpacesChange(!!menuItem.checked)
           },
-          
           
         ]
       },
@@ -2048,7 +2092,6 @@ function createAppMenu() {
     ]
   };
 
-  // For non-macOS, surface AI settings under View (so right-click menu has entries)
   if (process.platform !== 'darwin') {
     try {
       const aiSettingsMenu = {
@@ -2167,8 +2210,7 @@ function createAppMenu() {
 // ウィンドウ不透明度の保存/反映（ウィンドウレイヤー）
 function handleWindowOpacityChange(opacity) {
   try {
-    const envPath = path.join(__dirname, '../.env.local');
-    upsertEnvVar(envPath, 'WINDOW_OPACITY', String(opacity));
+    try { setPref('WINDOW_OPACITY', String(opacity)); } catch {}
     process.env.WINDOW_OPACITY = String(opacity);
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.setOpacity(opacity);
@@ -2211,12 +2253,12 @@ ipcMain.handle('cancel-ai', () => {
 });
 
 ipcMain.handle('get-model', () => {
-  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
+  const model = getPref('GEMINI_MODEL') || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
   return model;
 });
 
 ipcMain.handle('get-ui-theme', () => {
-  return process.env.UI_THEME || 'dark';
+  return getPref('UI_THEME') || process.env.UI_THEME || 'dark';
 });
 
 ipcMain.handle('open-external', (_e, url) => {
@@ -2248,7 +2290,7 @@ ipcMain.handle('ui:ensure-visible', (_e, opts) => {
   return false;
 });
 
-// Show the application menu as a context menu at cursor position
+ 
 ipcMain.handle('ui:show-app-menu', (e, pos) => {
   try {
     let menu = Menu.getApplicationMenu();
@@ -2269,7 +2311,7 @@ ipcMain.handle('ui:show-app-menu', (e, pos) => {
 
 // 言語設定の取得
 ipcMain.handle('get-ui-language', () => {
-  return process.env.MENU_LANGUAGE || 'en';
+  return getPref('MENU_LANGUAGE') || process.env.MENU_LANGUAGE || 'en';
 });
 
 // Web検索設定の保存
@@ -2281,18 +2323,19 @@ ipcMain.handle('save-web-search-setting', (_e, enabled) => {
 
 // 背景透過レベル
 ipcMain.handle('get-glass-level', () => {
-  return process.env.GLASS_LEVEL || 'medium';
+  return getPref('GLASS_LEVEL') || process.env.GLASS_LEVEL || 'medium';
 });
 
 // Web検索設定の取得
 ipcMain.handle('get-web-search-enabled', () => {
   // デフォルトはOFF ('0')
-  return process.env.ENABLE_GOOGLE_SEARCH !== '0';
+  const v = String(getPref('ENABLE_GOOGLE_SEARCH') || process.env.ENABLE_GOOGLE_SEARCH || '0');
+  return v !== '0' && v.toLowerCase() !== 'false' && v.toLowerCase() !== 'off';
 });
 
 // ウィンドウ不透明度
 ipcMain.handle('get-window-opacity', () => {
-  const v = parseFloat(process.env.WINDOW_OPACITY || '1');
+  const v = parseFloat(getPref('WINDOW_OPACITY') || process.env.WINDOW_OPACITY || '1');
   return Number.isFinite(v) ? v : 1;
 });
 
@@ -2305,7 +2348,6 @@ ipcMain.handle('ai:generate', async (_e, payload) => {
     if (!prompt) return '';
     const source = String(payload?.source || 'chat');
     const isShortcut = source === 'shortcut';
-    // Prefer current environment model so menu changes apply immediately
     const requestedModel = String(process.env.GEMINI_MODEL || payload?.model || 'gemini-2.5-flash-lite');
     let generationConfig = payload?.generationConfig || {
       temperature: 0.7,
@@ -2328,7 +2370,7 @@ ipcMain.handle('ai:generate', async (_e, payload) => {
     const useGoogleSearch = payload?.useWebSearch === true; // Use frontend's preference
 
     // Try requested model first, then a search-capable model
-    const searchPreferred = process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash';
+    const searchPreferred = getPref('WEB_SEARCH_MODEL') || process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash';
     // Remove duplicates
     const modelsToTry = requestedModel === searchPreferred ? [requestedModel] : [requestedModel, searchPreferred];
 
@@ -2452,7 +2494,6 @@ ipcMain.handle('ai:generate-with-image', async (_e, payload) => {
     if (!prompt || !imageBase64) return '';
     const source = String(payload?.source || 'chat');
     const isShortcut = source === 'shortcut';
-    // Prefer current environment model so menu changes apply immediately
     const requestedModel = String(process.env.GEMINI_MODEL || payload?.model || 'gemini-2.5-flash-lite');
     let generationConfig = payload?.generationConfig || {
       temperature: 0.7,
@@ -2472,7 +2513,7 @@ ipcMain.handle('ai:generate-with-image', async (_e, payload) => {
     }
     // Search only when explicitly enabled by the renderer
     const useGoogleSearch = payload?.useWebSearch === true; // Use frontend's preference
-    const searchPreferred = process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash';
+    const searchPreferred = getPref('WEB_SEARCH_MODEL') || process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash';
     // Remove duplicates
     const modelsToTry = requestedModel === searchPreferred ? [requestedModel] : [requestedModel, searchPreferred];
 
@@ -2628,7 +2669,7 @@ function createPopupWindow() {
   });
 
   try {
-    const pinAll = !['0','false','off'].includes(String(process.env.PIN_ALL_SPACES || '1').toLowerCase());
+    const pinAll = !['0','false','off'].includes(String(getPref('PIN_ALL_SPACES') || process.env.PIN_ALL_SPACES || '1').toLowerCase());
     popupWindow.setAlwaysOnTop(true, pinAll ? 'screen-saver' : 'floating');
     if (process.platform === 'darwin') {
       popupWindow.setVisibleOnAllWorkspaces(!!pinAll, { visibleOnFullScreen: !!pinAll });
@@ -2636,7 +2677,7 @@ function createPopupWindow() {
   } catch {}
 
   popupWindow.loadFile(path.join(__dirname, 'renderer/popup.html'));
-  const savedOpacity = parseFloat(process.env.WINDOW_OPACITY || '1');
+  const savedOpacity = parseFloat(getPref('WINDOW_OPACITY') || process.env.WINDOW_OPACITY || '1');
   if (!Number.isNaN(savedOpacity)) {
     try { popupWindow.setOpacity(savedOpacity); } catch {}
   }

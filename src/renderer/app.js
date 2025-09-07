@@ -686,7 +686,8 @@ class IrukaDarkApp {
         on('onExplainClipboardError', (msg) => this.showToast(msg || getUIText('textNotRetrieved'), 'error'));
         on('onExplainScreenshot', (payload) => this.handleExplainScreenshot(payload));
         on('onExplainScreenshotDetailed', (payload) => this.handleExplainScreenshotDetailed(payload));
-        on('onAccessibilityWarning', () => this.addMessage('system', getUIText('accessibilityWarning')));
+        // Do not show the accessibility warning in chat
+        on('onAccessibilityWarning', () => {});
         on('onShortcutRegistered', (accel) => {
                 if (!accel) {
                     this.showToast(getUIText('failedToRegisterShortcut'), 'error', 3600);

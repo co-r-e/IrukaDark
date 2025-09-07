@@ -6,7 +6,12 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "dev-tools": "electron . --dev --devtools"
+    "dev-tools": "electron . --dev --devtools",
+    "icons": "node scripts/generate-icons.js",
+    "dist": "npm run icons && electron-builder",
+    "dist:mac": "npm run icons && electron-builder -m",
+    "dist:win": "npm run icons && electron-builder -w",
+    "dist:linux": "npm run icons && electron-builder -l"
   },
   "keywords": [
     "electron",
@@ -16,10 +21,46 @@
   "author": "Your Name",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^28.0.0"
+    "electron": "^28.0.0",
+    "electron-builder": "^24.13.3"
   },
   "dependencies": {
     "@google/genai": "^1.16.0",
     "dotenv": "^16.3.1"
+  },
+  "build": {
+    "appId": "com.core.irukadark",
+    "productName": "IrukaDark",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "build"
+    },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": ["dmg", "zip"],
+      "icon": "build/icons/icon.icns",
+      "hardenedRuntime": true
+    },
+    "dmg": {
+      "sign": false,
+      "icon": "build/icons/icon.icns"
+    },
+    "win": {
+      "target": ["nsis"],
+      "icon": "build/icons/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Utility",
+      "icon": "build/icons"
+    }
   }
 }

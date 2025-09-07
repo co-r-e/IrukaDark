@@ -210,6 +210,16 @@ npm start
 
  
 
+### 設定の保存場所とポータブルモード
+
+- 既定では、実行時の各種設定は「ユーザーデータ領域」にのみ保存・参照します。
+  - macOS: `~/Library/Application Support/IrukaDark/irukadark.prefs.json`
+  - Windows: `%APPDATA%/IrukaDark/irukadark.prefs.json`
+  - Linux: `~/.config/IrukaDark/irukadark.prefs.json`
+- `.env.local` は既定では読み込みません（開発時も同様）。`GEMINI_API_KEY` などの設定は、右クリック > IrukaDark > 「AI設定」から行ってください。
+- ポータブルモード: 起動前に OS の環境変数で `PORTABLE_MODE=1` を有効にすると、アプリフォルダ直下の `.env.local` に保存・読み込みを行います。
+
+
 ## 使用方法
 
 1. アプリを起動
