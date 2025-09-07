@@ -287,7 +287,7 @@ function modelCandidates(original) {
 }
 
 async function restGenerateText(apiKey, modelBare, prompt, generationConfig, { useGoogleSearch = false, signal } = {}) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelBare}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelBare}:generateContent`;
   const body = {
     contents: [{ parts: [{ text: String(prompt || '') }] }],
     generationConfig: generationConfig || undefined,
@@ -296,7 +296,7 @@ async function restGenerateText(apiKey, modelBare, prompt, generationConfig, { u
   };
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': String(apiKey || '').trim() },
     body: JSON.stringify(body),
     signal: signal || undefined
   });
@@ -312,7 +312,7 @@ async function restGenerateText(apiKey, modelBare, prompt, generationConfig, { u
 }
 
 async function restGenerateImage(apiKey, modelBare, prompt, imageBase64, mimeType, generationConfig, { useGoogleSearch = false, signal } = {}) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelBare}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelBare}:generateContent`;
   const body = {
     contents: [{
       parts: [ { text: String(prompt || '') }, { inlineData: { data: String(imageBase64 || ''), mimeType: String(mimeType || 'image/png') } } ]
@@ -322,7 +322,7 @@ async function restGenerateImage(apiKey, modelBare, prompt, imageBase64, mimeTyp
   };
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': String(apiKey || '').trim() },
     body: JSON.stringify(body),
     signal: signal || undefined
   });
@@ -450,12 +450,84 @@ function getCurrentLanguage() {
   return process.env.MENU_LANGUAGE || 'en';
 }
 
+// Small modal input dialog for editing simple settings
+async function openInputDialog({ title = 'Input', label = '', placeholder = '', value = '', password = false, lang = 'en' } = {}) {
+  return await new Promise((resolve) => {
+    try {
+      const win = new BrowserWindow({
+        width: 480,
+        height: 200,
+        resizable: false,
+        minimizable: false,
+        maximizable: false,
+        modal: true,
+        parent: mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined,
+        show: false,
+        alwaysOnTop: true,
+        title,
+        frame: false,
+        transparent: true,
+        backgroundColor: '#00000000',
+        vibrancy: process.platform === 'darwin' ? 'sidebar' : undefined,
+        visualEffectState: process.platform === 'darwin' ? 'active' : undefined,
+        webPreferences: {
+          contextIsolation: true,
+          nodeIntegration: false,
+          preload: path.join(__dirname, 'prompt_preload.js')
+        }
+      });
+      try { win.setMenuBarVisibility(false); } catch {}
+
+      const htmlPath = path.join(__dirname, 'prompt.html');
+      win.loadFile(htmlPath).then(() => {
+        try { win.show(); } catch {}
+        try {
+          const theme = String(process.env.UI_THEME || 'dark');
+          win.webContents.send('prompt:init', { title, label, placeholder, value, password, lang, theme });
+        } catch {}
+      }).catch(() => resolve(null));
+
+      const cleanup = () => {
+        try { win.close(); } catch {}
+      };
+
+      const submitHandler = (_e, payload) => {
+        try { ipcMain.removeListener('prompt:submit', submitHandler); } catch {}
+        try { ipcMain.removeListener('prompt:cancel', cancelHandler); } catch {}
+        cleanup();
+        resolve(typeof payload?.value === 'string' ? payload.value : '');
+      };
+      const cancelHandler = () => {
+        try { ipcMain.removeListener('prompt:submit', submitHandler); } catch {}
+        try { ipcMain.removeListener('prompt:cancel', cancelHandler); } catch {}
+        cleanup();
+        resolve(null);
+      };
+
+      ipcMain.once('prompt:submit', submitHandler);
+      ipcMain.once('prompt:cancel', cancelHandler);
+
+      win.on('closed', () => {
+        try { ipcMain.removeListener('prompt:submit', submitHandler); } catch {}
+        try { ipcMain.removeListener('prompt:cancel', cancelHandler); } catch {}
+        resolve(null);
+      });
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
 const menuTranslations = {
   en: {
     irukadark: 'IrukaDark',
     edit: 'Edit',
     view: 'View',
     window: 'Window',
+    aiSettings: 'AI Settings',
+    setGeminiApiKey: 'Set Gemini API Key…',
+    setGeminiModel: 'Set Gemini Model…',
+    setWebSearchModel: 'Set Web Search Model…',
     appearance: 'Appearance',
     themeLight: 'Light',
     themeDark: 'Dark',
@@ -494,6 +566,10 @@ const menuTranslations = {
     edit: '編集',
     view: '表示',
     window: 'ウィンドウ',
+    aiSettings: 'AI設定',
+    setGeminiApiKey: 'Gemini APIキーを設定…',
+    setGeminiModel: 'Geminiモデルを設定…',
+    setWebSearchModel: 'Web検索モデルを設定…',
     appearance: '外観',
     themeLight: 'ライト',
     themeDark: 'ダーク',
@@ -1848,6 +1924,21 @@ function createAppMenu() {
   const t = menuTranslations[currentLang] || menuTranslations.en;
   const windowOpacity = parseFloat(process.env.WINDOW_OPACITY || '1');
   const pinAllSpaces = !['0','false','off'].includes(String(process.env.PIN_ALL_SPACES || '1').toLowerCase());
+  const lang = currentLang;
+
+  const promptSetEnv = async (key, { title, label, placeholder = '', password = false, defaultValue = '' } = {}) => {
+    const envPath = path.join(__dirname, '../.env.local');
+    const val = await openInputDialog({ title, label, placeholder, value: defaultValue, password, lang });
+    if (val === null) return; // cancelled
+    try {
+      upsertEnvVar(envPath, key, String(val));
+      process.env[key] = String(val);
+      if (isDev) console.log(`${key} updated via menu.`);
+    } catch (e) {
+      if (isDev) console.warn(`Failed to update ${key}:`, e?.message || e);
+    }
+    createAppMenu();
+  };
 
   const editMenu = {
     label: t.edit,
@@ -1957,6 +2048,54 @@ function createAppMenu() {
     ]
   };
 
+  // For non-macOS, surface AI settings under View (so right-click menu has entries)
+  if (process.platform !== 'darwin') {
+    try {
+      const aiSettingsMenu = {
+        label: t.aiSettings || menuTranslations.en.aiSettings,
+        submenu: [
+          {
+            label: t.setGeminiApiKey || menuTranslations.en.setGeminiApiKey,
+            click: async () => {
+              await promptSetEnv('GEMINI_API_KEY', {
+                title: t.setGeminiApiKey || menuTranslations.en.setGeminiApiKey,
+                label: 'GEMINI_API_KEY',
+                placeholder: 'AIza… or AI… key',
+                password: true,
+                defaultValue: ''
+              });
+            }
+          },
+          {
+            label: t.setGeminiModel || menuTranslations.en.setGeminiModel,
+            click: async () => {
+              await promptSetEnv('GEMINI_MODEL', {
+                title: t.setGeminiModel || menuTranslations.en.setGeminiModel,
+                label: 'GEMINI_MODEL',
+                placeholder: 'e.g., gemini-2.5-flash-lite',
+                password: false,
+                defaultValue: String(process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite')
+              });
+            }
+          },
+          {
+            label: t.setWebSearchModel || menuTranslations.en.setWebSearchModel,
+            click: async () => {
+              await promptSetEnv('WEB_SEARCH_MODEL', {
+                title: t.setWebSearchModel || menuTranslations.en.setWebSearchModel,
+                label: 'WEB_SEARCH_MODEL',
+                placeholder: 'e.g., gemini-2.5-flash',
+                password: false,
+                defaultValue: String(process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash')
+              });
+            }
+          }
+        ]
+      };
+      if (Array.isArray(viewMenu.submenu)) viewMenu.submenu.unshift(aiSettingsMenu, { type: 'separator' });
+    } catch {}
+  }
+
   const windowMenu = { role: 'windowMenu', label: t.window };
 
   const template = [];
@@ -1967,6 +2106,48 @@ function createAppMenu() {
       submenu: [
         { role: 'about', label: t.about },
         { type: 'separator' },
+        {
+          label: t.aiSettings || menuTranslations.en.aiSettings,
+          submenu: [
+            {
+              label: t.setGeminiApiKey || menuTranslations.en.setGeminiApiKey,
+              click: async () => {
+                await promptSetEnv('GEMINI_API_KEY', {
+                  title: t.setGeminiApiKey || menuTranslations.en.setGeminiApiKey,
+                  label: 'GEMINI_API_KEY',
+                  placeholder: 'AIza… or AI… key',
+                  password: true,
+                  defaultValue: ''
+                });
+              }
+            },
+            {
+              label: t.setGeminiModel || menuTranslations.en.setGeminiModel,
+              click: async () => {
+                await promptSetEnv('GEMINI_MODEL', {
+                  title: t.setGeminiModel || menuTranslations.en.setGeminiModel,
+                  label: 'GEMINI_MODEL',
+                  placeholder: 'e.g., gemini-2.5-flash-lite',
+                  password: false,
+                  defaultValue: String(process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite')
+                });
+              }
+            },
+            {
+              label: t.setWebSearchModel || menuTranslations.en.setWebSearchModel,
+              click: async () => {
+                await promptSetEnv('WEB_SEARCH_MODEL', {
+                  title: t.setWebSearchModel || menuTranslations.en.setWebSearchModel,
+                  label: 'WEB_SEARCH_MODEL',
+                  placeholder: 'e.g., gemini-2.5-flash',
+                  password: false,
+                  defaultValue: String(process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash')
+                });
+              }
+            }
+          ]
+        },
+        { type: 'separator' },
         { role: 'hide', label: t.hide },
         { role: 'unhide', label: t.unhide },
         { type: 'separator' },
@@ -1975,6 +2156,7 @@ function createAppMenu() {
     });
   }
 
+  // Keep Edit accelerators without showing the menu
   template.push(editMenu, viewMenu, windowMenu);
 
   const menu = Menu.buildFromTemplate(template);
@@ -2123,7 +2305,8 @@ ipcMain.handle('ai:generate', async (_e, payload) => {
     if (!prompt) return '';
     const source = String(payload?.source || 'chat');
     const isShortcut = source === 'shortcut';
-    const requestedModel = String(payload?.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite');
+    // Prefer current environment model so menu changes apply immediately
+    const requestedModel = String(process.env.GEMINI_MODEL || payload?.model || 'gemini-2.5-flash-lite');
     let generationConfig = payload?.generationConfig || {
       temperature: 0.7,
       topK: 40,
@@ -2269,7 +2452,8 @@ ipcMain.handle('ai:generate-with-image', async (_e, payload) => {
     if (!prompt || !imageBase64) return '';
     const source = String(payload?.source || 'chat');
     const isShortcut = source === 'shortcut';
-    const requestedModel = String(payload?.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite');
+    // Prefer current environment model so menu changes apply immediately
+    const requestedModel = String(process.env.GEMINI_MODEL || payload?.model || 'gemini-2.5-flash-lite');
     let generationConfig = payload?.generationConfig || {
       temperature: 0.7,
       topK: 40,
