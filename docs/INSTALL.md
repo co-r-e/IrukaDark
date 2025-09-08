@@ -55,6 +55,7 @@ Compare with the publisher‑provided hash.
   - `GEMINI_API_KEY` (required)
   - `GEMINI_MODEL` (optional, e.g., `gemini-2.5-flash-lite`)
   - `WEB_SEARCH_MODEL` (optional, e.g., `gemini-2.5-flash`)
+  - `TONE` (optional: `formal` | `casual`; default: `casual`)
 - Settings apply immediately and persist (no restart needed).
 
 ## Where settings are stored
@@ -75,4 +76,3 @@ Portable mode (optional)
   - These builds are unsigned. Use the OS steps above to allow the first launch.
 - Can I edit `.env.local` directly?
   - Yes, when launching with `PORTABLE_MODE=1`. Otherwise use the in‑app AI Settings.
-

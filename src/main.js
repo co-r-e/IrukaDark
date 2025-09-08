@@ -526,6 +526,9 @@ const menuTranslations = {
     setGeminiApiKey: 'Set Gemini API Key…',
     setGeminiModel: 'Set Gemini Model…',
     setWebSearchModel: 'Set Web Search Model…',
+    tone: 'Tone',
+    toneFormal: 'Formal',
+    toneCasual: 'Casual',
     appearance: 'Appearance',
     themeLight: 'Light',
     themeDark: 'Dark',
@@ -571,6 +574,9 @@ const menuTranslations = {
     setGeminiApiKey: 'Gemini APIキーを設定…',
     setGeminiModel: 'Geminiモデルを設定…',
     setWebSearchModel: 'Web検索モデルを設定…',
+    tone: 'トーン',
+    toneFormal: 'フォーマル',
+    toneCasual: 'カジュアル',
     appearance: '外観',
     themeLight: 'ライト',
     themeDark: 'ダーク',
@@ -1638,9 +1644,12 @@ app.whenReady().then(async () => {
       if (prefs.GEMINI_MODEL) {
         process.env.GEMINI_MODEL = String(prefs.GEMINI_MODEL);
       }
-      if (prefs.WEB_SEARCH_MODEL) {
-        process.env.WEB_SEARCH_MODEL = String(prefs.WEB_SEARCH_MODEL);
-      }
+  if (prefs.WEB_SEARCH_MODEL) {
+    process.env.WEB_SEARCH_MODEL = String(prefs.WEB_SEARCH_MODEL);
+  }
+  if (prefs.TONE) {
+    process.env.TONE = String(prefs.TONE);
+  }
     }
   } catch {}
 
@@ -1648,15 +1657,16 @@ app.whenReady().then(async () => {
   try {
     const p = loadPrefs();
     let changed = false;
-    const maybeCopy = (k) => { if (!p[k] && process.env[k]) { p[k] = String(process.env[k]); changed = true; } };
-    maybeCopy('GEMINI_API_KEY');
-    maybeCopy('GEMINI_MODEL');
-    maybeCopy('WEB_SEARCH_MODEL');
-    maybeCopy('UI_THEME');
-    maybeCopy('PIN_ALL_SPACES');
-    maybeCopy('ENABLE_GOOGLE_SEARCH');
-    maybeCopy('WINDOW_OPACITY');
-    maybeCopy('GLASS_LEVEL');
+  const maybeCopy = (k) => { if (!p[k] && process.env[k]) { p[k] = String(process.env[k]); changed = true; } };
+  maybeCopy('GEMINI_API_KEY');
+  maybeCopy('GEMINI_MODEL');
+  maybeCopy('WEB_SEARCH_MODEL');
+  maybeCopy('UI_THEME');
+  maybeCopy('PIN_ALL_SPACES');
+  maybeCopy('ENABLE_GOOGLE_SEARCH');
+  maybeCopy('WINDOW_OPACITY');
+  maybeCopy('GLASS_LEVEL');
+  maybeCopy('TONE');
     if (changed) savePrefs(p);
   } catch {}
   try {
@@ -1998,6 +2008,30 @@ function handleThemeChange(theme) {
   createAppMenu();
 }
 
+// トーン設定の取得/保存/適用
+function getCurrentTone() {
+  return getPref('TONE') || process.env.TONE || 'casual';
+}
+
+function saveToneSetting(tone) {
+  try { setPref('TONE', String(tone)); } catch {}
+}
+
+function handleToneChange(tone) {
+  const v = (String(tone || 'casual').toLowerCase() === 'formal') ? 'formal' : 'casual';
+  saveToneSetting(v);
+  process.env.TONE = v;
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('tone-changed', v);
+    }
+    if (popupWindow && !popupWindow.isDestroyed()) {
+      popupWindow.webContents.send('tone-changed', v);
+    }
+  } catch {}
+  createAppMenu();
+}
+
 // 全アプリ・全スペース表示の保存/適用
 function savePinAllSpacesSetting(enabled) {
   try { setPref('PIN_ALL_SPACES', enabled ? '1' : '0'); } catch {}
@@ -2040,6 +2074,7 @@ function createAppMenu() {
   const windowOpacity = parseFloat(getPref('WINDOW_OPACITY') || process.env.WINDOW_OPACITY || '1');
   const pinAllSpaces = !['0','false','off'].includes(String(getPref('PIN_ALL_SPACES') || process.env.PIN_ALL_SPACES || '1').toLowerCase());
   const curTheme = String(getPref('UI_THEME') || process.env.UI_THEME || 'dark');
+  const curTone = String(getPref('TONE') || process.env.TONE || 'casual');
   const lang = currentLang;
 
   const promptSetEnv = async (key, { title, label, placeholder = '', password = false, defaultValue = '' } = {}) => {
@@ -2200,6 +2235,24 @@ function createAppMenu() {
               });
             }
           }
+          ,
+          { // Tone submenu (formal/casual)
+            label: t.tone || menuTranslations.en.tone,
+            submenu: [
+              {
+                label: t.toneCasual || menuTranslations.en.toneCasual,
+                type: 'radio',
+                checked: curTone !== 'formal',
+                click: () => handleToneChange('casual')
+              },
+              {
+                label: t.toneFormal || menuTranslations.en.toneFormal,
+                type: 'radio',
+                checked: curTone === 'formal',
+                click: () => handleToneChange('formal')
+              }
+            ]
+          }
         ]
       };
       if (Array.isArray(viewMenu.submenu)) viewMenu.submenu.unshift(aiSettingsMenu, { type: 'separator' });
@@ -2257,6 +2310,24 @@ function createAppMenu() {
                   defaultValue: String(process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash')
                 });
               }
+            }
+            ,
+            { // Tone submenu (formal/casual)
+              label: t.tone || menuTranslations.en.tone,
+              submenu: [
+                {
+                  label: t.toneCasual || menuTranslations.en.toneCasual,
+                  type: 'radio',
+                  checked: curTone !== 'formal',
+                  click: () => handleToneChange('casual')
+                },
+                {
+                  label: t.toneFormal || menuTranslations.en.toneFormal,
+                  type: 'radio',
+                  checked: curTone === 'formal',
+                  click: () => handleToneChange('formal')
+                }
+              ]
             }
           ]
         },
@@ -2335,6 +2406,10 @@ ipcMain.handle('cancel-ai', () => {
 ipcMain.handle('get-model', () => {
   const model = getPref('GEMINI_MODEL') || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
   return model;
+});
+
+ipcMain.handle('get-tone', () => {
+  return getPref('TONE') || process.env.TONE || 'casual';
 });
 
 ipcMain.handle('get-ui-theme', () => {

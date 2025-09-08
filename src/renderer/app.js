@@ -527,6 +527,9 @@ let CURRENT_LANG = 'en';
 function getCurrentUILanguage() {
     return CURRENT_LANG;
 }
+// Tone (formal/casual) — default to casual per spec
+let CURRENT_TONE = 'casual';
+function getCurrentTone() { return CURRENT_TONE || 'casual'; }
 function getUIText(key, ...args) {
     const lang = getCurrentUILanguage();
     const strings = I18N_STRINGS[lang] || I18N_STRINGS.en;
@@ -573,6 +576,16 @@ class IrukaDarkApp {
         // 初期UI同期
         this.updateMonitoringUI();
         this.syncHeader();
+
+        // Load tone from system and subscribe to changes
+        try {
+            if (window.electronAPI && window.electronAPI.getTone) {
+                window.electronAPI.getTone().then((tone) => { CURRENT_TONE = (tone === 'formal') ? 'formal' : 'casual'; });
+            }
+            if (window.electronAPI && window.electronAPI.onToneChanged) {
+                window.electronAPI.onToneChanged((tone) => { CURRENT_TONE = (tone === 'formal') ? 'formal' : 'casual'; });
+            }
+        } catch {}
     }
     updateUILanguage() {
         const lang = getCurrentUILanguage();
@@ -1894,15 +1907,18 @@ ${t}`;
      */
     async generateDetailedExplanation(text, historyText = '', useWebSearch = false) {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
+        const tone = (typeof getCurrentTone === 'function' ? getCurrentTone() : 'casual');
         const t = text.length > 12000 ? text.slice(0, 12000) + (lang === 'ja' ? ' …(一部省略)' : ' …(truncated)') : text;
         let prompt;
         if (lang === 'ja') {
-            prompt = `次の内容を、丁寧に説明してください。具体例・箇条書きを適宜使い、重要点→理由→具体例→注意点の順で簡潔にまとめてください。必要なら手順も提示してください。\n\n【対象】\n${t}`;
+            const toneLine = (tone === 'casual') ? '\n- 口調はやさしく温かみのあるタメ口（常体）。くだけすぎない。絵文字は使わない' : '';
+            prompt = `次の内容を、丁寧に説明してください。具体例・箇条書きを適宜使い、重要点→理由→具体例→注意点の順で簡潔にまとめてください。必要なら手順も提示してください。${toneLine}\n\n【対象】\n${t}`;
             if (historyText && historyText.trim()) {
                 prompt = `【チャット履歴（直近）】\n${historyText}\n\n` + prompt;
             }
         } else {
-            prompt = `Explain the following in a way that non-experts can understand. Use concrete examples, analogies, and bullets where useful. Structure the answer as: key points → reasons → examples → caveats, and include steps if appropriate.\n\nTarget:\n${t}`;
+            const toneLine = (tone === 'casual') ? '\n- Use a friendly, conversational tone (no emojis)' : '';
+            prompt = `Explain the following in a way that non-experts can understand. Use concrete examples, analogies, and bullets where useful. Structure the answer as: key points → reasons → examples → caveats, and include steps if appropriate.${toneLine}\n\nTarget:\n${t}`;
             if (historyText && historyText.trim()) {
                 prompt = `Recent chat context:\n${historyText}\n\n` + prompt;
             }
@@ -1912,14 +1928,15 @@ ${t}`;
 
     async generateImageExplanation(imageBase64, mimeType = 'image/png', historyText = '', useWebSearch = false) {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
+        const tone = (typeof getCurrentTone === 'function' ? getCurrentTone() : 'casual');
         let prompt;
         if (lang === 'ja') {
-            prompt = '次の内容を、日本語で簡潔に説明してください。重要な要素や文脈があれば触れてください。';
+            prompt = '次の内容を、日本語で簡潔に説明してください。重要な要素や文脈があれば触れてください。' + (tone === 'casual' ? ' 口調はやさしく温かみのあるタメ口（常体）。くだけすぎない。絵文字は使わない。' : '');
             if (historyText && historyText.trim()) {
                 prompt = `【チャット履歴（直近）】\n${historyText}\n\n` + prompt;
             }
         } else {
-            prompt = 'Briefly describe what is shown in this content in clear English. Mention key elements and context if apparent.';
+            prompt = 'Briefly describe what is shown in this content in clear English. Mention key elements and context if apparent.' + (tone === 'casual' ? ' Use a friendly, conversational tone (no emojis).' : '');
             if (historyText && historyText.trim()) {
                 prompt = `Recent chat context:\n${historyText}\n\n` + prompt;
             }
@@ -1929,14 +1946,15 @@ ${t}`;
 
     async generateImageDetailedExplanation(imageBase64, mimeType = 'image/png', historyText = '', useWebSearch = false) {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
+        const tone = (typeof getCurrentTone === 'function' ? getCurrentTone() : 'casual');
         let prompt;
         if (lang === 'ja') {
-            prompt = '次の内容を、非専門家にも分かるように、重要点→理由→具体例→注意点の順で、必要に応じて箇条書きで丁寧に説明してください。文脈が推測できる場合は簡潔に触れてください。';
+            prompt = '次の内容を、非専門家にも分かるように、重要点→理由→具体例→注意点の順で、必要に応じて箇条書きで丁寧に説明してください。文脈が推測できる場合は簡潔に触れてください。' + (tone === 'casual' ? ' 口調はやさしく温かみのあるタメ口（常体）。くだけすぎない。絵文字は使わない。' : '');
             if (historyText && historyText.trim()) {
                 prompt = `【チャット履歴（直近）】\n${historyText}\n\n` + prompt;
             }
         } else {
-            prompt = 'Explain the content for non-experts with structure: key points → reasons → examples → caveats. Use bullets where helpful and note likely context if apparent.';
+            prompt = 'Explain the content for non-experts with structure: key points → reasons → examples → caveats. Use bullets where helpful and note likely context if apparent.' + (tone === 'casual' ? ' Keep the tone friendly and conversational (no emojis).' : '');
             if (historyText && historyText.trim()) {
                 prompt = `Recent chat context:\n${historyText}\n\n` + prompt;
             }
@@ -1967,15 +1985,18 @@ ${t}`;
      */
     async generateClarificationFromText(previousText = '', historyText = '', useWebSearch = false) {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
+        const tone = (typeof getCurrentTone === 'function' ? getCurrentTone() : 'casual');
         const t = previousText.length > 12000 ? previousText.slice(0, 12000) + (lang === 'ja' ? ' …(一部省略)' : ' …(truncated)') : previousText;
         let prompt;
         if (lang === 'ja') {
-            prompt = `次の直前のAI出力について、「どういうこと？」に答えるつもりで、よりわかりやすく具体的に説明してください。\n\n要件:\n- 重要な結論→理由→具体例→次の一手の順で、5〜8行の箇条書き\n- 難しい用語はその場で短く定義（かっこ書き可）\n- 比喩や日常の例を1つ入れる\n- 原文の意図は保ちつつ、平易な日本語に言い換える\n\n【直前のAI出力】\n${t}`;
+            const toneLine = (tone === 'casual') ? '\n- 口調はやさしく温かみのあるタメ口（常体）。くだけすぎない' : '';
+            prompt = `次の直前のAI出力について、「どういうこと？」に答えるつもりで、よりわかりやすく具体的に説明してください。\n\n要件:\n- 重要な結論→理由→具体例→次の一手の順で、5〜8行の箇条書き\n- 難しい用語はその場で短く定義（かっこ書き可）\n- 比喩や日常の例を1つ入れる\n- 原文の意図は保ちつつ、平易な日本語に言い換える${toneLine}\n\n【直前のAI出力】\n${t}`;
             if (historyText && historyText.trim()) {
                 prompt = `【チャット履歴（直近）】\n${historyText}\n\n` + prompt;
             }
         } else {
-            prompt = `Please clarify the previous AI output as if answering "What do you mean?"\n\nRequirements:\n- 5–8 bullet lines in this order: key point → why → concrete example → next action\n- Define any jargon briefly in-place\n- Include one relatable, everyday example or analogy\n- Keep the original intent but use simple, plain English\n\n[Previous AI output]\n${t}`;
+            const toneLine = (tone === 'casual') ? '\n- Keep the tone friendly and conversational' : '';
+            prompt = `Please clarify the previous AI output as if answering "What do you mean?"\n\nRequirements:\n- 5–8 bullet lines in this order: key point → why → concrete example → next action\n- Define any jargon briefly in-place\n- Include one relatable, everyday example or analogy\n- Keep the original intent but use simple, plain English${toneLine}\n\n[Previous AI output]\n${t}`;
             if (historyText && historyText.trim()) {
                 prompt = `Recent chat context:\n${historyText}\n\n` + prompt;
             }
@@ -2015,44 +2036,90 @@ ${t}`;
 
     buildTextOnlyPrompt(userMessage, historyText = '') {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
+        const tone = (typeof getCurrentTone === 'function' ? getCurrentTone() : 'casual');
         if (lang === 'ja') {
-            let prompt = `あなたは親切で知識豊富なAIアシスタントです。ユーザーの質問に日本語で丁寧に回答してください。
+            if (tone === 'formal') {
+                let prompt = `あなたは親切で知識豊富なAIアシスタントです。ユーザーの質問に日本語で丁寧に回答してください。
 
 ユーザーの質問: ${userMessage}`;
-            if (historyText && historyText.trim()) {
-                prompt += `
+                if (historyText && historyText.trim()) {
+                    prompt += `
 
 【チャット履歴（直近）】
 ${historyText}
 
 この履歴の文脈を理解した上で、回答を行ってください。`;
-            }
-            prompt += `
+                }
+                prompt += `
 
 回答の方針:
 - 推測で断言せず、確実な情報に基づいて回答してください
 - 必要に応じて手順や根拠を示してください
 - 日本語で自然な会話形式で簡潔に回答してください`;
-            return prompt;
+                return prompt;
+            } else {
+                // casual: やさしく温かみのあるタメ口（常体）
+                let prompt = `あなたは親切でフレンドリーなAIアシスタントです。日本語で、やさしく温かみのあるタメ口（常体）で、簡潔に答えて。
+
+ユーザーの質問: ${userMessage}`;
+                if (historyText && historyText.trim()) {
+                    prompt += `
+
+【チャット履歴（直近）】
+${historyText}
+
+この文脈も踏まえて答えてください。`;
+                }
+                prompt += `
+
+回答の方針:
+- 憶測で断言せず、確実な情報に基づいて答える
+- 必要に応じて手順や根拠を短く添える
+- 断定を避ける柔らかい言い回しを適度に使う（例: 〜かも、〜と思う、〜かな）
+- 敬体・敬語は使わず常体（タメ口）。やさしく温かみのある文体で簡潔に（くだけすぎない／前置き最小限／絵文字なし）`;
+                return prompt;
+            }
         } else {
-            let prompt = `You are a helpful and knowledgeable AI assistant. Answer the user's question in clear, concise English.
+            if (tone === 'formal') {
+                let prompt = `You are a helpful and knowledgeable AI assistant. Answer the user's question in clear, concise English.
 
 User question: ${userMessage}`;
-            if (historyText && historyText.trim()) {
-                prompt += `
+                if (historyText && historyText.trim()) {
+                    prompt += `
 
 Recent chat context:
 ${historyText}
 
 Incorporate this context when answering.`;
-            }
-            prompt += `
+                }
+                prompt += `
 
 Answering guidelines:
 - Avoid unfounded claims; base answers on reliable information
 - Provide steps or rationale when helpful
 - Use natural, concise English`;
-            return prompt;
+                return prompt;
+            } else {
+                // casual: friendly, conversational, still concise
+                let prompt = `You are a helpful, friendly AI assistant. Answer in clear, concise English with a warm, conversational tone.
+
+User question: ${userMessage}`;
+                if (historyText && historyText.trim()) {
+                    prompt += `
+
+Recent chat context:
+${historyText}
+
+Use this context in your answer.`;
+                }
+                prompt += `
+
+Answering guidelines:
+- Don’t overstate; base answers on solid information
+- Add brief steps or rationale when useful
+- Keep it friendly and conversational, but succinct (no emojis)`;
+                return prompt;
+            }
         }
     }
 }

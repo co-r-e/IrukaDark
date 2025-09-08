@@ -56,6 +56,7 @@ certUtil -hashfile <ファイル名> SHA256
   - `GEMINI_API_KEY`（必須）
   - `GEMINI_MODEL`（任意、例: `gemini-2.5-flash-lite`）
   - `WEB_SEARCH_MODEL`（任意、例: `gemini-2.5-flash`）
+  - `TONE`（任意: `formal` または `casual`。既定は `casual`）
 - 設定は即時反映・自動保存されます（再起動不要）
 
 ## 設定ファイルの保存場所
@@ -76,4 +77,3 @@ certUtil -hashfile <ファイル名> SHA256
   - A: はい、未署名ビルドです。上記の手順で初回だけ許可してください。
 - Q: 単一のPCでだけ使うのに .env.local を直接いじりたい
   - A: `PORTABLE_MODE=1` で起動するか、AI設定メニューから入力してください。
-

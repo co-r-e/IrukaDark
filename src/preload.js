@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getModel: () => ipcRenderer.invoke('get-model'),
   getUILanguage: () => ipcRenderer.invoke('get-ui-language'),
   getUITheme: () => ipcRenderer.invoke('get-ui-theme'),
+  // Tone (formal/casual)
+  getTone: () => ipcRenderer.invoke('get-tone'),
   getGlassLevel: () => ipcRenderer.invoke('get-glass-level'),
   getWindowOpacity: () => ipcRenderer.invoke('get-window-opacity'),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
@@ -32,6 +34,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onShortcutDetailedRegistered: (cb) => ipcRenderer.on('shortcut-detailed-registered', (_e, a) => cb(a)),
   onShortcutTranslateRegistered: (cb) => ipcRenderer.on('shortcut-translate-registered', (_e, a) => cb(a)),
   onThemeChanged: (cb) => ipcRenderer.on('theme-changed', (_e, theme) => cb(theme)),
+  onToneChanged: (cb) => ipcRenderer.on('tone-changed', (_e, tone) => cb(tone)),
   showAppMenu: (pos) => ipcRenderer.invoke('ui:show-app-menu', pos),
   onExplainScreenshot: (cb) => ipcRenderer.on('explain-screenshot', (_e, p) => cb(p)),
   onExplainScreenshotDetailed: (cb) => ipcRenderer.on('explain-screenshot-detailed', (_e, p) => cb(p)),
