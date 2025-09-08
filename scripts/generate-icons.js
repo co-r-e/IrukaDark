@@ -115,7 +115,7 @@ try {
 
 // Build .ico (multi-size PNG entries if possible)
 try {
-  const sizes = [16, 24, 32, 48, 64, 128, 256];
+  const sizes = [256, 128, 64, 48, 32, 24, 16];
   const images = [];
   for (const s of sizes) {
     const tmp = path.join(outDir, `icon-${s}.png`);

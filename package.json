@@ -10,8 +10,16 @@
     "icons": "node scripts/generate-icons.js",
     "dist": "npm run icons && electron-builder",
     "dist:mac": "npm run icons && electron-builder -m",
-    "dist:win": "npm run icons && electron-builder -w",
-    "dist:linux": "npm run icons && electron-builder -l"
+    "dist:mac:universal": "npm run icons && electron-builder -m --universal",
+    "dist:win": "npm run icons && electron-builder -w --x64 --arm64",
+    "dist:win:x64": "npm run icons && electron-builder -w --x64",
+    "dist:win:arm64": "npm run icons && electron-builder -w --arm64",
+    "dist:linux": "npm run icons && electron-builder -l --x64 --arm64",
+    "dist:linux:x64": "npm run icons && electron-builder -l --x64",
+    "dist:linux:arm64": "npm run icons && electron-builder -l --arm64",
+    "dist:all:fast": "npm run icons && npm run dist:mac && npm run dist:win:x64 && npm run dist:linux:x64",
+    "dist:all": "npm run icons && npm run dist:mac:universal && npm run dist:win && npm run dist:linux",
+    "checksums": "node scripts/generate-checksums.js"
   },
   "keywords": [
     "electron",
@@ -31,6 +39,8 @@
   "build": {
     "appId": "com.core.irukadark",
     "productName": "IrukaDark",
+    "artifactName": "IrukaDark-${version}-${os}-${arch}.${ext}",
+    "asar": true,
     "files": [
       "src/**/*",
       "package.json"
@@ -42,7 +52,8 @@
       "category": "public.app-category.productivity",
       "target": ["dmg", "zip"],
       "icon": "build/icons/icon.icns",
-      "hardenedRuntime": true
+      "hardenedRuntime": true,
+      "universalApp": true
     },
     "dmg": {
       "sign": false,
@@ -50,7 +61,7 @@
     },
     "win": {
       "target": ["nsis"],
-      "icon": "build/icons/icon.ico"
+      "icon": "src/renderer/assets/icons/IrukaDark_desktopicon.png"
     },
     "nsis": {
       "oneClick": true,
@@ -60,7 +71,8 @@
     "linux": {
       "target": ["AppImage", "deb"],
       "category": "Utility",
-      "icon": "build/icons"
+      "icon": "build/icons",
+      "maintainer": "IrukaDark <irukadark@example.com>"
     }
   }
 }

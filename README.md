@@ -183,6 +183,10 @@ First run notes:
 - Node.js 18+ (LTS recommended)
 - npm 9+
 
+## Installation / Distribution
+
+- Unsigned builds installation guide: see `docs/INSTALL.md`.
+
 ## Environment Variables
 
 - `GEMINI_API_KEY` (required): Google AI Studio API Key
@@ -236,14 +240,33 @@ npm install
 ```
 2) Build for your OS
 ```bash
-# macOS
+# macOS (Apple Silicon only)
 npm run dist:mac
-# Windows
+# macOS Universal (arm64+x64 merged)
+npm run dist:mac:universal
+# Windows (x64+arm64)
 npm run dist:win
-# Linux
+# Linux (x64+arm64)
 npm run dist:linux
 ```
 Outputs appear in the `dist/` folder (e.g., `.dmg`, `.exe`, `.AppImage`). For macOS code signing/notarization and Windows code signing, provide credentials via environment variables or electron-builder config as needed. If you don’t sign, macOS Gatekeeper and Windows SmartScreen may warn on first run.
+
+### Windows
+- x64 build（recommended for users): `npm run dist:win:x64`
+- arm64 build: `npm run dist:win:arm64`
+- both (x64+arm64): `npm run dist:win`
+- Produces NSIS installer `.exe` (one‑click). You can enable `createDesktopShortcut` etc. in `package.json > build.nsis` if desired.
+- Optional code signing: set your certificate via environment variables supported by electron‑builder.
+
+### Linux
+- x64 build（most desktops): `npm run dist:linux:x64`
+- arm64 build（e.g. ARM laptops/SBCs): `npm run dist:linux:arm64`
+- both (x64+arm64): `npm run dist:linux`
+- Produces `.AppImage` and `.deb`. Adjust targets in `package.json > build.linux` as needed.
+
+### GitHub Actions (CI)
+- A cross‑platform workflow is included: `.github/workflows/release.yml`.
+- Trigger manually (workflow_dispatch) or by pushing a `v*` tag. Artifacts are uploaded for each OS.
 
 Initial Layout
 - On launch the logo popup appears near the right edge, vertically centered. The main window starts shown by default (configurable via `SHOW_MAIN_ON_START`).

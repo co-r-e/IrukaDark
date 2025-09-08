@@ -557,7 +557,10 @@ const menuTranslations = {
     languageEnglish: 'English',
     languageJapanese: '日本語',
     showLogoPopup: 'Show Logo Popup',
-    pinAllSpaces: 'Show Over All Apps/Spaces'
+    pinAllSpaces: 'Show Over All Apps/Spaces',
+    help: 'Help',
+    checkForUpdates: 'Check for Updates…',
+    openDownloadsPage: 'Open Downloads Page'
   },
   ja: {
     irukadark: 'IrukaDark',
@@ -599,7 +602,10 @@ const menuTranslations = {
     languageEnglish: 'English',
     languageJapanese: '日本語',
     showLogoPopup: 'ロゴ別窓を表示',
-    pinAllSpaces: '全アプリ・全スペースで表示'
+    pinAllSpaces: '全アプリ・全スペースで表示',
+    help: 'ヘルプ',
+    checkForUpdates: 'アップデートを確認…',
+    openDownloadsPage: 'ダウンロードページを開く'
   }
   ,
   es: {
@@ -1234,6 +1240,61 @@ function createWindow() {
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Updates: notification-only (no auto-update)
+function getUpdateRepo() {
+  const repo = process.env.UPDATE_REPO || 'co-r-e/IrukaDark';
+  return String(repo).trim();
+}
+
+function parseVersion(v) {
+  try {
+    const s = String(v || '').replace(/^v/, '');
+    const parts = s.split('.').map(n => parseInt(n, 10));
+    return [parts[0]||0, parts[1]||0, parts[2]||0];
+  } catch { return [0,0,0]; }
+}
+
+function isNewer(a, b) {
+  const A = parseVersion(a);
+  const B = parseVersion(b);
+  for (let i=0;i<3;i++) { if (A[i] !== B[i]) return A[i] > B[i]; }
+  return false;
+}
+
+async function fetchLatestRelease() {
+  const repo = getUpdateRepo();
+  const url = `https://api.github.com/repos/${repo}/releases/latest`;
+  const res = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const j = await res.json();
+  const tag = String(j.tag_name || '').trim();
+  const version = tag ? tag.replace(/^v/, '') : '';
+  const html = String(j.html_url || `https://github.com/${repo}/releases/latest`);
+  const body = String(j.body || '');
+  return { version, url: html, notes: body };
+}
+
+async function checkForUpdates(manual = false) {
+  try {
+    const skip = String(getPref('UPDATE_SKIP_VERSION') || '').trim();
+    const last = Number(getPref('UPDATE_LAST_CHECK') || 0);
+    const now = Date.now();
+    if (!manual && last && (now - last) < (60*60*1000)) return; // throttle 1h in case timer overlaps
+    const latest = await fetchLatestRelease();
+    try { setPref('UPDATE_LAST_CHECK', String(now)); } catch {}
+    const current = app.getVersion();
+    if (latest.version && isNewer(latest.version, current) && latest.version !== skip) {
+      try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update:available', latest); } catch {}
+    } else if (manual) {
+      try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update:none'); } catch {}
+    }
+  } catch (e) {
+    if (manual) {
+      try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update:none'); } catch {}
+    }
+  }
+}
+
 function triggerMacCopyShortcut() {
   try {
     exec("osascript -e 'tell application \"System Events\" to keystroke \"c\" using {command down}'", (error) => {
@@ -1610,6 +1671,12 @@ app.whenReady().then(async () => {
   createAppMenu();
   
   createWindow();
+
+  // Schedule update checks (notification-only)
+  try {
+    setTimeout(() => { try { checkForUpdates(false); } catch {} }, 30000);
+    setInterval(() => { try { checkForUpdates(false); } catch {} }, 24 * 60 * 60 * 1000);
+  } catch {}
 
   // Preflight permissions on first launch (macOS): Accessibility + Screen Recording
   try {
@@ -2149,6 +2216,9 @@ function createAppMenu() {
       submenu: [
         { role: 'about', label: t.about },
         { type: 'separator' },
+        { label: t.checkForUpdates || 'Check for Updates…', click: () => { try { checkForUpdates(true); } catch {} } },
+        { label: t.openDownloadsPage || 'Open Downloads Page', click: () => { try { const repo = getUpdateRepo(); shell.openExternal(`https://github.com/${repo}/releases`); } catch {} } },
+        { type: 'separator' },
         {
           label: t.aiSettings || menuTranslations.en.aiSettings,
           submenu: [
@@ -2201,6 +2271,16 @@ function createAppMenu() {
 
   // Keep Edit accelerators without showing the menu
   template.push(editMenu, viewMenu, windowMenu);
+
+  if (!isMac) {
+    template.push({
+      label: t.help || 'Help',
+      submenu: [
+        { label: t.checkForUpdates || 'Check for Updates…', click: () => { try { checkForUpdates(true); } catch {} } },
+        { label: t.openDownloadsPage || 'Open Downloads Page', click: () => { try { const repo = getUpdateRepo(); shell.openExternal(`https://github.com/${repo}/releases`); } catch {} } }
+      ]
+    });
+  }
 
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
@@ -2270,6 +2350,10 @@ ipcMain.handle('open-external', (_e, url) => {
   } catch {}
   return false;
 });
+
+// Update notifications (manual trigger + skip)
+ipcMain.handle('update:manual-check', async () => { try { await checkForUpdates(true); } catch {}; return true; });
+ipcMain.handle('update:skip', (_e, version) => { try { setPref('UPDATE_SKIP_VERSION', String(version||'')); return true; } catch { return false; } });
 
 // Ensure main window becomes visible (optionally with focus)
 ipcMain.handle('ui:ensure-visible', (_e, opts) => {

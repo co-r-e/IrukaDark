@@ -30,7 +30,10 @@ const I18N_STRINGS = {
         webSearchHelp: 'Use /websearch on|off|status',
         noPreviousAI: 'No previous AI message to continue.',
         selectionExplanation: 'Selection Explanation',
-        selectionTranslation: 'Translate Selection'
+        selectionTranslation: 'Translate Selection',
+        updateAvailable: (v) => `A new version (${v}) is available. Open downloads page?`,
+        upToDate: 'You are up to date.',
+        updateCheckFailed: 'Failed to check updates.'
     },
     ja: {
         errorOccurred: 'エラーが発生しました',
@@ -59,7 +62,10 @@ const I18N_STRINGS = {
         webSearchHelp: '/websearch on|off|status を使用できます',
         noPreviousAI: '直前のAIメッセージがありません。',
         selectionExplanation: '選択範囲の解説',
-        selectionTranslation: '選択範囲の翻訳'
+        selectionTranslation: '選択範囲の翻訳',
+        updateAvailable: (v) => `新しいバージョン（${v}）が利用可能です。ダウンロードページを開きますか？`,
+        upToDate: '最新の状態です。',
+        updateCheckFailed: 'アップデートの確認に失敗しました。'
     },
     // Spanish (Spain)
     es: {
@@ -71,7 +77,7 @@ const I18N_STRINGS = {
         textNotRetrieved: 'No se pudo obtener el texto',
         thinking: 'Pensando...',
         searching: 'Buscando en la web...',
-        accessibilityWarning: 'Para la copia automática, concede permiso en Preferencias del Sistema > Seguridad y privacidad > Accesibilidad.',
+        accessibilityWarning: 'Para copiar automáticamente, da permiso en Preferencias del sistema > Privacidad y seguridad > Accesibilidad.',
         shortcutRegistered: (accel) => `Atajo configurado a ${accel.replace('CommandOrControl', 'Cmd/Ctrl')}`,
         failedToRegisterShortcut: 'No se pudo registrar el atajo. Puede haber un conflicto con otra app.',
         placeholder: 'Pregunta a IrukaDark...',
@@ -92,18 +98,18 @@ const I18N_STRINGS = {
     },
     // Spanish (Latin America) — mirrors es
     'es-419': {
-        errorOccurred: 'Ocurrió un error',
+        errorOccurred: 'Se ha producido un error',
         apiKeyMissing: 'No hay clave de API. Configura GEMINI_API_KEY en .env.local.',
-        apiUnavailable: 'La API de Electron no está disponible. Reinicia la app.',
+        apiUnavailable: 'La API de Electron no está disponible. Reinicia la aplicación.',
         unexpectedResponse: 'Respuesta inesperada de la API.',
         apiError: 'Error de API:',
         textNotRetrieved: 'No se pudo obtener el texto',
         thinking: 'Pensando...',
         searching: 'Buscando en la web...',
-        accessibilityWarning: 'Para copiar automáticamente, otorga permiso en Preferencias del sistema > Seguridad y privacidad > Accesibilidad.',
+        accessibilityWarning: 'Para copiar automáticamente, da permiso en Preferencias del sistema > Privacidad y seguridad > Accesibilidad.',
         shortcutRegistered: (accel) => `Atajo configurado a ${accel.replace('CommandOrControl', 'Cmd/Ctrl')}`,
         failedToRegisterShortcut: 'No se pudo registrar el atajo. Puede haber conflicto con otra app.',
-        placeholder: 'Pregúntale a IrukaDark...',
+        placeholder: 'Pregunta a IrukaDark...',
         send: 'Enviar',
         stop: 'Detener',
         canceled: 'Cancelado.',
@@ -179,31 +185,31 @@ const I18N_STRINGS = {
     },
     // Hindi
     hi: {
-        errorOccurred: 'कोई त्रुटि हुई',
-        apiKeyMissing: 'API कुंजी सेट नहीं है। .env.local में GEMINI_API_KEY सेट करें।',
-        apiUnavailable: 'Electron API उपलब्ध नहीं है। ऐप को पुनः आरंभ करें।',
-        unexpectedResponse: 'API से अप्रत्याशित प्रतिक्रिया मिली।',
+        errorOccurred: 'कुछ गड़बड़ हो गई',
+        apiKeyMissing: 'API कुंजी नहीं है। .env.local में GEMINI_API_KEY डाल दो।',
+        apiUnavailable: 'Electron API उपलब्ध नहीं है। ऐप को रीस्टार्ट करके देखो।',
+        unexpectedResponse: 'API ने अनपेक्षित जवाब दिया।',
         apiError: 'API त्रुटि:',
-        textNotRetrieved: 'पाठ प्राप्त नहीं हो सका',
-        thinking: 'सोच रहा है…',
-        searching: 'वेब पर खोज रहा है…',
-        accessibilityWarning: 'स्वचालित कॉपी के लिए, सिस्टम सेटिंग्स > सुरक्षा और गोपनीयता > एक्सेसिबिलिटी में अनुमति दें।',
-        shortcutRegistered: (accel) => `शॉर्टकट ${accel.replace('CommandOrControl', 'Cmd/Ctrl')} पर सेट किया गया`,
-        failedToRegisterShortcut: 'शॉर्टकट पंजीकृत नहीं हो पाया। किसी अन्य ऐप से टकराव हो सकता है।',
-        placeholder: 'IrukaDark से पूछें…',
-        send: 'भेजें',
-        stop: 'रोकें',
-        canceled: 'रद्द किया गया।',
-        historyCleared: 'चैट इतिहास साफ़ किया गया।',
-        historyCompacted: 'इतिहास को सारांशित कर संकुचित किया गया।',
-        availableCommands: 'उपलब्ध कमांड: /clear, /compact, /next, /contact, /web (on/off/status)',
+        textNotRetrieved: 'टेक्स्ट नहीं मिल पाया',
+        thinking: 'सोच रहा हूँ…',
+        searching: 'वेब पर खोज रहा हूँ…',
+        accessibilityWarning: 'ऑटो‑कॉपी के लिए सिस्टम सेटिंग्स > सुरक्षा व गोपनीयता > एक्सेसिबिलिटी में अनुमति दे दो।',
+        shortcutRegistered: (accel) => `शॉर्टकट ${accel.replace('CommandOrControl', 'Cmd/Ctrl')} पर सेट कर दिया`,
+        failedToRegisterShortcut: 'शॉर्टकट रजिस्टर नहीं हो पाया। किसी ऐप से टकराव हो सकता है।',
+        placeholder: 'IrukaDark से पूछो…',
+        send: 'भेजो',
+        stop: 'रोकना',
+        canceled: 'रोक दिया।',
+        historyCleared: 'चैट इतिहास साफ़ कर दिया।',
+        historyCompacted: 'इतिहास को संक्षेप में समेट दिया।',
+        availableCommands: 'कमांड: /clear, /compact, /next, /contact, /web (on/off/status)',
         sourcesBadge: 'स्रोत',
-        webSearchEnabled: 'वेब खोज सक्षम की गई।',
-        webSearchDisabled: 'वेब खोज अक्षम की गई।',
-        webSearchStatusOn: 'वेब खोज: चालू',
-        webSearchStatusOff: 'वेब खोज: बंद',
-        webSearchHelp: '/websearch on|off|status का उपयोग करें',
-        noPreviousAI: 'जारी रखने के लिए पिछला AI संदेश नहीं है।',
+        webSearchEnabled: 'वेब खोज ऑन कर दी।',
+        webSearchDisabled: 'वेब खोज ऑफ कर दी।',
+        webSearchStatusOn: 'वेब खोज: ऑन',
+        webSearchStatusOff: 'वेब खोज: ऑफ',
+        webSearchHelp: '/websearch on|off|status इस्तेमाल करो',
+        noPreviousAI: 'आगे बढ़ाने लायक पिछला AI संदेश नहीं है।',
         selectionExplanation: 'चयन की व्याख्या'
     },
     // Portuguese (Brazil)
@@ -236,12 +242,12 @@ const I18N_STRINGS = {
         selectionExplanation: 'Explicação da seleção'
     },
     fr: {
-        errorOccurred: "Une erreur s'est produite",
-        apiKeyMissing: 'Clé API absente. Définissez GEMINI_API_KEY dans .env.local.',
-        apiUnavailable: "L'API Electron n'est pas disponible. Redémarrez l'application.",
+        errorOccurred: "Un truc s'est mal passé",
+        apiKeyMissing: 'Pas de clé API. Mets GEMINI_API_KEY dans .env.local.',
+        apiUnavailable: "L'API Electron n'est pas dispo. Redémarre l'app.",
         unexpectedResponse: "Réponse inattendue de l'API.",
         apiError: "Erreur d'API :",
-        textNotRetrieved: 'Échec de la récupération du texte',
+        textNotRetrieved: "Impossible de récupérer le texte",
         thinking: 'Réflexion…',
         searching: 'Recherche sur le web…',
         accessibilityWarning: "Pour la copie automatique, accordez l'autorisation dans Réglages Système > Sécurité et confidentialité > Accessibilité.",
@@ -295,13 +301,13 @@ const I18N_STRINGS = {
         errorOccurred: 'حدث خطأ',
         apiKeyMissing: 'مفتاح API غير مُعين. يرجى تعيين GEMINI_API_KEY في ‎.env.local‎.',
         apiUnavailable: 'واجهة Electron غير متاحة. أعد تشغيل التطبيق.',
-        unexpectedResponse: 'استجابة غير متوقعة من واجهة API.',
-        apiError: 'خطأ في واجهة API:',
-        textNotRetrieved: 'فشل جلب النص',
+        unexpectedResponse: 'ورد رد غير متوقع من الـ API.',
+        apiError: 'خطأ في الـ API:',
+        textNotRetrieved: 'تعذّر جلب النص',
         thinking: 'جارٍ التفكير…',
         searching: 'جارٍ البحث على الويب…',
-        accessibilityWarning: 'للتفعيل التلقائي للنسخ، امنح الإذن في إعدادات النظام > الأمان والخصوصية > إمكانية الوصول.',
-        shortcutRegistered: (accel) => `تم تعيين الاختصار إلى ${accel.replace('CommandOrControl', 'Cmd/Ctrl')}`,
+        accessibilityWarning: 'للنسخ التلقائي، فعّل الإذن في إعدادات النظام > الأمان والخصوصية > إمكانية الوصول.',
+        shortcutRegistered: (accel) => `تم ضبط الاختصار إلى ${accel.replace('CommandOrControl', 'Cmd/Ctrl')}`,
         failedToRegisterShortcut: 'فشل تسجيل الاختصار. قد يوجد تعارض مع تطبيق آخر.',
         placeholder: 'اسأل IrukaDark…',
         send: 'إرسال',
@@ -320,29 +326,29 @@ const I18N_STRINGS = {
         selectionExplanation: 'شرح التحديد'
     },
     ru: {
-        errorOccurred: 'Произошла ошибка',
-        apiKeyMissing: 'Ключ API не задан. Укажите GEMINI_API_KEY в .env.local.',
-        apiUnavailable: 'API Electron недоступен. Перезапустите приложение.',
-        unexpectedResponse: 'Неожиданный ответ API.',
+        errorOccurred: 'Что-то пошло не так',
+        apiKeyMissing: 'Нет ключа API. Укажите GEMINI_API_KEY в .env.local.',
+        apiUnavailable: 'API Electron недоступен. Попробуйте перезапустить приложение.',
+        unexpectedResponse: 'Неожиданный ответ от API.',
         apiError: 'Ошибка API:',
         textNotRetrieved: 'Не удалось получить текст',
         thinking: 'Думаю…',
-        searching: 'Идет поиск в интернете…',
-        accessibilityWarning: 'Для автокопирования дайте разрешение в Настройки системы > Безопасность и конфиденциальность > Универсальный доступ.',
+        searching: 'Поиск в интернете…',
+        accessibilityWarning: 'Для автокопирования дайте разрешение: Настройки системы > Безопасность и конфиденциальность > Универсальный доступ.',
         shortcutRegistered: (accel) => `Горячая клавиша установлена: ${accel.replace('CommandOrControl', 'Cmd/Ctrl')}`,
-        failedToRegisterShortcut: 'Не удалось зарегистрировать горячую клавишу. Возможен конфликт с другим приложением.',
+        failedToRegisterShortcut: 'Не удалось зарегистрировать горячую клавишу. Возможно, конфликт с другой программой.',
         placeholder: 'Спросите IrukaDark…',
         send: 'Отправить',
         stop: 'Стоп',
         canceled: 'Отменено.',
         historyCleared: 'История чата очищена.',
-        historyCompacted: 'История сжата и кратко изложена.',
+        historyCompacted: 'История кратко изложена и сжата.',
         availableCommands: 'Команды: /clear, /compact, /next, /contact, /web (on/off/status)',
         sourcesBadge: 'Источники',
-        webSearchEnabled: 'Веб-поиск включен.',
-        webSearchDisabled: 'Веб-поиск выключен.',
-        webSearchStatusOn: 'Веб-поиск: ВКЛ',
-        webSearchStatusOff: 'Веб-поиск: ВЫКЛ',
+        webSearchEnabled: 'Веб‑поиск включен.',
+        webSearchDisabled: 'Веб‑поиск выключен.',
+        webSearchStatusOn: 'Веб‑поиск: ВКЛ',
+        webSearchStatusOff: 'Веб‑поиск: ВЫКЛ',
         webSearchHelp: 'Используйте /websearch on|off|status',
         noPreviousAI: 'Нет предыдущего сообщения ИИ для продолжения.',
         selectionExplanation: 'Пояснение выделения'
@@ -372,7 +378,7 @@ const I18N_STRINGS = {
         webSearchStatusOn: '웹 검색: 켜짐',
         webSearchStatusOff: '웹 검색: 꺼짐',
         webSearchHelp: '/websearch on|off|status 사용',
-        noPreviousAI: '이어서 진행할 이전 AI 메시지가 없습니다.',
+        noPreviousAI: '이어서 진행할 AI 메시지가 없어요.',
         selectionExplanation: '선택 영역 설명'
     },
     id: {
@@ -722,6 +728,25 @@ class IrukaDarkApp {
                 if (accel && accel !== 'Alt+R') {
                     this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
                 }
+        });
+
+        // Update notifications (notification-only)
+        on('onUpdateAvailable', (p) => {
+            try {
+                const v = p && p.version ? p.version : '';
+                const url = p && p.url ? p.url : '';
+                const msg = getUIText('updateAvailable', v);
+                if (url && typeof window.confirm === 'function') {
+                    if (confirm(msg)) {
+                        try { window.electronAPI.openExternal(url); } catch {}
+                    }
+                } else {
+                    this.showToast(msg, 'info', 6000);
+                }
+            } catch {}
+        });
+        on('onUpdateNone', () => {
+            try { this.showToast(getUIText('upToDate'), 'info', 2600); } catch {}
         });
 
         if (!window.electronAPI) {
@@ -1623,6 +1648,7 @@ class IrukaDarkApp {
             this.createIconsEnhanced();
         }
     }
+
 
     // 直近のチャット履歴をテキスト化して返す
     buildHistoryContext(maxChars = 6000, maxMessages = 12) {
