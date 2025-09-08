@@ -4,6 +4,12 @@
 
   function applyLang(lang) {
     const t = String(lang || 'en').toLowerCase();
+    // toggle document direction for RTL locales
+    try {
+      const rtl = ['ar', 'he', 'fa', 'ur'];
+      const isRTL = rtl.some(code => t.startsWith(code));
+      document.documentElement.setAttribute('dir', isRTL ? 'rtl' : 'ltr');
+    } catch {}
     if (t.startsWith('ja')) { $('cancelBtn').textContent = 'キャンセル'; $('okBtn').textContent = '保存'; }
     else if (t.startsWith('fr')) { $('cancelBtn').textContent = 'Annuler'; $('okBtn').textContent = 'Enregistrer'; }
     else if (t.startsWith('de')) { $('cancelBtn').textContent = 'Abbrechen'; $('okBtn').textContent = 'Speichern'; }

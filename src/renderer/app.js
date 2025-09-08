@@ -523,6 +523,49 @@ const I18N_STRINGS = {
     }
 };
 
+// Language display names for prompt targeting
+const LANG_NAMES = {
+    'en': 'English',
+    'ja': 'Japanese',
+    'es': 'Spanish',
+    'es-419': 'Latin American Spanish',
+    'zh-Hans': 'Simplified Chinese',
+    'zh-Hant': 'Traditional Chinese',
+    'hi': 'Hindi',
+    'pt-BR': 'Brazilian Portuguese',
+    'fr': 'French',
+    'de': 'German',
+    'ar': 'Arabic',
+    'ru': 'Russian',
+    'ko': 'Korean',
+    'id': 'Indonesian',
+    'vi': 'Vietnamese',
+    'th': 'Thai',
+    'it': 'Italian',
+    'tr': 'Turkish'
+};
+
+// Build a set of possible "Sources" markers across languages
+const SOURCE_MARKERS = (() => {
+    const base = ['References', 'Citations', '出典', '参考', '参考文献', '参考資料'];
+    try {
+        const localized = Object.values(I18N_STRINGS)
+            .map(v => (v && typeof v.sourcesBadge === 'string') ? v.sourcesBadge : null)
+            .filter(Boolean);
+        return Array.from(new Set(base.concat(localized)));
+    } catch {
+        return base;
+    }
+})();
+
+function getLangMeta(code) {
+    const lang = String(code || 'en');
+    const name = LANG_NAMES[lang] || 'English';
+    const rtlLocales = new Set(['ar', 'he', 'fa', 'ur']);
+    const rtl = rtlLocales.has(lang);
+    return { code: lang, name, rtl };
+}
+
 let CURRENT_LANG = 'en';
 function getCurrentUILanguage() {
     return CURRENT_LANG;
@@ -1341,7 +1384,7 @@ class IrukaDarkApp {
             const div = document.createElement('div');
             div.className = 'slash-suggest-item' + (i === this.suggestIndex ? ' active' : '');
             div.setAttribute('data-cmd', c.key);
-            div.innerHTML = `<span class="cmd">${c.label}</span><span class="desc">${(c.desc?.[lang] || c.label)}</span>`;
+            div.innerHTML = `<span class=\"cmd\">${c.label}</span><span class=\"desc\">${(c.desc?.[lang] || c.desc?.en || c.label)}</span>`;
             this.suggestList.appendChild(div);
         });
         // Keep the active item visible when navigating
@@ -1721,15 +1764,13 @@ class IrukaDarkApp {
         return div.innerHTML;
     }
 
-    // Parse trailing inline sources block like "出典:" or "Sources:" and extract links
+    // Parse trailing inline sources block like "出典:" or "Sources:" (localized) and extract links
     parseInlineSourcesFromText(text) {
         try {
             if (!text || typeof text !== 'string') return { text, sources: [] };
-            const markers = [
-                '出典', '参考', '参考文献', '参考資料',
-                'Sources', 'References', 'Citations'
-            ];
-            const pattern = new RegExp(`(?:\n|^)\s*(?:${markers.join('|')})\s*[:：]?\s*\n([\s\S]+)$`, 'i');
+            const markers = SOURCE_MARKERS;
+            const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const pattern = new RegExp(`(?:\n|^)\s*(?:${markers.map(esc).join('|')})\s*[:：]?\s*\n([\s\S]+)$`, 'i');
             const m = text.match(pattern);
             if (!m) return { text, sources: [] };
             const block = m[1] || '';
@@ -1886,18 +1927,18 @@ ${t}`;
     /** テキストのみを解説する（UI言語に合わせて出力言語を切替） */
     async generateTextExplanation(text, historyText = '', useWebSearch = false) {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
+        const { name, code } = getLangMeta(lang);
         const t = text.length > 8000 ? text.slice(0, 8000) + (lang === 'ja' ? ' …(一部省略)' : ' …(truncated)') : text;
         let prompt;
         if (lang === 'ja') {
             prompt = `「${t}」について一言で教えてください。日本語で短く1文で、結論から端的に。`;
-            if (historyText && historyText.trim()) {
-                prompt = `【チャット履歴（直近）】\n${historyText}\n\n` + prompt;
-            }
         } else {
-            prompt = `Explain "${t}" in one short English sentence. Start with the conclusion, be clear and concise.`;
-            if (historyText && historyText.trim()) {
-                prompt = `Context (recent chat):\n${historyText}\n\n` + prompt;
-            }
+            prompt = `Explain "${t}" in one short sentence. Start with the conclusion, be clear and concise. Respond strictly in ${name} (${code}).`;
+        }
+        if (historyText && historyText.trim()) {
+            prompt = (lang === 'ja'
+                ? `【チャット履歴（直近）】\n${historyText}\n\n`
+                : `Context (recent chat):\n${historyText}\n\n`) + prompt;
         }
         return this.requestText(prompt, useWebSearch, 'shortcut');
     }
@@ -1908,20 +1949,20 @@ ${t}`;
     async generateDetailedExplanation(text, historyText = '', useWebSearch = false) {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
         const tone = (typeof getCurrentTone === 'function' ? getCurrentTone() : 'casual');
+        const { name, code } = getLangMeta(lang);
         const t = text.length > 12000 ? text.slice(0, 12000) + (lang === 'ja' ? ' …(一部省略)' : ' …(truncated)') : text;
         let prompt;
         if (lang === 'ja') {
             const toneLine = (tone === 'casual') ? '\n- 口調はやさしく温かみのあるタメ口（常体）。くだけすぎない。絵文字は使わない' : '';
             prompt = `次の内容を、丁寧に説明してください。具体例・箇条書きを適宜使い、重要点→理由→具体例→注意点の順で簡潔にまとめてください。必要なら手順も提示してください。${toneLine}\n\n【対象】\n${t}`;
-            if (historyText && historyText.trim()) {
-                prompt = `【チャット履歴（直近）】\n${historyText}\n\n` + prompt;
-            }
         } else {
             const toneLine = (tone === 'casual') ? '\n- Use a friendly, conversational tone (no emojis)' : '';
-            prompt = `Explain the following in a way that non-experts can understand. Use concrete examples, analogies, and bullets where useful. Structure the answer as: key points → reasons → examples → caveats, and include steps if appropriate.${toneLine}\n\nTarget:\n${t}`;
-            if (historyText && historyText.trim()) {
-                prompt = `Recent chat context:\n${historyText}\n\n` + prompt;
-            }
+            prompt = `Explain the following in a way that non-experts can understand. Use concrete examples, analogies, and bullets where useful. Structure the answer as: key points → reasons → examples → caveats, and include steps if appropriate.${toneLine}\n\nRespond strictly in ${name} (${code}).\n\nTarget:\n${t}`;
+        }
+        if (historyText && historyText.trim()) {
+            prompt = (lang === 'ja'
+                ? `【チャット履歴（直近）】\n${historyText}\n\n`
+                : `Recent chat context:\n${historyText}\n\n`) + prompt;
         }
         return this.requestText(prompt, useWebSearch, 'shortcut');
     }
@@ -1929,17 +1970,17 @@ ${t}`;
     async generateImageExplanation(imageBase64, mimeType = 'image/png', historyText = '', useWebSearch = false) {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
         const tone = (typeof getCurrentTone === 'function' ? getCurrentTone() : 'casual');
+        const { name, code } = getLangMeta(lang);
         let prompt;
         if (lang === 'ja') {
             prompt = '次の内容を、日本語で簡潔に説明してください。重要な要素や文脈があれば触れてください。' + (tone === 'casual' ? ' 口調はやさしく温かみのあるタメ口（常体）。くだけすぎない。絵文字は使わない。' : '');
-            if (historyText && historyText.trim()) {
-                prompt = `【チャット履歴（直近）】\n${historyText}\n\n` + prompt;
-            }
         } else {
-            prompt = 'Briefly describe what is shown in this content in clear English. Mention key elements and context if apparent.' + (tone === 'casual' ? ' Use a friendly, conversational tone (no emojis).' : '');
-            if (historyText && historyText.trim()) {
-                prompt = `Recent chat context:\n${historyText}\n\n` + prompt;
-            }
+            prompt = `Briefly describe what is shown in this content. Mention key elements and context if apparent. Respond strictly in ${name} (${code}).` + (tone === 'casual' ? ' Use a friendly, conversational tone (no emojis).' : '');
+        }
+        if (historyText && historyText.trim()) {
+            prompt = (lang === 'ja'
+                ? `【チャット履歴（直近）】\n${historyText}\n\n`
+                : `Recent chat context:\n${historyText}\n\n`) + prompt;
         }
         return this.requestWithImage(prompt, imageBase64, mimeType, useWebSearch, 'shortcut');
     }
@@ -1947,35 +1988,35 @@ ${t}`;
     async generateImageDetailedExplanation(imageBase64, mimeType = 'image/png', historyText = '', useWebSearch = false) {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
         const tone = (typeof getCurrentTone === 'function' ? getCurrentTone() : 'casual');
+        const { name, code } = getLangMeta(lang);
         let prompt;
         if (lang === 'ja') {
             prompt = '次の内容を、非専門家にも分かるように、重要点→理由→具体例→注意点の順で、必要に応じて箇条書きで丁寧に説明してください。文脈が推測できる場合は簡潔に触れてください。' + (tone === 'casual' ? ' 口調はやさしく温かみのあるタメ口（常体）。くだけすぎない。絵文字は使わない。' : '');
-            if (historyText && historyText.trim()) {
-                prompt = `【チャット履歴（直近）】\n${historyText}\n\n` + prompt;
-            }
         } else {
-            prompt = 'Explain the content for non-experts with structure: key points → reasons → examples → caveats. Use bullets where helpful and note likely context if apparent.' + (tone === 'casual' ? ' Keep the tone friendly and conversational (no emojis).' : '');
-            if (historyText && historyText.trim()) {
-                prompt = `Recent chat context:\n${historyText}\n\n` + prompt;
-            }
+            prompt = `Explain the content for non-experts with structure: key points → reasons → examples → caveats. Use bullets where helpful and note likely context if apparent. Respond strictly in ${name} (${code}).` + (tone === 'casual' ? ' Keep the tone friendly and conversational (no emojis).' : '');
+        }
+        if (historyText && historyText.trim()) {
+            prompt = (lang === 'ja'
+                ? `【チャット履歴（直近）】\n${historyText}\n\n`
+                : `Recent chat context:\n${historyText}\n\n`) + prompt;
         }
         return this.requestWithImage(prompt, imageBase64, mimeType, useWebSearch, 'shortcut');
     }
 
     async generateTableFromText(text, historyText = '', useWebSearch = false) {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
+        const { name, code } = getLangMeta(lang);
         const t = String(text || '');
         let prompt;
         if (lang === 'ja') {
             prompt = `次のテキストを、GFM（GitHub Flavored Markdown）の表に変換してください。\n\n要件:\n- ヘッダー行の直後に区切り行（|---|---|...|）を必ず入れる\n- 表以外の説明文やコードブロックは出力しない（表のみ）\n- 列は内容に合わせて2〜6列程度に整理（不可能なら「項目 | 値」の2列）\n- 最大20行程度に要約し、長文は適度に省略\n- URLやコードは適切に切り、可読性を保つ\n- ヘッダー名・セル内容は日本語で簡潔に（固有名詞は原文を維持可）\n\n対象テキスト:\n${t}`;
-            if (historyText && historyText.trim()) {
-                prompt = `【チャット履歴（直近）】\n${historyText}\n\n` + prompt;
-            }
         } else {
-            prompt = `Convert the following text into a well-formed GitHub Flavored Markdown (GFM) table.\n\nRequirements:\n- Include a header row AND the separator row (|---|---|...) right after it\n- Output ONLY the table (no explanations, no code fences)\n- Choose 2–6 columns that best fit the content (fallback to "Key | Value" if structure is unclear)\n- Limit to about 20 rows; truncate long content sensibly\n- Keep URLs/code readable\n- Write all headers and cell values in English. Translate any non-English content into concise, natural English while preserving proper nouns.\n\nText:\n${t}`;
-            if (historyText && historyText.trim()) {
-                prompt = `Recent chat context:\n${historyText}\n\n` + prompt;
-            }
+            prompt = `Convert the following text into a well-formed GitHub Flavored Markdown (GFM) table.\n\nRequirements:\n- Include a header row AND the separator row (|---|---|...) right after it\n- Output ONLY the table (no explanations, no code fences)\n- Choose 2–6 columns that best fit the content (fallback to "Key | Value" if structure is unclear)\n- Limit to about 20 rows; truncate long content sensibly\n- Keep URLs/code readable\n- Write all headers and cell values strictly in ${name} (${code}). Translate any non-${name} content into concise, natural ${name} while preserving proper nouns.\n\nText:\n${t}`;
+        }
+        if (historyText && historyText.trim()) {
+            prompt = (lang === 'ja'
+                ? `【チャット履歴（直近）】\n${historyText}\n\n`
+                : `Recent chat context:\n${historyText}\n\n`) + prompt;
         }
         return this.requestText(prompt, useWebSearch, 'chat');
     }
@@ -1986,20 +2027,20 @@ ${t}`;
     async generateClarificationFromText(previousText = '', historyText = '', useWebSearch = false) {
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
         const tone = (typeof getCurrentTone === 'function' ? getCurrentTone() : 'casual');
+        const { name, code } = getLangMeta(lang);
         const t = previousText.length > 12000 ? previousText.slice(0, 12000) + (lang === 'ja' ? ' …(一部省略)' : ' …(truncated)') : previousText;
         let prompt;
         if (lang === 'ja') {
             const toneLine = (tone === 'casual') ? '\n- 口調はやさしく温かみのあるタメ口（常体）。くだけすぎない' : '';
             prompt = `次の直前のAI出力について、「どういうこと？」に答えるつもりで、よりわかりやすく具体的に説明してください。\n\n要件:\n- 重要な結論→理由→具体例→次の一手の順で、5〜8行の箇条書き\n- 難しい用語はその場で短く定義（かっこ書き可）\n- 比喩や日常の例を1つ入れる\n- 原文の意図は保ちつつ、平易な日本語に言い換える${toneLine}\n\n【直前のAI出力】\n${t}`;
-            if (historyText && historyText.trim()) {
-                prompt = `【チャット履歴（直近）】\n${historyText}\n\n` + prompt;
-            }
         } else {
             const toneLine = (tone === 'casual') ? '\n- Keep the tone friendly and conversational' : '';
-            prompt = `Please clarify the previous AI output as if answering "What do you mean?"\n\nRequirements:\n- 5–8 bullet lines in this order: key point → why → concrete example → next action\n- Define any jargon briefly in-place\n- Include one relatable, everyday example or analogy\n- Keep the original intent but use simple, plain English${toneLine}\n\n[Previous AI output]\n${t}`;
-            if (historyText && historyText.trim()) {
-                prompt = `Recent chat context:\n${historyText}\n\n` + prompt;
-            }
+            prompt = `Please clarify the previous AI output as if answering "What do you mean?"\n\nRequirements:\n- 5–8 bullet lines in this order: key point → why → concrete example → next action\n- Define any jargon briefly in-place\n- Include one relatable, everyday example or analogy\n- Keep the original intent but use simple, plain language${toneLine}\n\nRespond strictly in ${name} (${code}).\n\n[Previous AI output]\n${t}`;
+        }
+        if (historyText && historyText.trim()) {
+            prompt = (lang === 'ja'
+                ? `【チャット履歴（直近）】\n${historyText}\n\n`
+                : `Recent chat context:\n${historyText}\n\n`) + prompt;
         }
         return this.requestText(prompt, useWebSearch, 'chat');
     }
@@ -2008,9 +2049,10 @@ ${t}`;
         const lang = (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
         const base = (historyText || '').trim();
         if (!base) return lang === 'ja' ? '（履歴がありません）' : '(No history)';
+        const { name, code } = getLangMeta(lang);
         const prompt = (lang === 'ja')
             ? `以下は直近の会話履歴です。重要なポイントだけを日本語で3〜6行に簡潔に要約してください。箇条書き可。重複や冗長表現は避け、固有名詞・決定事項・未解決点を明確に示してください。\n\n${base}`
-            : `Below is the recent conversation history. Summarize the key points in English in 3–6 short lines. Bullets are fine. Avoid redundancy and highlight proper nouns, decisions, and open items.\n\n${base}`;
+            : `Below is the recent conversation history. Summarize the key points in ${name} (${code}) in 3–6 short lines. Bullets are fine. Avoid redundancy and highlight proper nouns, decisions, and open items.\n\n${base}`;
         return this.requestText(prompt, useWebSearch, 'chat');
     }
 
@@ -2024,7 +2066,8 @@ ${t}`;
                 prompt = `【チャット履歴（直近）】\n${historyText}\n\n` + prompt;
             }
         } else {
-            prompt = `Continue the following output. Do not repeat prior content. Keep the same style and tone. Add bullets/examples/caveats only if helpful.\n\n[Previous output]\n${t}`;
+            const { name, code } = getLangMeta(lang);
+            prompt = `Continue the following output in ${name} (${code}). Do not repeat prior content. Keep the same style and tone. Add bullets/examples/caveats only if helpful.\n\n[Previous output]\n${t}`;
             if (historyText && historyText.trim()) {
                 prompt = `Recent chat context:\n${historyText}\n\n` + prompt;
             }
@@ -2080,8 +2123,9 @@ ${historyText}
                 return prompt;
             }
         } else {
+            const { name, code } = getLangMeta(lang);
             if (tone === 'formal') {
-                let prompt = `You are a helpful and knowledgeable AI assistant. Answer the user's question in clear, concise English.
+                let prompt = `You are a helpful and knowledgeable AI assistant. Answer the user's question clearly and concisely. Respond strictly in ${name} (${code}).
 
 User question: ${userMessage}`;
                 if (historyText && historyText.trim()) {
@@ -2097,11 +2141,11 @@ Incorporate this context when answering.`;
 Answering guidelines:
 - Avoid unfounded claims; base answers on reliable information
 - Provide steps or rationale when helpful
-- Use natural, concise English`;
+- Use natural, concise ${name}`;
                 return prompt;
             } else {
                 // casual: friendly, conversational, still concise
-                let prompt = `You are a helpful, friendly AI assistant. Answer in clear, concise English with a warm, conversational tone.
+                let prompt = `You are a helpful, friendly AI assistant. Answer with a warm, conversational tone. Respond strictly in ${name} (${code}).
 
 User question: ${userMessage}`;
                 if (historyText && historyText.trim()) {
