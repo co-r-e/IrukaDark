@@ -176,11 +176,13 @@ jobs:
           tag_name: ${{ inputs.tag || github.ref_name }}
           files: |
             dist/*-win-x64.exe
-            dist/*-win-x64.msi
+            dist/*-win-x64.exe.sha256
             dist/*-mac-arm64.dmg
-            dist/*-linux-x64.AppImage
+            dist/*-mac-arm64.dmg.sha256
             dist/*-linux-x86_64.AppImage
+            dist/*-linux-x86_64.AppImage.sha256
             dist/*-linux-x64.deb
+            dist/*-linux-x64.deb.sha256
             dist/*-linux-x64.rpm
+            dist/*-linux-x64.rpm.sha256
             dist/SHA256SUMS.txt
-            dist/*.sha256

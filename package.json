@@ -82,8 +82,7 @@
     "mac": {
       "category": "public.app-category.productivity",
       "target": [
-        "dmg",
-        "zip"
+        "dmg"
       ],
       "icon": "build/icons/icon.icns",
       "hardenedRuntime": false,
@@ -112,14 +111,6 @@
       "category": "Utility",
       "icon": "build/icons",
       "maintainer": "IrukaDark <irukadark@example.com>"
-    },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "co-r-e",
-        "repo": "IrukaDark",
-        "releaseType": "draft"
-      }
-    ]
+    }
   }
 }

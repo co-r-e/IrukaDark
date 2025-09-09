@@ -39,6 +39,10 @@ async function main() {
   const outputs = [];
   for (const file of walk(distDir)) {
     if (file.endsWith('.sha256') || file.endsWith('SHA256SUMS.txt')) continue;
+    // Skip metadata files we don't ship
+    if (/(^|\.)latest.*\.yml$/i.test(file)) continue;
+    if (/\.yml$/i.test(file)) continue; // builder-debug.yml, etc.
+    if (/\.blockmap(\.zip)?$/i.test(file)) continue;
     const hex = await hashFile(file);
     outputs.push({ file, hex });
     // Write sidecar .sha256 (hex  filename)
