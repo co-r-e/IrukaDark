@@ -79,7 +79,8 @@
         "zip"
       ],
       "icon": "build/icons/icon.icns",
-      "hardenedRuntime": true,
+      "hardenedRuntime": false,
+      "identity": null,
       "universalApp": false
     },
     "dmg": {
