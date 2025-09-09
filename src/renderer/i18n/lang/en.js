@@ -1,0 +1,39 @@
+(function () {
+  if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
+  window.__IRUKA_REGISTER_I18N__('en', {
+    errorOccurred: 'An error occurred',
+    apiKeyMissing: 'API key is not set. Please set GEMINI_API_KEY in .env.local file.',
+    apiUnavailable: 'Electron API is not available. Please restart the app.',
+    unexpectedResponse: 'Unexpected response from API.',
+    apiError: 'API error occurred:',
+    textNotRetrieved: 'Text retrieval failed',
+    thinking: 'Thinking...',
+    searching: 'Searching the web...',
+    accessibilityWarning:
+      'For automatic copying, please grant permission in System Preferences > Security & Privacy > Accessibility.',
+    shortcutRegistered: (accel) =>
+      `Shortcut set to ${accel.replace('CommandOrControl', 'Cmd/Ctrl')}`,
+    failedToRegisterShortcut:
+      'Failed to register shortcut. There may be a conflict with another app.',
+    placeholder: 'Ask IrukaDark...',
+    send: 'Send',
+    stop: 'Stop',
+    canceled: 'Canceled.',
+    historyCleared: 'Chat history cleared.',
+    historyCompacted: 'Compressed chat history with a summary.',
+    availableCommands:
+      'Available commands: /clear, /compact, /next, /contact, /web (on/off/status)',
+    sourcesBadge: 'Sources',
+    webSearchEnabled: 'Web Search enabled.',
+    webSearchDisabled: 'Web Search disabled.',
+    webSearchStatusOn: 'Web Search: ON',
+    webSearchStatusOff: 'Web Search: OFF',
+    webSearchHelp: 'Use /websearch on|off|status',
+    noPreviousAI: 'No previous AI message to continue.',
+    selectionExplanation: 'Selection Explanation',
+    selectionTranslation: 'Translate Selection',
+    updateAvailable: (v) => `A new version (${v}) is available. Open downloads page?`,
+    upToDate: 'You are up to date.',
+    updateCheckFailed: 'Failed to check updates.',
+  });
+})();

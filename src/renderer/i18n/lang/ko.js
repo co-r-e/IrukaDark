@@ -1,0 +1,37 @@
+(function () {
+  if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
+  window.__IRUKA_REGISTER_I18N__('ko', {
+    errorOccurred: '오류가 발생했습니다',
+    apiKeyMissing: 'API 키가 설정되지 않았습니다. .env.local에 GEMINI_API_KEY를 설정하세요.',
+    apiUnavailable: 'Electron API를 사용할 수 없습니다. 앱을 다시 시작하세요.',
+    unexpectedResponse: 'API로부터 예기치 않은 응답이 왔습니다.',
+    apiError: 'API 오류:',
+    textNotRetrieved: '텍스트를 가져오지 못했습니다',
+    thinking: '생각 중…',
+    searching: '웹에서 검색 중…',
+    accessibilityWarning:
+      '자동 복사를 위해 시스템 설정 > 보안 및 개인 정보 보호 > 손쉬운 사용에서 권한을 허용하세요.',
+    shortcutRegistered: (accel) =>
+      `단축키가 ${accel.replace('CommandOrControl', 'Cmd/Ctrl')}로 설정되었습니다`,
+    failedToRegisterShortcut: '단축키 등록 실패. 다른 앱과 충돌할 수 있습니다.',
+    placeholder: 'IrukaDark에 질문하세요…',
+    send: '보내기',
+    stop: '중지',
+    canceled: '취소되었습니다.',
+    historyCleared: '채팅 기록이 삭제되었습니다.',
+    historyCompacted: '기록을 요약하여 압축했습니다.',
+    availableCommands: '명령어: /clear, /compact, /next, /contact, /web (on/off/status)',
+    sourcesBadge: '출처',
+    webSearchEnabled: '웹 검색이 활성화되었습니다.',
+    webSearchDisabled: '웹 검색이 비활성화되었습니다.',
+    webSearchStatusOn: '웹 검색: 켜짐',
+    webSearchStatusOff: '웹 검색: 꺼짐',
+    webSearchHelp: '/websearch on|off|status 사용',
+    noPreviousAI: '이어서 진행할 AI 메시지가 없어요.',
+    selectionExplanation: '선택 영역 설명',
+    selectionTranslation: '선택 영역 번역',
+    updateAvailable: (v) => `새 버전(${v})을 사용할 수 있습니다. 다운로드 페이지를 열까요?`,
+    upToDate: '최신 상태입니다.',
+    updateCheckFailed: '업데이트 확인에 실패했습니다.',
+  });
+})();

@@ -74,6 +74,24 @@ function getUIText(key, ...args) {
   return value || key;
 }
 
+// Lazy-load language pack script when missing
+async function ensureLangLoaded(lang) {
+  try {
+    if (I18N_STRINGS && I18N_STRINGS[lang]) return true;
+    const head = document.head || document.documentElement;
+    await new Promise((resolve) => {
+      const s = document.createElement('script');
+      s.src = `./i18n/lang/${lang}.js`;
+      s.onload = () => resolve(true);
+      s.onerror = () => resolve(false);
+      head.appendChild(s);
+    });
+    return !!(I18N_STRINGS && I18N_STRINGS[lang]);
+  } catch {
+    return false;
+  }
+}
+
 class IrukaDarkApp {
   constructor() {
     this.geminiService = new GeminiService();
@@ -259,8 +277,10 @@ class IrukaDarkApp {
       } catch {}
     };
     on('onThemeChanged', (theme) => this.applyTheme(theme));
-    on('onLanguageChanged', (lang) => {
-      CURRENT_LANG = lang || 'en';
+    on('onLanguageChanged', async (lang) => {
+      const next = lang || 'en';
+      await ensureLangLoaded(next);
+      CURRENT_LANG = next;
       this.updateUILanguage();
     });
     on('onWindowOpacityChanged', (value) => this.applySolidWindowClass(value));

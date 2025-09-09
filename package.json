@@ -15,6 +15,7 @@
     "lint": "eslint . --ext .js",
     "lint:fix": "eslint . --ext .js --fix",
     "prepare": "husky",
+    "check:menu-translations": "node scripts/check-menu-translations.js",
     "dist": "npm run icons && electron-builder",
     "dist:mac": "npm run icons && electron-builder -m",
     "dist:mac:universal": "npm run icons && electron-builder -m --universal",
