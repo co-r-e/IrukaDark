@@ -18,6 +18,7 @@
     "check:menu-translations": "node scripts/check-menu-translations.js",
     "dist": "npm run icons && electron-builder",
     "dist:mac": "npm run icons && electron-builder -m",
+    "dist:mac:arm64": "npm run icons && electron-builder -m --arm64",
     "dist:mac:universal": "npm run icons && electron-builder -m --universal",
     "dist:win": "npm run icons && electron-builder -w --x64 --arm64",
     "dist:win:x64": "npm run icons && electron-builder -w --x64",

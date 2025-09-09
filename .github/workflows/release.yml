@@ -1,74 +1,170 @@
-name: Build and Draft Release
+name: Release
 
 on:
-  workflow_dispatch:
   push:
     tags:
-      - 'v*'
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+  build-macos:
+    name: macOS build (arm64 dmg)
+    runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      - name: Install deps
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
         run: npm ci
-      - name: Generate icons
-        run: npm run icons
-      - name: Build
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-        run: |
-          if [[ "$RUNNER_OS" == "macOS" ]]; then npm run dist:mac:universal; fi
-          if [[ "$RUNNER_OS" == "Windows" ]]; then npm run dist:win; fi
-          if [[ "$RUNNER_OS" == "Linux" ]]; then npm run dist:linux; fi
-        shell: bash
-      - name: Upload artifacts
+
+      - name: Cache Electron caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/electron
+            ~/Library/Caches/electron-builder
+          key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json') }}
+
+      - name: Build macOS (arm64)
+        run: npm run dist:mac:arm64
+
+      - name: Generate checksums
+        run: npm run checksums
+
+      - name: Upload dist artifacts (macOS)
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-artifacts
+          name: dist-mac
           path: dist/**
 
-  publish:
-    needs: build
+  build-windows:
+    name: Windows build (x64 exe)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Electron caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\electron\Cache
+            ~\AppData\Local\electron-builder\Cache
+          key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json') }}
+
+      - name: Build Windows (NSIS x64)
+        run: npm run dist:win:x64
+
+      - name: Generate checksums
+        run: npm run checksums
+
+      - name: Upload dist artifacts (Windows)
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-windows
+          path: dist/**
+
+  build-linux:
+    name: Linux build (x64 AppImage)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      - name: Download build artifacts (macOS)
-        uses: actions/download-artifact@v4
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Electron caches
+        uses: actions/cache@v4
         with:
-          name: macos-latest-artifacts
-          path: dist
-      - name: Download build artifacts (Windows)
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-latest-artifacts
-          path: dist
-      - name: Download build artifacts (Linux)
-        uses: actions/download-artifact@v4
-        with:
-          name: ubuntu-latest-artifacts
-          path: dist
-      - name: Generate SHA256 checksums
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+          key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json') }}
+
+      - name: Build Linux (AppImage + deb x64)
+        run: npm run dist:linux:x64
+
+      - name: Generate checksums
         run: npm run checksums
-      - name: Create draft release and upload assets
+
+      - name: Upload dist artifacts (Linux)
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-linux
+          path: dist/**
+
+  draft-release:
+    name: Draft GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-macos, build-windows, build-linux]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Setup Node.js (for checksum script)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Generate combined checksums
+        run: node scripts/generate-checksums.js
+
+      - name: List files to be released
+        run: |
+          echo "Files in dist/:"
+          ls -R dist
+
+      - name: Create or update draft release (only required files)
         uses: softprops/action-gh-release@v2
         with:
           draft: true
-          files: |
-            dist/**
-            docs/INSTALL.md
-            docs/INSTALL.ja.md
+          generate_release_notes: true
           body_path: docs/RELEASE_NOTES_TEMPLATE.md
+          fail_on_unmatched_files: false
+          files: |
+            dist/*-win-x64.exe
+            dist/*-win-x64.msi
+            dist/*-mac-arm64.dmg
+            dist/*-linux-x64.AppImage
+            dist/*-linux-x86_64.AppImage
+            dist/*-linux-x64.deb
+            dist/*-linux-x64.rpm
+            dist/SHA256SUMS.txt
+            dist/*.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

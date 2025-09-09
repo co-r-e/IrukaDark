@@ -8,6 +8,8 @@
 
 [English](README.md)
 
+- ダウンロードは GitHub Releases を参照（アプリのメニューから「アップデートを確認…」「ダウンロードページを開く」でも移動できます）。
+
 ## 機能
 
 - 常に最前面に表示されるチャットウィンドウ（フレームレス・リサイズ可）
@@ -89,8 +91,8 @@ npm install
 
 ・途中でWARNINGが出ても、基本は問題ありません。ERROR のときはネット接続やプロキシ設定を確認してください。
 
-5. .env.local を作る（設定ファイル）
-   目的: プロジェクト直下（IrukaDark フォルダの中）に「.env.local」という名前のファイルを用意します。
+5. .env.local を作る（ポータブル運用時のみ・任意）
+   注: 現在は既定で `.env.local` は不要です。アプリ内の「AI設定」から API キー等を入力できます。
 
 方法A: 雛形からコピー（いちばん簡単）
 
@@ -153,7 +155,7 @@ npm install
   - キーの名称は何でもOK。発行された英数字の文字列をコピーします。
   - 注意: Vertex AI（サービスアカウント）ではなく「Google AI Studio の API キー」を使ってください。
 
-7. .env.local を編集してキーを入れる
+7. （ポータブル運用時のみ）.env.local を編集してキーを入れる
    編集方法（お好きな方法でOK）
 
 - GUIエディタで開く:
@@ -209,11 +211,12 @@ npm start
 
 ## インストール / 配布
 
-- 署名なしビルドの導入手順は `docs/INSTALL.ja.md` を参照してください。
+- 署名なしビルドの導入手順: `docs/INSTALL.ja.md`
+- 配布物（インストーラ/チェックサム）は GitHub Releases に添付されます（アプリのメニューからも開けます）。
 
 ## 環境変数
 
-`.env.local`ファイルに以下の環境変数を設定してください：
+以下の設定はアプリ内の「AI設定」から入力できます（または OS の環境変数や、ポータブル運用時の `.env.local` に指定可能）：
 
 - `GEMINI_API_KEY`（必須）: Google AI Studio の API キー
 - 代替: `GOOGLE_GENAI_API_KEY` / `GENAI_API_KEY` / `GOOGLE_API_KEY` / `NEXT_PUBLIC_GEMINI_API_KEY` / `NEXT_PUBLIC_GOOGLE_API_KEY`
@@ -232,12 +235,11 @@ npm start
 
 ### 設定の保存場所とポータブルモード
 
-- 既定では、実行時の各種設定は「ユーザーデータ領域」にのみ保存・参照します。
+- 既定では、実行時の各種設定は「ユーザーデータ領域」に保存・参照します（アプリ内の「AI設定」から編集）。
   - macOS: `~/Library/Application Support/IrukaDark/irukadark.prefs.json`
   - Windows: `%APPDATA%/IrukaDark/irukadark.prefs.json`
   - Linux: `~/.config/IrukaDark/irukadark.prefs.json`
-- `.env.local` は既定では読み込みません（開発時も同様）。`GEMINI_API_KEY` などの設定は、右クリック > IrukaDark > 「AI設定」から行ってください。
-- ポータブルモード: 起動前に OS の環境変数で `PORTABLE_MODE=1` を有効にすると、アプリフォルダ直下の `.env.local` に保存・読み込みを行います。
+- `.env.local` は既定では読み込みません。`PORTABLE_MODE=1` で起動した場合のみ、アプリフォルダ直下の `.env.local` を読み書きします。
 
 ## 使用方法
 
@@ -348,9 +350,42 @@ npm start
   - 自動コピーが不要な場合は手動コピー（Cmd+C）でも動作します
 - Windows/Linux: 追加権限なし
 
-## 実行のみ（ビルドなし）
+## ビルドと配布（開発者向け）
 
-本プロジェクトは「git clone → .env.local → npm start」でのローカル実行を前提としています。アプリ配布用のビルドは行いません。
+- 各OS向けにビルド:
+  ```bash
+  # macOS（Apple Silicon）
+  npm run dist:mac
+  # macOS Universal（arm64+x64結合）
+  npm run dist:mac:universal
+  # Windows（x64+arm64）
+  npm run dist:win
+  # Linux（x64+arm64）
+  npm run dist:linux
+  ```
+- 生成物は `dist/` に出力（`.dmg`, `.exe`, `.AppImage`, `.deb` 等）
+- チェックサム生成: `npm run checksums` → `dist/SHA256SUMS.txt` と各 `.sha256`
+- 署名は既定で無効です（初回起動時にOSの警告が表示されます）。
+
+### GitHub Actions（自動ビルド/リリース）
+
+- `ci.yml`: PR/`main` への push で実行（format チェック / lint / 速いパック）
+- `release.yml`: タグ `v*` の push（または手動起動）で macOS/Windows/Linux を並列ビルド → チェックサム生成 → Draft Release を作成し `dist/**` を全添付
+
+リリース手順（推奨）
+- バージョン上げ: `npm version patch|minor|major`
+- push: `git push origin main && git push origin --tags`
+- 完了後、Draft Release に各OSのインストーラと `SHA256SUMS.txt` が揃います。本文を整えて Publish。
+
+### ポータブルモード（任意）
+
+`.env.local` を使う運用が必要な場合:
+```env
+GEMINI_API_KEY=発行したキー
+GEMINI_MODEL=gemini-2.5-flash-lite
+WEB_SEARCH_MODEL=gemini-2.5-flash
+```
+`PORTABLE_MODE=1` を付けて起動すると `.env.local` を読み書きします。
 
 ## 補足・注意
 

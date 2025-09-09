@@ -8,6 +8,8 @@
 
 Lightweight local AI chat (macOS / Windows / experimental Linux). Explain or translate selected text, or chat normally. Area screenshot explain is available on macOS/Windows/Linux.
 
+- Downloads: see GitHub Releases (app shows “Check for Updates…” and “Open Downloads Page”).
+
 ## Features
 
 - Always-on-top chat window (frameless, resizable)
@@ -30,172 +32,43 @@ Lightweight local AI chat (macOS / Windows / experimental Linux). Explain or tra
 
 This is a friendly, no‑experience‑required guide from nothing to “running”. Take it slow; you can’t break anything.
 
-1. What you need (free)
-
+1) What you need (free)
 - Internet connection
 - A Google account (to get a Gemini API key)
 
-2. Install Node.js (the runtime the app needs)
+2) Install Node.js (runtime)
+- Download the LTS version from nodejs.org and install.
+- Verify: `node -v` (18+) and `npm -v` (9+).
 
-- Download and install the LTS version from https://nodejs.org/
-- Check versions after install:
-  - macOS/Linux (Terminal): `node -v` and `npm -v`
-  - Windows (PowerShell): `node -v` and `npm -v`
-  - Aim for Node 18+ and npm 9+
+3) Get the project
+- Git clone (recommended) or download ZIP and unzip.
 
-3. Get this project onto your computer
-
-- Recommended (Git):
-  - SSH (if your SSH key is set up)
-    ```bash
-    git clone git@github.com:co-r-e/IrukaDark.git
-    cd IrukaDark
-    ```
-  - HTTPS (if you don't use SSH)
-    ```bash
-    git clone https://github.com/co-r-e/IrukaDark.git
-    cd IrukaDark
-    ```
-- Recommended is Git clone, but ZIP works too if you don’t use Git:
-  - Click “Code > Download ZIP” on GitHub, download, then unzip (extract)
-  - The folder name may be `IrukaDark-main` (that’s fine)
-  - Now open that folder in Terminal/PowerShell or cd into it:
-    - macOS (Finder → open in Terminal)
-      1. Show the unzipped folder in Finder
-      2. Open Terminal
-      3. Type `cd ` (note the trailing space), then drag the folder from Finder into Terminal, press Enter
-         Example: `cd /Users/you/Downloads/IrukaDark-main`
-      4. Check with `pwd`
-    - Windows (Explorer → open in PowerShell/Terminal)
-      1. Open the unzipped folder in Explorer
-      2. Windows 11: Right‑click → “Open in Terminal”
-         Windows 10: Shift+Right‑click in the folder background → “Open PowerShell window here”
-         Or type `powershell` in the Explorer address bar and press Enter
-      3. Check with `Get-Location`
-    - Linux (file manager → open in terminal)
-      1. Open the unzipped folder
-      2. Right‑click → “Open in Terminal” (wording varies by distro)
-      3. If not available, use an existing terminal and `cd` there
-         Example: `cd ~/Downloads/IrukaDark-main`
-
-4. Install dependencies (takes a few minutes)
-
+4) Install dependencies
 ```bash
 npm install
 ```
 
-Notes: Warnings are usually fine. If you see ERRORS, check your internet or proxy settings.
+5) Get a Gemini API key
+- Create an API key in Google AI Studio (not Vertex service account).
 
-5. Create `.env.local` (your private settings)
-   Goal: create a file named `.env.local` in the project folder (IrukaDark).
-
-Method A: Copy from the template (easiest)
-
-- macOS/Linux:
-  ```bash
-  cp .env.example .env.local
-  ```
-- Windows (PowerShell):
-  ```powershell
-  Copy-Item .env.example .env.local
-  ```
-
-Method B: Create it via GUI (right‑click)
-
-- Windows (Explorer)
-  1. Open the IrukaDark folder
-  2. Right‑click > New > Text Document
-  3. Rename the new file to `.env.local`
-  4. If Windows warns about changing the extension, click “Yes”
-  5. Open it in Notepad and edit it in the next step
-     (From Notepad: File > Save As…; File name: `.env.local`; Save as type: “All Files”; Encoding: “UTF‑8”.)
-- macOS (Finder + TextEdit)
-  1. Open TextEdit > New Document
-  2. Format > Make Plain Text (Shift+Cmd+T)
-  3. File > Save, name: `.env.local`, location: the IrukaDark folder
-  4. Save even if warned about extension
-     (Finder itself doesn’t create dotfiles easily; using TextEdit’s Save is the most reliable.)
-- Linux (File manager or editor)
-  1. Open your text editor (gedit/Mousepad/etc.)
-  2. Save As `.env.local` into the IrukaDark folder (UTF‑8)
-
-Method C: Create it with a command
-
-- macOS/Linux:
-  ```bash
-  touch .env.local
-  ```
-- Windows (PowerShell):
-  ```powershell
-  New-Item -Path .env.local -ItemType File -Force
-  ```
-
-Verify location (important)
-
-- macOS/Linux:
-  ```bash
-  pwd
-  ls -la .env.local
-  ```
-- Windows (PowerShell):
-  ```powershell
-  Get-Location
-  dir -Force .env.local
-  ```
-
-6. Get a Gemini API key
-
-- Open Google AI Studio and create an API Key (free tier available). Copy the key string.
-- Use an AI Studio API key (not a Vertex AI service account key).
-
-7. Put the key into `.env.local`
-   Edit with whichever you prefer
-
-- GUI editors:
-  - Windows: Right‑click `.env.local` > Open with Notepad > add one line then save
-  - macOS: Right‑click `.env.local` > Open With > TextEdit
-  - Linux: gedit/Mousepad/etc.
-- Command line:
-  - macOS/Linux: `nano .env.local` (save: Ctrl+O, exit: Ctrl+X)
-  - Windows (PowerShell): `notepad .env.local`
-
-Write exactly one line
-
-```env
-GEMINI_API_KEY=paste_the_key_here
-```
-
-Important tips
-
-- No spaces around `=`
-- No quotes around the key
-- No leading/trailing spaces
-- Save the file inside the IrukaDark folder (not your home folder)
-- Keep this file private (don’t upload it to Git)
-
-Confirm it’s saved
-
-- macOS/Linux: `cat .env.local`
-- Windows: `type .env.local`
-
-8. Start the app
-
+6) Start the app
 ```bash
 npm start
 ```
 
-First run notes:
+7) Set your API key in‑app (recommended)
+- macOS: App menu IrukaDark → AI Settings → “Set GEMINI_API_KEY”.
+- Windows/Linux: View → AI Settings → “Set GEMINI_API_KEY”.
+- You can also set model preferences there.
 
-- macOS may ask for Accessibility and Screen Recording permissions. Please grant them (you can change later in System Settings).
-- The main window opens by default. You’ll also see a small logo near the right edge; click it to show/hide the main window.
-- Select some text in any app and press Option/Alt+A to get an instant explanation.
+Notes
+- macOS may ask for Accessibility and Screen Recording permissions.
+- The small logo popup toggles the main window; Option/Alt+A explains selected text.
 
-9. Common pitfalls (quick fixes)
-
-- `API_KEY_INVALID`: The key in `.env.local` is wrong or not an AI Studio key. Check for spaces or quotes.
-- `npm install` fails: Network/proxy issues are common. Retry later or configure HTTPS proxy (ask your network admin).
-- Option/Alt+A does nothing: On macOS, grant Accessibility. On Windows/Linux, make sure text is selected in the foreground app. Manual copy (Cmd/Ctrl+C) then Option/Alt+A also works.
-- Can’t find the window: Click the logo; or when Option/Alt+A returns an answer, the app auto‑unhides non‑activating.
+Common fixes
+- `API_KEY_INVALID`: wrong key type or pasted with spaces/quotes.
+- `npm install` errors: check network/proxy.
+- Option/Alt+A does nothing: ensure selection and required permissions; try manual copy then Option/Alt+A.
 
 ### Prerequisites
 
@@ -204,7 +77,8 @@ First run notes:
 
 ## Installation / Distribution
 
-- Unsigned builds installation guide: see `docs/INSTALL.md`.
+- Unsigned build install guide: `docs/INSTALL.md` (English) / `docs/INSTALL.ja.md` (日本語)
+- Releases: built installers and checksums are attached on the GitHub Releases page. The app can open it from Help/App menu.
 
 ## Environment Variables
 
@@ -230,12 +104,12 @@ Notes:
 
 ### Settings storage and portable mode
 
-- By default, IrukaDark saves and reads settings only from the user data directory:
+- Default: settings live in the user data directory and can be edited in‑app (AI Settings).
   - macOS: `~/Library/Application Support/IrukaDark/irukadark.prefs.json`
   - Windows: `%APPDATA%/IrukaDark/irukadark.prefs.json`
   - Linux: `~/.config/IrukaDark/irukadark.prefs.json`
-- `.env.local` is no longer loaded by default (even in development). Use the in‑app menu (Right‑click → IrukaDark → AI Settings) to set `GEMINI_API_KEY`, `GEMINI_MODEL`, and `WEB_SEARCH_MODEL` at runtime.
-- Portable mode: enable it via an OS environment variable `PORTABLE_MODE=1` before launching. In portable mode, settings are saved to and read from `.env.local` in the app folder.
+- `.env.local` is NOT loaded by default. To use a portable `.env.local`, launch with `PORTABLE_MODE=1`.
+- Portable mode reads/writes `.env.local` in the app folder and is handy for USB‑stick style use.
 
 ## Usage
 
@@ -271,7 +145,13 @@ npm run dist:win
 npm run dist:linux
 ```
 
-Outputs appear in the `dist/` folder (e.g., `.dmg`, `.exe`, `.AppImage`). For macOS code signing/notarization and Windows code signing, provide credentials via environment variables or electron-builder config as needed. If you don’t sign, macOS Gatekeeper and Windows SmartScreen may warn on first run.
+Outputs appear in `dist/` (e.g., `.dmg`, `.exe`, `.AppImage`, `.deb`).
+
+Checksums
+- Generate SHA256 sidecars and a manifest: `npm run checksums` → `dist/SHA256SUMS.txt`.
+
+Signing
+- Not configured by default. Unsigned builds will show OS warnings.
 
 ### Windows
 
@@ -288,10 +168,15 @@ Outputs appear in the `dist/` folder (e.g., `.dmg`, `.exe`, `.AppImage`). For ma
 - both (x64+arm64): `npm run dist:linux`
 - Produces `.AppImage` and `.deb`. Adjust targets in `package.json > build.linux` as needed.
 
-### GitHub Actions (CI)
+### GitHub Actions
 
-- A cross‑platform workflow is included: `.github/workflows/release.yml`.
-- Trigger manually (workflow_dispatch) or by pushing a `v*` tag. Artifacts are uploaded for each OS.
+- `ci.yml`: on PRs/push to `main`, runs format check, lint, and a fast pack (`--dir`).
+- `release.yml`: on tags matching `v*` or manual dispatch, builds installers for macOS/Windows/Linux, runs checksums, then drafts a GitHub Release and uploads all files from `dist/**`.
+
+Release flow (recommended)
+- Bump version: `npm version patch|minor|major`
+- Push: `git push origin main && git push origin --tags`
+- Wait for Actions; a Draft Release appears with installers and `SHA256SUMS.txt`. Review notes and Publish.
 
 ### Cleanup
 
@@ -388,9 +273,16 @@ Initial Layout
 - macOS: Accessibility for auto-copy and AX selection read (required for Option+A)
 - Windows/Linux: No extra permissions
 
-## Run-Only (No Build)
+## Portable mode (.env.local) — optional
 
-Designed for local run: clone → .env.local → npm start. No installer/build artifacts are provided.
+If you prefer a file‑based configuration for portable use:
+- Create `.env.local` in the project/app folder with:
+  ```env
+  GEMINI_API_KEY=your_key_here
+  GEMINI_MODEL=gemini-2.5-flash-lite
+  WEB_SEARCH_MODEL=gemini-2.5-flash
+  ```
+- Launch with `PORTABLE_MODE=1` so the app reads/writes `.env.local`.
 
 ## Shortcuts & Input
 
