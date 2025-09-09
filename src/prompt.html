@@ -2,38 +2,155 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+    />
     <title>Input</title>
     <style>
-      html, body { height: 100%; margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', sans-serif; }
-      .wrap { height: 100%; display: flex; flex-direction: column; padding: 14px 16px; box-sizing: border-box; position: relative; border-radius: 16px; border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 32px 64px -12px rgba(0,0,0,0.4); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
-      .titlebar { display:flex; align-items:center; justify-content: space-between; margin: -2px 0 8px 0; -webkit-app-region: drag; }
-      h1 { font-size: 14px; margin: 0; font-weight: 600; }
-      .close-btn { -webkit-app-region: no-drag; appearance: none; border: none; background: transparent; font-size: 16px; line-height: 1; padding: 2px 6px; cursor: pointer; border-radius: 6px; }
-      .close-btn:hover { filter: brightness(1.1); }
-      label { font-size: 12px; opacity: 0.8; margin: 8px 0 6px; display: block; }
-      input[type="text"], input[type="password"] { width: 100%; padding: 10px 12px; font-size: 13px; border-radius: 12px; box-sizing: border-box; outline: none; transition: box-shadow .15s ease, border-color .15s ease; }
-      .row { margin-top: 12px; display: flex; gap: 8px; align-items: center; }
-      .spacer { flex: 1; }
-      button { appearance: none; border-radius: 9999px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
-      button.primary { background-image: linear-gradient(135deg, #ff4d6d, #d946ef); color: white; border: none; }
-      button.secondary { background: transparent; border: 1px solid currentColor; }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+          'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji',
+          sans-serif;
+      }
+      .wrap {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        padding: 14px 16px;
+        box-sizing: border-box;
+        position: relative;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 32px 64px -12px rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+      .titlebar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: -2px 0 8px 0;
+        -webkit-app-region: drag;
+      }
+      h1 {
+        font-size: 14px;
+        margin: 0;
+        font-weight: 600;
+      }
+      .close-btn {
+        -webkit-app-region: no-drag;
+        appearance: none;
+        border: none;
+        background: transparent;
+        font-size: 16px;
+        line-height: 1;
+        padding: 2px 6px;
+        cursor: pointer;
+        border-radius: 6px;
+      }
+      .close-btn:hover {
+        filter: brightness(1.1);
+      }
+      label {
+        font-size: 12px;
+        opacity: 0.8;
+        margin: 8px 0 6px;
+        display: block;
+      }
+      input[type='text'],
+      input[type='password'] {
+        width: 100%;
+        padding: 10px 12px;
+        font-size: 13px;
+        border-radius: 12px;
+        box-sizing: border-box;
+        outline: none;
+        transition:
+          box-shadow 0.15s ease,
+          border-color 0.15s ease;
+      }
+      .row {
+        margin-top: 12px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .spacer {
+        flex: 1;
+      }
+      button {
+        appearance: none;
+        border-radius: 9999px;
+        padding: 8px 14px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      button.primary {
+        background-image: linear-gradient(135deg, #ff4d6d, #d946ef);
+        color: white;
+        border: none;
+      }
+      button.secondary {
+        background: transparent;
+        border: 1px solid currentColor;
+      }
 
       /* Light theme */
-      body.light { background: transparent; color: #0b1220; }
-      body.light .wrap { background: rgba(255,255,255,0.9); border-color: rgba(0,0,0,0.08); }
-      body.light input { background: #ffffff; color: #0b1220; border: 1px solid rgba(0,0,0,0.12); }
-      body.light .close-btn { color: #111827; }
-      body.light button.secondary { color: #111827; border-color: rgba(17,24,39,0.2); }
-      body.light input:focus { box-shadow: 0 0 0 2px rgba(59,130,246,0.45); border-color: transparent; }
+      body.light {
+        background: transparent;
+        color: #0b1220;
+      }
+      body.light .wrap {
+        background: rgba(255, 255, 255, 0.9);
+        border-color: rgba(0, 0, 0, 0.08);
+      }
+      body.light input {
+        background: #ffffff;
+        color: #0b1220;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+      }
+      body.light .close-btn {
+        color: #111827;
+      }
+      body.light button.secondary {
+        color: #111827;
+        border-color: rgba(17, 24, 39, 0.2);
+      }
+      body.light input:focus {
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.45);
+        border-color: transparent;
+      }
 
       /* Dark theme */
-      body.dark { background: transparent; color: #e5e7eb; }
-      body.dark .wrap { background: linear-gradient(145deg, #0b1021, #1a1446); border-color: rgba(255,255,255,0.12); }
-      body.dark input { background: rgba(16,23,42,0.8); color: #e5e7eb; border: 1px solid rgba(255,255,255,0.16); }
-      body.dark .close-btn { color: #e5e7eb; }
-      body.dark button.secondary { color: #e5e7eb; border-color: rgba(255,255,255,0.2); }
-      body.dark input:focus { box-shadow: 0 0 0 2px rgba(99,102,241,0.45); border-color: transparent; }
+      body.dark {
+        background: transparent;
+        color: #e5e7eb;
+      }
+      body.dark .wrap {
+        background: linear-gradient(145deg, #0b1021, #1a1446);
+        border-color: rgba(255, 255, 255, 0.12);
+      }
+      body.dark input {
+        background: rgba(16, 23, 42, 0.8);
+        color: #e5e7eb;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+      }
+      body.dark .close-btn {
+        color: #e5e7eb;
+      }
+      body.dark button.secondary {
+        color: #e5e7eb;
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+      body.dark input:focus {
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.45);
+        border-color: transparent;
+      }
     </style>
   </head>
   <body>
@@ -52,4 +169,4 @@
     </div>
     <script src="prompt_renderer.js"></script>
   </body>
-  </html>
+</html>

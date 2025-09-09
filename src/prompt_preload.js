@@ -1,7 +1,12 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronPrompt', {
-  onInit: (cb) => ipcRenderer.on('prompt:init', (_e, payload) => { try { cb && cb(payload || {}); } catch {} }),
+  onInit: (cb) =>
+    ipcRenderer.on('prompt:init', (_e, payload) => {
+      try {
+        cb && cb(payload || {});
+      } catch {}
+    }),
   submit: (value) => ipcRenderer.send('prompt:submit', { value: String(value ?? '') }),
-  cancel: () => ipcRenderer.send('prompt:cancel')
+  cancel: () => ipcRenderer.send('prompt:cancel'),
 });

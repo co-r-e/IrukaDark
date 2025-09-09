@@ -4,34 +4,37 @@
 
 ## macOS
 
-1) DMG を開く（例: `IrukaDark-1.0.0-mac-arm64.dmg`）
-2) 表示されたウィンドウで `IrukaDark.app` を `Applications` にドラッグ
-3) 初回起動（未署名のため警告回避が必要）
+1. DMG を開く（例: `IrukaDark-1.0.0-mac-arm64.dmg`）
+2. 表示されたウィンドウで `IrukaDark.app` を `Applications` にドラッグ
+3. 初回起動（未署名のため警告回避が必要）
    - Finder で `Applications/IrukaDark.app` を右クリック > 「開く」
    - 表示されたダイアログで「開く」を押す（次回以降は通常起動でOK）
    - 代替: システム設定 > プライバシーとセキュリティ 最下部に現れる許可ボタンからも許可可能
 
 任意（ダウンロード属性の解除）
+
 ```
 xattr -dr com.apple.quarantine "/Applications/IrukaDark.app"
 ```
 
 ## Windows
 
-1) インストーラ（例: `IrukaDark-1.0.0-win-x64.exe`）を実行
-2) SmartScreen が表示されたら「詳細情報」→「実行」を選択
-3) 既定設定ではユーザー単位でインストールされます
+1. インストーラ（例: `IrukaDark-1.0.0-win-x64.exe`）を実行
+2. SmartScreen が表示されたら「詳細情報」→「実行」を選択
+3. 既定設定ではユーザー単位でインストールされます
    - 目安: `%LOCALAPPDATA%\Programs\IrukaDark\IrukaDark.exe`
 
 ## Linux
 
 AppImage:
+
 ```
 chmod +x IrukaDark-1.0.0-linux-x86_64.AppImage
 ./IrukaDark-1.0.0-linux-x86_64.AppImage
 ```
 
 Debian/Ubuntu (.deb):
+
 ```
 sudo apt install ./IrukaDark-1.0.0-linux-amd64.deb
 ```
@@ -41,13 +44,17 @@ arm64 版が必要な場合は、同名の `*-arm64` ビルドをご利用くだ
 ## ダウンロードの整合性確認（任意）
 
 - macOS / Linux:
+
 ```
 shasum -a 256 <ファイル名>
 ```
+
 - Windows（PowerShell）:
+
 ```
 certUtil -hashfile <ファイル名> SHA256
 ```
+
 配布元が提示するハッシュ値と一致することを確認してください。
 
 ## 初期設定（重要）

@@ -1,0 +1,40 @@
+{
+  "root": true,
+  "env": {
+    "es2021": true,
+    "node": true,
+    "browser": false
+  },
+  "extends": ["eslint:recommended"],
+  "parserOptions": {
+    "ecmaVersion": 2021,
+    "sourceType": "script"
+  },
+  "overrides": [
+    {
+      "files": ["src/renderer/**/*.js", "src/prompt_*.js"],
+      "env": { "browser": true, "node": false },
+      "globals": {
+        "window": "readonly",
+        "document": "readonly",
+        "DOMPurify": "readonly",
+        "marked": "readonly"
+      }
+    },
+    {
+      "files": ["src/**/*.js", "scripts/**/*.js"],
+      "env": { "node": true }
+    }
+  ],
+  "rules": {
+    "no-unused-vars": ["warn", { "args": "none", "ignoreRestSiblings": true }],
+    "no-constant-condition": ["warn", { "checkLoops": false }],
+    "no-empty": ["warn", { "allowEmptyCatch": true }],
+    "no-var": "error",
+    "prefer-const": "warn",
+    "eqeqeq": ["warn", "smart"],
+    "curly": ["warn", "multi-line"],
+    "object-shorthand": ["warn", "always"],
+    "no-multi-spaces": "warn"
+  }
+}

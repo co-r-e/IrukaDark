@@ -1,98 +1,135 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>IrukaDark Logo</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        html, body {
-            width: 100%;
-            height: 100%;
-            background: transparent;
-            overflow: hidden;
-        }
-        
-        .logo-container {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            cursor: move;
-            -webkit-app-region: no-drag; /* manual drag via JS to allow click detection */
-        }
-        
-        .logo {
-            width: 84px;
-            height: 84px;
-            /* No hover/active scaling */
-        }
-        .fallback-logo {
-            width: 84px;
-            height: 84px;
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-            border-radius: 20px;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
-        }
-        .fallback-logo svg {
-            width: 42px;
-            height: 42px;
-            color: white;
-        }
-    </style>
-</head>
-<body>
-    <div class="logo-container" id="logoContainer">
-        <img id="logoImg" src="assets/icons/irukadark_logo.svg" alt="IrukaDark Logo" class="logo" 
-             onerror="this.style.display='none'; document.getElementById('fallbackLogo').style.display='flex';">
-        <div id="fallbackLogo" class="fallback-logo">
-            <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 8V4H8"/>
-                <rect width="16" height="12" x="4" y="8" rx="2"/>
-                <path d="M2 14h2"/>
-                <path d="M20 14h2"/>
-                <path d="M15 13v2"/>
-                <path d="M9 13v2"/>
-            </svg>
-        </div>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        background: transparent;
+        overflow: hidden;
+      }
+
+      .logo-container {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        cursor: move;
+        -webkit-app-region: no-drag; /* manual drag via JS to allow click detection */
+      }
+
+      .logo {
+        width: 84px;
+        height: 84px;
+        /* No hover/active scaling */
+      }
+      .fallback-logo {
+        width: 84px;
+        height: 84px;
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        border-radius: 20px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+      }
+      .fallback-logo svg {
+        width: 42px;
+        height: 42px;
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="logo-container" id="logoContainer">
+      <img
+        id="logoImg"
+        src="assets/icons/irukadark_logo.svg"
+        alt="IrukaDark Logo"
+        class="logo"
+        onerror="this.style.display='none'; document.getElementById('fallbackLogo').style.display='flex';"
+      />
+      <div id="fallbackLogo" class="fallback-logo">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="60"
+          height="60"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M12 8V4H8" />
+          <rect width="16" height="12" x="4" y="8" rx="2" />
+          <path d="M2 14h2" />
+          <path d="M20 14h2" />
+          <path d="M15 13v2" />
+          <path d="M9 13v2" />
+        </svg>
+      </div>
     </div>
 
     <script>
-      (function(){
+      (function () {
         try {
           const api = window.electronAPI || {};
-          const sendPhase = (p) => { try { api.notifyPopupPointer && api.notifyPopupPointer(p); } catch {} };
-          const getBounds = async () => { try { return await api.getPopupBounds(); } catch { return null; } };
-          const setPos = async (x, y) => { try { await api.setPopupPosition(x, y); } catch {} };
+          const sendPhase = (p) => {
+            try {
+              api.notifyPopupPointer && api.notifyPopupPointer(p);
+            } catch {}
+          };
+          const getBounds = async () => {
+            try {
+              return await api.getPopupBounds();
+            } catch {
+              return null;
+            }
+          };
+          const setPos = async (x, y) => {
+            try {
+              await api.setPopupPosition(x, y);
+            } catch {}
+          };
 
           const downEv = 'onpointerdown' in window ? 'pointerdown' : 'mousedown';
           const moveEv = 'onpointermove' in window ? 'pointermove' : 'mousemove';
           const upEv = 'onpointerup' in window ? 'pointerup' : 'mouseup';
 
           let dragging = false;
-          let startScreenX = 0, startScreenY = 0;
+          let startScreenX = 0,
+            startScreenY = 0;
           let startBounds = null;
           let moved = false;
 
           const onDown = async (e) => {
-            try { e.preventDefault(); } catch {}
+            try {
+              e.preventDefault();
+            } catch {}
             startBounds = await getBounds();
             if (!startBounds) return;
             dragging = true;
             moved = false;
-            startScreenX = e.screenX; startScreenY = e.screenY;
-            try { if (e.pointerId != null && e.target?.setPointerCapture) { e.target.setPointerCapture(e.pointerId); } } catch {}
+            startScreenX = e.screenX;
+            startScreenY = e.screenY;
+            try {
+              if (e.pointerId != null && e.target?.setPointerCapture) {
+                e.target.setPointerCapture(e.pointerId);
+              }
+            } catch {}
             sendPhase('down');
           };
           const onMove = async (e) => {
@@ -113,5 +150,5 @@
         } catch {}
       })();
     </script>
-    </body>
-    </html>
+  </body>
+</html>

@@ -17,14 +17,16 @@ function* walk(dir) {
   }
 }
 
-function rel(p) { return path.relative(distDir, p) || path.basename(p); }
+function rel(p) {
+  return path.relative(distDir, p) || path.basename(p);
+}
 
 function hashFile(file) {
   return new Promise((resolve, reject) => {
     const h = crypto.createHash('sha256');
     const s = fs.createReadStream(file);
     s.on('error', reject);
-    s.on('data', d => h.update(d));
+    s.on('data', (d) => h.update(d));
     s.on('end', () => resolve(h.digest('hex')));
   });
 }
@@ -46,9 +48,11 @@ async function main() {
     console.log(hex, rel(file));
   }
   // Write manifest
-  const manifest = outputs.map(o => `${o.hex}  ${rel(o.file)}`).join('\n') + '\n';
+  const manifest = outputs.map((o) => `${o.hex}  ${rel(o.file)}`).join('\n') + '\n';
   fs.writeFileSync(path.join(distDir, 'SHA256SUMS.txt'), manifest, 'utf8');
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
-
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

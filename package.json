@@ -8,6 +8,13 @@
     "dev": "electron . --dev",
     "dev-tools": "electron . --dev --devtools",
     "icons": "node scripts/generate-icons.js",
+    "clean": "node scripts/clean.js",
+    "clean:dry": "node scripts/clean.js --dry-run",
+    "format": "prettier --write \"**/*.{js,css,html,json,md}\"",
+    "format:check": "prettier --check \"**/*.{js,css,html,json,md}\"",
+    "lint": "eslint . --ext .js",
+    "lint:fix": "eslint . --ext .js --fix",
+    "prepare": "husky",
     "dist": "npm run icons && electron-builder",
     "dist:mac": "npm run icons && electron-builder -m",
     "dist:mac:universal": "npm run icons && electron-builder -m --universal",
@@ -30,11 +37,26 @@
   "license": "MIT",
   "devDependencies": {
     "electron": "^28.0.0",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "^24.13.3",
+    "eslint": "^9.35.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "globals": "^16.3.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.6",
+    "prettier": "^3.6.2"
   },
   "dependencies": {
     "@google/genai": "^1.16.0",
     "dotenv": "^16.3.1"
+  },
+  "lint-staged": {
+    "*.{js,css,html,json,md}": [
+      "prettier --write"
+    ],
+    "*.js": [
+      "eslint --fix"
+    ]
   },
   "build": {
     "appId": "com.core.irukadark",
@@ -50,7 +72,10 @@
     },
     "mac": {
       "category": "public.app-category.productivity",
-      "target": ["dmg", "zip"],
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "icon": "build/icons/icon.icns",
       "hardenedRuntime": true,
       "universalApp": true
@@ -60,7 +85,9 @@
       "icon": "build/icons/icon.icns"
     },
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "icon": "src/renderer/assets/icons/IrukaDark_desktopicon.png"
     },
     "nsis": {
@@ -69,7 +96,10 @@
       "allowToChangeInstallationDirectory": false
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Utility",
       "icon": "build/icons",
       "maintainer": "IrukaDark <irukadark@example.com>"

@@ -4,33 +4,36 @@ This guide covers local installation for non‑store, unsigned builds intended f
 
 ## macOS
 
-1) Open the DMG (e.g., `IrukaDark-1.0.0-mac-arm64.dmg`).
-2) Drag `IrukaDark.app` to `Applications`.
-3) First run (bypass Gatekeeper for unsigned apps):
+1. Open the DMG (e.g., `IrukaDark-1.0.0-mac-arm64.dmg`).
+2. Drag `IrukaDark.app` to `Applications`.
+3. First run (bypass Gatekeeper for unsigned apps):
    - In Finder, right‑click `Applications/IrukaDark.app` → Open → Open.
    - Alternatively, System Settings → Privacy & Security → Allow Anyway (at the bottom).
 
 Optional (remove quarantine attribute):
+
 ```
 xattr -dr com.apple.quarantine "/Applications/IrukaDark.app"
 ```
 
 ## Windows
 
-1) Run the installer (e.g., `IrukaDark-1.0.0-win-x64.exe`).
-2) If SmartScreen appears, click “More info” → “Run anyway”.
-3) Default install is per‑user:
+1. Run the installer (e.g., `IrukaDark-1.0.0-win-x64.exe`).
+2. If SmartScreen appears, click “More info” → “Run anyway”.
+3. Default install is per‑user:
    - Typically: `%LOCALAPPDATA%\Programs\IrukaDark\IrukaDark.exe`
 
 ## Linux
 
 AppImage:
+
 ```
 chmod +x IrukaDark-1.0.0-linux-x86_64.AppImage
 ./IrukaDark-1.0.0-linux-x86_64.AppImage
 ```
 
 Debian/Ubuntu (.deb):
+
 ```
 sudo apt install ./IrukaDark-1.0.0-linux-amd64.deb
 ```
@@ -40,13 +43,17 @@ Use the `*-arm64` builds on ARM machines.
 ## Verify Downloads (optional)
 
 - macOS / Linux:
+
 ```
 shasum -a 256 <file>
 ```
+
 - Windows (PowerShell):
+
 ```
 certUtil -hashfile <file> SHA256
 ```
+
 Compare with the publisher‑provided hash.
 
 ## First‑run Configuration (important)

@@ -56,13 +56,23 @@ html.solid-window.theme-dark .glass-effect {
   background: linear-gradient(145deg, #0b1021, #1a1446) !important;
 }
 
+.theme-dark .message-user-content {
+  background: linear-gradient(145deg, #1a1446, #0b1021);
+  color: #e5e7eb;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+.theme-dark .message-system {
+  background: linear-gradient(145deg, #1a1446, #0b1021);
+  color: #cbd5e1;
+  border-color: rgba(255, 255, 255, 0.12);
+}
 
-.theme-dark .message-user-content { background: linear-gradient(145deg, #1a1446, #0b1021); color: #e5e7eb; border-color: rgba(255,255,255,0.15); }
-.theme-dark .message-system { background: linear-gradient(145deg, #1a1446, #0b1021); color: #cbd5e1; border-color: rgba(255,255,255,0.12); }
-
-.theme-dark .message-ai-content { color: #ffffff; }
-.theme-dark .message-user-content { color: #ffffff; }
-
+.theme-dark .message-ai-content {
+  color: #ffffff;
+}
+.theme-dark .message-user-content {
+  color: #ffffff;
+}
 
 .h-screen {
   height: 100vh;
@@ -84,7 +94,6 @@ html.solid-window.theme-dark .glass-effect {
   align-items: center;
 }
 
-
 .items-end {
   align-items: flex-end;
 }
@@ -92,7 +101,6 @@ html.solid-window.theme-dark .glass-effect {
 .justify-center {
   justify-content: center;
 }
-
 
 .justify-end {
   justify-content: flex-end;
@@ -106,9 +114,6 @@ html.solid-window.theme-dark .glass-effect {
   gap: 0.75rem;
 }
 
-
-
-
 /* Sizing */
 .w-3 {
   width: 0.75rem;
@@ -117,7 +122,6 @@ html.solid-window.theme-dark .glass-effect {
 .w-4 {
   width: 1rem;
 }
-
 
 .w-full {
   width: 100%;
@@ -131,12 +135,9 @@ html.solid-window.theme-dark .glass-effect {
   height: 1rem;
 }
 
-
 .h-10 {
   height: 2.5rem;
 }
-
-
 
 /* Spacing */
 
@@ -173,27 +174,19 @@ html.solid-window.theme-dark .glass-effect {
   padding-bottom: 0.5rem;
 }
 
-
-
 .mr-1 {
   margin-right: 0.25rem;
 }
 
-
-
-
 /* Colors */
-
 
 .text-gray-500 {
   color: #6b7280;
 }
 
-
 .text-gray-700 {
   color: #374151;
 }
-
 
 /* Typography */
 .text-xs {
@@ -205,9 +198,6 @@ html.solid-window.theme-dark .glass-effect {
   font-size: 0.875rem;
   line-height: 1.25rem;
 }
-
-
-
 
 /* Borders */
 .border {
@@ -222,7 +212,6 @@ html.solid-window.theme-dark .glass-effect {
   border-bottom-width: 1px;
 }
 
-
 .rounded {
   border-radius: 0.25rem;
 }
@@ -234,7 +223,6 @@ html.solid-window.theme-dark .glass-effect {
 .rounded-lg {
   border-radius: 0.5rem;
 }
-
 
 .rounded-full {
   border-radius: 9999px;
@@ -253,8 +241,6 @@ html.solid-window.theme-dark .glass-effect {
   right: 0.5rem;
 }
 
-
-
 /* Overflow */
 .overflow-hidden {
   overflow: hidden;
@@ -263,7 +249,6 @@ html.solid-window.theme-dark .glass-effect {
 .overflow-y-auto {
   overflow-y: auto;
 }
-
 
 /* Opacity */
 .opacity-50 {
@@ -275,7 +260,9 @@ html.solid-window.theme-dark .glass-effect {
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
-.shadow-2xl { box-shadow: var(--shadow-window); }
+.shadow-2xl {
+  box-shadow: var(--shadow-window);
+}
 
 /* Transitions */
 
@@ -326,8 +313,6 @@ html.solid-window.theme-dark .glass-effect {
 .drag-region button {
   -webkit-app-region: no-drag;
 }
-
- 
 
 /* Header */
 
@@ -389,7 +374,6 @@ html.solid-window.theme-dark .glass-effect {
   margin-right: 0;
 }
 
-
 .message-ai-content h1,
 .message-ai-content h2,
 .message-ai-content h3,
@@ -449,7 +433,7 @@ html.solid-window.theme-dark .glass-effect {
 }
 /* Dark mode inline code override */
 .theme-dark .message-ai-content code {
-  background-color: rgba(255, 255, 255, 0.10);
+  background-color: rgba(255, 255, 255, 0.1);
   color: #e5e7eb;
   border: 1px solid rgba(255, 255, 255, 0.14);
 }
@@ -466,7 +450,7 @@ html.solid-window.theme-dark .glass-effect {
 
 /* Dark mode code block (no border) */
 .theme-dark .message-ai-content pre {
-  background-color: rgba(255, 255, 255, 0.10);
+  background-color: rgba(255, 255, 255, 0.1);
   border: none !important;
 }
 
@@ -519,7 +503,6 @@ html.solid-window.theme-dark .glass-effect {
   white-space: pre-wrap;
 }
 
- 
 .message-system-compact {
   font-size: 0.6875rem; /* ~11px */
   /* コンパクト版も上下をわずかに広げる */
@@ -599,7 +582,6 @@ html.solid-window.theme-dark .glass-effect {
 }
 
 @keyframes bounce {
-
   0%,
   100% {
     transform: translateY(-25%);
@@ -611,7 +593,6 @@ html.solid-window.theme-dark .glass-effect {
     animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
   }
 }
-
 
 /* Utility classes */
 .inline {
@@ -654,11 +635,10 @@ html.solid-window.theme-dark .glass-effect {
 }
 
 /* メッセージ間のスペース調整 */
-.message-user-container+.message-ai-container,
-.message-ai-container+.message-user-container {
+.message-user-container + .message-ai-container,
+.message-ai-container + .message-user-container {
   margin-top: 0.5rem;
 }
-
 
 /* Button styles */
 button {
@@ -672,11 +652,10 @@ button:disabled {
   opacity: 0.5;
 }
 
-
 /* Send button explicit styles for consistency */
 #sendBtn {
   position: absolute !important;
-  right: 0.5rem !important;  /* match right-2 */
+  right: 0.5rem !important; /* match right-2 */
   bottom: calc(0.5rem + 1px) !important; /* nudge up by 1px from bottom */
   background-color: transparent !important;
   background-image: linear-gradient(135deg, var(--primary), var(--primary-2)) !important;
@@ -687,7 +666,7 @@ button:disabled {
   -webkit-appearance: none;
   appearance: none;
   border-radius: 9999px !important;
-  width: 1.625rem;  /* 26px */
+  width: 1.625rem; /* 26px */
   height: 1.625rem; /* 26px */
   padding: 0;
   display: inline-flex;
@@ -697,7 +676,9 @@ button:disabled {
   z-index: 1;
 }
 
-#sendBtn svg { position: static; }
+#sendBtn svg {
+  position: static;
+}
 
 #sendBtn:hover:not(:disabled) {
   filter: saturate(1.06) brightness(1.03);
@@ -706,7 +687,9 @@ button:disabled {
 /* dark mode send button uses same base styles */
 
 /* Sources badge + accordion */
-.source-badge-wrap { margin-top: 6px; }
+.source-badge-wrap {
+  margin-top: 6px;
+}
 .source-badge {
   display: inline-block;
   font-size: 10px;
@@ -715,18 +698,32 @@ button:disabled {
   border-radius: 9999px;
   cursor: pointer;
   user-select: none;
-  background: rgba(255,255,255,0.7);
+  background: rgba(255, 255, 255, 0.7);
   color: #111827;
 }
 .theme-dark .source-badge {
-  background: rgba(255,255,255,0.12);
+  background: rgba(255, 255, 255, 0.12);
   color: #e5e7eb;
 }
-.source-accordion { margin-top: 6px; }
-.source-list { list-style: none; padding-left: 0; margin: 0; }
-.source-list li { margin: 2px 0; }
-.source-list a { color: inherit; text-decoration: underline; opacity: 0.9; }
-.source-list a:hover { opacity: 1; }
+.source-accordion {
+  margin-top: 6px;
+}
+.source-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+.source-list li {
+  margin: 2px 0;
+}
+.source-list a {
+  color: inherit;
+  text-decoration: underline;
+  opacity: 0.9;
+}
+.source-list a:hover {
+  opacity: 1;
+}
 
 /* Typing indicator text size */
 .thinking-small {
@@ -753,33 +750,33 @@ button:disabled {
   padding: 8px 10px;
   text-align: left;
   /* Respect content newlines; prefer semantic wraps */
-  white-space: pre-wrap;         /* keep \n as line breaks */
-  word-break: normal;            /* do not break mid-word by default */
-  overflow-wrap: break-word;     /* allow break on long tokens if needed */
-  hyphens: auto;                 /* hyphenate long English words when possible */
+  white-space: pre-wrap; /* keep \n as line breaks */
+  word-break: normal; /* do not break mid-word by default */
+  overflow-wrap: break-word; /* allow break on long tokens if needed */
+  hyphens: auto; /* hyphenate long English words when possible */
 }
 /* Japanese: use stricter CJK line breaking rules */
-html[lang="ja"] .message-ai-content th,
-html[lang="ja"] .message-ai-content td {
+html[lang='ja'] .message-ai-content th,
+html[lang='ja'] .message-ai-content td {
   line-break: strict;
   word-break: normal;
 }
 
 /* English typography: natural wrapping + hyphenation, nicer rhythm */
-html[lang="en"] .message-ai-content th,
-html[lang="en"] .message-ai-content td {
+html[lang='en'] .message-ai-content th,
+html[lang='en'] .message-ai-content td {
   line-height: 1.45;
-  word-break: normal;            /* keep words intact when possible */
-  overflow-wrap: break-word;     /* break very long tokens at safe points */
-  hyphens: auto;                 /* hyphenate long words politely */
-  text-wrap: pretty;             /* prefer aesthetically pleasing breaks (Chromium) */
+  word-break: normal; /* keep words intact when possible */
+  overflow-wrap: break-word; /* break very long tokens at safe points */
+  hyphens: auto; /* hyphenate long words politely */
+  text-wrap: pretty; /* prefer aesthetically pleasing breaks (Chromium) */
 }
 
 /* Long URLs/code within table cells (English): allow more aggressive breaking */
-html[lang="en"] .message-ai-content td a,
-html[lang="en"] .message-ai-content th a,
-html[lang="en"] .message-ai-content td code,
-html[lang="en"] .message-ai-content th code {
+html[lang='en'] .message-ai-content td a,
+html[lang='en'] .message-ai-content th a,
+html[lang='en'] .message-ai-content td code,
+html[lang='en'] .message-ai-content th code {
   word-break: break-all;
   overflow-wrap: anywhere;
 }
@@ -797,7 +794,6 @@ html[lang="en"] .message-ai-content th code {
   background: rgba(255, 255, 255, 0.04);
 }
 
-
 /* Glass effect */
 .glass-effect {
   background: rgba(255, 255, 255, var(--glass-alpha-light, 0.2));
@@ -806,9 +802,6 @@ html[lang="en"] .message-ai-content th code {
   overflow: hidden;
   box-shadow: var(--shadow-window);
 }
-
-
-
 
 /* Dark mode input styling */
 .theme-dark #messageInput {
@@ -835,7 +828,6 @@ html.solid-window.theme-dark #messageInput {
   font-size: 12px;
 }
 
-
 /* Toasts */
 .toast-container {
   position: fixed;
@@ -847,24 +839,33 @@ html.solid-window.theme-dark #messageInput {
   z-index: 9999;
 }
 .toast {
-  background: rgba(17,24,39,0.92);
+  background: rgba(17, 24, 39, 0.92);
   color: #fff;
   padding: 6px 10px; /* smaller */
   border-radius: 8px; /* smaller */
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
   font-size: 11px; /* smaller */
-  border: 1px solid rgba(255,255,255,0.12);
-  animation: toastIn .16s ease-out;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  animation: toastIn 0.16s ease-out;
 }
-.toast.info { background: rgba(17,24,39,0.92); }
-.toast.error { background: rgba(190,24,93,0.95); }
-@keyframes toastIn { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: translateY(0);} }
+.toast.info {
+  background: rgba(17, 24, 39, 0.92);
+}
+.toast.error {
+  background: rgba(190, 24, 93, 0.95);
+}
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 /* status indicator non-interactive styling */
-
-
-
-
 
 /* Remove focus ring specifically for chat input */
 #messageInput:focus {
@@ -873,35 +874,65 @@ html.solid-window.theme-dark #messageInput {
 }
 
 /* Ensure input area reserves space for button and stays tidy (stable across sizes) */
-#inputWrapper { min-height: 40px; }
-#messageInput { padding-right: 44px; line-height: 1.35; }
+#inputWrapper {
+  min-height: 40px;
+}
+#messageInput {
+  padding-right: 44px;
+  line-height: 1.35;
+}
 
 /* RTL adjustments: flip send button and input padding */
-html[dir="rtl"] #messageInput { padding-left: 44px; padding-right: 12px; }
+html[dir='rtl'] #messageInput {
+  padding-left: 44px;
+  padding-right: 12px;
+}
 /* In RTL, force the send/stop button to the left.
    Needs !important to override the base #sendBtn right: 0.5rem !important; */
-html[dir="rtl"] #sendBtn { left: 0.5rem !important; right: auto !important; }
+html[dir='rtl'] #sendBtn {
+  left: 0.5rem !important;
+  right: auto !important;
+}
 /* Mirror paper-plane icon to face the logical end side in RTL */
-html[dir="rtl"] #sendBtn svg { transform: scaleX(-1); }
+html[dir='rtl'] #sendBtn svg {
+  transform: scaleX(-1);
+}
 
 /* Prefer right alignment for RTL content */
-html[dir="rtl"] .message-system { text-align: right; }
-html[dir="rtl"] .message-ai-content th,
-html[dir="rtl"] .message-ai-content td { text-align: right; }
+html[dir='rtl'] .message-system {
+  text-align: right;
+}
+html[dir='rtl'] .message-ai-content th,
+html[dir='rtl'] .message-ai-content td {
+  text-align: right;
+}
 /* Right-align general chat text in RTL, but keep code blocks/table code LTR for readability */
-html[dir="rtl"] .message-ai-content,
-html[dir="rtl"] .message-user-content { text-align: right; }
-html[dir="rtl"] .message-ai-content pre,
-html[dir="rtl"] .message-ai-content code { direction: ltr; text-align: left; }
+html[dir='rtl'] .message-ai-content,
+html[dir='rtl'] .message-user-content {
+  text-align: right;
+}
+html[dir='rtl'] .message-ai-content pre,
+html[dir='rtl'] .message-ai-content code {
+  direction: ltr;
+  text-align: left;
+}
 /* Lists and blockquotes logical flips for RTL */
-html[dir="rtl"] .message-ai-content ul,
-html[dir="rtl"] .message-ai-content ol { margin-right: 1rem; margin-left: 0; }
-html[dir="rtl"] .message-ai-content blockquote {
-  border-right: 4px solid #d1d5db; border-left: none;
-  padding-right: 1rem; padding-left: 0;
+html[dir='rtl'] .message-ai-content ul,
+html[dir='rtl'] .message-ai-content ol {
+  margin-right: 1rem;
+  margin-left: 0;
+}
+html[dir='rtl'] .message-ai-content blockquote {
+  border-right: 4px solid #d1d5db;
+  border-left: none;
+  padding-right: 1rem;
+  padding-left: 0;
 }
 /* Toast placement on logical start/end */
-html[dir="rtl"] .toast-container { left: 12px; right: auto; }
+html[dir='rtl'] .toast-container {
+  left: 12px;
+  right: auto;
+}
 
 /*!
  * IrukaDark — (c) 2025 CORe Inc (コーレ株式会社).
@@ -909,7 +940,7 @@ html[dir="rtl"] .toast-container { left: 12px; right: auto; }
  */
 /* Chat input area: reduce top/bottom spacing */
 #inputArea {
-  padding-top: 0.5rem !important;   /* was 1rem via pt-4 */
+  padding-top: 0.5rem !important; /* was 1rem via pt-4 */
   padding-bottom: 0.25rem !important; /* was 1.5rem via pb-6 */
 }
 
@@ -933,30 +964,38 @@ html[dir="rtl"] .toast-container { left: 12px; right: auto; }
 /* Higher specificity to re-introduce a subtle focus ring in dark mode */
 .theme-dark #messageInput:focus {
   box-shadow: 0 0 0 2px rgba(217, 70, 239, 0.35) !important;
-  border-color: rgba(255, 255, 255, 0.20) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
 }
 
 /* Slash command suggest */
-#inputWrapper { position: relative; }
+#inputWrapper {
+  position: relative;
+}
 .slash-suggest {
   position: absolute;
   left: 0.25rem; /* 4px */
   right: 0.75rem; /* wider than before; still leaves a margin */
   bottom: 2.75rem; /* sit above input */
   background: rgba(255, 255, 255, 0.85);
-  border: 1px solid rgba(0,0,0,0.08);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 10px;
-  box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
   padding: 4px;
   z-index: 10;
 }
 /* Mirror margins around slash suggest to avoid overlapping send button in RTL */
-html[dir="rtl"] .slash-suggest { left: 0.75rem; right: 0.25rem; }
-.theme-dark .slash-suggest {
-  background: linear-gradient(145deg, rgba(26,20,70,0.88), rgba(11,16,33,0.88));
-  border-color: rgba(255,255,255,0.12);
+html[dir='rtl'] .slash-suggest {
+  left: 0.75rem;
+  right: 0.25rem;
 }
-.slash-suggest-list { max-height: 200px; overflow-y: auto; }
+.theme-dark .slash-suggest {
+  background: linear-gradient(145deg, rgba(26, 20, 70, 0.88), rgba(11, 16, 33, 0.88));
+  border-color: rgba(255, 255, 255, 0.12);
+}
+.slash-suggest-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
 .slash-suggest-item {
   display: flex;
   align-items: center;
@@ -965,12 +1004,29 @@ html[dir="rtl"] .slash-suggest { left: 0.75rem; right: 0.25rem; }
   border-radius: 8px;
   cursor: pointer;
 }
-.slash-suggest-item .cmd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #111827; }
-.slash-suggest-item .desc { font-size: 12px; color: #6b7280; }
-.theme-dark .slash-suggest-item .cmd { color: #e5e7eb; }
-.theme-dark .slash-suggest-item .desc { color: #9ca3af; }
-.slash-suggest-item:hover, .slash-suggest-item.active { background: rgba(0,0,0,0.06); }
-.theme-dark .slash-suggest-item:hover, .theme-dark .slash-suggest-item.active { background: rgba(255,255,255,0.08); }
+.slash-suggest-item .cmd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: #111827;
+}
+.slash-suggest-item .desc {
+  font-size: 12px;
+  color: #6b7280;
+}
+.theme-dark .slash-suggest-item .cmd {
+  color: #e5e7eb;
+}
+.theme-dark .slash-suggest-item .desc {
+  color: #9ca3af;
+}
+.slash-suggest-item:hover,
+.slash-suggest-item.active {
+  background: rgba(0, 0, 0, 0.06);
+}
+.theme-dark .slash-suggest-item:hover,
+.theme-dark .slash-suggest-item.active {
+  background: rgba(255, 255, 255, 0.08);
+}
 
 /* Chat textarea base styling (light) */
 #messageInput {
@@ -981,6 +1037,6 @@ html[dir="rtl"] .slash-suggest { left: 0.75rem; right: 0.25rem; }
   overflow-y: auto;
   resize: none;
   border-radius: 0.5rem;
-  background-color: rgba(255, 255, 255, 0.60);
-  border: 1px solid rgba(255, 255, 255, 0.30);
+  background-color: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-const { execSync, spawnSync } = require('child_process');
+const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -12,7 +12,14 @@ const outDir = path.join(root, 'build/icons');
 fs.mkdirSync(outDir, { recursive: true });
 const MASK = String(process.env.ICON_MASK || 'none').toLowerCase();
 
-function hasCmd(cmd) { try { execSync(`${cmd} --version`, { stdio: 'ignore' }); return true; } catch { return false; } }
+function hasCmd(cmd) {
+  try {
+    execSync(`${cmd} --version`, { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function run(cmd) {
   execSync(cmd, { stdio: 'inherit' });
@@ -40,11 +47,15 @@ function applyRoundedMask(output, size) {
   if (MASK !== 'round' && MASK !== 'rounded' && MASK !== 'mac') return false;
   const r = Math.max(8, Math.round(size * 0.22));
   if (hasCmd('magick')) {
-    run(`magick convert "${output}" -alpha on \( -size ${size}x${size} xc:none -fill white -draw "roundrectangle 0,0,${size-1},${size-1},${r},${r}" \) -compose DstIn -composite "${output}"`);
+    run(
+      `magick convert "${output}" -alpha on \( -size ${size}x${size} xc:none -fill white -draw "roundrectangle 0,0,${size - 1},${size - 1},${r},${r}" \) -compose DstIn -composite "${output}"`
+    );
     return true;
   }
   if (hasCmd('convert')) {
-    run(`convert "${output}" -alpha on \( -size ${size}x${size} xc:none -fill white -draw "roundrectangle 0,0,${size-1},${size-1},${r},${r}" \) -compose DstIn -composite "${output}"`);
+    run(
+      `convert "${output}" -alpha on \( -size ${size}x${size} xc:none -fill white -draw "roundrectangle 0,0,${size - 1},${size - 1},${r},${r}" \) -compose DstIn -composite "${output}"`
+    );
     return true;
   }
   return false;
@@ -82,14 +93,14 @@ try {
   if (process.platform === 'darwin' && hasCmd('sips') && hasCmd('iconutil')) {
     fs.rmSync(iconsetDir, { recursive: true, force: true });
     fs.mkdirSync(iconsetDir, { recursive: true });
-    const sizes = [16,32,128,256,512];
+    const sizes = [16, 32, 128, 256, 512];
     for (const s of sizes) {
       const p1 = path.join(iconsetDir, `icon_${s}x${s}.png`);
       ensurePngSize(srcPng, s, p1);
       applyRoundedMask(p1, s);
       const p2 = path.join(iconsetDir, `icon_${s}x${s}@2x.png`);
-      ensurePngSize(srcPng, s*2, p2);
-      applyRoundedMask(p2, s*2);
+      ensurePngSize(srcPng, s * 2, p2);
+      applyRoundedMask(p2, s * 2);
     }
     const icnsPath = path.join(outDir, 'icon.icns');
     run(`iconutil -c icns "${iconsetDir}" -o "${icnsPath}"`);
@@ -97,7 +108,7 @@ try {
   } else {
     const targets = [128, 256, 512, 1024];
     const entries = [];
-    const mapType = (s) => (s>=1024?'ic10':s>=512?'ic09':s>=256?'ic08':'ic07');
+    const mapType = (s) => (s >= 1024 ? 'ic10' : s >= 512 ? 'ic09' : s >= 256 ? 'ic08' : 'ic07');
     for (const s of targets) {
       const tmp = path.join(outDir, `icns-${s}.png`);
       ensurePngSize(srcPng, s, tmp);
@@ -145,7 +156,7 @@ try {
     offset += img.buf.length;
     entries.push(e);
   }
-  const blobs = images.map(i => i.buf);
+  const blobs = images.map((i) => i.buf);
   const ico = Buffer.concat([header, ...entries, ...blobs]);
   const icoPath = path.join(outDir, 'icon.ico');
   fs.writeFileSync(icoPath, ico);
