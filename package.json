@@ -80,7 +80,7 @@
       ],
       "icon": "build/icons/icon.icns",
       "hardenedRuntime": true,
-      "universalApp": true
+      "universalApp": false
     },
     "dmg": {
       "sign": false,
