@@ -1,10 +1,12 @@
-name: Release
+name: Manual Release
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build/release (e.g., v1.0.0)"
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -19,7 +21,6 @@ jobs:
     runs-on: macos-14
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,8 +45,8 @@ jobs:
             ~/Library/Caches/electron-builder
           key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json') }}
 
-      - name: Build & publish macOS (arm64)
-        run: npx electron-builder -m --arm64 --publish always
+      - name: Build macOS (arm64)
+        run: npx electron-builder -m --arm64 --publish never
 
       - name: Generate checksums
         run: npm run checksums
@@ -61,7 +62,6 @@ jobs:
     runs-on: windows-latest
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -86,8 +86,8 @@ jobs:
             ~\AppData\Local\electron-builder\Cache
           key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json') }}
 
-      - name: Build & publish Windows (NSIS x64)
-        run: npx electron-builder -w --x64 --publish always
+      - name: Build Windows (NSIS x64)
+        run: npx electron-builder -w --x64 --publish never
 
       - name: Generate checksums
         run: npm run checksums
@@ -103,7 +103,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -128,8 +127,8 @@ jobs:
             ~/.cache/electron-builder
           key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json') }}
 
-      - name: Build & publish Linux (AppImage + deb x64)
-        run: npx electron-builder -l --x64 --publish always
+      - name: Build Linux (AppImage + deb x64)
+        run: npx electron-builder -l --x64 --publish never
 
       - name: Generate checksums
         run: npm run checksums
@@ -167,14 +166,21 @@ jobs:
           echo "Files in dist/:"
           ls -R dist
 
-      - name: Upload checksum assets to existing release
+      - name: Create or update draft release (manual flow)
         uses: softprops/action-gh-release@v2
         with:
+          draft: true
+          generate_release_notes: true
+          body_path: docs/RELEASE_NOTES_TEMPLATE.md
           fail_on_unmatched_files: false
-          tag_name: ${{ github.ref_name }}
-          append_body: true
+          tag_name: ${{ inputs.tag || github.ref_name }}
           files: |
+            dist/*-win-x64.exe
+            dist/*-win-x64.msi
+            dist/*-mac-arm64.dmg
+            dist/*-linux-x64.AppImage
+            dist/*-linux-x86_64.AppImage
+            dist/*-linux-x64.deb
+            dist/*-linux-x64.rpm
             dist/SHA256SUMS.txt
             dist/*.sha256
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
