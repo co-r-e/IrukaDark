@@ -26,6 +26,9 @@
     "dist:linux": "npm run icons && electron-builder -l --x64 --arm64 --publish never",
     "dist:linux:x64": "npm run icons && electron-builder -l --x64 --publish never",
     "dist:linux:arm64": "npm run icons && electron-builder -l --arm64 --publish never",
+    "dist:mac:arm64:pub": "npm run icons && electron-builder -m --arm64 --publish always",
+    "dist:win:x64:pub": "npm run icons && electron-builder -w --x64 --publish always",
+    "dist:linux:x64:pub": "npm run icons && electron-builder -l --x64 --publish always",
     "dist:all:fast": "npm run icons && npm run dist:mac && npm run dist:win:x64 && npm run dist:linux:x64",
     "dist:all": "npm run icons && npm run dist:mac:universal && npm run dist:win && npm run dist:linux",
     "checksums": "node scripts/generate-checksums.js"
@@ -51,6 +54,10 @@
   "dependencies": {
     "@google/genai": "^1.16.0",
     "dotenv": "^16.3.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/co-r-e/IrukaDark.git"
   },
   "lint-staged": {
     "*.{js,css,html,json,md}": [
@@ -105,6 +112,14 @@
       "category": "Utility",
       "icon": "build/icons",
       "maintainer": "IrukaDark <irukadark@example.com>"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "co-r-e",
+        "repo": "IrukaDark",
+        "releaseType": "draft"
+      }
+    ]
   }
 }
