@@ -314,6 +314,15 @@ html.solid-window.theme-dark .glass-effect {
   -webkit-app-region: no-drag;
 }
 
+/* Ensure interactive areas are never part of the drag region (Windows focus fix) */
+#chatHistory,
+#inputArea,
+#inputWrapper,
+#messageInput,
+#sendBtn {
+  -webkit-app-region: no-drag;
+}
+
 /* Header */
 
 /* Custom scrollbar */

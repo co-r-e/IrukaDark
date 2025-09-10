@@ -111,6 +111,15 @@
       "category": "Utility",
       "icon": "build/icons",
       "maintainer": "IrukaDark <irukadark@example.com>"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "co-r-e",
+        "repo": "IrukaDark",
+        "releaseType": "release",
+        "vPrefixedTagName": true
+      }
+    ]
   }
 }

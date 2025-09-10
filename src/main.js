@@ -115,6 +115,7 @@ try {
 } catch {}
 
 let mainWindow;
+let closingAllWindows = false; // guard for cascading close on Windows
 
 function getCurrentLanguage() {
   return process.env.MENU_LANGUAGE || 'en';
@@ -234,6 +235,12 @@ function createWindow() {
     alwaysOnTop: true,
     frame: false,
     transparent: true,
+    // Ensure size refers to webContents area (prevents Windows frame math issues)
+    useContentSize: true,
+    // Explicit fully transparent background is more stable on Windows
+    backgroundColor: '#00000000',
+    // Make sure the window can take focus (some Win setups need this explicit)
+    focusable: true,
     resizable: true,
     show: false,
     icon: path.resolve(__dirname, 'renderer/assets/icons/IrukaDark_desktopicon.png'),
@@ -247,6 +254,13 @@ function createWindow() {
       devTools: false,
     },
   });
+
+  // Reinforce minimum content size on Windows (avoids rare DPI/min-size glitches)
+  try {
+    if (process.platform === 'win32') {
+      mainWindow.setMinimumSize(260, 140);
+    }
+  } catch {}
 
   // Always open external HTTP(S) links in the user's default browser
   try {
@@ -322,6 +336,24 @@ function createWindow() {
 
   const iconPath = path.resolve(__dirname, 'renderer/assets/icons/IrukaDark_desktopicon.png');
   mainWindow.setIcon(iconPath);
+
+  // Windows: when user closes from taskbar, also close auxiliary windows
+  try {
+    if (process.platform === 'win32') {
+      mainWindow.on('close', () => {
+        try {
+          if (closingAllWindows) return;
+          closingAllWindows = true;
+          const wins = BrowserWindow.getAllWindows ? BrowserWindow.getAllWindows() : [];
+          for (const w of wins) {
+            try {
+              if (w && !w.isDestroyed() && w !== mainWindow) w.close();
+            } catch {}
+          }
+        } catch {}
+      });
+    }
+  } catch {}
 }
 
 // delay helper moved to shortcuts.js
@@ -911,6 +943,9 @@ function handleWindowOpacityChange(opacity) {
 }
 
 app.on('window-all-closed', () => {
+  try {
+    closingAllWindows = true;
+  } catch {}
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -1446,6 +1481,8 @@ function createPopupWindow() {
     alwaysOnTop: true,
     frame: false,
     transparent: true,
+    useContentSize: true,
+    backgroundColor: '#00000000',
     resizable: false,
     skipTaskbar: true,
     minimizable: false,

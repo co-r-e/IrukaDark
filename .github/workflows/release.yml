@@ -1,12 +1,9 @@
-name: Manual Release
+name: Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Tag to build/release (e.g., v1.0.0)"
-        required: false
-        type: string
+  push:
+    tags:
+      - "v*"
 
 permissions:
   contents: write
@@ -16,173 +13,63 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-macos:
-    name: macOS build (arm64 dmg)
-    runs-on: macos-14
-    env:
-      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+  mac:
+    name: macOS (arm64)
+    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
+      - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
-
+          node-version: '20'
+          cache: 'npm'
       - name: Install dependencies
         run: npm ci
-
-      - name: Generate icons (icns/ico/png)
-        run: npm run icons
-
-      - name: Cache Electron caches
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/Library/Caches/electron
-            ~/Library/Caches/electron-builder
-          key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json') }}
-
-      - name: Build macOS (arm64)
-        run: npx electron-builder -m --arm64 --publish never
-
-      - name: Generate checksums
-        run: npm run checksums
-
-      - name: Upload dist artifacts (macOS)
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist-mac
-          path: dist/**
-
-  build-windows:
-    name: Windows build (x64 exe)
-    runs-on: windows-latest
-    env:
-      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate icons (icns/ico/png)
-        run: npm run icons
-
-      - name: Cache Electron caches
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~\AppData\Local\electron\Cache
-            ~\AppData\Local\electron-builder\Cache
-          key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json') }}
-
-      - name: Build Windows (NSIS x64)
-        run: npx electron-builder -w --x64 --publish never
-
-      - name: Generate checksums
-        run: npm run checksums
-
-      - name: Upload dist artifacts (Windows)
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist-windows
-          path: dist/**
-
-  build-linux:
-    name: Linux build (x64 AppImage)
-    runs-on: ubuntu-latest
-    env:
-      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate icons (icns/ico/png)
-        run: npm run icons
-
-      - name: Cache Electron caches
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/electron
-            ~/.cache/electron-builder
-          key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json') }}
-
-      - name: Build Linux (AppImage + deb x64)
-        run: npx electron-builder -l --x64 --publish never
-
-      - name: Generate checksums
-        run: npm run checksums
-
-      - name: Upload dist artifacts (Linux)
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist-linux
-          path: dist/**
-
-  draft-release:
-    name: Draft GitHub Release
-    runs-on: ubuntu-latest
-    needs: [build-macos, build-windows, build-linux]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download all build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: dist
-          merge-multiple: true
-
-      - name: Setup Node.js (for checksum script)
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Generate combined checksums
-        run: node scripts/generate-checksums.js
-
-      - name: List files to be released
+      - name: Build and publish (DMG only)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Files in dist/:"
-          ls -R dist
+          npm run icons
+          # Only DMG from CI to avoid duplicate mac zip
+          npx electron-builder -m dmg --arm64 --publish always
 
-      - name: Create or update draft release (manual flow)
-        uses: softprops/action-gh-release@v2
+  windows:
+    name: Windows (x64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
         with:
-          draft: true
-          generate_release_notes: true
-          body_path: docs/RELEASE_NOTES_TEMPLATE.md
-          fail_on_unmatched_files: false
-          tag_name: ${{ inputs.tag || github.ref_name }}
-          files: |
-            dist/*-win-x64.exe
-            dist/*-win-x64.exe.sha256
-            dist/*-mac-arm64.dmg
-            dist/*-mac-arm64.dmg.sha256
-            dist/*-linux-x86_64.AppImage
-            dist/*-linux-x86_64.AppImage.sha256
-            dist/*-linux-x64.deb
-            dist/*-linux-x64.deb.sha256
-            dist/*-linux-x64.rpm
-            dist/*-linux-x64.rpm.sha256
-            dist/SHA256SUMS.txt
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Build and publish (NSIS)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm run icons
+          npx electron-builder -w --x64 --publish always
+
+  linux:
+    name: Linux (x64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Build and publish (AppImage + deb)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm run icons
+          npx electron-builder -l --x64 --publish always
