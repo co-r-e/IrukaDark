@@ -29,6 +29,10 @@
     "dist:mac:arm64:pub": "npm run icons && electron-builder -m --arm64 --publish always",
     "dist:win:x64:pub": "npm run icons && electron-builder -w --x64 --publish always",
     "dist:linux:x64:pub": "npm run icons && electron-builder -l --x64 --publish always",
+    "dist:mac:auto": "node scripts/build-mac-auto.js",
+    "dist:mac:auto:pub": "PUBLISH=always node scripts/build-mac-auto.js",
+    "dist:mac:sandbox": "SANDBOX=1 node scripts/build-mac-auto.js",
+    "dist:mac:sandbox:pub": "SANDBOX=1 PUBLISH=always node scripts/build-mac-auto.js",
     "dist:all:fast": "npm run icons && npm run dist:mac && npm run dist:win:x64 && npm run dist:linux:x64",
     "dist:all": "npm run icons && npm run dist:mac:universal && npm run dist:win && npm run dist:linux",
     "checksums": "node scripts/generate-checksums.js"
