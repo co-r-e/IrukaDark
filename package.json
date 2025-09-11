@@ -27,14 +27,15 @@
     "chat"
   ],
   "author": {
-    "name": "CORe Inc",
-    "email": "noreply@users.noreply.github.com",
+    "name": "CORe Inc.",
+    "email": "contact@co-r-e.com",
     "url": "https://github.com/co-r-e"
   },
   "license": "MIT",
   "devDependencies": {
     "electron": "^28.0.0",
     "electron-builder": "^24.13.3",
+    "electron-notarize": "^2.1.0",
     "eslint": "^9.35.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
@@ -82,7 +83,9 @@
       ],
       "artifactName": "IrukaDark-${version}-mac-${arch}.${ext}",
       "icon": "icon.png",
-      "hardenedRuntime": true
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "dmg": {
       "artifactName": "IrukaDark-${version}-mac-${arch}.dmg"
@@ -98,7 +101,7 @@
       ],
       "icon": "icon.png",
       "artifactName": "IrukaDark-${version}-win-${arch}-setup.${ext}",
-      "publisherName": "CORe Inc"
+      "publisherName": "CORe Inc."
     },
     "nsis": {
       "oneClick": true,
@@ -113,8 +116,9 @@
       "category": "Utility",
       "artifactName": "IrukaDark-${version}-linux-${arch}.${ext}",
       "icon": "icon.png",
-      "maintainer": "CORe Inc <noreply@users.noreply.github.com>"
+      "maintainer": "CORe Inc. <contact@co-r-e.com>"
     },
+    "afterSign": "scripts/afterSign.js",
     "publish": [
       {
         "provider": "github",
