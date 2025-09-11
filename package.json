@@ -111,7 +111,7 @@
       ],
       "category": "Utility",
       "artifactName": "IrukaDark-${version}-linux-${arch}.${ext}",
-      "icon": "build/icons/png"
+      "icon": "build/icons"
     },
     "publish": [
       {
