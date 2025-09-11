@@ -1,102 +1,124 @@
-name: Release
+name: Build and Release
 
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
 
 permissions:
   contents: write
 
-concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: false
+env:
+  # electron-builder uses GH_TOKEN to create/upload GitHub Releases
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
-  mac:
-    name: macOS (arm64)
-    runs-on: macos-latest
+  mac-x64:
+    name: macOS x64 (Intel)
+    runs-on: macos-13
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Use Node.js
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-      - name: Install dependencies
-        run: npm ci
-      - name: Build and publish (DMG only)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npm run icons
-          # Only DMG from CI to avoid duplicate mac zip
-          npx electron-builder -m dmg --arm64 --publish always
-      - name: Generate checksums (mac)
-        run: npm run checksums
-      - name: Upload checksums (mac)
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          files: |
-            dist/**.sha256
-            dist/SHA256SUMS.txt
+          node-version: 20
 
-  windows:
-    name: Windows (x64)
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build & Publish (unsigned if no cert)
+        env:
+          # macOS signing (optional)
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${CSC_LINK:-}" && -n "${CSC_KEY_PASSWORD:-}" ]]; then
+            echo "Signing enabled (Developer ID certificate provided)."
+            npm run dist:mac:x64
+          else
+            echo "Signing secrets not set. Building unsigned."
+            npm run generate-icons
+            npx electron-builder --mac dmg --x64 --config.mac.identity=null --publish always
+          fi
+
+  mac-arm64:
+    name: macOS arm64 (Apple Silicon)
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build & Publish (unsigned if no cert)
+        env:
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${CSC_LINK:-}" && -n "${CSC_KEY_PASSWORD:-}" ]]; then
+            echo "Signing enabled (Developer ID certificate provided)."
+            npm run dist:mac:arm64
+          else
+            echo "Signing secrets not set. Building unsigned."
+            npm run generate-icons
+            npx electron-builder --mac dmg --arm64 --config.mac.identity=null --publish always
+          fi
+
+  windows-x64:
+    name: Windows x64
     runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Use Node.js
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-      - name: Install dependencies
-        run: npm ci
-      - name: Build and publish (NSIS)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npm run icons
-          npx electron-builder -w --x64 --publish always
-      - name: Generate checksums (win)
-        run: npm run checksums
-      - name: Upload checksums (win)
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          files: |
-            dist/**.sha256
-            dist/SHA256SUMS.txt
+          node-version: 20
 
-  linux:
-    name: Linux (x64)
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build & Publish (sign if secrets)
+        env:
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${CSC_LINK:-}" && -n "${CSC_KEY_PASSWORD:-}" ]]; then
+            echo "Windows signing enabled (PFX provided)."
+            npm run dist:win
+          else
+            echo "Windows signing secrets not set. Building unsigned."
+            npm run generate-icons
+            npx electron-builder --win nsis --x64 --publish always
+          fi
+
+  linux-x64:
+    name: Linux x64
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Use Node.js
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: 20
+
       - name: Install dependencies
-        run: npm ci
-      - name: Build and publish (AppImage + deb)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npm run icons
-          npx electron-builder -l --x64 --publish always
-      - name: Generate checksums (linux)
-        run: npm run checksums
-      - name: Upload checksums (linux)
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          files: |
-            dist/**.sha256
-            dist/SHA256SUMS.txt
+        run: npm install --no-audit --no-fund
+
+      - name: Build & Publish
+        run: npm run dist:linux

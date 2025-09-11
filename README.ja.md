@@ -8,8 +8,6 @@
 
 [English](README.md)
 
-- ダウンロードは GitHub Releases を参照（アプリのメニューから「アップデートを確認…」「ダウンロードページを開く」でも移動できます）。
-
 ## 機能
 
 - 常に最前面に表示されるチャットウィンドウ（フレームレス・リサイズ可）
@@ -211,8 +209,7 @@ npm start
 
 ## インストール / 配布
 
-- 署名なしビルドの導入手順: `docs/INSTALL.ja.md`
-- 配布物（インストーラ/チェックサム）は GitHub Releases に添付されます（アプリのメニューからも開けます）。
+このプロジェクトはローカルでの実行を前提とします。リポジトリを clone（またはZIP解凍）し、依存をインストールして `npm start` で起動してください。
 
 ## 環境変数
 
@@ -352,31 +349,40 @@ npm start
 
 ## ビルドと配布（開発者向け）
 
-- 各OS向けにビルド:
-  ```bash
-  # macOS（Apple Silicon）
-  npm run dist:mac
-  # macOS Universal（arm64+x64結合）
-  npm run dist:mac:universal
-  # Windows（x64+arm64）
-  npm run dist:win
-  # Linux（x64+arm64）
-  npm run dist:linux
-  ```
-- 生成物は `dist/` に出力（`.dmg`, `.exe`, `.AppImage`, `.deb` 等）
-- チェックサム生成: `npm run checksums` → `dist/SHA256SUMS.txt` と各 `.sha256`
-- 署名は既定で無効です（初回起動時にOSの警告が表示されます）。
+このリポジトリはタグを push すると GitHub Releases にインストーラを公開します（draft ではなく公開）。初回は `v1.0.0` から開始します。
 
-### GitHub Actions（自動ビルド/リリース）
+準備
 
-- `ci.yml`: PR/`main` への push で実行（format チェック / lint / 速いパック）
-- `release.yml`: タグ `v*` の push（または手動起動）で macOS/Windows/Linux を並列ビルド → チェックサム生成 → Draft Release を作成し `dist/**` を全添付
+- リポジトリ直下に `icon.png`（1024×1024 以上推奨）を配置します。ビルド時に `.icns` / `.ico` / Linux用PNGへ自動変換します。
 
-リリース手順（推奨）
+公開の流れ
 
-- バージョン上げ: `npm version patch|minor|major`
-- push: `git push origin main && git push origin --tags`
-- 完了後、Draft Release に各OSのインストーラと `SHA256SUMS.txt` が揃います。本文を整えて Publish。
+- 例: `v1.0.0` というタグを作成して push するとワークフローが起動し、各OS向けにビルドして公開します。
+
+ビルド対象
+
+- macOS x64（Intel）: DMG
+- macOS arm64（Apple Silicon）: DMG
+- Windows x64: NSIS インストーラ（.exe）
+- Linux x64: AppImage / DEB
+
+コード署名（任意・あれば署名、無ければ未署名で公開）
+
+- macOS: `MAC_CSC_LINK`（base64 の Developer ID 証明書 P12/PFX）, `MAC_CSC_KEY_PASSWORD`
+- Windows: `WIN_CSC_LINK`（base64 の PFX）, `WIN_CSC_KEY_PASSWORD`
+
+ローカルでのパッケージ化（任意）
+
+```bash
+# macOS Intel
+npm run dist:mac:x64
+# macOS Apple Silicon
+npm run dist:mac:arm64
+# Windows（Windows 上で実行）
+npm run dist:win
+# Linux（Linux 上で実行）
+npm run dist:linux
+```
 
 ### ポータブルモード（任意）
 

@@ -358,8 +358,7 @@ function createWindow() {
 
 // delay helper moved to shortcuts.js
 
-// Updates helpers
-const { getUpdateRepo, checkForUpdates } = require('./main/updates');
+// Updates helpers removed (GitHub Releases discontinued)
 
 // triggerMacCopyShortcut / macReadSelectedTextViaAX moved to shortcuts.js
 
@@ -468,22 +467,7 @@ app.whenReady().then(async () => {
 
   createWindow();
 
-  // Schedule update checks (notification-only)
-  try {
-    setTimeout(() => {
-      try {
-        checkForUpdates({ manual: false, mainWindow, getPref, setPref });
-      } catch {}
-    }, 30000);
-    setInterval(
-      () => {
-        try {
-          checkForUpdates({ manual: false, mainWindow, getPref, setPref });
-        } catch {}
-      },
-      24 * 60 * 60 * 1000
-    );
-  } catch {}
+  // Update checks removed
 
   // Preflight permissions on first launch (macOS): Accessibility + Screen Recording
   try {
@@ -901,12 +885,7 @@ function createAppMenu() {
           else createPopupWindow();
         } catch {}
       },
-      checkForUpdates: ({ manual }) => {
-        try {
-          return checkForUpdates({ manual, mainWindow, getPref, setPref });
-        } catch {}
-      },
-      getUpdateRepo,
+      // Updates removed
       rebuild: () => createAppMenu(),
     };
     buildMenu(ctx);
@@ -996,21 +975,7 @@ ipcMain.handle('open-external', (_e, url) => {
   return false;
 });
 
-// Update notifications (manual trigger + skip)
-ipcMain.handle('update:manual-check', async () => {
-  try {
-    await checkForUpdates({ manual: true, mainWindow, getPref, setPref });
-  } catch {}
-  return true;
-});
-ipcMain.handle('update:skip', (_e, version) => {
-  try {
-    setPref('UPDATE_SKIP_VERSION', String(version || ''));
-    return true;
-  } catch {
-    return false;
-  }
-});
+// Update notifications removed
 
 // Ensure main window becomes visible (optionally with focus)
 ipcMain.handle('ui:ensure-visible', (_e, opts) => {

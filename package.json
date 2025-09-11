@@ -1,44 +1,27 @@
 {
   "name": "irukadark",
-  "version": "1.0.5",
+  "version": "1.0.0",
   "description": "Local AI Chat App (Off-mode only)",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
     "dev-tools": "electron . --dev --devtools",
-    "icons": "node scripts/generate-icons.js --all",
-    "icons:mac": "node scripts/generate-icons.js --mac",
-    "icons:win": "node scripts/generate-icons.js --win",
-    "icons:linux": "node scripts/generate-icons.js --linux",
     "clean": "node scripts/clean.js",
     "clean:dry": "node scripts/clean.js --dry-run",
+    "generate-icons": "node scripts/generate-icons.js",
+    "prepack": "npm run generate-icons",
+    "dist": "npm run generate-icons && electron-builder --publish always",
+    "dist:mac:x64": "npm run generate-icons && electron-builder --mac dmg --x64 --publish always",
+    "dist:mac:arm64": "npm run generate-icons && electron-builder --mac dmg --arm64 --publish always",
+    "dist:win": "npm run generate-icons && electron-builder --win nsis --x64 --publish always",
+    "dist:linux": "npm run generate-icons && electron-builder --linux AppImage,deb --x64 --publish always",
     "format": "prettier --write \"**/*.{js,css,html,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,css,html,json,md}\"",
     "lint": "eslint . --ext .js",
     "lint:fix": "eslint . --ext .js --fix",
     "prepare": "husky",
-    "check:menu-translations": "node scripts/check-menu-translations.js",
-    "dist": "npm run icons && electron-builder --publish never",
-    "dist:mac": "npm run icons:mac && electron-builder -m --publish never",
-    "dist:mac:arm64": "npm run icons:mac && electron-builder -m --arm64 --publish never",
-    "dist:mac:universal": "npm run icons:mac && electron-builder -m --universal --publish never",
-    "dist:win": "npm run icons:win && electron-builder -w --x64 --arm64 --publish never",
-    "dist:win:x64": "npm run icons:win && electron-builder -w --x64 --publish never",
-    "dist:win:arm64": "npm run icons:win && electron-builder -w --arm64 --publish never",
-    "dist:linux": "npm run icons:linux && electron-builder -l --x64 --arm64 --publish never",
-    "dist:linux:x64": "npm run icons:linux && electron-builder -l --x64 --publish never",
-    "dist:linux:arm64": "npm run icons:linux && electron-builder -l --arm64 --publish never",
-    "dist:mac:arm64:pub": "npm run icons:mac && electron-builder -m --arm64 --publish always",
-    "dist:win:x64:pub": "npm run icons:win && electron-builder -w --x64 --publish always",
-    "dist:linux:x64:pub": "npm run icons:linux && electron-builder -l --x64 --publish always",
-    "dist:mac:auto": "npm run icons:mac && node scripts/build-mac-auto.js",
-    "dist:mac:auto:pub": "npm run icons:mac && PUBLISH=always node scripts/build-mac-auto.js",
-    "dist:mac:sandbox": "npm run icons:mac && SANDBOX=1 node scripts/build-mac-auto.js",
-    "dist:mac:sandbox:pub": "npm run icons:mac && SANDBOX=1 PUBLISH=always node scripts/build-mac-auto.js",
-    "dist:all:fast": "npm run dist:mac && npm run dist:win:x64 && npm run dist:linux:x64",
-    "dist:all": "npm run dist:mac:universal && npm run dist:win && npm run dist:linux",
-    "checksums": "node scripts/generate-checksums.js"
+    "check:menu-translations": "node scripts/check-menu-translations.js"
   },
   "keywords": [
     "electron",
@@ -50,6 +33,7 @@
   "devDependencies": {
     "electron": "^28.0.0",
     "electron-builder": "^24.13.3",
+    "electron-icon-builder": "^2.0.1",
     "eslint": "^9.35.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
@@ -77,12 +61,15 @@
   "build": {
     "appId": "com.core.irukadark",
     "productName": "IrukaDark",
-    "artifactName": "IrukaDark-${version}-${os}-${arch}.${ext}",
     "asar": true,
     "files": [
+      "package.json",
       "src/**/*",
       "node_modules/**/*",
-      "package.json"
+      "!**/*.map",
+      "!**/docs/**",
+      "!**/tests/**",
+      "!**/.github/**"
     ],
     "directories": {
       "buildResources": "build"
@@ -92,19 +79,25 @@
       "target": [
         "dmg"
       ],
+      "artifactName": "IrukaDark-${version}-mac-${arch}.${ext}",
       "icon": "build/icons/icon.icns",
-      "hardenedRuntime": false,
-      "identity": null
+      "hardenedRuntime": true
     },
     "dmg": {
-      "sign": false,
-      "icon": "build/icons/icon.icns"
+      "artifactName": "IrukaDark-${version}-mac-${arch}.dmg"
     },
     "win": {
       "target": [
-        "nsis"
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
-      "icon": "build/icons/icon.ico"
+      "icon": "build/icons/icon.ico",
+      "artifactName": "IrukaDark-${version}-win-${arch}-setup.${ext}",
+      "publisherName": "CORe Inc"
     },
     "nsis": {
       "oneClick": true,
@@ -117,16 +110,15 @@
         "deb"
       ],
       "category": "Utility",
-      "icon": "build/icons",
-      "maintainer": "IrukaDark <irukadark@example.com>"
+      "artifactName": "IrukaDark-${version}-linux-${arch}.${ext}",
+      "icon": "build/icons/png"
     },
     "publish": [
       {
         "provider": "github",
         "owner": "co-r-e",
         "repo": "IrukaDark",
-        "releaseType": "release",
-        "vPrefixedTagName": true
+        "releaseType": "release"
       }
     ]
   }

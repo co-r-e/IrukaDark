@@ -1,4 +1,4 @@
-const { Menu, shell } = require('electron');
+const { Menu } = require('electron');
 const menuTranslations = require('../i18n/menuTranslations');
 
 function createAppMenu(ctx) {
@@ -263,23 +263,7 @@ function createAppMenu(ctx) {
       submenu: [
         { role: 'about', label: t.about },
         { type: 'separator' },
-        {
-          label: t.checkForUpdates || 'Check for Updates…',
-          click: () => {
-            try {
-              ctx.checkForUpdates && ctx.checkForUpdates({ manual: true });
-            } catch {}
-          },
-        },
-        {
-          label: t.openDownloadsPage || 'Open Downloads Page',
-          click: () => {
-            try {
-              const repo = ctx.getUpdateRepo ? ctx.getUpdateRepo() : 'co-r-e/IrukaDark';
-              shell.openExternal(`https://github.com/${repo}/releases`);
-            } catch {}
-          },
-        },
+        // Update and Downloads menu removed (no GitHub Releases / build pipeline)
         { type: 'separator' },
         {
           label: t.aiSettings || menuTranslations.en.aiSettings,
@@ -354,23 +338,7 @@ function createAppMenu(ctx) {
     template.push({
       label: t.help || 'Help',
       submenu: [
-        {
-          label: t.checkForUpdates || 'Check for Updates…',
-          click: () => {
-            try {
-              ctx.checkForUpdates && ctx.checkForUpdates({ manual: true });
-            } catch {}
-          },
-        },
-        {
-          label: t.openDownloadsPage || 'Open Downloads Page',
-          click: () => {
-            try {
-              const repo = ctx.getUpdateRepo ? ctx.getUpdateRepo() : 'co-r-e/IrukaDark';
-              shell.openExternal(`https://github.com/${repo}/releases`);
-            } catch {}
-          },
-        },
+        // Update and Downloads menu removed
       ],
     });
   }

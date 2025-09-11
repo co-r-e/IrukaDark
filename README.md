@@ -8,8 +8,6 @@
 
 Lightweight local AI chat (macOS / Windows / experimental Linux). Explain or translate selected text, or chat normally. Area screenshot explain is available on macOS/Windows/Linux.
 
-- Downloads: see GitHub Releases (app shows “Check for Updates…” and “Open Downloads Page”).
-
 ## Features
 
 - Always-on-top chat window (frameless, resizable)
@@ -86,8 +84,7 @@ Common fixes
 
 ## Installation / Distribution
 
-- Unsigned build install guide: `docs/INSTALL.md` (English) / `docs/INSTALL.ja.md` (日本語)
-- Releases: built installers and checksums are attached on the GitHub Releases page. The app can open it from Help/App menu.
+This project is intended to run locally from source. Clone the repository, install dependencies, and run `npm start`.
 
 ## Environment Variables
 
@@ -133,62 +130,44 @@ Notes:
 4. Right-click anywhere to open the application menu at the cursor
    - Even in detailed shortcut flows, the view auto-scrolls to the “Thinking…” indicator.
 
-## Build Distributables
+## Build Distributables / Releases
 
-1. Install dev deps (electron + electron-builder)
+This repository ships installers via GitHub Releases on tagged pushes. Versioning restarts at `v1.0.0`.
+
+Requirements
+
+- Put an app icon at the repo root: `icon.png` (1024×1024+ recommended). The build converts it to `.icns`/`.ico`/Linux PNGs automatically.
+- Node.js 18+ on CI (handled by workflow).
+
+Trigger a Release
+
+- Create and push a tag like `v1.0.0` to `main` (or your release branch). The workflow builds and publishes a Release (not draft).
+
+What gets built
+
+- macOS x64 (Intel): DMG
+- macOS arm64 (Apple Silicon): DMG
+- Windows x64: NSIS installer (`.exe`)
+- Linux x64: AppImage and DEB
+
+Code signing (optional)
+
+- If these secrets are set, binaries are signed; otherwise unsigned artifacts are still published.
+  - macOS: `MAC_CSC_LINK` (base64 P12/PFX), `MAC_CSC_KEY_PASSWORD`
+  - Windows: `WIN_CSC_LINK` (base64 PFX), `WIN_CSC_KEY_PASSWORD`
+
+Local packaging (optional)
 
 ```bash
-npm install
-```
-
-2. Build for your OS
-
-```bash
-# macOS (Apple Silicon only)
-npm run dist:mac
-# macOS Universal (arm64+x64 merged)
-npm run dist:mac:universal
-# Windows (x64+arm64)
+# macOS Intel
+npm run dist:mac:x64
+# macOS Apple Silicon
+npm run dist:mac:arm64
+# Windows (from Windows)
 npm run dist:win
-# Linux (x64+arm64)
+# Linux (from Linux)
 npm run dist:linux
 ```
-
-Outputs appear in `dist/` (e.g., `.dmg`, `.exe`, `.AppImage`, `.deb`).
-
-Checksums
-
-- Generate SHA256 sidecars and a manifest: `npm run checksums` → `dist/SHA256SUMS.txt`.
-
-Signing
-
-- Not configured by default. Unsigned builds will show OS warnings.
-
-### Windows
-
-- x64 build（recommended for users): `npm run dist:win:x64`
-- arm64 build: `npm run dist:win:arm64`
-- both (x64+arm64): `npm run dist:win`
-- Produces NSIS installer `.exe` (one‑click). You can enable `createDesktopShortcut` etc. in `package.json > build.nsis` if desired.
-- Optional code signing: set your certificate via environment variables supported by electron‑builder.
-
-### Linux
-
-- x64 build（most desktops): `npm run dist:linux:x64`
-- arm64 build（e.g. ARM laptops/SBCs): `npm run dist:linux:arm64`
-- both (x64+arm64): `npm run dist:linux`
-- Produces `.AppImage` and `.deb`. Adjust targets in `package.json > build.linux` as needed.
-
-### GitHub Actions
-
-- `ci.yml`: on PRs/push to `main`, runs format check, lint, and a fast pack (`--dir`).
-- `release.yml`: on tags matching `v*` or manual dispatch, builds installers for macOS/Windows/Linux, runs checksums, then drafts a GitHub Release and uploads all files from `dist/**`.
-
-Release flow (recommended)
-
-- Bump version: `npm version patch|minor|major`
-- Push: `git push origin main && git push origin --tags`
-- Wait for Actions; a Draft Release appears with installers and `SHA256SUMS.txt`. Review notes and Publish.
 
 ### Cleanup
 
