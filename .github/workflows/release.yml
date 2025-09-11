@@ -40,7 +40,6 @@ jobs:
             npm run dist:mac:x64
           else
             echo "Signing secrets not set. Building unsigned."
-            npm run generate-icons
             npx electron-builder --mac dmg --x64 --config.mac.identity=null --publish always
           fi
 
@@ -70,7 +69,6 @@ jobs:
             npm run dist:mac:arm64
           else
             echo "Signing secrets not set. Building unsigned."
-            npm run generate-icons
             npx electron-builder --mac dmg --arm64 --config.mac.identity=null --publish always
           fi
 
@@ -101,7 +99,6 @@ jobs:
             npm run dist:win
           else
             echo "Windows signing secrets not set. Building unsigned."
-            npm run generate-icons
             npx electron-builder --win nsis --x64 --publish always
           fi
 
