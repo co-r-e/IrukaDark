@@ -99,6 +99,9 @@ jobs:
             npm run dist:win
           else
             echo "Windows signing secrets not set. Building unsigned."
+            # Ensure any repository-level variables do not force signing
+            unset CSC_LINK CSC_KEY_PASSWORD WIN_CSC_LINK WIN_CSC_KEY_PASSWORD || true
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
             npx electron-builder --win nsis --x64 --publish always
           fi
 
