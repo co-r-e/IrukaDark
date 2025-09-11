@@ -1,6 +1,6 @@
 {
   "name": "irukadark",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Local AI Chat App (Off-mode only)",
   "main": "src/main.js",
   "scripts": {
@@ -81,6 +81,7 @@
     "asar": true,
     "files": [
       "src/**/*",
+      "node_modules/**/*",
       "package.json"
     ],
     "directories": {
@@ -127,11 +128,6 @@
         "releaseType": "release",
         "vPrefixedTagName": true
       }
-    ],
-    "files": [
-      "src/**/*",
-      "node_modules/**/*",
-      "package.json"
     ]
   }
 }
