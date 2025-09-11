@@ -24,7 +24,7 @@ for (const m of menuCode.matchAll(/menuTranslations\.en\.([a-zA-Z0-9_]+)/g)) {
 }
 
 // Load translation object
-// eslint-disable-next-line import/no-commonjs
+ 
 const menuTranslations = require(translationsPath);
 
 const locales = Object.keys(menuTranslations);
@@ -50,4 +50,3 @@ if (!ok) {
   process.exit(1);
 }
 console.log('Menu translations OK.');
-

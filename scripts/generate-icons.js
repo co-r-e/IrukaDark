@@ -110,8 +110,8 @@ function writeIcnsAggregate(pngBuffers, outPath) {
 }
 
 // Build .icns on macOS using iconutil/sips; if不可, minimal .icns writer
-if (WANT_MAC)
-  {try {
+if (WANT_MAC) {
+  try {
     const iconsetDir = path.join(outDir, 'mac.iconset');
     if (process.platform === 'darwin' && hasCmd('sips') && hasCmd('iconutil')) {
       fs.rmSync(iconsetDir, { recursive: true, force: true });
@@ -145,11 +145,12 @@ if (WANT_MAC)
     }
   } catch (e) {
     console.warn('Failed to generate .icns:', e.message);
-  }}
+  }
+}
 
 // Build .ico (multi-size PNG entries if possible)
-if (WANT_WIN)
-  {try {
+if (WANT_WIN) {
+  try {
     // Modern Windows generally needs 256, 48, 32, 16.
     // (Keep it lean; electron-builder embeds this into the exe.)
     // Drop <=24 to avoid tiny assets; include 128 for crisp scaling.
@@ -201,11 +202,12 @@ if (WANT_WIN)
     }
   } catch (e) {
     console.warn('Failed to generate .ico:', e.message);
-  }}
+  }
+}
 
 // Linux PNG set
-if (WANT_LIN)
-  {try {
+if (WANT_LIN) {
+  try {
     // Provide common hicolor sizes. Electron-builder can downscale from 512,
     // but providing these yields crisper results across DE caches.
     const sizes = [16, 32, 48, 64, 128, 256, 512];
@@ -218,4 +220,5 @@ if (WANT_LIN)
     console.log('Generated Linux PNG icon set in', outDir);
   } catch (e) {
     console.warn('Failed to generate Linux PNG set:', e.message);
-  }}
+  }
+}

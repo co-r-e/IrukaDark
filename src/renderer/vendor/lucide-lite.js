@@ -15,4 +15,3 @@
     // ignore
   }
 })(typeof window !== 'undefined' ? window : globalThis);
-

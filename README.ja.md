@@ -373,6 +373,7 @@ npm start
 - `release.yml`: タグ `v*` の push（または手動起動）で macOS/Windows/Linux を並列ビルド → チェックサム生成 → Draft Release を作成し `dist/**` を全添付
 
 リリース手順（推奨）
+
 - バージョン上げ: `npm version patch|minor|major`
 - push: `git push origin main && git push origin --tags`
 - 完了後、Draft Release に各OSのインストーラと `SHA256SUMS.txt` が揃います。本文を整えて Publish。
@@ -380,11 +381,13 @@ npm start
 ### ポータブルモード（任意）
 
 `.env.local` を使う運用が必要な場合:
+
 ```env
 GEMINI_API_KEY=発行したキー
 GEMINI_MODEL=gemini-2.5-flash-lite
 WEB_SEARCH_MODEL=gemini-2.5-flash
 ```
+
 `PORTABLE_MODE=1` を付けて起動すると `.env.local` を読み書きします。
 
 ## 補足・注意

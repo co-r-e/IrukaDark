@@ -1,6 +1,7 @@
 // ESLint flat config (v9)
 // Node/Electron main + renderer
 const globals = require('globals');
+const importPlugin = require('eslint-plugin-import');
 
 /** @type {import('eslint').Linter.FlatConfig[]} */
 module.exports = [
@@ -15,6 +16,9 @@ module.exports = [
       globals: {
         ...globals.node,
       },
+    },
+    plugins: {
+      import: importPlugin,
     },
     rules: {
       'no-unused-vars': ['warn', { args: 'none', ignoreRestSiblings: true, caughtErrors: 'none' }],

@@ -32,40 +32,49 @@ Lightweight local AI chat (macOS / Windows / experimental Linux). Explain or tra
 
 This is a friendly, no‑experience‑required guide from nothing to “running”. Take it slow; you can’t break anything.
 
-1) What you need (free)
+1. What you need (free)
+
 - Internet connection
 - A Google account (to get a Gemini API key)
 
-2) Install Node.js (runtime)
+2. Install Node.js (runtime)
+
 - Download the LTS version from nodejs.org and install.
 - Verify: `node -v` (18+) and `npm -v` (9+).
 
-3) Get the project
+3. Get the project
+
 - Git clone (recommended) or download ZIP and unzip.
 
-4) Install dependencies
+4. Install dependencies
+
 ```bash
 npm install
 ```
 
-5) Get a Gemini API key
+5. Get a Gemini API key
+
 - Create an API key in Google AI Studio (not Vertex service account).
 
-6) Start the app
+6. Start the app
+
 ```bash
 npm start
 ```
 
-7) Set your API key in‑app (recommended)
+7. Set your API key in‑app (recommended)
+
 - macOS: App menu IrukaDark → AI Settings → “Set GEMINI_API_KEY”.
 - Windows/Linux: View → AI Settings → “Set GEMINI_API_KEY”.
 - You can also set model preferences there.
 
 Notes
+
 - macOS may ask for Accessibility and Screen Recording permissions.
 - The small logo popup toggles the main window; Option/Alt+A explains selected text.
 
 Common fixes
+
 - `API_KEY_INVALID`: wrong key type or pasted with spaces/quotes.
 - `npm install` errors: check network/proxy.
 - Option/Alt+A does nothing: ensure selection and required permissions; try manual copy then Option/Alt+A.
@@ -148,9 +157,11 @@ npm run dist:linux
 Outputs appear in `dist/` (e.g., `.dmg`, `.exe`, `.AppImage`, `.deb`).
 
 Checksums
+
 - Generate SHA256 sidecars and a manifest: `npm run checksums` → `dist/SHA256SUMS.txt`.
 
 Signing
+
 - Not configured by default. Unsigned builds will show OS warnings.
 
 ### Windows
@@ -174,6 +185,7 @@ Signing
 - `release.yml`: on tags matching `v*` or manual dispatch, builds installers for macOS/Windows/Linux, runs checksums, then drafts a GitHub Release and uploads all files from `dist/**`.
 
 Release flow (recommended)
+
 - Bump version: `npm version patch|minor|major`
 - Push: `git push origin main && git push origin --tags`
 - Wait for Actions; a Draft Release appears with installers and `SHA256SUMS.txt`. Review notes and Publish.
@@ -276,6 +288,7 @@ Initial Layout
 ## Portable mode (.env.local) — optional
 
 If you prefer a file‑based configuration for portable use:
+
 - Create `.env.local` in the project/app folder with:
   ```env
   GEMINI_API_KEY=your_key_here
