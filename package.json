@@ -127,6 +127,11 @@
         "releaseType": "release",
         "vPrefixedTagName": true
       }
+    ],
+    "files": [
+      "src/**/*",
+      "node_modules/**/*",
+      "package.json"
     ]
   }
 }
