@@ -26,7 +26,11 @@
     "ai",
     "chat"
   ],
-  "author": "Your Name",
+  "author": {
+    "name": "CORe Inc",
+    "email": "noreply@users.noreply.github.com",
+    "url": "https://github.com/co-r-e"
+  },
   "license": "MIT",
   "devDependencies": {
     "electron": "^28.0.0",
@@ -108,7 +112,8 @@
       ],
       "category": "Utility",
       "artifactName": "IrukaDark-${version}-linux-${arch}.${ext}",
-      "icon": "icon.png"
+      "icon": "icon.png",
+      "maintainer": "CORe Inc <noreply@users.noreply.github.com>"
     },
     "publish": [
       {
