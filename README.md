@@ -147,14 +147,11 @@ What gets built
 
 - macOS x64 (Intel): DMG
 - macOS arm64 (Apple Silicon): DMG
-- Windows x64: NSIS installer (`.exe`)
-- Linux x64: AppImage and DEB
 
 Code signing (optional)
 
 - If these secrets are set, binaries are signed; otherwise unsigned artifacts are still published.
   - macOS: `MAC_CSC_LINK` (base64 P12/PFX), `MAC_CSC_KEY_PASSWORD`
-  - Windows: `WIN_CSC_LINK` (base64 PFX), `WIN_CSC_KEY_PASSWORD`
 
 Local packaging (optional)
 
@@ -163,10 +160,7 @@ Local packaging (optional)
 npm run dist:mac:x64
 # macOS Apple Silicon
 npm run dist:mac:arm64
-# Windows (from Windows)
-npm run dist:win
-# Linux (from Linux)
-npm run dist:linux
+# (macOS only now)
 ```
 
 ### Cleanup
@@ -224,40 +218,16 @@ Initial Layout
   - If not granted, use manual copy (Cmd+C) then Option+A
 - Show over all apps/spaces: toggle via View > Appearance > “Show Over All Apps/Spaces”
 
-### Windows
-
-- Supported: Windows 10 / 11 (64-bit)
-- Global shortcuts:
-  - Quick explain: Alt+A (fallback: Ctrl+Alt+A)
-  - Detailed explain: Alt+Shift+A (fallback: Ctrl+Alt+Shift+A)
-  - Translate: Alt+R (fallback: Ctrl+Alt+R)
-  - Screenshot explain: Alt+S (fallback: Ctrl+Alt+S)
-  - Screenshot explain (detailed): Alt+Shift+S (fallback: Ctrl+Alt+Shift+S)
-- Permissions: None required
-- Auto-copy: On Alt+A the app sends Ctrl+C to the foreground app and then reads the clipboard. If no fresh copy is detected, it shows an error instead of reusing stale clipboard content.
-- Screenshot explain launches the Windows Snipping UI (ms-screenclip) for area selection and reads the clipped image from the clipboard.
-- If nothing appears, ensure Snipping Tool is enabled and clipboard access is allowed.
-
-### Menu (every OS)
+### Menu
 
 - Right-click anywhere in the window to open the app menu at the cursor
 - View > Appearance: theme, window opacity, and “Show Over All Apps/Spaces”
 - Language: switch between English and Japanese
 - Show Logo Popup: toggle a small floating logo window
 
-### Linux (Experimental)
+### Notes
 
-- Supported: Ubuntu 20.04+ (x64/arm64 indicative)
-- Global shortcuts:
-  - Quick explain: Alt+A (fallback: Ctrl+Alt+A)
-  - Detailed explain: Alt+Shift+A (fallback: Ctrl+Alt+Shift+A)
-  - Translate: Alt+R (fallback: Ctrl+Alt+R)
-  - Screenshot explain: Alt+S (fallback: Ctrl+Alt+S)
-  - Screenshot explain (detailed): Alt+Shift+S (fallback: Ctrl+Alt+Shift+S)
-- Permissions: None required
-- Screenshot explain attempts (in order): gnome-screenshot, Spectacle, grim+slurp (Wayland), or maim (X11). If none are available, the shortcut does nothing.
-- When a fresh clipboard copy is not detected on Alt+A, the app tries to read the PRIMARY selection (wl-paste/xclip/xsel). If that is unavailable or empty, it shows an error.
-- Behavior may differ across Wayland/X11 setups. Ensure one of the above tools is installed for area capture.
+This application now targets macOS only.
 
 ## Permissions
 

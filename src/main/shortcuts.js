@@ -9,8 +9,6 @@ const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Timings for temporary hide/show during shortcut copy
 const HIDE_DELAY_MS_MAC = 140;
-const HIDE_DELAY_MS_WIN = 100;
-const HIDE_DELAY_MS_LIN = 80;
 
 // Track clipboard text freshness (trimmed text + last change time)
 let clipboardTextSnapshot = '';
@@ -171,32 +169,6 @@ async function macReadSelectedTextViaAX() {
   });
 }
 
-function windowsSendCtrlC() {
-  try {
-    const cmd =
-      "powershell -NoProfile -NonInteractive -WindowStyle Hidden -Command \"try { $ws = New-Object -ComObject WScript.Shell; $ws.SendKeys('^c'); exit 0 } catch { try { Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('^c'); exit 0 } catch { exit 1 } }\"";
-    exec(cmd, () => {});
-  } catch {}
-}
-
-async function linuxReadPrimarySelection() {
-  const run = (cmd) =>
-    new Promise((resolve) => exec(cmd, (err, stdout) => resolve(err ? '' : String(stdout || ''))));
-  try {
-    let out = await run(
-      "sh -lc 'command -v wl-paste >/dev/null 2>&1 && wl-paste --no-newline --primary 2>/dev/null'"
-    );
-    if (out && out.trim()) return out.trim();
-    out = await run(
-      "sh -lc 'command -v xclip >/dev/null 2>&1 && xclip -selection primary -o 2>/dev/null'"
-    );
-    if (out && out.trim()) return out.trim();
-    out = await run("sh -lc 'command -v xsel >/dev/null 2>&1 && xsel -o -p 2>/dev/null'");
-    if (out && out.trim()) return out.trim();
-  } catch {}
-  return '';
-}
-
 async function tryCopySelectedText() {
   const before = readClipboardTextTrimmed();
   if (isDev) {
@@ -207,8 +179,7 @@ async function tryCopySelectedText() {
   const envMaxWait = Number.parseInt(process.env.CLIPBOARD_MAX_WAIT_MS || '', 10);
   const defaultMaxWait = 1200;
   const macMaxWait = Number.isFinite(envMaxWait) && envMaxWait > 0 ? envMaxWait : defaultMaxWait;
-  const winMaxWait = Number.isFinite(envMaxWait) && envMaxWait > 0 ? envMaxWait : defaultMaxWait;
-  const linMaxWait = Number.isFinite(envMaxWait) && envMaxWait > 0 ? envMaxWait : defaultMaxWait;
+  // macOS only
 
   if (platform === 'darwin') {
     let didHideApp = false;
@@ -247,56 +218,8 @@ async function tryCopySelectedText() {
     }
   }
 
-  if (platform === 'win32') {
-    const appWindowFocused = !!BrowserWindow.getFocusedWindow();
-    let windowsToRestore = [];
-    if (appWindowFocused) {
-      try {
-        windowsToRestore = getAllWindowsSafe().filter((w) => w.isVisible());
-        for (const w of windowsToRestore) {
-          try {
-            w.hide();
-          } catch {}
-        }
-        await delay(HIDE_DELAY_MS_WIN);
-      } catch {}
-    }
-    try {
-      windowsSendCtrlC();
-      const polled = await pollClipboardChange(before, winMaxWait);
-      if (polled) return polled;
-      return '';
-    } finally {
-      if (windowsToRestore && windowsToRestore.length) {
-        for (const w of windowsToRestore) showWindowNonActivating(w);
-      }
-    }
-  }
-
-  const appWindowFocused = !!BrowserWindow.getFocusedWindow();
-  let windowsToRestore = [];
-  if (appWindowFocused) {
-    try {
-      windowsToRestore = getAllWindowsSafe().filter((w) => w.isVisible());
-      for (const w of windowsToRestore) {
-        try {
-          w.hide();
-        } catch {}
-      }
-      await delay(HIDE_DELAY_MS_LIN);
-    } catch {}
-  }
-  try {
-    const polled = await pollClipboardChange(before, linMaxWait);
-    if (polled) return polled;
-    const primary = await linuxReadPrimarySelection();
-    if (primary) return primary;
-    return '';
-  } finally {
-    if (windowsToRestore && windowsToRestore.length) {
-      for (const w of windowsToRestore) showWindowNonActivating(w);
-    }
-  }
+  // non-macOS paths removed (app is mac-only)
+  return '';
 }
 
 async function captureInteractiveArea() {
@@ -325,84 +248,6 @@ async function captureInteractiveArea() {
     } catch {
       return { data: '', mimeType: '' };
     }
-  }
-
-  if (platform === 'win32') {
-    try {
-      await new Promise((resolve) => exec('explorer.exe ms-screenclip:', () => resolve()));
-      const start = Date.now();
-      const maxWait = 15000;
-      let beforeBuf = Buffer.alloc(0);
-      try {
-        const beforeImg = clipboard.readImage();
-        beforeBuf = beforeImg && !beforeImg.isEmpty() ? beforeImg.toPNG() : Buffer.alloc(0);
-      } catch {}
-      while (Date.now() - start < maxWait) {
-        await delay(120);
-        try {
-          const img = clipboard.readImage();
-          if (img && !img.isEmpty()) {
-            const buf = img.toPNG();
-            if (buf && buf.length && buf.length !== beforeBuf.length) {
-              return { data: Buffer.from(buf).toString('base64'), mimeType: 'image/png' };
-            }
-          }
-        } catch {}
-      }
-      return { data: '', mimeType: '' };
-    } catch {
-      return { data: '', mimeType: '' };
-    }
-  }
-
-  if (platform === 'linux') {
-    const tmpDir = app.getPath('temp');
-    const file = path.join(tmpDir, `irukadark_capture_${Date.now()}.png`);
-    const run = (cmd) => new Promise((resolve) => exec(cmd, (err) => resolve(err ? 1 : 0)));
-    try {
-      let code = await run(
-        `sh -lc 'command -v gnome-screenshot >/dev/null 2>&1 && gnome-screenshot -a -f "${file}"'`
-      );
-      if (code === 0 && fs.existsSync(file) && fs.statSync(file).size > 0) {
-        const buf = fs.readFileSync(file);
-        try {
-          fs.unlinkSync(file);
-        } catch {}
-        return { data: buf.toString('base64'), mimeType: 'image/png' };
-      }
-      code = await run(
-        `sh -lc 'command -v spectacle >/dev/null 2>&1 && spectacle -r -o "${file}"'`
-      );
-      if (code === 0 && fs.existsSync(file) && fs.statSync(file).size > 0) {
-        const buf = fs.readFileSync(file);
-        try {
-          fs.unlinkSync(file);
-        } catch {}
-        return { data: buf.toString('base64'), mimeType: 'image/png' };
-      }
-      code = await run(
-        `sh -lc 'command -v grim >/dev/null 2>&1 && command -v slurp >/dev/null 2>&1 && grim -g "$(slurp)" "${file}"'`
-      );
-      if (code === 0 && fs.existsSync(file) && fs.statSync(file).size > 0) {
-        const buf = fs.readFileSync(file);
-        try {
-          fs.unlinkSync(file);
-        } catch {}
-        return { data: buf.toString('base64'), mimeType: 'image/png' };
-      }
-      code = await run(`sh -lc 'command -v maim >/dev/null 2>&1 && maim -s "${file}"'`);
-      if (code === 0 && fs.existsSync(file) && fs.statSync(file).size > 0) {
-        const buf = fs.readFileSync(file);
-        try {
-          fs.unlinkSync(file);
-        } catch {}
-        return { data: buf.toString('base64'), mimeType: 'image/png' };
-      }
-    } catch {}
-    try {
-      fs.existsSync(file) && fs.unlinkSync(file);
-    } catch {}
-    return { data: '', mimeType: '' };
   }
 
   return { data: '', mimeType: '' };

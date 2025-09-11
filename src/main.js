@@ -226,7 +226,6 @@ async function openInputDialog({
 // Menu translations are loaded in src/main/menu.js
 
 function createWindow() {
-  // Build options to allow Windows-specific tweaks
   const baseOpts = {
     width: 260,
     height: 280,
@@ -236,9 +235,9 @@ function createWindow() {
     alwaysOnTop: true,
     frame: false,
     transparent: true,
-    // Ensure size refers to webContents area (prevents Windows frame math issues)
+    // Ensure size refers to webContents area
     useContentSize: true,
-    // Explicit fully transparent background is more stable on Windows
+    // Transparent background for macOS glass effect
     backgroundColor: '#00000000',
     // Make sure the window can take focus (some Win setups need this explicit)
     focusable: true,
@@ -255,21 +254,10 @@ function createWindow() {
       devTools: false,
     },
   };
-  // On Windows, disable the thick native frame to avoid odd size jumps
-  if (process.platform === 'win32') {
-    baseOpts.thickFrame = false;
-  }
   mainWindow = new BrowserWindow(baseOpts);
 
-  // Reinforce minimum content size on Windows (avoids rare DPI/min-size glitches)
   try {
-    if (process.platform === 'win32') {
-      mainWindow.setMinimumSize(260, 140);
-      // Hide native menu bar to prevent Alt key stealing focus from the input
-      try {
-        mainWindow.setMenuBarVisibility(false);
-      } catch {}
-    }
+    mainWindow.setMinimumSize(260, 140);
   } catch {}
 
   // Always open external HTTP(S) links in the user's default browser
@@ -321,7 +309,7 @@ function createWindow() {
     } catch {}
   }
 
-  // Provisional placement (kept inside the work area to avoid Windows auto-snap)
+  // Provisional placement (keep within work area)
   try {
     const d = screen.getPrimaryDisplay();
     const wa = d && d.workArea ? d.workArea : { x: 0, y: 0, width: 0, height: 0 };
@@ -347,23 +335,7 @@ function createWindow() {
   const iconPath = path.resolve(__dirname, 'renderer/assets/icons/icon.png');
   mainWindow.setIcon(iconPath);
 
-  // Windows: when user closes from taskbar, also close auxiliary windows
-  try {
-    if (process.platform === 'win32') {
-      mainWindow.on('close', () => {
-        try {
-          if (closingAllWindows) return;
-          closingAllWindows = true;
-          const wins = BrowserWindow.getAllWindows ? BrowserWindow.getAllWindows() : [];
-          for (const w of wins) {
-            try {
-              if (w && !w.isDestroyed() && w !== mainWindow) w.close();
-            } catch {}
-          }
-        } catch {}
-      });
-    }
-  } catch {}
+  // macOS only: no special taskbar handling
 }
 
 // delay helper moved to shortcuts.js
@@ -521,7 +493,7 @@ app.whenReady().then(async () => {
       }
     };
 
-    const baseCandidates = ['Alt+A', 'CommandOrControl+Alt+A'];
+    const baseCandidates = ['Alt+A'];
     let baseUsed = '';
     for (const c of baseCandidates) {
       if (registerShortcut(c, false)) {
@@ -530,7 +502,7 @@ app.whenReady().then(async () => {
       }
     }
 
-    const detailedCandidates = ['Alt+Shift+A', 'CommandOrControl+Alt+Shift+A'];
+    const detailedCandidates = ['Alt+Shift+A'];
     let detailedUsed = '';
     for (const c of detailedCandidates) {
       if (registerShortcut(c, true)) {
@@ -540,7 +512,7 @@ app.whenReady().then(async () => {
     }
 
     // Pure translation (all OS): Option+R (fallback Cmd/Ctrl+Alt+R)
-    const translateCandidates = ['Alt+R', 'CommandOrControl+Alt+R'];
+    const translateCandidates = ['Alt+R'];
     let translateUsed = '';
     for (const c of translateCandidates) {
       try {
@@ -571,7 +543,7 @@ app.whenReady().then(async () => {
     }
 
     // Screenshot explain (all OS): Option+S (fallback Cmd/Ctrl+Option/Alt+S)
-    const screenshotCandidates = ['Alt+S', 'CommandOrControl+Alt+S'];
+    const screenshotCandidates = ['Alt+S'];
     for (const c of screenshotCandidates) {
       try {
         const ok = globalShortcut.register(c, () => {
@@ -596,7 +568,7 @@ app.whenReady().then(async () => {
     }
 
     // Screenshot explain (detailed, all OS): Option+Shift+S (fallback Cmd/Ctrl+Alt+Shift+S)
-    const screenshotDetailedCandidates = ['Alt+Shift+S', 'CommandOrControl+Alt+Shift+S'];
+    const screenshotDetailedCandidates = ['Alt+Shift+S'];
     for (const c of screenshotDetailedCandidates) {
       try {
         const ok = globalShortcut.register(c, () => {

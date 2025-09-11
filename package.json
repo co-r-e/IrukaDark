@@ -9,14 +9,9 @@
     "dev-tools": "electron . --dev --devtools",
     "clean": "node scripts/clean.js",
     "clean:dry": "node scripts/clean.js --dry-run",
-    "dist": "electron-builder --publish always",
+    "dist": "electron-builder --mac dmg --publish always",
     "dist:mac:x64": "electron-builder --mac dmg --x64 --publish always",
     "dist:mac:arm64": "electron-builder --mac dmg --arm64 --publish always",
-    "dist:win": "electron-builder --win nsis --x64 --publish always",
-    "dist:linux": "electron-builder --linux --x64 --publish always",
-    "dist:win:local": "electron-builder --win nsis --x64 --publish never",
-    "dist:mac:local": "electron-builder --mac dmg --publish never",
-    "dist:linux:local": "electron-builder --linux --publish never",
     "format": "prettier --write \"**/*.{js,css,html,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,css,html,json,md}\"",
     "lint": "eslint . --ext .js",
@@ -91,34 +86,6 @@
     },
     "dmg": {
       "artifactName": "IrukaDark-${version}-mac-${arch}.dmg"
-    },
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "src/renderer/assets/icons/icon.png",
-      "artifactName": "IrukaDark-${version}-win-${arch}-setup.${ext}",
-      "publisherName": "CORe Inc."
-    },
-    "nsis": {
-      "oneClick": true,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": false
-    },
-    "linux": {
-      "target": [
-        "AppImage",
-        "deb"
-      ],
-      "category": "Utility",
-      "artifactName": "IrukaDark-${version}-linux-${arch}.${ext}",
-      "icon": "src/renderer/assets/icons/icon.png",
-      "maintainer": "CORe Inc. <contact@co-r-e.com>"
     },
     "afterSign": "scripts/afterSign.js",
     "publish": [
