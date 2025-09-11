@@ -243,7 +243,7 @@ function createWindow() {
     focusable: true,
     resizable: true,
     show: false,
-    icon: path.resolve(__dirname, 'renderer/assets/icons/IrukaDark_desktopicon.png'),
+    icon: path.resolve(__dirname, 'renderer/assets/icons/icon.png'),
     opacity: 1.0,
     webPreferences: {
       nodeIntegration: false,
@@ -334,7 +334,7 @@ function createWindow() {
     createPopupWindow();
   });
 
-  const iconPath = path.resolve(__dirname, 'renderer/assets/icons/IrukaDark_desktopicon.png');
+  const iconPath = path.resolve(__dirname, 'renderer/assets/icons/icon.png');
   mainWindow.setIcon(iconPath);
 
   // Windows: when user closes from taskbar, also close auxiliary windows
@@ -459,7 +459,7 @@ app.whenReady().then(async () => {
       app.setAboutPanelOptions({
         applicationName: 'IrukaDark',
         applicationVersion: app.getVersion(),
-        iconPath: path.resolve(__dirname, 'renderer/assets/icons/IrukaDark_desktopicon.png'),
+        iconPath: path.resolve(__dirname, 'renderer/assets/icons/icon.png'),
       });
     }
   } catch {}
