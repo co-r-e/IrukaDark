@@ -226,7 +226,8 @@ async function openInputDialog({
 // Menu translations are loaded in src/main/menu.js
 
 function createWindow() {
-  mainWindow = new BrowserWindow({
+  // Build options to allow Windows-specific tweaks
+  const baseOpts = {
     width: 260,
     height: 280,
     minWidth: 260,
@@ -253,12 +254,21 @@ function createWindow() {
       webSecurity: true,
       devTools: false,
     },
-  });
+  };
+  // On Windows, disable the thick native frame to avoid odd size jumps
+  if (process.platform === 'win32') {
+    baseOpts.thickFrame = false;
+  }
+  mainWindow = new BrowserWindow(baseOpts);
 
   // Reinforce minimum content size on Windows (avoids rare DPI/min-size glitches)
   try {
     if (process.platform === 'win32') {
       mainWindow.setMinimumSize(260, 140);
+      // Hide native menu bar to prevent Alt key stealing focus from the input
+      try {
+        mainWindow.setMenuBarVisibility(false);
+      } catch {}
     }
   } catch {}
 
@@ -930,6 +940,45 @@ app.on('window-all-closed', () => {
   }
 });
 
+// Ensure auxiliary windows are closed even when quitting from menu or other paths
+app.on('before-quit', () => {
+  try {
+    closingAllWindows = true;
+  } catch {}
+  try {
+    const wins = BrowserWindow.getAllWindows ? BrowserWindow.getAllWindows() : [];
+    for (const w of wins) {
+      try {
+        w.removeAllListeners('close');
+      } catch {}
+      try {
+        if (!w.isDestroyed()) w.close();
+      } catch {}
+    }
+  } catch {}
+});
+
+// As a last resort, force-destroy any remaining windows
+app.on('will-quit', () => {
+  try {
+    const wins = BrowserWindow.getAllWindows ? BrowserWindow.getAllWindows() : [];
+    for (const w of wins) {
+      try {
+        if (!w.isDestroyed()) w.destroy();
+      } catch {}
+    }
+  } catch {}
+});
+
+app.on('quit', () => {
+  try {
+    popupWindow = null;
+  } catch {}
+  try {
+    mainWindow = null;
+  } catch {}
+});
+
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
@@ -1515,8 +1564,10 @@ function createPopupWindow() {
     if (popupPointerDown) popupMovedSinceDown = true;
   });
   popupWindow.on('resize', positionMainAbovePopup);
+  // Avoid repositioning in response to main window resizing on Windows,
+  // which can cause feedback with OS metrics (only follow popup moves/resizes)
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.on('resize', positionMainAbovePopup);
+    // intentionally no 'resize' listener
   }
   positionMainAbovePopup();
 }

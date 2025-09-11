@@ -121,6 +121,11 @@ class IrukaDarkApp {
     this.updateMonitoringUI();
     this.syncHeader();
 
+    // 初期フォーカス（Windows でのフォーカス取りこぼし対策）
+    try {
+      setTimeout(() => this.messageInput && this.messageInput.focus(), 0);
+    } catch {}
+
     // Load tone from system and subscribe to changes
     try {
       if (window.electronAPI && window.electronAPI.getTone) {

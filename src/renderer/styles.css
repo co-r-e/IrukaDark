@@ -320,7 +320,13 @@ html.solid-window.theme-dark .glass-effect {
 #inputWrapper,
 #messageInput,
 #sendBtn {
-  -webkit-app-region: no-drag;
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto;
+}
+/* Make text input definitely typeable/selectable on Windows */
+#messageInput {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 /* Header */

@@ -14,6 +14,9 @@
     "dist:mac:arm64": "electron-builder --mac dmg --arm64 --publish always",
     "dist:win": "electron-builder --win nsis --x64 --publish always",
     "dist:linux": "electron-builder --linux --x64 --publish always",
+    "dist:win:local": "electron-builder --win nsis --x64 --publish never",
+    "dist:mac:local": "electron-builder --mac dmg --publish never",
+    "dist:linux:local": "electron-builder --linux --publish never",
     "format": "prettier --write \"**/*.{js,css,html,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,css,html,json,md}\"",
     "lint": "eslint . --ext .js",
@@ -81,7 +84,7 @@
         "dmg"
       ],
       "artifactName": "IrukaDark-${version}-mac-${arch}.${ext}",
-      "icon": "icon.png",
+      "icon": "src/renderer/assets/icons/icon.png",
       "hardenedRuntime": true,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist"
@@ -98,7 +101,7 @@
           ]
         }
       ],
-      "icon": "icon.png",
+      "icon": "src/renderer/assets/icons/icon.png",
       "artifactName": "IrukaDark-${version}-win-${arch}-setup.${ext}",
       "publisherName": "CORe Inc."
     },
@@ -114,15 +117,13 @@
       ],
       "category": "Utility",
       "artifactName": "IrukaDark-${version}-linux-${arch}.${ext}",
-      "icon": "icon.png",
+      "icon": "src/renderer/assets/icons/icon.png",
       "maintainer": "CORe Inc. <contact@co-r-e.com>"
     },
     "afterSign": "scripts/afterSign.js",
     "publish": [
       {
         "provider": "github",
-        "owner": "co-r-e",
-        "repo": "IrukaDark",
         "releaseType": "release"
       }
     ]

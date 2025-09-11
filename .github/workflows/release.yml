@@ -13,7 +13,40 @@ env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
+  prepare:
+    name: Prepare Release (overwrite-safe)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure gh is available
+        run: gh --version
+
+      - name: Delete existing release if present
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ github.ref_name }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Existing release for $TAG found. Deleting…"
+            gh release delete "$TAG" -y || true
+          else
+            echo "No existing release for $TAG."
+          fi
+
+      - name: Re-create empty release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ github.ref_name }}"
+          TITLE="IrukaDark ${TAG}"
+          gh release create "$TAG" --title "$TITLE" --notes "Automated build for $TAG" --latest --target ${{ github.sha }}
   mac-x64:
+    needs: prepare
+    if: ${{ secrets.MAC_CSC_LINK != '' && secrets.MAC_CSC_KEY_PASSWORD != '' && secrets.APPLE_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
     name: macOS x64 (Intel)
     runs-on: macos-13
     steps:
@@ -58,6 +91,8 @@ jobs:
           gh release upload "${{ github.ref_name }}" dist/*.sha256 --clobber
 
   mac-arm64:
+    needs: prepare
+    if: ${{ secrets.MAC_CSC_LINK != '' && secrets.MAC_CSC_KEY_PASSWORD != '' && secrets.APPLE_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
     name: macOS arm64 (Apple Silicon)
     runs-on: macos-14
     steps:
@@ -101,6 +136,7 @@ jobs:
           gh release upload "${{ github.ref_name }}" dist/*.sha256 --clobber
 
   windows-x64:
+    needs: prepare
     name: Windows x64
     runs-on: windows-latest
     steps:
@@ -147,6 +183,7 @@ jobs:
           gh release upload "${{ github.ref_name }}" dist/*.sha256 --clobber
 
   linux-x64:
+    needs: prepare
     name: Linux x64
     runs-on: ubuntu-latest
     steps:
