@@ -115,7 +115,7 @@ try {
 } catch {}
 
 let mainWindow;
-let closingAllWindows = false; // guard for cascading close on Windows
+let closingAllWindows = false; // guard for cascading close
 
 function getCurrentLanguage() {
   return process.env.MENU_LANGUAGE || 'en';
@@ -362,11 +362,7 @@ function bringAppToFront() {
 
 // readClipboardTextTrimmed / pollClipboardChange moved to shortcuts.js
 
-// Windows: send Ctrl+C to frontmost app (best-effort, no external deps)
-// windowsSendCtrlC moved to shortcuts.js
-
-// Linux: try to read PRIMARY selection (X11/Wayland). Returns text or ''
-// linuxReadPrimarySelection moved to shortcuts.js
+// Clipboard helpers moved to shortcuts.js
 
 // tryCopySelectedText moved to shortcuts.js
 
@@ -493,7 +489,7 @@ app.whenReady().then(async () => {
       }
     };
 
-    const baseCandidates = ['Alt+A'];
+    const baseCandidates = ['Alt+A']; // mac: Option+A
     let baseUsed = '';
     for (const c of baseCandidates) {
       if (registerShortcut(c, false)) {
@@ -502,7 +498,7 @@ app.whenReady().then(async () => {
       }
     }
 
-    const detailedCandidates = ['Alt+Shift+A'];
+    const detailedCandidates = ['Alt+Shift+A']; // mac: Option+Shift+A
     let detailedUsed = '';
     for (const c of detailedCandidates) {
       if (registerShortcut(c, true)) {
@@ -511,7 +507,7 @@ app.whenReady().then(async () => {
       }
     }
 
-    // Pure translation (all OS): Option+R (fallback Cmd/Ctrl+Alt+R)
+    // Pure translation: Option+R
     const translateCandidates = ['Alt+R'];
     let translateUsed = '';
     for (const c of translateCandidates) {
@@ -542,7 +538,7 @@ app.whenReady().then(async () => {
       } catch {}
     }
 
-    // Screenshot explain (all OS): Option+S (fallback Cmd/Ctrl+Option/Alt+S)
+    // Screenshot explain: Option+S
     const screenshotCandidates = ['Alt+S'];
     for (const c of screenshotCandidates) {
       try {
@@ -567,7 +563,7 @@ app.whenReady().then(async () => {
       } catch {}
     }
 
-    // Screenshot explain (detailed, all OS): Option+Shift+S (fallback Cmd/Ctrl+Alt+Shift+S)
+    // Screenshot explain (detailed): Option+Shift+S
     const screenshotDetailedCandidates = ['Alt+Shift+S'];
     for (const c of screenshotDetailedCandidates) {
       try {
@@ -1536,8 +1532,7 @@ function createPopupWindow() {
     if (popupPointerDown) popupMovedSinceDown = true;
   });
   popupWindow.on('resize', positionMainAbovePopup);
-  // Avoid repositioning in response to main window resizing on Windows,
-  // which can cause feedback with OS metrics (only follow popup moves/resizes)
+  // Avoid repositioning in response to main window resizing to prevent feedback loops
   if (mainWindow && !mainWindow.isDestroyed()) {
     // intentionally no 'resize' listener
   }

@@ -121,7 +121,7 @@ class IrukaDarkApp {
     this.updateMonitoringUI();
     this.syncHeader();
 
-    // 初期フォーカス（Windows でのフォーカス取りこぼし対策）
+    // 初期フォーカス（入力しやすさのため）
     try {
       setTimeout(() => this.messageInput && this.messageInput.focus(), 0);
     } catch {}
@@ -306,29 +306,22 @@ class IrukaDarkApp {
         this.showToast(getUIText('failedToRegisterShortcut'), 'error', 3600);
         return;
       }
-      const isMacUA = typeof navigator !== 'undefined' && /Mac/.test(navigator.userAgent);
-      let display = (accel || '').replace('CommandOrControl', 'Cmd/Ctrl');
-      if (isMacUA) display = display.replace(/\bAlt\b/g, 'Option');
+      // macOS only: show Option instead of Alt
+      const display = String(accel || '').replace(/\bAlt\b/g, 'Option');
       if (accel && accel !== 'Alt+A') {
         this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
       }
     });
     on('onShortcutDetailedRegistered', (accel) => {
-      if (!accel) return; // 詳細ショートカットが登録できなかった場合は無通知
-      const isMacUA = typeof navigator !== 'undefined' && /Mac/.test(navigator.userAgent);
-      let display = (accel || '').replace('CommandOrControl', 'Cmd/Ctrl');
-      if (isMacUA) display = display.replace(/\bAlt\b/g, 'Option');
-      // 既定想定は Alt+Shift+A（Mac表示: Option+Shift+A）
+      if (!accel) return;
+      const display = String(accel || '').replace(/\bAlt\b/g, 'Option');
       if (accel && accel !== 'Alt+Shift+A') {
         this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
       }
     });
     on('onShortcutTranslateRegistered', (accel) => {
-      if (!accel) return; // 登録に失敗した場合は無通知
-      const isMacUA = typeof navigator !== 'undefined' && /Mac/.test(navigator.userAgent);
-      let display = (accel || '').replace('CommandOrControl', 'Cmd/Ctrl');
-      if (isMacUA) display = display.replace(/\bAlt\b/g, 'Option');
-      // 既定想定は Alt+R（Mac表示: Option+R）
+      if (!accel) return;
+      const display = String(accel || '').replace(/\bAlt\b/g, 'Option');
       if (accel && accel !== 'Alt+R') {
         this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
       }

@@ -11,8 +11,7 @@
     searching: "Web'de aranıyor…",
     accessibilityWarning:
       'Otomatik kopyalama için Sistem Ayarları > Güvenlik ve Gizlilik > Erişilebilirlik izni verin.',
-    shortcutRegistered: (accel) =>
-      `Kısayol ${accel.replace('CommandOrControl', 'Cmd/Ctrl')} olarak ayarlandı`,
+    shortcutRegistered: (accel) => `Kısayol ${accel} olarak ayarlandı`,
     failedToRegisterShortcut: 'Kısayol kaydedilemedi. Başka bir uygulama ile çakışıyor olabilir.',
     placeholder: "IrukaDark'a sor…",
     send: 'Gönder',

@@ -10,8 +10,7 @@
     thinking: '思考中…',
     searching: '正在进行网页搜索…',
     accessibilityWarning: '若要自动复制，请在系统设置 > 隐私与安全性 > 辅助功能中授予权限。',
-    shortcutRegistered: (accel) =>
-      `快捷键已设置为 ${accel.replace('CommandOrControl', 'Cmd/Ctrl')}`,
+    shortcutRegistered: (accel) => `快捷键已设置为 ${accel}`,
     failedToRegisterShortcut: '快捷键注册失败。可能与其他应用冲突。',
     placeholder: '向 IrukaDark 提问…',
     send: '发送',

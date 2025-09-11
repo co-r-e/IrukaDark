@@ -11,8 +11,7 @@
     searching: 'Recherche sur le web…',
     accessibilityWarning:
       "Pour la copie automatique, accordez l'autorisation dans Réglages Système > Sécurité et confidentialité > Accessibilité.",
-    shortcutRegistered: (accel) =>
-      `Raccourci défini sur ${accel.replace('CommandOrControl', 'Cmd/Ctrl')}`,
+    shortcutRegistered: (accel) => `Raccourci défini sur ${accel}`,
     failedToRegisterShortcut:
       'Échec de l’enregistrement du raccourci. Conflit possible avec une autre app.',
     placeholder: 'Demandez à IrukaDark…',

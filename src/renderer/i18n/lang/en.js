@@ -11,8 +11,7 @@
     searching: 'Searching the web...',
     accessibilityWarning:
       'For automatic copying, please grant permission in System Preferences > Security & Privacy > Accessibility.',
-    shortcutRegistered: (accel) =>
-      `Shortcut set to ${accel.replace('CommandOrControl', 'Cmd/Ctrl')}`,
+    shortcutRegistered: (accel) => `Shortcut set to ${accel}`,
     failedToRegisterShortcut:
       'Failed to register shortcut. There may be a conflict with another app.',
     placeholder: 'Ask IrukaDark...',

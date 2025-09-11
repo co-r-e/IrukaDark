@@ -11,8 +11,7 @@
     searching: 'กำลังค้นเว็บ…',
     accessibilityWarning:
       'หากต้องการคัดลอกอัตโนมัติ โปรดให้สิทธิ์ที่ การตั้งค่าระบบ > ความปลอดภัยและความเป็นส่วนตัว > การช่วยสำหรับการเข้าถึง',
-    shortcutRegistered: (accel) =>
-      `ตั้งคีย์ลัดเป็น ${accel.replace('CommandOrControl', 'Cmd/Ctrl')}`,
+    shortcutRegistered: (accel) => `ตั้งคีย์ลัดเป็น ${accel}`,
     failedToRegisterShortcut: 'ไม่สามารถลงทะเบียนคีย์ลัด อาจขัดแย้งกับแอปอื่น',
     placeholder: 'ถาม IrukaDark…',
     send: 'ส่ง',

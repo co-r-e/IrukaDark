@@ -11,8 +11,7 @@
     searching: 'Mencari di web…',
     accessibilityWarning:
       'Untuk penyalinan otomatis, beri izin di Pengaturan Sistem > Keamanan & Privasi > Aksesibilitas.',
-    shortcutRegistered: (accel) =>
-      `Pintasan disetel ke ${accel.replace('CommandOrControl', 'Cmd/Ctrl')}`,
+    shortcutRegistered: (accel) => `Pintasan disetel ke ${accel}`,
     failedToRegisterShortcut: 'Gagal mendaftarkan pintasan. Mungkin konflik dengan aplikasi lain.',
     placeholder: 'Tanyakan pada IrukaDark…',
     send: 'Kirim',

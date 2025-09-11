@@ -11,8 +11,7 @@
     searching: 'Поиск в интернете…',
     accessibilityWarning:
       'Для автокопирования дайте разрешение: Настройки системы > Безопасность и конфиденциальность > Универсальный доступ.',
-    shortcutRegistered: (accel) =>
-      `Горячая клавиша установлена: ${accel.replace('CommandOrControl', 'Cmd/Ctrl')}`,
+    shortcutRegistered: (accel) => `Горячая клавиша установлена: ${accel}`,
     failedToRegisterShortcut:
       'Не удалось зарегистрировать горячую клавишу. Возможно, конфликт с другой программой.',
     placeholder: 'Спросите IrukaDark…',

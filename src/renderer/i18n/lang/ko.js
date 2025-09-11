@@ -11,8 +11,7 @@
     searching: '웹에서 검색 중…',
     accessibilityWarning:
       '자동 복사를 위해 시스템 설정 > 보안 및 개인 정보 보호 > 손쉬운 사용에서 권한을 허용하세요.',
-    shortcutRegistered: (accel) =>
-      `단축키가 ${accel.replace('CommandOrControl', 'Cmd/Ctrl')}로 설정되었습니다`,
+    shortcutRegistered: (accel) => `단축키가 ${accel}로 설정되었습니다`,
     failedToRegisterShortcut: '단축키 등록 실패. 다른 앱과 충돌할 수 있습니다.',
     placeholder: 'IrukaDark에 질문하세요…',
     send: '보내기',

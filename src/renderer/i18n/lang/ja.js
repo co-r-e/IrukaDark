@@ -12,8 +12,7 @@
     searching: 'Web検索中...',
     accessibilityWarning:
       '自動コピーのため、システム設定 > プライバシーとセキュリティ > アクセシビリティ で許可が必要です。未許可の場合は手動でコピー（Cmd+C）してから実行してください。',
-    shortcutRegistered: (accel) =>
-      `ショートカットを ${accel.replace('CommandOrControl', 'Cmd/Ctrl')} に設定しました`,
+    shortcutRegistered: (accel) => `ショートカットを ${accel} に設定しました`,
     failedToRegisterShortcut:
       'ショートカットの登録に失敗しました。別のアプリと競合している可能性があります。',
     placeholder: 'イルカダークに質問する',

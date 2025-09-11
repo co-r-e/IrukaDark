@@ -28,8 +28,7 @@
         position: relative;
         cursor: move;
         -webkit-app-region: no-drag; /* manual drag via JS to allow click detection */
-        /* IMPORTANT: Transparent windows only receive events on non-transparent pixels.
-           Use a nearly-transparent background to make the whole rect hit-testable on Windows. */
+        /* Ensure transparent window receives events across the whole rect */
         background: rgba(0, 0, 0, 0.001);
         pointer-events: auto;
       }

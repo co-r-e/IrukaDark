@@ -11,8 +11,7 @@
     searching: 'Đang tìm trên web…',
     accessibilityWarning:
       'Để tự động sao chép, hãy cấp quyền tại Cài đặt hệ thống > Bảo mật & quyền riêng tư > Trợ năng.',
-    shortcutRegistered: (accel) =>
-      `Đã đặt phím tắt thành ${accel.replace('CommandOrControl', 'Cmd/Ctrl')}`,
+    shortcutRegistered: (accel) => `Đã đặt phím tắt thành ${accel}`,
     failedToRegisterShortcut: 'Không thể đăng ký phím tắt. Có thể xung đột với ứng dụng khác.',
     placeholder: 'Hỏi IrukaDark…',
     send: 'Gửi',

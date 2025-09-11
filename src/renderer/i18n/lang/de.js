@@ -11,8 +11,7 @@
     searching: 'Websuche läuft…',
     accessibilityWarning:
       'Für automatisches Kopieren bitte in Systemeinstellungen > Sicherheit & Datenschutz > Bedienungshilfen erlauben.',
-    shortcutRegistered: (accel) =>
-      `Tastenkürzel auf ${accel.replace('CommandOrControl', 'Cmd/Ctrl')} gesetzt`,
+    shortcutRegistered: (accel) => `Tastenkürzel auf ${accel} gesetzt`,
     failedToRegisterShortcut:
       'Registrierung des Kürzels fehlgeschlagen. Möglicher Konflikt mit anderer App.',
     placeholder: 'Frag IrukaDark…',

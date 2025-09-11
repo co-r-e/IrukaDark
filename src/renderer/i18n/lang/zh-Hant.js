@@ -10,7 +10,7 @@
     thinking: '思考中…',
     searching: '正在進行網頁搜尋…',
     accessibilityWarning: '若要自動複製，請於系統設定 > 隱私權與安全性 > 輔助使用授予權限。',
-    shortcutRegistered: (accel) => `快捷鍵已設為 ${accel.replace('CommandOrControl', 'Cmd/Ctrl')}`,
+    shortcutRegistered: (accel) => `快捷鍵已設為 ${accel}`,
     failedToRegisterShortcut: '無法註冊快捷鍵。可能與其他應用程式衝突。',
     placeholder: '向 IrukaDark 發問…',
     send: '傳送',

@@ -4,9 +4,7 @@
 
 # IrukaDark
 
-[日本語 (Japanese)](README.ja.md)
-
-Lightweight local AI chat (macOS / Windows / experimental Linux). Explain or translate selected text, or chat normally. Area screenshot explain is available on macOS/Windows/Linux.
+Lightweight local AI chat for macOS. Explain or translate selected text, or chat normally. Area screenshot explain is available.
 
 ## Features
 
@@ -15,13 +13,12 @@ Lightweight local AI chat (macOS / Windows / experimental Linux). Explain or tra
 - Right-click anywhere to open the application menu at the cursor
 - Identity auto-reply for “who are you?”/“tell me about yourself” prompts (short, branded)
 - Explain selected text via global shortcut
-  - Concise: mac: Option+A / Win/Linux: Alt+A
-  - Detailed: mac: Option+Shift+A / Win/Linux: Alt+Shift+A
+  - Concise: Option+A
+  - Detailed: Option+Shift+A
 - Translate selected text via global shortcut
-  - mac: Option+R / Win/Linux: Alt+R
+  - Option+R
 - Area screenshot explain (interactive selection)
-  - mac: Option+S (detailed: Option+Shift+S)
-  - Win/Linux: Alt+S (detailed: Alt+Shift+S)
+  - Option+S (detailed: Option+Shift+S)
 - Gemini integration via Google GenAI SDK (@google/genai) — default: 2.5 Flash Lite
 - Optional floating logo popup window (toggle from menu)
 - Clean, minimal UI with dark/light themes
@@ -62,20 +59,18 @@ npm start
 
 7. Set your API key in‑app (recommended)
 
-- macOS: App menu IrukaDark → AI Settings → “Set GEMINI_API_KEY”.
-- Windows/Linux: View → AI Settings → “Set GEMINI_API_KEY”.
-- You can also set model preferences there.
+- macOS: App menu IrukaDark → AI Settings → “Set GEMINI_API_KEY”。モデル設定も同メニューから可能です。
 
 Notes
 
 - macOS may ask for Accessibility and Screen Recording permissions.
-- The small logo popup toggles the main window; Option/Alt+A explains selected text.
+- The small logo popup toggles the main window; Option+A explains selected text.
 
 Common fixes
 
 - `API_KEY_INVALID`: wrong key type or pasted with spaces/quotes.
 - `npm install` errors: check network/proxy.
-- Option/Alt+A does nothing: ensure selection and required permissions; try manual copy then Option/Alt+A.
+- Option+A does nothing: ensure selection and required permissions; try manual copy then Option+A.
 
 ### Prerequisites
 
@@ -99,7 +94,7 @@ This project is intended to run locally from source. Clone the repository, insta
 - `PIN_ALL_SPACES` (optional): `1` to keep windows over all apps/spaces, `0` to limit to current space
 - `ENABLE_GOOGLE_SEARCH` (optional): `1` to enable grounded web search (default: `0`)
 - `CLIPBOARD_MAX_WAIT_MS` (optional): Max wait for detecting a fresh copy after the shortcut (default: 1200ms)
-- `SHORTCUT_MAX_TOKENS` (optional): Max output tokens for shortcut flows (Option/Alt+A,S). Default 1024; effective range 1–2048
+- `SHORTCUT_MAX_TOKENS` (optional): Max output tokens for shortcut flows (Option+A/S). Default 1024; effective range 1–2048
 - `SHOW_MAIN_ON_START` (optional): `1` to show the main window on launch (default: `1`)
 - `POPUP_MARGIN_RIGHT` (optional): Initial right margin (in px) for the logo popup. Default: `0`
 
@@ -112,8 +107,6 @@ Notes:
 
 - Default: settings live in the user data directory and can be edited in‑app (AI Settings).
   - macOS: `~/Library/Application Support/IrukaDark/irukadark.prefs.json`
-  - Windows: `%APPDATA%/IrukaDark/irukadark.prefs.json`
-  - Linux: `~/.config/IrukaDark/irukadark.prefs.json`
 - `.env.local` is NOT loaded by default. To use a portable `.env.local`, launch with `PORTABLE_MODE=1`.
 - Portable mode reads/writes `.env.local` in the app folder and is handy for USB‑stick style use.
 
@@ -121,11 +114,11 @@ Notes:
 
 1. Launch the app
 2. Select text and press the global shortcut
-   - Concise: mac: Option+A / Win/Linux: Alt+A
-   - Detailed: mac: Option+Shift+A / Win/Linux: Alt+Shift+A
-   - Translate: mac: Option+R / Win/Linux: Alt+R (pure translation into the UI language)
-   - Screenshot explain: mac: Option+S / Win/Linux: Alt+S (interactive area selection)
-   - Screenshot explain (detailed): mac: Option+Shift+S / Win/Linux: Alt+Shift+S
+   - Concise: Option+A
+   - Detailed: Option+Shift+A
+   - Translate: Option+R (pure translation into the UI language)
+   - Screenshot explain: Option+S (interactive area selection)
+   - Screenshot explain (detailed): Option+Shift+S
 3. You can also chat normally by typing and sending
 4. Right-click anywhere to open the application menu at the cursor
    - Even in detailed shortcut flows, the view auto-scrolls to the “Thinking…” indicator.
@@ -136,7 +129,7 @@ This repository ships installers via GitHub Releases on tagged pushes. Versionin
 
 Requirements
 
-- Put an app icon at the repo root: `icon.png` (1024×1024+ recommended). The build converts it to `.icns`/`.ico`/Linux PNGs automatically.
+- Put an app icon at the repo root: `icon.png` (1024×1024+ recommended). The build converts it to `.icns` automatically.
 - Node.js 18+ on CI (handled by workflow).
 
 Trigger a Release
@@ -175,14 +168,14 @@ Initial Layout
 
 - On launch the logo popup appears near the right edge, vertically centered. The main window starts shown by default (configurable via `SHOW_MAIN_ON_START`).
 - Click the logo to toggle the main window.
-- When Option/Alt+A produces an answer, the main window auto‑unhides non‑activating so you can see the result if it was hidden.
+- When Option+A produces an answer, the main window auto‑unhides non‑activating so you can see the result if it was hidden.
 - Any link in chat output opens in your default browser (never inside the app window).
 
 #### Heads‑up
 
-- On some machines, the auto‑copy used by Option/Alt+A can be blocked by OS settings, permissions, or other apps. If quick explain fails, use Option/Alt+S (area screenshot explain) instead — it works reliably in most cases and is often sufficient.
+- On some machines, the auto‑copy used by Option+A can be blocked by OS settings, permissions, or other apps. If quick explain fails, use Option+S (area screenshot explain) instead — it works reliably in most cases and is often sufficient.
 - On macOS, the app first tries to read selected text via Accessibility (AX) without touching the clipboard; only if that fails does it fall back to sending Cmd+C.
-- If the main window is hidden when Option/Alt+A succeeds, it automatically reappears non‑activating so you can see the answer (your current app keeps focus).
+- If the main window is hidden when Option+A succeeds, it automatically reappears non‑activating so you can see the answer (your current app keeps focus).
 
 ### Slash Commands
 
@@ -227,12 +220,11 @@ Initial Layout
 
 ### Notes
 
-This application now targets macOS only.
+This application targets macOS only.
 
 ## Permissions
 
 - macOS: Accessibility for auto-copy and AX selection read (required for Option+A)
-- Windows/Linux: No extra permissions
 
 ## Portable mode (.env.local) — optional
 
@@ -249,17 +241,17 @@ If you prefer a file‑based configuration for portable use:
 ## Shortcuts & Input
 
 - Send: Enter (Shift+Enter for newline)
-- Global explain (concise): mac: Option+A / Win/Linux: Alt+A (actual binding is shown via toast on startup if fallback applied)
-- Global explain (detailed): mac: Option+Shift+A / Win/Linux: Alt+Shift+A (falls back to Ctrl+Alt+Shift+A where needed)
-- Translate selection: mac: Option+R / Win/Linux: Alt+R (pure translation into the UI language)
+- Global explain (concise): Option+A
+- Global explain (detailed): Option+Shift+A
+- Translate selection: Option+R (pure translation into the UI language)
 - Suggestion list: ArrowUp/Down or Tab/Shift+Tab to move, Enter to confirm, Esc to close
-- Edit: Standard copy/paste/select-all shortcuts (Cmd or Ctrl)
+- Edit: Standard copy/paste/select-all shortcuts (Cmd)
 
 ## Privacy
 
-- Screenshots are captured only when you press Option/Alt+S and choose an area; the captured image is sent to Gemini API for analysis.
+- Screenshots are captured only when you press Option+S and choose an area; the captured image is sent to Gemini API for analysis.
 - Global explain uses selected text via clipboard (macOS auto-copy requires Accessibility)
-- You can always copy manually (Cmd/Ctrl+C) before using the shortcut
+- You can always copy manually (Cmd+C) before using the shortcut
 - API keys are used only in the Electron main process, never exposed to the renderer.
 
 ## License
@@ -275,9 +267,9 @@ MIT License. See `LICENSE`.
 
 - 400 API_KEY_INVALID: Use a valid Google AI Studio API Key. Generic Google API keys (e.g., Maps) will not work.
 - Ensure `.env.local` contains one of the supported key variables; prefer `GEMINI_API_KEY`.
-- If Option/Alt+A doesn’t work: Press manual copy once (mac: Cmd+C; Windows/Linux: Ctrl+C), then immediately press Option/Alt+A. This helps the app detect a fresh clipboard and proceed.
-- Focus gotcha (Option/Alt+A): The shortcut sends Cmd/Ctrl+C to the foreground app. If IrukaDark is focused (frontmost), the copy targets IrukaDark, so no fresh clipboard is detected and the action fails. Fix:
-  - Click the app that holds the selection to bring it to the front, then press Option/Alt+A.
-  - Or press manual copy in that app (mac: Cmd+C; Windows/Linux: Ctrl+C) and immediately press Option/Alt+A.
+- If Option+A doesn’t work: Press manual copy once (Cmd+C), then immediately press Option+A. This helps the app detect a fresh clipboard and proceed.
+- Focus gotcha (Option+A): The shortcut sends Cmd+C to the foreground app. If IrukaDark is focused (frontmost), the copy targets IrukaDark, so no fresh clipboard is detected and the action fails. Fix:
+  - Click the app that holds the selection to bring it to the front, then press Option+A.
+  - Or press manual copy in that app (Cmd+C) and immediately press Option+A.
   - If the floating window makes clicking the target app tricky, temporarily disable View > Appearance > “Show Over All Apps/Spaces”, click the target app, then try again.
 - If the main window remains hidden after an answer, it should auto‑unhide non‑activating. If it doesn’t, check View > Appearance > “Show Over All Apps/Spaces”.

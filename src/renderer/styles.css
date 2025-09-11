@@ -314,7 +314,7 @@ html.solid-window.theme-dark .glass-effect {
   -webkit-app-region: no-drag;
 }
 
-/* Ensure interactive areas are never part of the drag region (Windows focus fix) */
+/* Ensure interactive areas are never part of the drag region */
 #chatHistory,
 #inputArea,
 #inputWrapper,
@@ -323,7 +323,7 @@ html.solid-window.theme-dark .glass-effect {
   -webkit-app-region: no-drag !important;
   pointer-events: auto;
 }
-/* Make text input definitely typeable/selectable on Windows */
+/* Ensure text input is typeable/selectable */
 #messageInput {
   -webkit-user-select: text;
   user-select: text;

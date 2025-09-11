@@ -11,8 +11,7 @@
     searching: 'Buscando en la web...',
     accessibilityWarning:
       'Para copiar automáticamente, da permiso en Preferencias del sistema > Privacidad y seguridad > Accesibilidad.',
-    shortcutRegistered: (accel) =>
-      `Atajo configurado a ${accel.replace('CommandOrControl', 'Cmd/Ctrl')}`,
+    shortcutRegistered: (accel) => `Atajo configurado a ${accel}`,
     failedToRegisterShortcut: 'No se pudo registrar el atajo. Puede haber conflicto con otra app.',
     placeholder: 'Pregunta a IrukaDark...',
     send: 'Enviar',

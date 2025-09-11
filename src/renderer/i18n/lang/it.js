@@ -11,8 +11,7 @@
     searching: 'Ricerca sul web…',
     accessibilityWarning:
       "Per la copia automatica, concedi l'autorizzazione in Impostazioni di sistema > Sicurezza e privacy > Accessibilità.",
-    shortcutRegistered: (accel) =>
-      `Scorciatoia impostata su ${accel.replace('CommandOrControl', 'Cmd/Ctrl')}`,
+    shortcutRegistered: (accel) => `Scorciatoia impostata su ${accel}`,
     failedToRegisterShortcut:
       "Impossibile registrare la scorciatoia. Possibile conflitto con un'altra app.",
     placeholder: 'Chiedi a IrukaDark…',
