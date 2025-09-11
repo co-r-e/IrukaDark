@@ -1,5 +1,5 @@
 /*!
- * IrukaDark — (c) 2025 CORe Inc (コーレ株式会社).
+ * IrukaDark — (c) 2025 CORe Inc.
  * License: MIT. See https://github.com/co-r-e/IrukaDark/blob/HEAD/LICENSE
  */
 const I18N_STRINGS = (typeof window !== 'undefined' && window.IRUKADARK_I18N) || {};
@@ -793,20 +793,20 @@ class IrukaDarkApp {
 
   pickIdentityResponse(lang) {
     const ja = [
-      'IrukaDarkです。CORe Inc.（コーレ株式会社）製の小さな相棒AI。さっと答えます。',
-      '私はIrukaDark。CORe Inc.（コーレ株式会社）生まれのデスクトップAIです。',
-      'IrukaDark—CORe Inc.（コーレ株式会社）がつくった、軽快で手軽なAIです。',
-      '呼ばれて飛び出るIrukaDark。CORe Inc.（コーレ株式会社）製、素早く要点を届けます。',
-      'どうも、IrukaDarkです。CORe Inc.（コーレ株式会社）発のミニAI。日常の「ちょっと」を解決します。',
-      'IrukaDarkです。CORe Inc.（コーレ株式会社）製。小さくても頼れる、常駐型AI。',
+      'IrukaDarkです。CORe Inc.製の小さな相棒AI。さっと答えます。',
+      '私はIrukaDark。CORe Inc.生まれのデスクトップAIです。',
+      'IrukaDark—CORe Inc.がつくった、軽快で手軽なAIです。',
+      '呼ばれて飛び出るIrukaDark。CORe Inc.製、素早く要点を届けます。',
+      'どうも、IrukaDarkです。CORe Inc.発のミニAI。日常の「ちょっと」を解決します。',
+      'IrukaDarkです。CORe Inc.製。小さくても頼れる、常駐型AI。',
     ];
     const en = [
-      "I'm IrukaDark — a tiny desktop AI made by CORe Inc. (コーレ株式会社).",
-      'Hi, IrukaDark here. Built at CORe Inc. (コーレ株式会社) to help fast.',
-      'IrukaDark, crafted by CORe Inc. (コーレ株式会社). Small app, quick answers.',
-      'I am IrukaDark, a lightweight helper AI by CORe Inc. (コーレ株式会社).',
-      'IrukaDark — born at CORe Inc. (コーレ株式会社). Here to keep things snappy.',
-      'Hey! I’m IrukaDark. Made by CORe Inc. (コーレ株式会社) for instant help.',
+      "I'm IrukaDark — a tiny desktop AI made by CORe Inc.",
+      'Hi, IrukaDark here. Built at CORe Inc. to help fast.',
+      'IrukaDark, crafted by CORe Inc. Small app, quick answers.',
+      'I am IrukaDark, a lightweight helper AI by CORe Inc.',
+      'IrukaDark — born at CORe Inc. Here to keep things snappy.',
+      'Hey! I’m IrukaDark. Made by CORe Inc. for instant help.',
     ];
     const arr = lang === 'ja' ? ja : en;
     return arr[Math.floor(Math.random() * arr.length)];

@@ -1,7 +1,9 @@
 // Conditional notarization hook for electron-builder
 // Runs only on macOS builds and only if Apple ID credentials are provided.
 
-const { notarize } = require('electron-notarize');
+const { execFile } = require('node:child_process');
+const { promisify } = require('node:util');
+const pexecFile = promisify(execFile);
 
 exports.default = async function afterSign(context) {
   const { electronPlatformName, appOutDir } = context;
@@ -21,13 +23,25 @@ exports.default = async function afterSign(context) {
   const appPath = `${appOutDir}/${appName}.app`;
 
   console.log(`[afterSign] Notarizing ${appPath} with Apple ID ${appleId}`);
-  await notarize({
-    tool: 'notarytool',
-    appBundleId: context.packager.appInfo.bundleId,
-    appPath,
-    appleId,
-    appleIdPassword,
-    teamId,
-  });
-  console.log('[afterSign] Notarization complete.');
+  // Submit for notarization and wait
+  await pexecFile(
+    'xcrun',
+    [
+      'notarytool',
+      'submit',
+      appPath,
+      '--apple-id',
+      appleId,
+      '--password',
+      appleIdPassword,
+      '--team-id',
+      teamId,
+      '--wait',
+    ],
+    { stdio: 'inherit' }
+  );
+
+  // Staple the ticket
+  await pexecFile('xcrun', ['stapler', 'staple', '-v', appPath], { stdio: 'inherit' });
+  console.log('[afterSign] Notarization + stapling complete.');
 };

@@ -46,6 +46,17 @@ jobs:
             npx electron-builder --mac dmg --x64 --config.mac.identity=null --publish always
           fi
 
+      - name: Generate SHA-256 checksums
+        run: node scripts/generate-sha256.js
+
+      - name: Upload checksums to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          ls dist/*.sha256
+          gh release upload "${{ github.ref_name }}" dist/*.sha256 --clobber
+
   mac-arm64:
     name: macOS arm64 (Apple Silicon)
     runs-on: macos-14
@@ -77,6 +88,17 @@ jobs:
             echo "Signing secrets not set. Building unsigned."
             npx electron-builder --mac dmg --arm64 --config.mac.identity=null --publish always
           fi
+
+      - name: Generate SHA-256 checksums
+        run: node scripts/generate-sha256.js
+
+      - name: Upload checksums to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          ls dist/*.sha256
+          gh release upload "${{ github.ref_name }}" dist/*.sha256 --clobber
 
   windows-x64:
     name: Windows x64
@@ -111,6 +133,19 @@ jobs:
             npx electron-builder --win nsis --x64 --publish always
           fi
 
+      - name: Generate SHA-256 checksums
+        shell: bash
+        run: node scripts/generate-sha256.js
+
+      - name: Upload checksums to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ls dist/*.sha256
+          gh release upload "${{ github.ref_name }}" dist/*.sha256 --clobber
+
   linux-x64:
     name: Linux x64
     runs-on: ubuntu-latest
@@ -128,3 +163,14 @@ jobs:
 
       - name: Build & Publish
         run: npm run dist:linux
+
+      - name: Generate SHA-256 checksums
+        run: node scripts/generate-sha256.js
+
+      - name: Upload checksums to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          ls dist/*.sha256
+          gh release upload "${{ github.ref_name }}" dist/*.sha256 --clobber
