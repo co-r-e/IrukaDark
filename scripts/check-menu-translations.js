@@ -24,7 +24,7 @@ for (const m of menuCode.matchAll(/menuTranslations\.en\.([a-zA-Z0-9_]+)/g)) {
 }
 
 // Load translation object
- 
+
 const menuTranslations = require(translationsPath);
 
 const locales = Object.keys(menuTranslations);
