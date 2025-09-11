@@ -46,7 +46,6 @@ jobs:
           gh release create "$TAG" --title "$TITLE" --notes "Automated build for $TAG" --latest --target ${{ github.sha }}
   mac-x64:
     needs: prepare
-    if: ${{ secrets.MAC_CSC_LINK != '' && secrets.MAC_CSC_KEY_PASSWORD != '' && secrets.APPLE_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
     name: macOS x64 (Intel)
     runs-on: macos-13
     steps:
@@ -92,7 +91,6 @@ jobs:
 
   mac-arm64:
     needs: prepare
-    if: ${{ secrets.MAC_CSC_LINK != '' && secrets.MAC_CSC_KEY_PASSWORD != '' && secrets.APPLE_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
     name: macOS arm64 (Apple Silicon)
     runs-on: macos-14
     steps:
