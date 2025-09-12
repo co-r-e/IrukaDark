@@ -1692,6 +1692,7 @@ ${t}`;
   async generateTextExplanation(text, historyText = '', useWebSearch = false) {
     const lang =
       (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
+    const tone = typeof getCurrentTone === 'function' ? getCurrentTone() : 'casual';
     const { name, code } = getLangMeta(lang);
     const t =
       text.length > 8000
@@ -1699,9 +1700,14 @@ ${t}`;
         : text;
     let prompt;
     if (lang === 'ja') {
-      prompt = `「${t}」について一言で教えてください。日本語で短く1文で、結論から端的に。`;
+      const toneLine =
+        tone === 'casual'
+          ? ' 口調はやさしく温かみのあるタメ口（常体）。くだけすぎない。絵文字は使わない。'
+          : '';
+      prompt = `「${t}」について一言で教えてください。日本語で短く1文で、結論から端的に。${toneLine}`;
     } else {
-      prompt = `Explain "${t}" in one short sentence. Start with the conclusion, be clear and concise. Respond strictly in ${name} (${code}).`;
+      const toneLine = tone === 'casual' ? ' Use a friendly, conversational tone (no emojis).' : '';
+      prompt = `Explain "${t}" in one short sentence. Start with the conclusion, be clear and concise. Respond strictly in ${name} (${code}).${toneLine}`;
     }
     if (historyText && historyText.trim()) {
       prompt =

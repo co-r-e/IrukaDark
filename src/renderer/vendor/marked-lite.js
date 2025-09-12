@@ -18,9 +18,10 @@
     });
     // inline code `code`
     out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
-    // bold **text** and italic *text*
+    // bold **text** (italic disabled)
     out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    out = out.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    // Disable italic: strip single-asterisk emphasis to plain text
+    out = out.replace(/\*([^*]+)\*/g, '$1');
     // links [text](url)
     out = out.replace(
       /\[([^\]]+)\]\((https?:[^)\s]+)\)/g,

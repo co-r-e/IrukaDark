@@ -360,6 +360,12 @@ html.solid-window.theme-dark .glass-effect {
   padding: 0 0.75rem;
 }
 
+/* Never use italics in chat output */
+#chatHistory em,
+#chatHistory i {
+  font-style: normal !important;
+}
+
 .message-user-content {
   background-color: rgba(255, 255, 255, 0.7);
   color: #374151;
@@ -477,7 +483,7 @@ html.solid-window.theme-dark .glass-effect {
 .message-ai-content blockquote {
   border-left: 4px solid #d1d5db;
   padding-left: 1rem;
-  font-style: italic;
+  font-style: normal;
   color: #6b7280;
   margin-bottom: 0.75rem;
   margin-right: 0;
@@ -487,8 +493,9 @@ html.solid-window.theme-dark .glass-effect {
   font-weight: 600;
 }
 
-.message-ai-content em {
-  font-style: italic;
+.message-ai-content em,
+.message-ai-content i {
+  font-style: normal;
 }
 
 .message-ai-content a {
