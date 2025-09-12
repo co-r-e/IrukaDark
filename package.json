@@ -19,6 +19,11 @@
     "prepare": "husky",
     "check:menu-translations": "node scripts/check-menu-translations.js"
   },
+  "releaseScripts": {
+    "bump:patch": "node scripts/release-bump.js patch",
+    "bump:minor": "node scripts/release-bump.js minor",
+    "bump:major": "node scripts/release-bump.js major"
+  },
   "keywords": [
     "electron",
     "ai",

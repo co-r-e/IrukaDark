@@ -134,7 +134,19 @@ Requirements
 
 Trigger a Release
 
-- Create and push a tag like `v1.0.0` to `main` (or your release branch). The workflow builds and publishes a Release (not draft).
+- Recommended: auto-bump and tag via script
+
+  ```bash
+  # Patch release (vX.Y.Z → vX.Y.(Z+1))
+  npm run -s bump:patch
+  # or minor/major
+  npm run -s bump:minor
+  npm run -s bump:major
+  ```
+
+  The script updates `package.json`, commits, tags (e.g., `v1.0.1`), and pushes. GitHub Actions builds and publishes the Release.
+
+- Alternatively: manually create and push a tag like `v1.0.1` to `main`.
 
 What gets built
 
