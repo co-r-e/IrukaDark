@@ -134,17 +134,17 @@ Requirements
 
 Trigger a Release
 
-- Recommended: auto-bump and tag via script
+- Recommended: use npm version scripts (standard)
 
   ```bash
   # Patch release (vX.Y.Z → vX.Y.(Z+1))
-  npm run -s bump:patch
+  npm run release:patch
   # or minor/major
-  npm run -s bump:minor
-  npm run -s bump:major
+  npm run release:minor
+  npm run release:major
   ```
 
-  The script updates `package.json`, commits, tags (e.g., `v1.0.1`), and pushes. GitHub Actions builds and publishes the Release.
+  These run `npm version` to update `package.json`, create a tag (e.g., `v1.0.1`), and push. GitHub Actions builds and publishes the Release.
 
 - Alternatively: manually create and push a tag like `v1.0.1` to `main`.
 

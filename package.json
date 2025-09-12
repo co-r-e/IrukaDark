@@ -17,12 +17,10 @@
     "lint": "eslint . --ext .js",
     "lint:fix": "eslint . --ext .js --fix",
     "prepare": "husky",
-    "check:menu-translations": "node scripts/check-menu-translations.js"
-  },
-  "releaseScripts": {
-    "bump:patch": "node scripts/release-bump.js patch",
-    "bump:minor": "node scripts/release-bump.js minor",
-    "bump:major": "node scripts/release-bump.js major"
+    "check:menu-translations": "node scripts/check-menu-translations.js",
+    "release:patch": "npm version patch -m \"chore(release): %s\" && git push && git push --follow-tags",
+    "release:minor": "npm version minor -m \"chore(release): %s\" && git push && git push --follow-tags",
+    "release:major": "npm version major -m \"chore(release): %s\" && git push && git push --follow-tags"
   },
   "keywords": [
     "electron",
