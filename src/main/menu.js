@@ -13,6 +13,10 @@ function createAppMenu(ctx) {
   );
   const curTheme = String(getPref('UI_THEME') || process.env.UI_THEME || 'dark');
   const curTone = String(getPref('TONE') || process.env.TONE || 'casual');
+  const hasSavedGeminiKey = !!getPref('GEMINI_API_KEY');
+  const placeholderSaved = currentLang.startsWith('ja')
+    ? '••••••••（保存済み。変更するには新しいキーを入力／空で削除）'
+    : '•••••••• (saved; enter new key to overwrite, leave blank to remove)';
 
   const promptSetEnv = async (
     key,
@@ -171,7 +175,7 @@ function createAppMenu(ctx) {
             await promptSetEnv('GEMINI_API_KEY', {
               title: t.setGeminiApiKey || menuTranslations.en.setGeminiApiKey,
               label: 'GEMINI_API_KEY',
-              placeholder: 'AIza… or AI… key',
+              placeholder: hasSavedGeminiKey ? placeholderSaved : 'AIza… or AI… key',
               password: true,
               defaultValue: '',
             });
@@ -274,7 +278,7 @@ function createAppMenu(ctx) {
                 await promptSetEnv('GEMINI_API_KEY', {
                   title: t.setGeminiApiKey || menuTranslations.en.setGeminiApiKey,
                   label: 'GEMINI_API_KEY',
-                  placeholder: 'AIza… or AI… key',
+                  placeholder: hasSavedGeminiKey ? placeholderSaved : 'AIza… or AI… key',
                   password: true,
                   defaultValue: '',
                 });

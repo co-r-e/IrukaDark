@@ -10,44 +10,7 @@ const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 // Timings for temporary hide/show during shortcut copy
 const HIDE_DELAY_MS_MAC = 140;
 
-// Track clipboard text freshness (trimmed text + last change time)
-let clipboardTextSnapshot = '';
-let clipboardChangedAt = 0; // 0 means unknown age
-let clipboardWatcher = null;
-
-function startClipboardWatcher() {
-  try {
-    try {
-      clipboardTextSnapshot = (clipboard.readText() || '').trim();
-    } catch {
-      clipboardTextSnapshot = '';
-    }
-    clipboardChangedAt = 0;
-    if (clipboardWatcher) {
-      try {
-        clearInterval(clipboardWatcher);
-      } catch {}
-    }
-    clipboardWatcher = setInterval(() => {
-      try {
-        const t = (clipboard.readText() || '').trim();
-        if (t && t !== clipboardTextSnapshot) {
-          clipboardTextSnapshot = t;
-          clipboardChangedAt = Date.now();
-        }
-      } catch {}
-    }, 250);
-  } catch {}
-}
-
-function isClipboardTextStale(text, thresholdMs = 3000) {
-  try {
-    const current = (clipboard.readText() || '').trim();
-    if (!text || text.trim() !== current) return false;
-  } catch {}
-  if (!clipboardChangedAt) return true;
-  return Date.now() - clipboardChangedAt >= thresholdMs;
-}
+// Clipboard freshness watcher removed — not needed after spec change
 
 function showWindowNonActivating(win) {
   try {
@@ -89,10 +52,6 @@ async function pollClipboardChange(beforeText, maxWaitMs) {
           `"${now.substring(0, 50)}..."`
         );
       }
-      try {
-        clipboardTextSnapshot = now;
-        clipboardChangedAt = Date.now();
-      } catch {}
       return now;
     }
     last = now;
@@ -195,10 +154,6 @@ async function tryCopySelectedText() {
     try {
       const axText = (await macReadSelectedTextViaAX()) || '';
       if (axText && axText.trim()) {
-        try {
-          clipboardTextSnapshot = axText.trim();
-          clipboardChangedAt = Date.now();
-        } catch {}
         return axText.trim();
       }
       try {
@@ -254,9 +209,6 @@ async function captureInteractiveArea() {
 }
 
 module.exports = {
-  startClipboardWatcher,
-  isClipboardTextStale,
-  getAllWindowsSafe,
   showWindowNonActivating,
   tryCopySelectedText,
   captureInteractiveArea,

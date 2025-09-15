@@ -12,7 +12,6 @@ const {
   globalShortcut,
   shell,
 } = require('electron');
-// child_process exec usage moved to modules
 const path = require('path');
 
 const fs = require('fs');
@@ -41,7 +40,6 @@ try {
 const isDev = process.env.NODE_ENV === 'development';
 // Clipboard/shortcut helpers
 const {
-  startClipboardWatcher,
   showWindowNonActivating,
   tryCopySelectedText,
   captureInteractiveArea,
@@ -60,11 +58,7 @@ const INITIAL_POPUP_MARGIN_RIGHT = Number.isFinite(
 let currentAIController = null; // AbortController of the active REST call
 let currentAIKind = null; // 'shortcut' | 'chat' | null
 
-// Clipboard watcher moved to shortcuts.js
-
-// startClipboardWatcher moved to shortcuts.js
-
-// isClipboardTextStale moved to shortcuts.js
+// Clipboard helpers are provided via ./main/shortcuts
 let currentAICancelFlag = null; // { user: boolean } when cancel requested by user
 
 function resolveApiKeys() {
@@ -114,7 +108,7 @@ try {
 } catch {}
 
 let mainWindow;
-let closingAllWindows = false; // guard for cascading close
+//
 
 function getCurrentLanguage() {
   return process.env.MENU_LANGUAGE || 'en';
@@ -337,17 +331,7 @@ function createWindow() {
   // macOS only: no special taskbar handling
 }
 
-// delay helper moved to shortcuts.js
-
-// Updates helpers removed (GitHub Releases discontinued)
-
-// triggerMacCopyShortcut / macReadSelectedTextViaAX moved to shortcuts.js
-
-// Show a window without stealing focus when possible
-// showWindowNonActivating moved to shortcuts.js
-
-// Safe wrapper to get all BrowserWindows
-// getAllWindowsSafe moved to shortcuts.js
+// Show a window without stealing focus when possible (see shortcuts.js)
 
 // Bring our main window to foreground (best-effort) without changing UI layout
 function bringAppToFront() {
@@ -359,18 +343,9 @@ function bringAppToFront() {
   } catch {}
 }
 
-// readClipboardTextTrimmed / pollClipboardChange moved to shortcuts.js
-
-// Clipboard helpers moved to shortcuts.js
-
-// tryCopySelectedText moved to shortcuts.js
-
-// Cross-platform interactive area screenshot
-// captureInteractiveArea moved to shortcuts.js
+// Shortcut clipboard/screenshot helpers are defined in shortcuts.js
 
 app.whenReady().then(async () => {
-  // Start clipboard watcher (non-critical)
-  startClipboardWatcher();
   try {
     const userData = app.getPath('userData');
     const prefsPath = path.join(userData, 'irukadark.prefs.json');
@@ -443,8 +418,6 @@ app.whenReady().then(async () => {
   createAppMenu();
 
   createWindow();
-
-  // Update checks removed
 
   // Preflight permissions on first launch (macOS): Accessibility + Screen Recording
   try {
@@ -712,8 +685,6 @@ function getPortableEnvPath() {
   return path.join(__dirname, '../.env.local');
 }
 
-// moved to ./main/permissions
-
 // 言語設定の保存
 function upsertEnvVar(envPath, key, value) {
   const envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
@@ -770,7 +741,6 @@ function handleThemeChange(theme) {
 }
 
 // トーン設定の取得/保存/適用
-//
 
 function saveToneSetting(tone) {
   try {
@@ -853,7 +823,6 @@ function createAppMenu() {
           else createPopupWindow();
         } catch {}
       },
-      // Updates removed
       rebuild: () => createAppMenu(),
     };
     buildMenu(ctx);
@@ -890,9 +859,7 @@ function handleWindowOpacityChange(opacity) {
 }
 
 app.on('window-all-closed', () => {
-  try {
-    closingAllWindows = true;
-  } catch {}
+  //
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -900,9 +867,7 @@ app.on('window-all-closed', () => {
 
 // Ensure auxiliary windows are closed even when quitting from menu or other paths
 app.on('before-quit', () => {
-  try {
-    closingAllWindows = true;
-  } catch {}
+  //
   try {
     const wins = BrowserWindow.getAllWindows ? BrowserWindow.getAllWindows() : [];
     for (const w of wins) {

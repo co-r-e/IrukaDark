@@ -13,7 +13,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getGlassLevel: () => ipcRenderer.invoke('get-glass-level'),
   getWindowOpacity: () => ipcRenderer.invoke('get-window-opacity'),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
-  // Updates removed (no GitHub Releases)
   aiGenerate: (prompt, options = {}) => ipcRenderer.invoke('ai:generate', { prompt, ...options }),
   aiGenerateWithImage: (prompt, imageBase64, mimeType = 'image/png', options = {}) =>
     ipcRenderer.invoke('ai:generate-with-image', { prompt, imageBase64, mimeType, ...options }),
