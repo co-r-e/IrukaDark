@@ -27,6 +27,51 @@
       /\[([^\]]+)\]\((https?:[^)\s]+)\)/g,
       '<a href="$2" target="_blank" rel="noopener noreferrer">$1<\/a>'
     );
+    // GFM tables
+    out = (function toTables(text) {
+      const lines = text.split(/\n/);
+      const sepRe = /^\s*\|?\s*:?-{3,}\s*(\|\s*:?-{3,}\s*)+\|?\s*$/;
+      const hasPipe = (s) => /\|/.test(s);
+      const splitCells = (s) => {
+        s = String(s || '');
+        if (s.startsWith('|')) s = s.slice(1);
+        if (s.endsWith('|')) s = s.slice(0, -1);
+        return s.split('|').map((c) => c.trim());
+      };
+      let out = '';
+      for (let i = 0; i < lines.length; i++) {
+        const header = lines[i];
+        const sep = i + 1 < lines.length ? lines[i + 1] : '';
+        if (hasPipe(header) && sepRe.test(sep)) {
+          const headers = splitCells(header);
+          let j = i + 2;
+          const rows = [];
+          while (j < lines.length && hasPipe(lines[j]) && !/^\s*$/.test(lines[j])) {
+            rows.push(splitCells(lines[j]));
+            j++;
+          }
+          // build table
+          out += '<table><thead><tr>';
+          headers.forEach((h) => {
+            out += '<th>' + h + '</th>';
+          });
+          out += '</tr></thead><tbody>';
+          rows.forEach((r) => {
+            out += '<tr>';
+            for (let k = 0; k < headers.length; k++) {
+              const v = typeof r[k] === 'undefined' ? '' : r[k];
+              out += '<td>' + v + '</td>';
+            }
+            out += '</tr>';
+          });
+          out += '</tbody></table>';
+          i = j - 1; // skip consumed lines
+          continue;
+        }
+        out += header + '\n';
+      }
+      return out;
+    })(out);
     // lists - item / * item
     out = out.replace(/^(?:[-*] )(.+)$/gm, '<li>$1</li>');
     out = out.replace(/(<li>[^<]+<\/li>\n?)+/g, function (m) {
@@ -44,7 +89,7 @@
     out = out
       .split(/\n{2,}/)
       .map((p) =>
-        /^\s*<h\d|^\s*<ul|^\s*<pre|^\s*<blockquote|^\s*<p/.test(p)
+        /^\s*<h\d|^\s*<ul|^\s*<pre|^\s*<blockquote|^\s*<p|^\s*<table/.test(p)
           ? p
           : `<p>${p.replace(/\n/g, '<br>')}</p>`
       )
