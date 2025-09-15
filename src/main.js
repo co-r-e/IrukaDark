@@ -42,7 +42,6 @@ const isDev = process.env.NODE_ENV === 'development';
 // Clipboard/shortcut helpers
 const {
   startClipboardWatcher,
-  isClipboardTextStale,
   showWindowNonActivating,
   tryCopySelectedText,
   captureInteractiveArea,
@@ -370,7 +369,7 @@ function bringAppToFront() {
 // captureInteractiveArea moved to shortcuts.js
 
 app.whenReady().then(async () => {
-  // Start monitoring clipboard changes to determine freshness
+  // Start clipboard watcher (non-critical)
   startClipboardWatcher();
   try {
     const userData = app.getPath('userData');
@@ -466,15 +465,10 @@ app.whenReady().then(async () => {
               const text = await tryCopySelectedText();
               if (!mainWindow || mainWindow.isDestroyed()) return;
               if (text) {
-                // If clipboard text is older than threshold, show short system message only
-                if (isClipboardTextStale(text, 3000)) {
-                  mainWindow.webContents.send('explain-clipboard-error', '');
-                } else {
-                  mainWindow.webContents.send(
-                    detailed ? 'explain-clipboard-detailed' : 'explain-clipboard',
-                    text
-                  );
-                }
+                mainWindow.webContents.send(
+                  detailed ? 'explain-clipboard-detailed' : 'explain-clipboard',
+                  text
+                );
               } else {
                 mainWindow.webContents.send('explain-clipboard-error', '');
               }
@@ -518,11 +512,7 @@ app.whenReady().then(async () => {
               const text = await tryCopySelectedText();
               if (!mainWindow || mainWindow.isDestroyed()) return;
               if (text) {
-                if (isClipboardTextStale(text, 3000)) {
-                  mainWindow.webContents.send('explain-clipboard-error', '');
-                } else {
-                  mainWindow.webContents.send('translate-clipboard', text);
-                }
+                mainWindow.webContents.send('translate-clipboard', text);
               } else {
                 mainWindow.webContents.send('explain-clipboard-error', '');
               }
