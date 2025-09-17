@@ -39,6 +39,45 @@ const SOURCE_MARKERS = (() => {
   }
 })();
 
+// Slash command metadata for language-specific translations
+const SLASH_TRANSLATE_TARGETS = [
+  {
+    key: '/translate_ja',
+    label: '/translate_JA',
+    target: 'ja',
+    desc: { en: 'Translate last AI output into Japanese', ja: '直前のAI出力を日本語に翻訳' },
+  },
+  {
+    key: '/translate_en',
+    label: '/translate_EN',
+    target: 'en',
+    desc: { en: 'Translate last AI output into English', ja: '直前のAI出力を英語に翻訳' },
+  },
+  {
+    key: '/translate_zh-cn',
+    label: '/translate_zh-CN',
+    target: 'zh-CN',
+    desc: {
+      en: 'Translate last AI output into Simplified Chinese',
+      ja: '直前のAI出力を簡体字に翻訳',
+    },
+  },
+  {
+    key: '/translate_zh-tw',
+    label: '/translate_zh-TW',
+    target: 'zh-TW',
+    desc: {
+      en: 'Translate last AI output into Traditional Chinese',
+      ja: '直前のAI出力を繁体字に翻訳',
+    },
+  },
+];
+
+const SLASH_TRANSLATE_LOOKUP = SLASH_TRANSLATE_TARGETS.reduce((map, cfg) => {
+  map[cfg.key] = cfg;
+  return map;
+}, {});
+
 function getLangMeta(code) {
   const lang = String(code || 'en');
   const name = LANG_NAMES[lang] || 'English';
@@ -813,6 +852,11 @@ class IrukaDarkApp {
   async handleSlashCommand(input) {
     const cmd = (input || '').trim();
     const lower = cmd.toLowerCase();
+    const translate = SLASH_TRANSLATE_LOOKUP[lower];
+    if (translate) {
+      await this.runSlashTranslation(translate.target || lower.split('_')[1] || 'en', translate);
+      return;
+    }
     if (lower === '/clear') {
       try {
         this.chatHistoryData = [];
@@ -1012,6 +1056,38 @@ class IrukaDarkApp {
     this.addMessage('system', getUIText('availableCommands'));
   }
 
+  async runSlashTranslation(targetCode, meta = null) {
+    try {
+      this.disableAutoScroll = true;
+      const lastAI = [...(this.chatHistoryData || [])]
+        .reverse()
+        .find((m) => m && m.role === 'assistant' && m.content);
+      if (!lastAI) {
+        this.addMessage('system', getUIText('noPreviousAI'));
+        return;
+      }
+      const code = meta?.target || targetCode || 'en';
+      this.showTypingIndicator();
+      const translation = await this.geminiService.generateTargetedTranslation(
+        String(lastAI.content || ''),
+        code
+      );
+      this.hideTypingIndicator();
+      if (this.cancelRequested) {
+        return;
+      }
+      this.addMessage('ai', translation);
+    } catch (e) {
+      this.hideTypingIndicator();
+      if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
+        return;
+      }
+      this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
+    } finally {
+      this.disableAutoScroll = false;
+    }
+  }
+
   initSlashSuggest() {
     this.slashCommands = [
       // 1) New command at the top
@@ -1040,6 +1116,7 @@ class IrukaDarkApp {
         label: '/compact',
         desc: { en: 'Summarize and compact history', ja: '履歴を要約して圧縮' },
       },
+      ...SLASH_TRANSLATE_TARGETS,
       {
         key: '/websearch on',
         label: '/websearch on',
@@ -1686,6 +1763,28 @@ ${t}`;
     // Web search is unnecessary for pure translation
     const res = await this.requestText(prompt, false, 'shortcut');
     return res;
+  }
+
+  async generateTargetedTranslation(text, targetCode = 'en') {
+    const targets = {
+      en: { name: 'English', code: 'en' },
+      ja: { name: 'Japanese', code: 'ja' },
+      'zh-CN': { name: 'Simplified Chinese', code: 'zh-CN' },
+      'zh-TW': { name: 'Traditional Chinese', code: 'zh-TW' },
+    };
+    const target = targets[targetCode] || targets.en;
+    const trimmed = text.length > 12000 ? text.slice(0, 12000) + ' …(truncated)' : text;
+    const prompt = `Translate the following text strictly into ${target.name} (${target.code}).
+
+Rules:
+- Output the translation only. No explanations or prefaces.
+- Preserve Markdown, lists, and code blocks.
+- Keep URLs, code identifiers, and proper nouns unchanged where appropriate.
+- If the source mixes languages, ensure the final output is entirely in ${target.name}.
+
+Text:
+${trimmed}`;
+    return this.requestText(prompt, false, 'chat');
   }
 
   /** テキストのみを解説する（UI言語に合わせて出力言語を切替） */

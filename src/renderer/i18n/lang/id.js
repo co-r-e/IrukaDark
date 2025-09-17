@@ -19,7 +19,8 @@
     canceled: 'Dibatalkan.',
     historyCleared: 'Riwayat obrolan dihapus.',
     historyCompacted: 'Riwayat diringkas dan dipadatkan.',
-    availableCommands: 'Perintah: /clear, /compact, /next, /contact, /web (on/off/status)',
+    availableCommands:
+      'Perintah: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate_JA, /translate_EN, /translate_zh-CN, /translate_zh-TW',
     sourcesBadge: 'Sumber',
     webSearchEnabled: 'Penelusuran web diaktifkan.',
     webSearchDisabled: 'Penelusuran web dinonaktifkan.',

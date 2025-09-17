@@ -19,7 +19,8 @@
     canceled: '취소되었습니다.',
     historyCleared: '채팅 기록이 삭제되었습니다.',
     historyCompacted: '기록을 요약하여 압축했습니다.',
-    availableCommands: '명령어: /clear, /compact, /next, /contact, /web (on/off/status)',
+    availableCommands:
+      '명령어: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate_JA, /translate_EN, /translate_zh-CN, /translate_zh-TW',
     sourcesBadge: '출처',
     webSearchEnabled: '웹 검색이 활성화되었습니다.',
     webSearchDisabled: '웹 검색이 비활성화되었습니다.',

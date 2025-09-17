@@ -20,7 +20,8 @@
     canceled: 'Cancelado.',
     historyCleared: 'Historial borrado.',
     historyCompacted: 'Historial resumido y compactado.',
-    availableCommands: 'Comandos: /clear, /compact, /next, /contact, /web (on/off/status)',
+    availableCommands:
+      'Comandos: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate_JA, /translate_EN, /translate_zh-CN, /translate_zh-TW',
     sourcesBadge: 'Fuentes',
     webSearchEnabled: 'Búsqueda web activada.',
     webSearchDisabled: 'Búsqueda web desactivada.',

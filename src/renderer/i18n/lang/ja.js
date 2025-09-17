@@ -22,7 +22,7 @@
     historyCleared: '履歴をクリアしました。',
     historyCompacted: '履歴を要約して圧縮しました。',
     availableCommands:
-      '利用可能なコマンド: /clear, /compact, /next, /contact, /web (on/off/status)',
+      '利用可能なコマンド: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate_JA, /translate_EN, /translate_zh-CN, /translate_zh-TW',
     sourcesBadge: '参照',
     webSearchEnabled: 'Web検索を有効にしました。',
     webSearchDisabled: 'Web検索を無効にしました。',

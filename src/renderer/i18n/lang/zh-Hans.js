@@ -18,7 +18,8 @@
     canceled: '已取消。',
     historyCleared: '已清除聊天记录。',
     historyCompacted: '已汇总并压缩聊天记录。',
-    availableCommands: '可用命令：/clear, /compact, /next, /contact, /web (on/off/status)',
+    availableCommands:
+      '可用命令：/clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate_JA, /translate_EN, /translate_zh-CN, /translate_zh-TW',
     sourcesBadge: '来源',
     webSearchEnabled: '已启用网页搜索。',
     webSearchDisabled: '已禁用网页搜索。',

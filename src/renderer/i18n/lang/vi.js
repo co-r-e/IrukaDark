@@ -19,7 +19,8 @@
     canceled: 'Đã hủy.',
     historyCleared: 'Đã xóa lịch sử trò chuyện.',
     historyCompacted: 'Đã tóm tắt và nén lịch sử.',
-    availableCommands: 'Lệnh: /clear, /compact, /next, /contact, /web (on/off/status)',
+    availableCommands:
+      'Lệnh: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate_JA, /translate_EN, /translate_zh-CN, /translate_zh-TW',
     sourcesBadge: 'Nguồn',
     webSearchEnabled: 'Đã bật Tìm kiếm web.',
     webSearchDisabled: 'Đã tắt Tìm kiếm web.',

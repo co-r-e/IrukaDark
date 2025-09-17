@@ -20,7 +20,8 @@
     canceled: 'Abgebrochen.',
     historyCleared: 'Chat‑Verlauf gelöscht.',
     historyCompacted: 'Verlauf zusammengefasst und komprimiert.',
-    availableCommands: 'Befehle: /clear, /compact, /next, /contact, /web (on/off/status)',
+    availableCommands:
+      'Befehle: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate_JA, /translate_EN, /translate_zh-CN, /translate_zh-TW',
     sourcesBadge: 'Quellen',
     webSearchEnabled: 'Websuche aktiviert.',
     webSearchDisabled: 'Websuche deaktiviert.',
