@@ -34,5 +34,22 @@
     updateAvailable: (v) => `A new version (${v}) is available. Open downloads page?`,
     upToDate: 'You are up to date.',
     updateCheckFailed: 'Failed to check updates.',
+    slashDescriptions: {
+      what: 'Clarify the last AI output',
+      next: 'Continue the last AI output',
+      table: 'Reformat the last AI output into a table',
+      translate: 'Translate the last AI output',
+      translateJA: 'Translate into Japanese',
+      translateEN: 'Translate into English',
+      translateZhCN: 'Translate into Simplified Chinese',
+      translateZhTW: 'Translate into Traditional Chinese',
+      clear: 'Clear chat history',
+      compact: 'Summarize and compact history',
+      web: 'Web search controls',
+      webOn: 'Enable web search',
+      webOff: 'Disable web search',
+      webStatus: 'Show web search status',
+      contact: 'Open contact page',
+    },
   });
 })();

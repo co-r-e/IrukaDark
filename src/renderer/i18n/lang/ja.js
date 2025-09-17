@@ -36,5 +36,22 @@
       `新しいバージョン（${v}）が利用可能です。ダウンロードページを開きますか？`,
     upToDate: '最新の状態です。',
     updateCheckFailed: 'アップデートの確認に失敗しました。',
+    slashDescriptions: {
+      what: '直前のAI出力をわかりやすく説明',
+      next: '直前のAI回答の続きを生成',
+      table: '直前のAI出力を表形式に整形',
+      translate: '直前のAI出力を翻訳',
+      translateJA: '日本語に翻訳',
+      translateEN: '英語に翻訳',
+      translateZhCN: '簡体字に翻訳',
+      translateZhTW: '繁体字に翻訳',
+      clear: '履歴をクリア',
+      compact: '履歴を要約して圧縮',
+      web: 'Web検索の設定',
+      webOn: 'Web検索を有効化',
+      webOff: 'Web検索を無効化',
+      webStatus: 'Web検索の状態を表示',
+      contact: '連絡先ページを開く',
+    },
   });
 })();

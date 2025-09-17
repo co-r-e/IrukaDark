@@ -46,34 +46,28 @@ const SLASH_TRANSLATE_TARGETS = [
     match: '/translate_ja',
     label: '/translate_JA',
     target: 'ja',
-    desc: { en: 'Translate into Japanese', ja: '日本語に翻訳' },
+    descKey: 'slashDescriptions.translateJA',
   },
   {
     key: '/translate_EN',
     match: '/translate_en',
     label: '/translate_EN',
     target: 'en',
-    desc: { en: 'Translate into English', ja: '英語に翻訳' },
+    descKey: 'slashDescriptions.translateEN',
   },
   {
     key: '/translate_zh-CN',
     match: '/translate_zh-cn',
     label: '/translate_zh-CN',
     target: 'zh-CN',
-    desc: {
-      en: 'Translate into Simplified Chinese',
-      ja: '簡体字に翻訳',
-    },
+    descKey: 'slashDescriptions.translateZhCN',
   },
   {
     key: '/translate_zh-TW',
     match: '/translate_zh-tw',
     label: '/translate_zh-TW',
     target: 'zh-TW',
-    desc: {
-      en: 'Translate into Traditional Chinese',
-      ja: '繁体字に翻訳',
-    },
+    descKey: 'slashDescriptions.translateZhTW',
   },
 ];
 
@@ -87,19 +81,19 @@ const SLASH_WEB_TARGETS = [
     key: '/web on',
     match: '/web on',
     label: '/web on',
-    desc: { en: 'Enable Web Search', ja: 'Web検索を有効化' },
+    descKey: 'slashDescriptions.webOn',
   },
   {
     key: '/web off',
     match: '/web off',
     label: '/web off',
-    desc: { en: 'Disable Web Search', ja: 'Web検索を無効化' },
+    descKey: 'slashDescriptions.webOff',
   },
   {
     key: '/web status',
     match: '/web status',
     label: '/web status',
-    desc: { en: 'Show Web Search status', ja: 'Web検索の状態を表示' },
+    descKey: 'slashDescriptions.webStatus',
   },
 ];
 
@@ -1119,21 +1113,21 @@ class IrukaDarkApp {
         key: '/what do you mean?',
         match: '/what do you mean?',
         label: '/What do you mean?',
-        desc: { en: 'Clarify the last AI output', ja: '直前のAI出力をわかりやすく説明' },
+        descKey: 'slashDescriptions.what',
       },
       // 2) /next second
       {
         key: '/next',
         match: '/next',
         label: '/next',
-        desc: { en: 'Continue the last AI output', ja: '直前のAI回答の続きを生成' },
+        descKey: 'slashDescriptions.next',
       },
       // 3) /table third
       {
         key: '/table',
         match: '/table',
         label: '/table',
-        desc: { en: 'Reformat last AI output into a table', ja: '直前のAI出力を表に変換' },
+        descKey: 'slashDescriptions.table',
       },
 
       // Others
@@ -1141,10 +1135,7 @@ class IrukaDarkApp {
         key: '/translate',
         match: '/translate',
         label: '/translate',
-        desc: {
-          en: 'Translate last AI output',
-          ja: '直前のAI出力を翻訳',
-        },
+        descKey: 'slashDescriptions.translate',
         children: SLASH_TRANSLATE_TARGETS,
         childSeparator: '_',
       },
@@ -1152,19 +1143,19 @@ class IrukaDarkApp {
         key: '/clear',
         match: '/clear',
         label: '/clear',
-        desc: { en: 'Clear chat history', ja: '履歴をクリア' },
+        descKey: 'slashDescriptions.clear',
       },
       {
         key: '/compact',
         match: '/compact',
         label: '/compact',
-        desc: { en: 'Summarize and compact history', ja: '履歴を要約して圧縮' },
+        descKey: 'slashDescriptions.compact',
       },
       {
         key: '/web',
         match: '/web',
         label: '/web',
-        desc: { en: 'Web search controls', ja: 'Web検索の設定' },
+        descKey: 'slashDescriptions.web',
         children: SLASH_WEB_TARGETS,
         childSeparator: ' ',
       },
@@ -1173,7 +1164,7 @@ class IrukaDarkApp {
         key: '/contact',
         match: '/contact',
         label: '/contact',
-        desc: { en: 'Open contact URL', ja: '連絡先URLを開く' },
+        descKey: 'slashDescriptions.contact',
       },
     ];
     this.slashCommands = this.slashCommands.map((cmd) => ({
@@ -1212,7 +1203,16 @@ class IrukaDarkApp {
       if (c.children?.length) {
         div.classList.add('has-children');
       }
-      const desc = c.desc?.[lang] || c.desc?.en || c.label;
+      let desc = '';
+      if (c.descKey) {
+        desc = getUIText(c.descKey);
+      } else if (c.desc?.[lang]) {
+        desc = c.desc[lang];
+      } else if (c.desc?.en) {
+        desc = c.desc.en;
+      } else {
+        desc = c.label;
+      }
       const childIndicator = c.children?.length ? '<span class="child-indicator">›</span>' : '';
       div.innerHTML = `
         <div class="slash-line"><span class="cmd">${c.label}</span>${childIndicator}</div>

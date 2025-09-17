@@ -33,5 +33,22 @@
     updateAvailable: (v) => `Nova versão (${v}) disponível. Abrir downloads?`,
     upToDate: 'Você está atualizado.',
     updateCheckFailed: 'Falha ao verificar atualizações.',
+    slashDescriptions: {
+      what: 'Esclarecer a última resposta da IA',
+      next: 'Continuar a última resposta da IA',
+      table: 'Formatar a última resposta da IA em uma tabela',
+      translate: 'Traduzir a última resposta da IA',
+      translateJA: 'Traduzir para japonês',
+      translateEN: 'Traduzir para inglês',
+      translateZhCN: 'Traduzir para chinês simplificado',
+      translateZhTW: 'Traduzir para chinês tradicional',
+      clear: 'Limpar o histórico do chat',
+      compact: 'Resumir e compactar o histórico',
+      web: 'Controles de pesquisa na web',
+      webOn: 'Ativar pesquisa na web',
+      webOff: 'Desativar pesquisa na web',
+      webStatus: 'Mostrar o status da pesquisa na web',
+      contact: 'Abrir a página de contato',
+    },
   });
 })();

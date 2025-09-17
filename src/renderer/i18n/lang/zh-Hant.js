@@ -32,5 +32,22 @@
     updateAvailable: (v) => `有新版本（${v}）。是否開啟下載頁？`,
     upToDate: '已是最新版本。',
     updateCheckFailed: '檢查更新失敗。',
+    slashDescriptions: {
+      what: '說明上一則 AI 回覆',
+      next: '接續上一則 AI 回覆',
+      table: '將上一則 AI 回覆整理成表格',
+      translate: '翻譯上一則 AI 回覆',
+      translateJA: '翻譯成日語',
+      translateEN: '翻譯成英語',
+      translateZhCN: '翻譯成簡體中文',
+      translateZhTW: '翻譯成繁體中文',
+      clear: '清除聊天記錄',
+      compact: '摘要並壓縮歷史',
+      web: '網路搜尋控制',
+      webOn: '啟用網路搜尋',
+      webOff: '停用網路搜尋',
+      webStatus: '顯示網路搜尋狀態',
+      contact: '開啟聯絡頁面',
+    },
   });
 })();

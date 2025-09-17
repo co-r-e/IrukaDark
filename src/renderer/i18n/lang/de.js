@@ -34,5 +34,22 @@
     updateAvailable: (v) => `Neue Version (${v}) verfügbar. Downloads öffnen?`,
     upToDate: 'Du bist auf dem neuesten Stand.',
     updateCheckFailed: 'Update‑Prüfung fehlgeschlagen.',
+    slashDescriptions: {
+      what: 'Die letzte KI-Antwort verständlicher erklären',
+      next: 'Die letzte KI-Antwort fortsetzen',
+      table: 'Die letzte KI-Antwort als Tabelle formatieren',
+      translate: 'Die letzte KI-Antwort übersetzen',
+      translateJA: 'Ins Japanische übersetzen',
+      translateEN: 'Ins Englische übersetzen',
+      translateZhCN: 'In vereinfachtes Chinesisch übersetzen',
+      translateZhTW: 'In traditionelles Chinesisch übersetzen',
+      clear: 'Chatverlauf löschen',
+      compact: 'Verlauf zusammenfassen und komprimieren',
+      web: 'Websuche steuern',
+      webOn: 'Websuche aktivieren',
+      webOff: 'Websuche deaktivieren',
+      webStatus: 'Status der Websuche anzeigen',
+      contact: 'Kontaktseite öffnen',
+    },
   });
 })();

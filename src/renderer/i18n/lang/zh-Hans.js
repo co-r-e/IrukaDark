@@ -32,5 +32,22 @@
     updateAvailable: (v) => `发现新版本（${v}）。是否打开下载页？`,
     upToDate: '已是最新版本。',
     updateCheckFailed: '检查更新失败。',
+    slashDescriptions: {
+      what: '说明上一条 AI 回复',
+      next: '继续上一条 AI 回复',
+      table: '将上一条 AI 回复格式化成表格',
+      translate: '翻译上一条 AI 回复',
+      translateJA: '翻译成日语',
+      translateEN: '翻译成英语',
+      translateZhCN: '翻译成简体中文',
+      translateZhTW: '翻译成繁体中文',
+      clear: '清除聊天记录',
+      compact: '总结并压缩历史记录',
+      web: '网页搜索控制',
+      webOn: '开启网页搜索',
+      webOff: '关闭网页搜索',
+      webStatus: '显示网页搜索状态',
+      contact: '打开联系页面',
+    },
   });
 })();

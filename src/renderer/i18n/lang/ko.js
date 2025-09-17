@@ -33,5 +33,22 @@
     updateAvailable: (v) => `새 버전(${v})을 사용할 수 있습니다. 다운로드 페이지를 열까요?`,
     upToDate: '최신 상태입니다.',
     updateCheckFailed: '업데이트 확인에 실패했습니다.',
+    slashDescriptions: {
+      what: '마지막 AI 답변을 쉽게 설명',
+      next: '마지막 AI 답변 이어서 생성',
+      table: '마지막 AI 답변을 표로 정리',
+      translate: '마지막 AI 답변을 번역',
+      translateJA: '일본어로 번역',
+      translateEN: '영어로 번역',
+      translateZhCN: '중국어 간체로 번역',
+      translateZhTW: '중국어 번체로 번역',
+      clear: '채팅 기록 지우기',
+      compact: '기록을 요약하고 압축',
+      web: '웹 검색 제어',
+      webOn: '웹 검색 켜기',
+      webOff: '웹 검색 끄기',
+      webStatus: '웹 검색 상태 보기',
+      contact: '문의 페이지 열기',
+    },
   });
 })();

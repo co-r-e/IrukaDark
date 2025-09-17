@@ -33,5 +33,22 @@
     updateAvailable: (v) => `Có phiên bản mới (${v}). Mở trang tải xuống?`,
     upToDate: 'Bạn đang dùng phiên bản mới nhất.',
     updateCheckFailed: 'Không thể kiểm tra cập nhật.',
+    slashDescriptions: {
+      what: 'Giải thích rõ hơn câu trả lời AI cuối cùng',
+      next: 'Tiếp tục câu trả lời AI cuối cùng',
+      table: 'Định dạng câu trả lời AI cuối trong bảng',
+      translate: 'Dịch câu trả lời AI cuối cùng',
+      translateJA: 'Dịch sang tiếng Nhật',
+      translateEN: 'Dịch sang tiếng Anh',
+      translateZhCN: 'Dịch sang tiếng Trung giản thể',
+      translateZhTW: 'Dịch sang tiếng Trung phồn thể',
+      clear: 'Xóa lịch sử trò chuyện',
+      compact: 'Tóm tắt và cô đọng lịch sử',
+      web: 'Điều khiển tìm kiếm web',
+      webOn: 'Bật tìm kiếm web',
+      webOff: 'Tắt tìm kiếm web',
+      webStatus: 'Hiển thị trạng thái tìm kiếm web',
+      contact: 'Mở trang liên hệ',
+    },
   });
 })();

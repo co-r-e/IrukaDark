@@ -33,5 +33,22 @@
     updateAvailable: (v) => `Yeni sürüm (${v}) mevcut. İndirmeleri açalım mı?`,
     upToDate: 'Güncelsiniz.',
     updateCheckFailed: 'Güncelleme kontrolü başarısız.',
+    slashDescriptions: {
+      what: 'Son yapay zekâ yanıtını açıklığa kavuştur',
+      next: 'Son yapay zekâ yanıtına devam et',
+      table: 'Son yapay zekâ yanıtını tabloya dönüştür',
+      translate: 'Son yapay zekâ yanıtını çevir',
+      translateJA: 'Japoncaya çevir',
+      translateEN: 'İngilizceye çevir',
+      translateZhCN: 'Basitleştirilmiş Çinceye çevir',
+      translateZhTW: 'Geleneksel Çinceye çevir',
+      clear: 'Sohbet geçmişini temizle',
+      compact: 'Geçmişi özetle ve sıkıştır',
+      web: 'Web araması denetimleri',
+      webOn: 'Web aramasını aç',
+      webOff: 'Web aramasını kapat',
+      webStatus: 'Web araması durumunu göster',
+      contact: 'İletişim sayfasını aç',
+    },
   });
 })();

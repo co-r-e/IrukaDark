@@ -34,5 +34,22 @@
     updateAvailable: (v) => `Nuova versione (${v}) disponibile. Aprire la pagina di download?`,
     upToDate: 'Sei aggiornato.',
     updateCheckFailed: 'Verifica aggiornamenti non riuscita.',
+    slashDescriptions: {
+      what: "Chiarire l'ultima risposta dell'IA",
+      next: "Continuare l'ultima risposta dell'IA",
+      table: "Formattare l'ultima risposta dell'IA in una tabella",
+      translate: "Tradurre l'ultima risposta dell'IA",
+      translateJA: 'Tradurre in giapponese',
+      translateEN: 'Tradurre in inglese',
+      translateZhCN: 'Tradurre in cinese semplificato',
+      translateZhTW: 'Tradurre in cinese tradizionale',
+      clear: 'Svuotare la cronologia della chat',
+      compact: 'Riassumere e compattare la cronologia',
+      web: 'Controlli della ricerca web',
+      webOn: 'Abilitare la ricerca web',
+      webOff: 'Disattivare la ricerca web',
+      webStatus: 'Mostrare lo stato della ricerca web',
+      contact: 'Aprire la pagina di contatto',
+    },
   });
 })();

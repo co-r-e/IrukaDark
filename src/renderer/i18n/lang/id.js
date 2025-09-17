@@ -33,5 +33,22 @@
     updateAvailable: (v) => `Versi baru (${v}) tersedia. Buka unduhan?`,
     upToDate: 'Anda sudah versi terbaru.',
     updateCheckFailed: 'Gagal memeriksa pembaruan.',
+    slashDescriptions: {
+      what: 'Jelaskan ulang jawaban AI terakhir',
+      next: 'Lanjutkan jawaban AI terakhir',
+      table: 'Format jawaban AI terakhir menjadi tabel',
+      translate: 'Terjemahkan jawaban AI terakhir',
+      translateJA: 'Terjemahkan ke bahasa Jepang',
+      translateEN: 'Terjemahkan ke bahasa Inggris',
+      translateZhCN: 'Terjemahkan ke bahasa Tionghoa Sederhana',
+      translateZhTW: 'Terjemahkan ke bahasa Tionghoa Tradisional',
+      clear: 'Hapus riwayat chat',
+      compact: 'Ringkas dan padatkan riwayat',
+      web: 'Kontrol pencarian web',
+      webOn: 'Aktifkan pencarian web',
+      webOff: 'Nonaktifkan pencarian web',
+      webStatus: 'Tampilkan status pencarian web',
+      contact: 'Buka halaman kontak',
+    },
   });
 })();

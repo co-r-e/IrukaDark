@@ -35,5 +35,22 @@
       `Nouvelle version (${v}) disponible. Ouvrir la page de téléchargement ?`,
     upToDate: 'Vous êtes à jour.',
     updateCheckFailed: 'Échec de la vérification des mises à jour.',
+    slashDescriptions: {
+      what: 'Clarifier la dernière réponse de l’IA',
+      next: 'Continuer la dernière réponse de l’IA',
+      table: 'Mettre la dernière réponse de l’IA en tableau',
+      translate: 'Traduire la dernière réponse de l’IA',
+      translateJA: 'Traduire en japonais',
+      translateEN: 'Traduire en anglais',
+      translateZhCN: 'Traduire en chinois simplifié',
+      translateZhTW: 'Traduire en chinois traditionnel',
+      clear: 'Effacer l’historique du chat',
+      compact: 'Résumer et compacter l’historique',
+      web: 'Commandes de recherche Web',
+      webOn: 'Activer la recherche Web',
+      webOff: 'Désactiver la recherche Web',
+      webStatus: 'Afficher l’état de la recherche Web',
+      contact: 'Ouvrir la page de contact',
+    },
   });
 })();
