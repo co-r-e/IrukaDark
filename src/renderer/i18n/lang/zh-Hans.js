@@ -19,7 +19,7 @@
     historyCleared: '已清除聊天记录。',
     historyCompacted: '已汇总并压缩聊天记录。',
     availableCommands:
-      '可用命令：/clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate (JA/EN/zh-CN/zh-TW)',
+      '可用命令：/clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
     sourcesBadge: '来源',
     webSearchEnabled: '已启用网页搜索。',
     webSearchDisabled: '已禁用网页搜索。',
@@ -49,5 +49,6 @@
       webStatus: '显示网页搜索状态',
       contact: '打开联系页面',
     },
+    slashTranslateIntoLanguage: (name) => `翻译成${name}`,
   });
 })();

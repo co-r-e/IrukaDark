@@ -21,7 +21,7 @@
     historyCleared: 'Chat history cleared.',
     historyCompacted: 'Compressed chat history with a summary.',
     availableCommands:
-      'Available commands: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate (JA/EN/zh-CN/zh-TW)',
+      'Available commands: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
     sourcesBadge: 'Sources',
     webSearchEnabled: 'Web Search enabled.',
     webSearchDisabled: 'Web Search disabled.',
@@ -51,5 +51,6 @@
       webStatus: 'Show web search status',
       contact: 'Open contact page',
     },
+    slashTranslateIntoLanguage: (name) => `Translate into ${name}`,
   });
 })();

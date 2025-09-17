@@ -20,7 +20,7 @@
     historyCleared: 'ล้างประวัติแชทแล้ว',
     historyCompacted: 'สรุปและย่อประวัติแล้ว',
     availableCommands:
-      'คำสั่ง: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate (JA/EN/zh-CN/zh-TW)',
+      'คำสั่ง: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
     sourcesBadge: 'แหล่งที่มา',
     webSearchEnabled: 'เปิดการค้นเว็บแล้ว',
     webSearchDisabled: 'ปิดการค้นเว็บแล้ว',
@@ -50,5 +50,6 @@
       webStatus: 'แสดงสถานะการค้นเว็บ',
       contact: 'เปิดหน้าติดต่อ',
     },
+    slashTranslateIntoLanguage: (name) => `แปลเป็น ${name}`,
   });
 })();

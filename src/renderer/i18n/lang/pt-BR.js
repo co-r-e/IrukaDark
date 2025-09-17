@@ -20,7 +20,7 @@
     historyCleared: 'Histórico limpo.',
     historyCompacted: 'Histórico resumido e compactado.',
     availableCommands:
-      'Comandos: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate (JA/EN/zh-CN/zh-TW)',
+      'Comandos: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
     sourcesBadge: 'Fontes',
     webSearchEnabled: 'Pesquisa na web ativada.',
     webSearchDisabled: 'Pesquisa na web desativada.',
@@ -50,5 +50,6 @@
       webStatus: 'Mostrar o status da pesquisa na web',
       contact: 'Abrir a página de contato',
     },
+    slashTranslateIntoLanguage: (name) => `Traduzir para ${name}`,
   });
 })();

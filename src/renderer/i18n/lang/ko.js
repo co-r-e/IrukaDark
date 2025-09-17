@@ -20,7 +20,7 @@
     historyCleared: '채팅 기록이 삭제되었습니다.',
     historyCompacted: '기록을 요약하여 압축했습니다.',
     availableCommands:
-      '명령어: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate (JA/EN/zh-CN/zh-TW)',
+      '명령어: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
     sourcesBadge: '출처',
     webSearchEnabled: '웹 검색이 활성화되었습니다.',
     webSearchDisabled: '웹 검색이 비활성화되었습니다.',
@@ -50,5 +50,6 @@
       webStatus: '웹 검색 상태 보기',
       contact: '문의 페이지 열기',
     },
+    slashTranslateIntoLanguage: (name) => `${name}로 번역`,
   });
 })();

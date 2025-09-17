@@ -19,7 +19,7 @@
     historyCleared: '已清除聊天記錄。',
     historyCompacted: '已彙整並壓縮聊天記錄。',
     availableCommands:
-      '可用指令：/clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate (JA/EN/zh-CN/zh-TW)',
+      '可用指令：/clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
     sourcesBadge: '來源',
     webSearchEnabled: '已啟用網頁搜尋。',
     webSearchDisabled: '已停用網頁搜尋。',
@@ -49,5 +49,6 @@
       webStatus: '顯示網路搜尋狀態',
       contact: '開啟聯絡頁面',
     },
+    slashTranslateIntoLanguage: (name) => `翻譯成${name}`,
   });
 })();

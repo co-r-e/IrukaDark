@@ -21,7 +21,7 @@
     historyCleared: 'Chat‑Verlauf gelöscht.',
     historyCompacted: 'Verlauf zusammengefasst und komprimiert.',
     availableCommands:
-      'Befehle: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate (JA/EN/zh-CN/zh-TW)',
+      'Befehle: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
     sourcesBadge: 'Quellen',
     webSearchEnabled: 'Websuche aktiviert.',
     webSearchDisabled: 'Websuche deaktiviert.',
@@ -51,5 +51,6 @@
       webStatus: 'Status der Websuche anzeigen',
       contact: 'Kontaktseite öffnen',
     },
+    slashTranslateIntoLanguage: (name) => `In ${name} übersetzen`,
   });
 })();

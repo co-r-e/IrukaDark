@@ -20,7 +20,7 @@
     historyCleared: 'Đã xóa lịch sử trò chuyện.',
     historyCompacted: 'Đã tóm tắt và nén lịch sử.',
     availableCommands:
-      'Lệnh: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate (JA/EN/zh-CN/zh-TW)',
+      'Lệnh: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
     sourcesBadge: 'Nguồn',
     webSearchEnabled: 'Đã bật Tìm kiếm web.',
     webSearchDisabled: 'Đã tắt Tìm kiếm web.',
@@ -50,5 +50,6 @@
       webStatus: 'Hiển thị trạng thái tìm kiếm web',
       contact: 'Mở trang liên hệ',
     },
+    slashTranslateIntoLanguage: (name) => `Dịch sang ${name}`,
   });
 })();

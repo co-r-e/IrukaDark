@@ -21,7 +21,7 @@
     historyCleared: 'История чата очищена.',
     historyCompacted: 'История кратко изложена и сжата.',
     availableCommands:
-      'Команды: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate (JA/EN/zh-CN/zh-TW)',
+      'Команды: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
     sourcesBadge: 'Источники',
     webSearchEnabled: 'Веб‑поиск включен.',
     webSearchDisabled: 'Веб‑поиск выключен.',
@@ -51,5 +51,6 @@
       webStatus: 'Показать статус веб-поиска',
       contact: 'Открыть страницу контактов',
     },
+    slashTranslateIntoLanguage: (name) => `Перевести на ${name}`,
   });
 })();

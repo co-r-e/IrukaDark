@@ -20,7 +20,7 @@
     historyCleared: 'Sohbet geçmişi temizlendi.',
     historyCompacted: 'Geçmiş özetlenip sıkıştırıldı.',
     availableCommands:
-      'Komutlar: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate (JA/EN/zh-CN/zh-TW)',
+      'Komutlar: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
     sourcesBadge: 'Kaynaklar',
     webSearchEnabled: 'Web araması etkinleştirildi.',
     webSearchDisabled: 'Web araması devre dışı.',
@@ -50,5 +50,6 @@
       webStatus: 'Web araması durumunu göster',
       contact: 'İletişim sayfasını aç',
     },
+    slashTranslateIntoLanguage: (name) => `${name} diline çevir`,
   });
 })();

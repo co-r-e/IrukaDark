@@ -39,37 +39,74 @@ const SOURCE_MARKERS = (() => {
   }
 })();
 
-// Slash command metadata for language-specific translations
-const SLASH_TRANSLATE_TARGETS = [
-  {
-    key: '/translate_JA',
-    match: '/translate_ja',
-    label: '/translate_JA',
-    target: 'ja',
-    descKey: 'slashDescriptions.translateJA',
-  },
-  {
-    key: '/translate_EN',
-    match: '/translate_en',
-    label: '/translate_EN',
-    target: 'en',
-    descKey: 'slashDescriptions.translateEN',
-  },
-  {
-    key: '/translate_zh-CN',
-    match: '/translate_zh-cn',
-    label: '/translate_zh-CN',
-    target: 'zh-CN',
-    descKey: 'slashDescriptions.translateZhCN',
-  },
-  {
-    key: '/translate_zh-TW',
-    match: '/translate_zh-tw',
-    label: '/translate_zh-TW',
-    target: 'zh-TW',
-    descKey: 'slashDescriptions.translateZhTW',
-  },
+const DEFAULT_TRANSLATE_CODES = [
+  'en',
+  'ja',
+  'de',
+  'es',
+  'es-419',
+  'fr',
+  'id',
+  'it',
+  'ko',
+  'pt-BR',
+  'ru',
+  'th',
+  'tr',
+  'vi',
+  'zh-Hans',
+  'zh-Hant',
 ];
+
+const TRANSLATE_CODE_MAP = new Map();
+
+function sanitizeTranslateSuffix(code) {
+  return String(code || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-');
+}
+
+function availableTranslateCodes() {
+  const ordered = [...DEFAULT_TRANSLATE_CODES];
+  const seen = new Set(ordered.map((c) => c));
+  try {
+    const codes = Object.keys(I18N_STRINGS || {});
+    if (Array.isArray(codes)) {
+      for (const code of codes) {
+        if (!seen.has(code)) {
+          ordered.push(code);
+          seen.add(code);
+        }
+      }
+    }
+  } catch {}
+  return ordered;
+}
+
+function buildTranslateTargets() {
+  const codes = availableTranslateCodes();
+  const unique = Array.from(new Set(codes.filter(Boolean)));
+  return unique.map((rawCode) => {
+    const canonical = String(rawCode);
+    const lower = canonical.toLowerCase();
+    TRANSLATE_CODE_MAP.set(lower, canonical);
+    const suffix = sanitizeTranslateSuffix(canonical);
+    return {
+      key: `/translate_${suffix}`,
+      match: `/translate_${lower}`,
+      label: `/translate_${suffix}`,
+      target: canonical,
+      descKey: 'slashTranslateIntoLanguage',
+      languageCode: canonical,
+    };
+  });
+}
+
+const SLASH_TRANSLATE_TARGETS = buildTranslateTargets();
+TRANSLATE_CODE_MAP.set('zh-cn', TRANSLATE_CODE_MAP.get('zh-hans') || 'zh-Hans');
+TRANSLATE_CODE_MAP.set('zh-sg', TRANSLATE_CODE_MAP.get('zh-hans') || 'zh-Hans');
+TRANSLATE_CODE_MAP.set('zh-tw', TRANSLATE_CODE_MAP.get('zh-hant') || 'zh-Hant');
+TRANSLATE_CODE_MAP.set('zh-hk', TRANSLATE_CODE_MAP.get('zh-hant') || 'zh-Hant');
 
 const SLASH_TRANSLATE_LOOKUP = SLASH_TRANSLATE_TARGETS.reduce((map, cfg) => {
   map[cfg.match] = cfg;
@@ -103,6 +140,30 @@ function getLangMeta(code) {
   const rtlLocales = new Set(['ar', 'he', 'fa', 'ur']);
   const rtl = rtlLocales.has(lang);
   return { code: lang, name, rtl };
+}
+
+function normalizeTranslateCode(code) {
+  if (!code) return null;
+  const canonical = TRANSLATE_CODE_MAP.get(String(code).toLowerCase());
+  return canonical || null;
+}
+
+function getLanguageDisplayName(code) {
+  const fallback = LANG_NAMES[code] || code;
+  const lang = getCurrentUILanguage() || 'en';
+  const tryCodes = [code];
+  if (/^zh-hans$/i.test(code)) tryCodes.push('zh-CN');
+  if (/^zh-hant$/i.test(code)) tryCodes.push('zh-TW');
+  try {
+    const display = new Intl.DisplayNames([lang], { type: 'language' });
+    for (const candidate of tryCodes) {
+      const name = display.of(candidate);
+      if (name && name !== candidate) {
+        return name;
+      }
+    }
+  } catch {}
+  return fallback;
 }
 
 let CURRENT_LANG = 'en';
@@ -1084,7 +1145,7 @@ class IrukaDarkApp {
         this.addMessage('system', getUIText('noPreviousAI'));
         return;
       }
-      const code = meta?.target || targetCode || 'en';
+      const code = normalizeTranslateCode(meta?.target || targetCode) || 'en';
       this.showTypingIndicator();
       const translation = await this.geminiService.generateTargetedTranslation(
         String(lastAI.content || ''),
@@ -1205,7 +1266,12 @@ class IrukaDarkApp {
       }
       let desc = '';
       if (c.descKey) {
-        desc = getUIText(c.descKey);
+        if (c.descKey === 'slashTranslateIntoLanguage') {
+          const displayName = getLanguageDisplayName(c.languageCode || c.target || 'en');
+          desc = getUIText(c.descKey, displayName);
+        } else {
+          desc = getUIText(c.descKey);
+        }
       } else if (c.desc?.[lang]) {
         desc = c.desc[lang];
       } else if (c.desc?.en) {
@@ -1889,21 +1955,16 @@ ${t}`;
   }
 
   async generateTargetedTranslation(text, targetCode = 'en') {
-    const targets = {
-      en: { name: 'English', code: 'en' },
-      ja: { name: 'Japanese', code: 'ja' },
-      'zh-CN': { name: 'Simplified Chinese', code: 'zh-CN' },
-      'zh-TW': { name: 'Traditional Chinese', code: 'zh-TW' },
-    };
-    const target = targets[targetCode] || targets.en;
+    const canonical = normalizeTranslateCode(targetCode) || 'en';
+    const { name } = getLangMeta(canonical);
     const trimmed = text.length > 12000 ? text.slice(0, 12000) + ' …(truncated)' : text;
-    const prompt = `Translate the following text strictly into ${target.name} (${target.code}).
+    const prompt = `Translate the following text strictly into ${name} (${canonical}).
 
 Rules:
 - Output the translation only. No explanations or prefaces.
 - Preserve Markdown, lists, and code blocks.
 - Keep URLs, code identifiers, and proper nouns unchanged where appropriate.
-- If the source mixes languages, ensure the final output is entirely in ${target.name}.
+- If the source mixes languages, ensure the final output is entirely in ${name}.
 
 Text:
 ${trimmed}`;

@@ -20,7 +20,7 @@
     historyCleared: 'Riwayat obrolan dihapus.',
     historyCompacted: 'Riwayat diringkas dan dipadatkan.',
     availableCommands:
-      'Perintah: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate (JA/EN/zh-CN/zh-TW)',
+      'Perintah: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
     sourcesBadge: 'Sumber',
     webSearchEnabled: 'Penelusuran web diaktifkan.',
     webSearchDisabled: 'Penelusuran web dinonaktifkan.',
@@ -50,5 +50,6 @@
       webStatus: 'Tampilkan status pencarian web',
       contact: 'Buka halaman kontak',
     },
+    slashTranslateIntoLanguage: (name) => `Terjemahkan ke ${name}`,
   });
 })();

@@ -22,7 +22,7 @@
     historyCleared: '履歴をクリアしました。',
     historyCompacted: '履歴を要約して圧縮しました。',
     availableCommands:
-      '利用可能なコマンド: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate (JA/EN/zh-CN/zh-TW)',
+      '利用可能なコマンド: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
     sourcesBadge: '参照',
     webSearchEnabled: 'Web検索を有効にしました。',
     webSearchDisabled: 'Web検索を無効にしました。',
@@ -53,5 +53,6 @@
       webStatus: 'Web検索の状態を表示',
       contact: '連絡先ページを開く',
     },
+    slashTranslateIntoLanguage: (name) => `${name}に翻訳`,
   });
 })();
