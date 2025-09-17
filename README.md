@@ -22,25 +22,20 @@ Lightweight local AI chat for macOS. Explain or translate selected text, or chat
 - Gemini integration via Google GenAI SDK (@google/genai) — default: 2.5 Flash Lite
 - Optional floating logo popup window (toggle from menu)
 - Clean, minimal UI with dark/light themes
+- Slash command palette with suggestions, nested sub-commands, and multi-language `/translate`
 
 ## Beginner Setup (Step‑by‑step)
 
 This is a friendly, no‑experience‑required guide from nothing to “running”. Take it slow; you can’t break anything.
 
 1. What you need (free)
-
-- Internet connection
-- A Google account (to get a Gemini API key)
-
+   - Internet connection
+   - A Google account (to get a Gemini API key)
 2. Install Node.js (runtime)
-
-- Download the LTS version from nodejs.org and install.
-- Verify: `node -v` (18+) and `npm -v` (9+).
-
+   - Download the LTS version from nodejs.org and install.
+   - Verify: `node -v` (18+) and `npm -v` (9+).
 3. Get the project
-
-- Git clone (recommended) or download ZIP and unzip.
-
+   - Git clone (recommended) or download ZIP and unzip.
 4. Install dependencies
 
 ```bash
@@ -48,9 +43,7 @@ npm install
 ```
 
 5. Get a Gemini API key
-
-- Create an API key in Google AI Studio (not Vertex service account).
-
+   - Create an API key in Google AI Studio (not Vertex service account).
 6. Start the app
 
 ```bash
@@ -58,8 +51,7 @@ npm start
 ```
 
 7. Set your API key in‑app (recommended)
-
-- macOS: App menu IrukaDark → AI Settings → “Set GEMINI_API_KEY”。モデル設定も同メニューから可能です。
+   - macOS: App menu IrukaDark → AI Settings → “Set GEMINI_API_KEY”。モデル設定も同メニューから可能です。
 
 Notes
 
@@ -76,10 +68,6 @@ Common fixes
 
 - Node.js 18+ (LTS recommended)
 - npm 9+
-
-## Installation / Distribution
-
-This project is intended to run locally from source. Clone the repository, install dependencies, and run `npm start`.
 
 ## Environment Variables
 
@@ -123,58 +111,14 @@ Notes:
 4. Right-click anywhere to open the application menu at the cursor
    - Even in detailed shortcut flows, the view auto-scrolls to the “Thinking…” indicator.
 
-## Build Distributables / Releases
-
-This repository ships installers via GitHub Releases on tagged pushes. Versioning restarts at `v1.0.0`.
-
-Requirements
-
-- Put an app icon at the repo root: `icon.png` (1024×1024+ recommended). The build converts it to `.icns` automatically.
-- Node.js 18+ on CI (handled by workflow).
-
-Trigger a Release
-
-- Recommended: use npm version scripts (standard)
-
-  ```bash
-  # Patch release (vX.Y.Z → vX.Y.(Z+1))
-  npm run release:patch
-  # or minor/major
-  npm run release:minor
-  npm run release:major
-  ```
-
-  These run `npm version` to update `package.json`, create a tag (e.g., `v1.0.1`), and push. GitHub Actions builds and publishes the Release.
-
-- Alternatively: manually create and push a tag like `v1.0.1` to `main`.
-
-What gets built
-
-- macOS x64 (Intel): DMG
-- macOS arm64 (Apple Silicon): DMG
-
-Code signing (optional)
-
-- If these secrets are set, binaries are signed; otherwise unsigned artifacts are still published.
-  - macOS: `MAC_CSC_LINK` (base64 P12/PFX), `MAC_CSC_KEY_PASSWORD`
-
-Local packaging (optional)
-
-```bash
-# macOS Intel
-npm run dist:mac:x64
-# macOS Apple Silicon
-npm run dist:mac:arm64
-# (macOS only now)
-```
-
-### Cleanup
+## Cleanup
 
 - Remove build artifacts and OS cruft from your working tree:
-  ```bash
-  npm run clean       # deletes dist/, build/, .DS_Store, common logs
-  npm run clean:dry   # preview what would be removed
-  ```
+
+```bash
+npm run clean        # deletes dist/, build/, .DS_Store, common logs
+npm run clean:dry    # preview what would be removed
+```
 
 Initial Layout
 
@@ -196,92 +140,6 @@ Initial Layout
 - `/next`: Continue the last AI message
 - `/table`: Reformat the last AI output into a table
 - `/what do you mean?`: Clarify the last AI output in simpler terms
+- `/translate`: Open a submenu with language-specific commands that mirror every UI locale (e.g. `/translate_JA`, `/translate_fr`) to translate the latest AI reply.
+- `/web`: Submenu with `/web on`, `/web off`, `/web status`
 - `/contact`: Open the contact page
-- `/web on|off|status`: Toggle or check web search
-
-### Command Suggestions
-
-- Type `/` in the input to open suggestions
-- Navigate with ArrowUp/Down or Tab/Shift+Tab, confirm with Enter, close with Esc
-- Click a suggestion to execute
-
-## OS Guides
-
-### macOS
-
-- Supported: macOS 11 Big Sur or later (Intel / Apple Silicon)
-- Global shortcuts:
-  - Quick explain: Option+A (fallback: Cmd+Option+A)
-  - Detailed explain: Option+Shift+A (fallback: Cmd+Option+Shift+A)
-  - Translate: Option+R (fallback: Cmd+Option+R)
-  - Screenshot explain: Option+S (fallback: Cmd+Option+S)
-  - Screenshot explain (detailed): Option+Shift+S (fallback: Cmd+Option+Shift+S)
-- Permissions: The app will preflight permissions on first launch (non-blocking)
-  - Accessibility for auto-copy (Cmd+C injection)
-  - Screen Recording for area screenshots (to allow interactive capture)
-  - System Settings > Privacy & Security > Accessibility
-  - If not granted, use manual copy (Cmd+C) then Option+A
-- Show over all apps/spaces: toggle via View > Appearance > “Show Over All Apps/Spaces”
-
-### Menu
-
-- Right-click anywhere in the window to open the app menu at the cursor
-- View > Appearance: theme, window opacity, and “Show Over All Apps/Spaces”
-- Language: switch between English and Japanese
-- Show Logo Popup: toggle a small floating logo window
-
-### Notes
-
-This application targets macOS only.
-
-## Permissions
-
-- macOS: Accessibility for auto-copy and AX selection read (required for Option+A)
-
-## Portable mode (.env.local) — optional
-
-If you prefer a file‑based configuration for portable use:
-
-- Create `.env.local` in the project/app folder with:
-  ```env
-  GEMINI_API_KEY=your_key_here
-  GEMINI_MODEL=gemini-2.5-flash-lite
-  WEB_SEARCH_MODEL=gemini-2.5-flash
-  ```
-- Launch with `PORTABLE_MODE=1` so the app reads/writes `.env.local`.
-
-## Shortcuts & Input
-
-- Send: Enter (Shift+Enter for newline)
-- Global explain (concise): Option+A
-- Global explain (detailed): Option+Shift+A
-- Translate selection: Option+R (pure translation into the UI language)
-- Suggestion list: ArrowUp/Down or Tab/Shift+Tab to move, Enter to confirm, Esc to close
-- Edit: Standard copy/paste/select-all shortcuts (Cmd)
-
-## Privacy
-
-- Screenshots are captured only when you press Option+S and choose an area; the captured image is sent to Gemini API for analysis.
-- Global explain uses selected text via clipboard (macOS auto-copy requires Accessibility)
-- You can always copy manually (Cmd+C) before using the shortcut
-- API keys are used only in the Electron main process, never exposed to the renderer.
-
-## License
-
-MIT License. See `LICENSE`.
-
-## Implementation Notes
-
-- Primary path: `@google/genai` SDK. If the local SDK shape is incompatible, falls back to Gemini REST.
-- Response parsing supports Responses API (`output_text`) and classic candidates/parts shapes.
-
-## Troubleshooting
-
-- 400 API_KEY_INVALID: Use a valid Google AI Studio API Key. Generic Google API keys (e.g., Maps) will not work.
-- Ensure `.env.local` contains one of the supported key variables; prefer `GEMINI_API_KEY`.
-- If Option+A doesn’t work: Press manual copy once (Cmd+C), then immediately press Option+A. This helps the app detect a fresh clipboard and proceed.
-- Focus gotcha (Option+A): The shortcut sends Cmd+C to the foreground app. If IrukaDark is focused (frontmost), the copy targets IrukaDark, so no fresh clipboard is detected and the action fails. Fix:
-  - Click the app that holds the selection to bring it to the front, then press Option+A.
-  - Or press manual copy in that app (Cmd+C) and immediately press Option+A.
-  - If the floating window makes clicking the target app tricky, temporarily disable View > Appearance > “Show Over All Apps/Spaces”, click the target app, then try again.
-- If the main window remains hidden after an answer, it should auto‑unhide non‑activating. If it doesn’t, check View > Appearance > “Show Over All Apps/Spaces”.
