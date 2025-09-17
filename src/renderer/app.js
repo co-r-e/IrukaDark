@@ -46,14 +46,14 @@ const SLASH_TRANSLATE_TARGETS = [
     match: '/translate_ja',
     label: '/translate_JA',
     target: 'ja',
-    desc: { en: 'Translate last AI output into Japanese', ja: '直前のAI出力を日本語に翻訳' },
+    desc: { en: 'Translate into Japanese', ja: '日本語に翻訳' },
   },
   {
     key: '/translate_EN',
     match: '/translate_en',
     label: '/translate_EN',
     target: 'en',
-    desc: { en: 'Translate last AI output into English', ja: '直前のAI出力を英語に翻訳' },
+    desc: { en: 'Translate into English', ja: '英語に翻訳' },
   },
   {
     key: '/translate_zh-CN',
@@ -61,8 +61,8 @@ const SLASH_TRANSLATE_TARGETS = [
     label: '/translate_zh-CN',
     target: 'zh-CN',
     desc: {
-      en: 'Translate last AI output into Simplified Chinese',
-      ja: '直前のAI出力を簡体字に翻訳',
+      en: 'Translate into Simplified Chinese',
+      ja: '簡体字に翻訳',
     },
   },
   {
@@ -71,8 +71,8 @@ const SLASH_TRANSLATE_TARGETS = [
     label: '/translate_zh-TW',
     target: 'zh-TW',
     desc: {
-      en: 'Translate last AI output into Traditional Chinese',
-      ja: '直前のAI出力を繁体字に翻訳',
+      en: 'Translate into Traditional Chinese',
+      ja: '繁体字に翻訳',
     },
   },
 ];
@@ -866,7 +866,6 @@ class IrukaDarkApp {
         this.chatHistoryData = [];
         // DOMクリア
         if (this.chatHistory) this.chatHistory.innerHTML = '';
-        this.addMessage('system', getUIText('historyCleared'));
       } catch (e) {
         this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
       }
@@ -1122,8 +1121,8 @@ class IrukaDarkApp {
         match: '/translate',
         label: '/translate',
         desc: {
-          en: 'Translate last AI output (press → for language options)',
-          ja: '直前のAI出力を翻訳（→キーで言語を選択）',
+          en: 'Translate last AI output',
+          ja: '直前のAI出力を翻訳',
         },
         children: SLASH_TRANSLATE_TARGETS,
       },
