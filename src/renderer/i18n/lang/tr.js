@@ -26,7 +26,7 @@
     webSearchDisabled: 'Web araması devre dışı.',
     webSearchStatusOn: 'Web araması: AÇIK',
     webSearchStatusOff: 'Web araması: KAPALI',
-    webSearchHelp: '/websearch on|off|status kullanın',
+    webSearchHelp: '/web on|off|status kullanın',
     noPreviousAI: 'Devam edilecek önceki bir yapay zekâ mesajı yok.',
     selectionExplanation: 'Seçim açıklaması',
     selectionTranslation: 'Seçimi çevir',

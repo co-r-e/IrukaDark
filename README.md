@@ -197,7 +197,7 @@ Initial Layout
 - `/table`: Reformat the last AI output into a table
 - `/what do you mean?`: Clarify the last AI output in simpler terms
 - `/contact`: Open the contact page
-- `/websearch on|off|status` (alias: `/web`): Toggle or check web search
+- `/web on|off|status`: Toggle or check web search
 
 ### Command Suggestions
 

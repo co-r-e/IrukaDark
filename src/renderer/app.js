@@ -82,6 +82,27 @@ const SLASH_TRANSLATE_LOOKUP = SLASH_TRANSLATE_TARGETS.reduce((map, cfg) => {
   return map;
 }, {});
 
+const SLASH_WEB_TARGETS = [
+  {
+    key: '/web on',
+    match: '/web on',
+    label: '/web on',
+    desc: { en: 'Enable Web Search', ja: 'Web検索を有効化' },
+  },
+  {
+    key: '/web off',
+    match: '/web off',
+    label: '/web off',
+    desc: { en: 'Disable Web Search', ja: 'Web検索を無効化' },
+  },
+  {
+    key: '/web status',
+    match: '/web status',
+    label: '/web status',
+    desc: { en: 'Show Web Search status', ja: 'Web検索の状態を表示' },
+  },
+];
+
 function getLangMeta(code) {
   const lang = String(code || 'en');
   const name = LANG_NAMES[lang] || 'English';
@@ -1019,7 +1040,7 @@ class IrukaDarkApp {
       return;
     }
 
-    // /websearch commands: on|off|status (aliases: /web)
+    // /web commands: on|off|status (legacy alias: /websearch)
     if (lower.startsWith('/websearch') || lower.startsWith('/web ') || lower === '/web') {
       const parts = cmd
         .split(/\s+/)
@@ -1125,6 +1146,7 @@ class IrukaDarkApp {
           ja: '直前のAI出力を翻訳',
         },
         children: SLASH_TRANSLATE_TARGETS,
+        childSeparator: '_',
       },
       {
         key: '/clear',
@@ -1139,22 +1161,12 @@ class IrukaDarkApp {
         desc: { en: 'Summarize and compact history', ja: '履歴を要約して圧縮' },
       },
       {
-        key: '/websearch on',
-        match: '/websearch on',
-        label: '/websearch on',
-        desc: { en: 'Enable Web Search', ja: 'Web検索を有効化' },
-      },
-      {
-        key: '/websearch off',
-        match: '/websearch off',
-        label: '/websearch off',
-        desc: { en: 'Disable Web Search', ja: 'Web検索を無効化' },
-      },
-      {
-        key: '/websearch status',
-        match: '/websearch status',
-        label: '/websearch status',
-        desc: { en: 'Show Web Search status', ja: 'Web検索の状態を表示' },
+        key: '/web',
+        match: '/web',
+        label: '/web',
+        desc: { en: 'Web search controls', ja: 'Web検索の設定' },
+        children: SLASH_WEB_TARGETS,
+        childSeparator: ' ',
       },
       // 4) /contact must be last
       {
@@ -1231,13 +1243,31 @@ class IrukaDarkApp {
   }
 
   currentSlashCandidates() {
-    const v = (this.messageInput?.value || '').trim();
-    if (!v.startsWith('/')) return [];
-    const q = v.toLowerCase();
-    if (q.startsWith('/translate_')) {
-      return SLASH_TRANSLATE_TARGETS.filter((c) => c.match.startsWith(q));
+    const raw = this.messageInput?.value || '';
+    const value = raw.replace(/^\s+/, '');
+    if (!value.startsWith('/')) return [];
+    const lower = value.toLowerCase();
+    const normalized = lower.trim();
+    if (normalized.startsWith('/translate_')) {
+      return SLASH_TRANSLATE_TARGETS.filter((c) => c.match.startsWith(normalized));
     }
-    return this.slashCommands.filter((c) => c.match.startsWith(q));
+    if (normalized.startsWith('/websearch')) {
+      const aliased = normalized.replace(/^\/websearch/, '/web');
+      if (aliased.startsWith('/web ')) {
+        return SLASH_WEB_TARGETS.filter((c) => c.match.startsWith(aliased));
+      }
+      if (aliased === '/web' && (raw.endsWith(' ') || lower.endsWith(' '))) {
+        return SLASH_WEB_TARGETS;
+      }
+      return this.slashCommands.filter((c) => c.match.startsWith('/web'));
+    }
+    if (normalized.startsWith('/web ')) {
+      return SLASH_WEB_TARGETS.filter((c) => c.match.startsWith(normalized));
+    }
+    if (normalized === '/web' && (raw.endsWith(' ') || lower.endsWith(' '))) {
+      return SLASH_WEB_TARGETS;
+    }
+    return this.slashCommands.filter((c) => c.match.startsWith(normalized));
   }
 
   maybeShowSlashSuggest() {
@@ -1317,8 +1347,25 @@ class IrukaDarkApp {
 
   expandSlashSubcommands(meta) {
     if (!this.messageInput) return;
-    const base = meta?.key || '/translate';
-    const nextValue = base.endsWith('_') ? base : `${base}_`;
+    const base = meta?.key || meta?.match || '/';
+    const separator = typeof meta?.childSeparator === 'string' ? meta.childSeparator : '_';
+    let nextValue = this.messageInput.value || base;
+    if (!nextValue.toLowerCase().startsWith((meta?.match || base).toLowerCase())) {
+      nextValue = base;
+    }
+    if (separator === '_') {
+      if (!nextValue.endsWith('_')) {
+        nextValue = `${base}_`;
+      }
+    } else if (separator === ' ') {
+      if (!nextValue.endsWith(' ')) {
+        nextValue = `${base} `;
+      }
+    } else if (separator) {
+      if (!nextValue.endsWith(separator)) {
+        nextValue = `${base}${separator}`;
+      }
+    }
     this.messageInput.value = nextValue;
     this.autosizeMessageInput();
     const pos = this.messageInput.value.length;

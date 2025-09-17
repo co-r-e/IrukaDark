@@ -28,7 +28,7 @@
     webSearchDisabled: 'Web検索を無効にしました。',
     webSearchStatusOn: 'Web検索: ON',
     webSearchStatusOff: 'Web検索: OFF',
-    webSearchHelp: '/websearch on|off|status を使用できます',
+    webSearchHelp: '/web on|off|status を使用できます',
     noPreviousAI: '直前のAIメッセージがありません。',
     selectionExplanation: '選択範囲の解説',
     selectionTranslation: '選択範囲の翻訳',

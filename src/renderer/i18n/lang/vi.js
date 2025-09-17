@@ -26,7 +26,7 @@
     webSearchDisabled: 'Đã tắt Tìm kiếm web.',
     webSearchStatusOn: 'Tìm kiếm web: BẬT',
     webSearchStatusOff: 'Tìm kiếm web: TẮT',
-    webSearchHelp: 'Dùng /websearch on|off|status',
+    webSearchHelp: 'Dùng /web on|off|status',
     noPreviousAI: 'Không có tin nhắn AI trước đó để tiếp tục.',
     selectionExplanation: 'Giải thích vùng chọn',
     selectionTranslation: 'Dịch vùng chọn',

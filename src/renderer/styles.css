@@ -1050,11 +1050,9 @@ html[dir='rtl'] .slash-suggest {
 .theme-dark .slash-suggest-item .child-indicator {
   color: #cbd5f5;
 }
-.slash-suggest-item:hover,
 .slash-suggest-item.active {
   background: rgba(0, 0, 0, 0.06);
 }
-.theme-dark .slash-suggest-item:hover,
 .theme-dark .slash-suggest-item.active {
   background: rgba(255, 255, 255, 0.08);
 }

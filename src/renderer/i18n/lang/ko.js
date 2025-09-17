@@ -26,7 +26,7 @@
     webSearchDisabled: '웹 검색이 비활성화되었습니다.',
     webSearchStatusOn: '웹 검색: 켜짐',
     webSearchStatusOff: '웹 검색: 꺼짐',
-    webSearchHelp: '/websearch on|off|status 사용',
+    webSearchHelp: '/web on|off|status 사용',
     noPreviousAI: '이어서 진행할 AI 메시지가 없어요.',
     selectionExplanation: '선택 영역 설명',
     selectionTranslation: '선택 영역 번역',

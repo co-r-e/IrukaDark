@@ -25,7 +25,7 @@
     webSearchDisabled: '已禁用网页搜索。',
     webSearchStatusOn: '网页搜索：开启',
     webSearchStatusOff: '网页搜索：关闭',
-    webSearchHelp: '使用 /websearch on|off|status',
+    webSearchHelp: '使用 /web on|off|status',
     noPreviousAI: '没有可续写的上一条 AI 消息。',
     selectionExplanation: '选区解读',
     selectionTranslation: '翻译选区',

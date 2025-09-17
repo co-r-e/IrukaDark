@@ -25,7 +25,7 @@
     webSearchDisabled: '已停用網頁搜尋。',
     webSearchStatusOn: '網頁搜尋：開啟',
     webSearchStatusOff: '網頁搜尋：關閉',
-    webSearchHelp: '使用 /websearch on|off|status',
+    webSearchHelp: '使用 /web on|off|status',
     noPreviousAI: '沒有可延續的上一則 AI 訊息。',
     selectionExplanation: '選取範圍解說',
     selectionTranslation: '翻譯選取範圍',

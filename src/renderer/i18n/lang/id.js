@@ -26,7 +26,7 @@
     webSearchDisabled: 'Penelusuran web dinonaktifkan.',
     webSearchStatusOn: 'Penelusuran web: AKTIF',
     webSearchStatusOff: 'Penelusuran web: NONAKTIF',
-    webSearchHelp: 'Gunakan /websearch on|off|status',
+    webSearchHelp: 'Gunakan /web on|off|status',
     noPreviousAI: 'Tidak ada pesan AI sebelumnya untuk dilanjutkan.',
     selectionExplanation: 'Penjelasan pilihan',
     selectionTranslation: 'Terjemahkan pilihan',

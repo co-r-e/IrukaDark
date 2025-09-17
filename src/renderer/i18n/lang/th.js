@@ -26,7 +26,7 @@
     webSearchDisabled: 'ปิดการค้นเว็บแล้ว',
     webSearchStatusOn: 'ค้นเว็บ: เปิด',
     webSearchStatusOff: 'ค้นเว็บ: ปิด',
-    webSearchHelp: 'ใช้ /websearch on|off|status',
+    webSearchHelp: 'ใช้ /web on|off|status',
     noPreviousAI: 'ไม่มีข้อความ AI ก่อนหน้าให้ทำต่อ',
     selectionExplanation: 'คำอธิบายส่วนที่เลือก',
     selectionTranslation: 'แปลส่วนที่เลือก',

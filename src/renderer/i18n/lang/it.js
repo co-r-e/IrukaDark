@@ -27,7 +27,7 @@
     webSearchDisabled: 'Ricerca web disattivata.',
     webSearchStatusOn: 'Ricerca web: ATTIVA',
     webSearchStatusOff: 'Ricerca web: DISATTIVA',
-    webSearchHelp: 'Usa /websearch on|off|status',
+    webSearchHelp: 'Usa /web on|off|status',
     noPreviousAI: 'Nessun messaggio IA precedente da continuare.',
     selectionExplanation: 'Spiegazione selezione',
     selectionTranslation: 'Traduci selezione',

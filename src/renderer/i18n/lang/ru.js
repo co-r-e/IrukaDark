@@ -27,7 +27,7 @@
     webSearchDisabled: 'Веб‑поиск выключен.',
     webSearchStatusOn: 'Веб‑поиск: ВКЛ',
     webSearchStatusOff: 'Веб‑поиск: ВЫКЛ',
-    webSearchHelp: 'Используйте /websearch on|off|status',
+    webSearchHelp: 'Используйте /web on|off|status',
     noPreviousAI: 'Нет предыдущего сообщения ИИ для продолжения.',
     selectionExplanation: 'Пояснение выделения',
     selectionTranslation: 'Перевести выделение',
