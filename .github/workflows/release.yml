@@ -60,7 +60,7 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Build & Publish (unsigned if no cert)
+      - name: Build app
         env:
           # macOS signing (optional)
           CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
@@ -70,24 +70,30 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
+          BASE_CMD=(npx electron-builder --mac dmg --x64 --publish never)
           if [[ -n "${CSC_LINK:-}" && -n "${CSC_KEY_PASSWORD:-}" ]]; then
             echo "Signing enabled (Developer ID certificate provided)."
-            npm run dist:mac:x64
+            "${BASE_CMD[@]}"
           else
             echo "Signing secrets not set. Building unsigned."
-            npx electron-builder --mac dmg --x64 --config.mac.identity=null --publish always
+            "${BASE_CMD[@]}" --config.mac.identity=null
           fi
+
+      - name: Rename artifacts with tag
+        run: node scripts/rename-artifacts.js "${{ github.ref_name }}"
 
       - name: Generate SHA-256 checksums
         run: node scripts/generate-sha256.js
 
-      - name: Upload checksums to release
+      - name: Upload artifacts to release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          ls dist/*.sha256
-          gh release upload "${{ github.ref_name }}" dist/*.sha256 --clobber
+          TAG="${{ github.ref_name }}"
+          shopt -s nullglob
+          ls dist/
+          gh release upload "$TAG" dist/*.dmg dist/*.zip dist/*.blockmap dist/*.sha256 --clobber
 
   mac-arm64:
     needs: prepare
@@ -105,7 +111,7 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Build & Publish (unsigned if no cert)
+      - name: Build app
         env:
           CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
@@ -114,23 +120,29 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
+          BASE_CMD=(npx electron-builder --mac dmg --arm64 --publish never)
           if [[ -n "${CSC_LINK:-}" && -n "${CSC_KEY_PASSWORD:-}" ]]; then
             echo "Signing enabled (Developer ID certificate provided)."
-            npm run dist:mac:arm64
+            "${BASE_CMD[@]}"
           else
             echo "Signing secrets not set. Building unsigned."
-            npx electron-builder --mac dmg --arm64 --config.mac.identity=null --publish always
+            "${BASE_CMD[@]}" --config.mac.identity=null
           fi
+
+      - name: Rename artifacts with tag
+        run: node scripts/rename-artifacts.js "${{ github.ref_name }}"
 
       - name: Generate SHA-256 checksums
         run: node scripts/generate-sha256.js
 
-      - name: Upload checksums to release
+      - name: Upload artifacts to release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          ls dist/*.sha256
-          gh release upload "${{ github.ref_name }}" dist/*.sha256 --clobber
+          TAG="${{ github.ref_name }}"
+          shopt -s nullglob
+          ls dist/
+          gh release upload "$TAG" dist/*.dmg dist/*.zip dist/*.blockmap dist/*.sha256 --clobber
 
   # macOS only
