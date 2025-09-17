@@ -1020,11 +1020,17 @@ html[dir='rtl'] .slash-suggest {
 }
 .slash-suggest-item {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   padding: 6px 8px;
   border-radius: 8px;
   cursor: pointer;
+}
+.slash-suggest-item .slash-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .slash-suggest-item .cmd {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -1032,12 +1038,13 @@ html[dir='rtl'] .slash-suggest {
   color: #111827;
 }
 .slash-suggest-item .desc {
-  font-size: 12px;
+  display: block;
+  font-size: 9px;
   color: #6b7280;
-  flex: 1;
+  margin-top: 0;
 }
 .slash-suggest-item .child-indicator {
-  font-size: 12px;
+  font-size: 11px;
   color: #9ca3af;
   margin-left: 4px;
 }
@@ -1045,7 +1052,7 @@ html[dir='rtl'] .slash-suggest {
   color: #e5e7eb;
 }
 .theme-dark .slash-suggest-item .desc {
-  color: #9ca3af;
+  color: #a0a7bb;
 }
 .theme-dark .slash-suggest-item .child-indicator {
   color: #cbd5f5;

@@ -1214,7 +1214,10 @@ class IrukaDarkApp {
       }
       const desc = c.desc?.[lang] || c.desc?.en || c.label;
       const childIndicator = c.children?.length ? '<span class="child-indicator">›</span>' : '';
-      div.innerHTML = `<span class="cmd">${c.label}</span><span class="desc">${desc}</span>${childIndicator}`;
+      div.innerHTML = `
+        <div class="slash-line"><span class="cmd">${c.label}</span>${childIndicator}</div>
+        <span class="desc">${desc}</span>
+      `;
       this.suggestList.appendChild(div);
     });
     // Keep the active item visible when navigating
