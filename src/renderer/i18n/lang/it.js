@@ -21,7 +21,7 @@
     historyCleared: 'Cronologia pulita.',
     historyCompacted: 'Cronologia riassunta e compressa.',
     availableCommands:
-      'Comandi: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate_JA, /translate_EN, /translate_zh-CN, /translate_zh-TW',
+      'Comandi: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate (JA/EN/zh-CN/zh-TW)',
     sourcesBadge: 'Fonti',
     webSearchEnabled: 'Ricerca web attivata.',
     webSearchDisabled: 'Ricerca web disattivata.',

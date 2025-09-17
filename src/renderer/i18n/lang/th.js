@@ -20,7 +20,7 @@
     historyCleared: 'ล้างประวัติแชทแล้ว',
     historyCompacted: 'สรุปและย่อประวัติแล้ว',
     availableCommands:
-      'คำสั่ง: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate_JA, /translate_EN, /translate_zh-CN, /translate_zh-TW',
+      'คำสั่ง: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate (JA/EN/zh-CN/zh-TW)',
     sourcesBadge: 'แหล่งที่มา',
     webSearchEnabled: 'เปิดการค้นเว็บแล้ว',
     webSearchDisabled: 'ปิดการค้นเว็บแล้ว',

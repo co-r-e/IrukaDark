@@ -42,19 +42,22 @@ const SOURCE_MARKERS = (() => {
 // Slash command metadata for language-specific translations
 const SLASH_TRANSLATE_TARGETS = [
   {
-    key: '/translate_ja',
+    key: '/translate_JA',
+    match: '/translate_ja',
     label: '/translate_JA',
     target: 'ja',
     desc: { en: 'Translate last AI output into Japanese', ja: '直前のAI出力を日本語に翻訳' },
   },
   {
-    key: '/translate_en',
+    key: '/translate_EN',
+    match: '/translate_en',
     label: '/translate_EN',
     target: 'en',
     desc: { en: 'Translate last AI output into English', ja: '直前のAI出力を英語に翻訳' },
   },
   {
-    key: '/translate_zh-cn',
+    key: '/translate_zh-CN',
+    match: '/translate_zh-cn',
     label: '/translate_zh-CN',
     target: 'zh-CN',
     desc: {
@@ -63,7 +66,8 @@ const SLASH_TRANSLATE_TARGETS = [
     },
   },
   {
-    key: '/translate_zh-tw',
+    key: '/translate_zh-TW',
+    match: '/translate_zh-tw',
     label: '/translate_zh-TW',
     target: 'zh-TW',
     desc: {
@@ -74,7 +78,7 @@ const SLASH_TRANSLATE_TARGETS = [
 ];
 
 const SLASH_TRANSLATE_LOOKUP = SLASH_TRANSLATE_TARGETS.reduce((map, cfg) => {
-  map[cfg.key] = cfg;
+  map[cfg.match] = cfg;
   return map;
 }, {});
 
@@ -1093,52 +1097,78 @@ class IrukaDarkApp {
       // 1) New command at the top
       {
         key: '/what do you mean?',
+        match: '/what do you mean?',
         label: '/What do you mean?',
         desc: { en: 'Clarify the last AI output', ja: '直前のAI出力をわかりやすく説明' },
       },
       // 2) /next second
       {
         key: '/next',
+        match: '/next',
         label: '/next',
         desc: { en: 'Continue the last AI output', ja: '直前のAI回答の続きを生成' },
       },
       // 3) /table third
       {
         key: '/table',
+        match: '/table',
         label: '/table',
         desc: { en: 'Reformat last AI output into a table', ja: '直前のAI出力を表に変換' },
       },
 
       // Others
-      { key: '/clear', label: '/clear', desc: { en: 'Clear chat history', ja: '履歴をクリア' } },
+      {
+        key: '/translate',
+        match: '/translate',
+        label: '/translate',
+        desc: {
+          en: 'Translate last AI output (press → for language options)',
+          ja: '直前のAI出力を翻訳（→キーで言語を選択）',
+        },
+        children: SLASH_TRANSLATE_TARGETS,
+      },
+      {
+        key: '/clear',
+        match: '/clear',
+        label: '/clear',
+        desc: { en: 'Clear chat history', ja: '履歴をクリア' },
+      },
       {
         key: '/compact',
+        match: '/compact',
         label: '/compact',
         desc: { en: 'Summarize and compact history', ja: '履歴を要約して圧縮' },
       },
-      ...SLASH_TRANSLATE_TARGETS,
       {
         key: '/websearch on',
+        match: '/websearch on',
         label: '/websearch on',
         desc: { en: 'Enable Web Search', ja: 'Web検索を有効化' },
       },
       {
         key: '/websearch off',
+        match: '/websearch off',
         label: '/websearch off',
         desc: { en: 'Disable Web Search', ja: 'Web検索を無効化' },
       },
       {
         key: '/websearch status',
+        match: '/websearch status',
         label: '/websearch status',
         desc: { en: 'Show Web Search status', ja: 'Web検索の状態を表示' },
       },
       // 4) /contact must be last
       {
         key: '/contact',
+        match: '/contact',
         label: '/contact',
         desc: { en: 'Open contact URL', ja: '連絡先URLを開く' },
       },
     ];
+    this.slashCommands = this.slashCommands.map((cmd) => ({
+      ...cmd,
+      match: (cmd.match || cmd.key || cmd.label || '').toLowerCase(),
+    }));
     this.suggestIndex = -1;
     this.suggestVisible = false;
     const wrapper = document.getElementById('inputWrapper');
@@ -1168,7 +1198,12 @@ class IrukaDarkApp {
       const div = document.createElement('div');
       div.className = 'slash-suggest-item' + (i === this.suggestIndex ? ' active' : '');
       div.setAttribute('data-cmd', c.key);
-      div.innerHTML = `<span class=\"cmd\">${c.label}</span><span class=\"desc\">${c.desc?.[lang] || c.desc?.en || c.label}</span>`;
+      if (c.children?.length) {
+        div.classList.add('has-children');
+      }
+      const desc = c.desc?.[lang] || c.desc?.en || c.label;
+      const childIndicator = c.children?.length ? '<span class="child-indicator">›</span>' : '';
+      div.innerHTML = `<span class="cmd">${c.label}</span><span class="desc">${desc}</span>${childIndicator}`;
       this.suggestList.appendChild(div);
     });
     // Keep the active item visible when navigating
@@ -1200,7 +1235,10 @@ class IrukaDarkApp {
     const v = (this.messageInput?.value || '').trim();
     if (!v.startsWith('/')) return [];
     const q = v.toLowerCase();
-    return this.slashCommands.filter((c) => c.key.startsWith(q));
+    if (q.startsWith('/translate_')) {
+      return SLASH_TRANSLATE_TARGETS.filter((c) => c.match.startsWith(q));
+    }
+    return this.slashCommands.filter((c) => c.match.startsWith(q));
   }
 
   maybeShowSlashSuggest() {
@@ -1238,6 +1276,14 @@ class IrukaDarkApp {
       this.renderSlashSuggest(items);
       return true;
     }
+    if (key === 'ArrowRight') {
+      const current = items[this.suggestIndex] || items[0];
+      if (current?.children?.length) {
+        e.preventDefault();
+        this.expandSlashSubcommands(current);
+        return true;
+      }
+    }
     if (key === 'Enter') {
       e.preventDefault();
       const cmd = items[this.suggestIndex]?.key || items[0].key;
@@ -1257,11 +1303,39 @@ class IrukaDarkApp {
     this.messageInput.value = cmd;
     this.hideSlashSuggest();
     if (execute) {
+      const lower = String(cmd || '').toLowerCase();
+      const meta = this.slashCommands.find((c) => c.match === lower);
+      if (meta?.children?.length) {
+        this.expandSlashSubcommands(meta);
+        return;
+      }
       this.handleSlashCommand(cmd);
       this.messageInput.value = '';
       this.autosizeMessageInput(true);
       this.messageInput.focus();
     }
+  }
+
+  expandSlashSubcommands(meta) {
+    if (!this.messageInput) return;
+    const base = meta?.key || '/translate';
+    const nextValue = base.endsWith('_') ? base : `${base}_`;
+    this.messageInput.value = nextValue;
+    this.autosizeMessageInput();
+    const pos = this.messageInput.value.length;
+    try {
+      this.messageInput.focus();
+      this.messageInput.setSelectionRange(pos, pos);
+    } catch {}
+    const childItems = this.currentSlashCandidates();
+    if (!childItems.length) {
+      this.hideSlashSuggest();
+      return;
+    }
+    this.suggestVisible = true;
+    this.suggestIndex = 0;
+    if (this.suggestBox) this.suggestBox.classList.remove('hidden');
+    this.renderSlashSuggest(childItems);
   }
 
   setGenerating(on) {

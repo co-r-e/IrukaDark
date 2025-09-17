@@ -21,7 +21,7 @@
     historyCleared: 'История чата очищена.',
     historyCompacted: 'История кратко изложена и сжата.',
     availableCommands:
-      'Команды: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate_JA, /translate_EN, /translate_zh-CN, /translate_zh-TW',
+      'Команды: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate (JA/EN/zh-CN/zh-TW)',
     sourcesBadge: 'Источники',
     webSearchEnabled: 'Веб‑поиск включен.',
     webSearchDisabled: 'Веб‑поиск выключен.',

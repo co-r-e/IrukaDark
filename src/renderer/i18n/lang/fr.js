@@ -21,7 +21,7 @@
     historyCleared: 'Historique effacé.',
     historyCompacted: 'Historique résumé et compacté.',
     availableCommands:
-      'Commandes : /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate_JA, /translate_EN, /translate_zh-CN, /translate_zh-TW',
+      'Commandes : /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate (JA/EN/zh-CN/zh-TW)',
     sourcesBadge: 'Sources',
     webSearchEnabled: 'Recherche Web activée.',
     webSearchDisabled: 'Recherche Web désactivée.',

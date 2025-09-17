@@ -1034,12 +1034,21 @@ html[dir='rtl'] .slash-suggest {
 .slash-suggest-item .desc {
   font-size: 12px;
   color: #6b7280;
+  flex: 1;
+}
+.slash-suggest-item .child-indicator {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-left: 4px;
 }
 .theme-dark .slash-suggest-item .cmd {
   color: #e5e7eb;
 }
 .theme-dark .slash-suggest-item .desc {
   color: #9ca3af;
+}
+.theme-dark .slash-suggest-item .child-indicator {
+  color: #cbd5f5;
 }
 .slash-suggest-item:hover,
 .slash-suggest-item.active {

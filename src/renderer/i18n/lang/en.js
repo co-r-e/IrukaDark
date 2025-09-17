@@ -21,7 +21,7 @@
     historyCleared: 'Chat history cleared.',
     historyCompacted: 'Compressed chat history with a summary.',
     availableCommands:
-      'Available commands: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate_JA, /translate_EN, /translate_zh-CN, /translate_zh-TW',
+      'Available commands: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate (JA/EN/zh-CN/zh-TW)',
     sourcesBadge: 'Sources',
     webSearchEnabled: 'Web Search enabled.',
     webSearchDisabled: 'Web Search disabled.',
