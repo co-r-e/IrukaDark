@@ -29,6 +29,7 @@
     noPreviousAI: '没有可续写的上一条 AI 消息。',
     selectionExplanation: '选区解读',
     selectionTranslation: '翻译选区',
+    selectionPronunciation: '标注选区读音',
     updateAvailable: (v) => `发现新版本（${v}）。是否打开下载页？`,
     upToDate: '已是最新版本。',
     updateCheckFailed: '检查更新失败。',

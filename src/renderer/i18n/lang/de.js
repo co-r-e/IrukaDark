@@ -31,6 +31,7 @@
     noPreviousAI: 'Kein vorheriger KI‑Beitrag zum Fortsetzen.',
     selectionExplanation: 'Erläuterung der Auswahl',
     selectionTranslation: 'Auswahl übersetzen',
+    selectionPronunciation: 'Auswahl aussprechen',
     updateAvailable: (v) => `Neue Version (${v}) verfügbar. Downloads öffnen?`,
     upToDate: 'Du bist auf dem neuesten Stand.',
     updateCheckFailed: 'Update‑Prüfung fehlgeschlagen.',

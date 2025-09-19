@@ -30,6 +30,7 @@
     noPreviousAI: '이어서 진행할 AI 메시지가 없어요.',
     selectionExplanation: '선택 영역 설명',
     selectionTranslation: '선택 영역 번역',
+    selectionPronunciation: '선택 영역 발음',
     updateAvailable: (v) => `새 버전(${v})을 사용할 수 있습니다. 다운로드 페이지를 열까요?`,
     upToDate: '최신 상태입니다.',
     updateCheckFailed: '업데이트 확인에 실패했습니다.',

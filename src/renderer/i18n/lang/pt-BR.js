@@ -30,6 +30,7 @@
     noPreviousAI: 'Nenhuma mensagem anterior da IA para continuar.',
     selectionExplanation: 'Explicação da seleção',
     selectionTranslation: 'Traduzir seleção',
+    selectionPronunciation: 'Pronunciar seleção',
     updateAvailable: (v) => `Nova versão (${v}) disponível. Abrir downloads?`,
     upToDate: 'Você está atualizado.',
     updateCheckFailed: 'Falha ao verificar atualizações.',

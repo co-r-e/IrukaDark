@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onExplainClipboardDetailed: (cb) =>
     ipcRenderer.on('explain-clipboard-detailed', (_e, t) => cb(t)),
   onTranslateClipboard: (cb) => ipcRenderer.on('translate-clipboard', (_e, t) => cb(t)),
+  onPronounceClipboard: (cb) => ipcRenderer.on('pronounce-clipboard', (_e, t) => cb(t)),
   onExplainClipboardError: (cb) => ipcRenderer.on('explain-clipboard-error', (_e, msg) => cb(msg)),
   onAccessibilityWarning: (cb) => ipcRenderer.on('accessibility-warning', () => cb()),
   onShortcutRegistered: (cb) => ipcRenderer.on('shortcut-registered', (_e, a) => cb(a)),
@@ -31,6 +32,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('shortcut-detailed-registered', (_e, a) => cb(a)),
   onShortcutTranslateRegistered: (cb) =>
     ipcRenderer.on('shortcut-translate-registered', (_e, a) => cb(a)),
+  onShortcutPronounceRegistered: (cb) =>
+    ipcRenderer.on('shortcut-pronounce-registered', (_e, a) => cb(a)),
   onThemeChanged: (cb) => ipcRenderer.on('theme-changed', (_e, theme) => cb(theme)),
   onToneChanged: (cb) => ipcRenderer.on('tone-changed', (_e, tone) => cb(tone)),
   showAppMenu: (pos) => ipcRenderer.invoke('ui:show-app-menu', pos),

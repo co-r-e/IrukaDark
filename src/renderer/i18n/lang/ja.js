@@ -32,6 +32,7 @@
     noPreviousAI: '直前のAIメッセージがありません。',
     selectionExplanation: '選択範囲の解説',
     selectionTranslation: '選択範囲の翻訳',
+    selectionPronunciation: '選択範囲の発音',
     updateAvailable: (v) =>
       `新しいバージョン（${v}）が利用可能です。ダウンロードページを開きますか？`,
     upToDate: '最新の状態です。',

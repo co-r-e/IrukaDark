@@ -30,6 +30,7 @@
     noPreviousAI: 'Devam edilecek önceki bir yapay zekâ mesajı yok.',
     selectionExplanation: 'Seçim açıklaması',
     selectionTranslation: 'Seçimi çevir',
+    selectionPronunciation: 'Seçimi telaffuz et',
     updateAvailable: (v) => `Yeni sürüm (${v}) mevcut. İndirmeleri açalım mı?`,
     upToDate: 'Güncelsiniz.',
     updateCheckFailed: 'Güncelleme kontrolü başarısız.',

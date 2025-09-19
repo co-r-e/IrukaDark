@@ -30,6 +30,7 @@
     noPreviousAI: 'Không có tin nhắn AI trước đó để tiếp tục.',
     selectionExplanation: 'Giải thích vùng chọn',
     selectionTranslation: 'Dịch vùng chọn',
+    selectionPronunciation: 'Phát âm vùng chọn',
     updateAvailable: (v) => `Có phiên bản mới (${v}). Mở trang tải xuống?`,
     upToDate: 'Bạn đang dùng phiên bản mới nhất.',
     updateCheckFailed: 'Không thể kiểm tra cập nhật.',

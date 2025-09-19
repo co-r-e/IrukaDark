@@ -31,6 +31,7 @@
     noPreviousAI: 'Aucun message IA précédent à poursuivre.',
     selectionExplanation: 'Explication de la sélection',
     selectionTranslation: 'Traduire la sélection',
+    selectionPronunciation: 'Prononcer la sélection',
     updateAvailable: (v) =>
       `Nouvelle version (${v}) disponible. Ouvrir la page de téléchargement ?`,
     upToDate: 'Vous êtes à jour.',

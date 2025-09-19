@@ -29,6 +29,7 @@
     noPreviousAI: '沒有可延續的上一則 AI 訊息。',
     selectionExplanation: '選取範圍解說',
     selectionTranslation: '翻譯選取範圍',
+    selectionPronunciation: '標註選取範圍讀音',
     updateAvailable: (v) => `有新版本（${v}）。是否開啟下載頁？`,
     upToDate: '已是最新版本。',
     updateCheckFailed: '檢查更新失敗。',

@@ -501,6 +501,33 @@ app.whenReady().then(async () => {
       } catch {}
     }
 
+    // Pronunciation: Option+Q
+    const pronounceCandidates = ['Alt+Q'];
+    let pronounceUsed = '';
+    for (const c of pronounceCandidates) {
+      try {
+        const ok = globalShortcut.register(c, () => {
+          (async () => {
+            try {
+              const text = await tryCopySelectedText();
+              if (!mainWindow || mainWindow.isDestroyed()) return;
+              if (text) {
+                mainWindow.webContents.send('pronounce-clipboard', text);
+              } else {
+                mainWindow.webContents.send('explain-clipboard-error', '');
+              }
+            } catch (e) {
+              if (isDev) console.warn('Clipboard pronunciation failed:', e?.message);
+            }
+          })();
+        });
+        if (ok) {
+          pronounceUsed = c;
+          break;
+        }
+      } catch {}
+    }
+
     // Screenshot explain: Option+S
     const screenshotCandidates = ['Alt+S'];
     for (const c of screenshotCandidates) {
@@ -556,6 +583,7 @@ app.whenReady().then(async () => {
         mainWindow.webContents.send('shortcut-registered', baseUsed);
         mainWindow.webContents.send('shortcut-detailed-registered', detailedUsed);
         mainWindow.webContents.send('shortcut-translate-registered', translateUsed);
+        mainWindow.webContents.send('shortcut-pronounce-registered', pronounceUsed);
       }
     } catch {}
 

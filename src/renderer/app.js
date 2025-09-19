@@ -411,6 +411,7 @@ class IrukaDarkApp {
     on('onExplainClipboard', (text) => this.handleExplainClipboard(text));
     on('onExplainClipboardDetailed', (text) => this.handleExplainClipboardDetailed(text));
     on('onTranslateClipboard', (text) => this.handleTranslateClipboard(text));
+    on('onPronounceClipboard', (text) => this.handlePronounceClipboard(text));
     on('onExplainClipboardError', (msg) =>
       this.showToast(msg || getUIText('textNotRetrieved'), 'error')
     );
@@ -442,6 +443,13 @@ class IrukaDarkApp {
       if (!accel) return;
       const display = String(accel || '').replace(/\bAlt\b/g, 'Option');
       if (accel && accel !== 'Alt+R') {
+        this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
+      }
+    });
+    on('onShortcutPronounceRegistered', (accel) => {
+      if (!accel) return;
+      const display = String(accel || '').replace(/\bAlt\b/g, 'Option');
+      if (accel && accel !== 'Alt+Q') {
         this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
       }
     });
@@ -686,6 +694,47 @@ class IrukaDarkApp {
       }
       this.addMessage('ai', response);
       // 表示のみ（フォーカスは奪わない）
+      try {
+        window.electronAPI &&
+          window.electronAPI.ensureVisible &&
+          window.electronAPI.ensureVisible(false);
+      } catch {}
+      this.syncHeader();
+    } catch (e) {
+      if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
+        return;
+      }
+      this.hideTypingIndicator();
+      this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
+      this.syncHeader();
+    } finally {
+      this.disableAutoScroll = false;
+    }
+  }
+
+  /**
+   * 選択テキストの発音表記への変換
+   */
+  async handlePronounceClipboard(text) {
+    await this.cancelActiveShortcut();
+    const token = ++this.shortcutRequestId;
+    const content = (text || '').trim();
+    if (!content) return;
+    this.disableAutoScroll = true;
+    this.addMessage('system-question', getUIText('selectionPronunciation'));
+    this.syncHeader();
+    this.showTypingIndicator();
+
+    try {
+      const response = await this.geminiService.generatePronunciation(content);
+      if (token !== this.shortcutRequestId) {
+        return;
+      }
+      this.hideTypingIndicator();
+      if (this.cancelRequested) {
+        return;
+      }
+      this.addMessage('ai', response);
       try {
         window.electronAPI &&
           window.electronAPI.ensureVisible &&
@@ -1952,6 +2001,34 @@ ${t}`;
     // Web search is unnecessary for pure translation
     const res = await this.requestText(prompt, false, 'shortcut');
     return res;
+  }
+
+  async generatePronunciation(text) {
+    const lang =
+      (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
+    const { name, code } = getLangMeta(lang);
+    const trimmed =
+      text.length > 8000
+        ? text.slice(0, 8000) + (lang === 'ja' ? ' …(一部省略)' : ' …(truncated)')
+        : text;
+    const instructions = (() => {
+      switch (lang) {
+        case 'ja':
+          return `次のテキストを日本語の読み（発音）に変換してください。\n要件:\n- 行や句読点などの構造は維持し、漢字はひらがな、外来語や固有名詞はカタカナで表記する\n- 長音は「ー」、促音は小さい「っ」で示す\n- 読みのみを出力し、原文や解説は書かない\n- 語のまとまりはスペースまたは・で区切って自然な読みになるよう調整する`;
+        case 'zh-Hans':
+          return `Convert the text to Mandarin pronunciation written in Hanyu Pinyin with tone marks (mā, méi, wǒ).\nRequirements:\n- Preserve the original line breaks and punctuation\n- Separate syllables with spaces\n- Output only the Pinyin transcription without the original Hanzi or commentary\n- Use tone marks above vowels; if a tone mark cannot be applied, append the tone number`;
+        case 'zh-Hant':
+          return `Convert the text to Mandarin pronunciation written in Hanyu Pinyin with tone marks (mā, méi, wǒ).\nRequirements:\n- Keep the same line and bullet structure\n- Separate syllables with spaces\n- Output only the Pinyin transcription (no Hanzi, no explanations)\n- Use tone marks above vowels or, if unavailable, add the tone number`;
+        case 'ko':
+          return `다음 문장을 실제 발음대로 한글로 표기하세요.\n요구 사항:\n- 원문의 줄바꿈과 구두점은 유지하고, 단어는 자연스러운 발음대로 띄어 쓴다\n- 로마자 표기나 설명을 덧붙이지 않는다\n- 받침과 연음 등 발음 변화를 반영한 한글 표기를 출력한다`;
+        case 'th':
+          return `Transcribe the text into Thai pronunciation using Royal Thai General System (RTGS) romanization with tone numbers (1–5).\nRequirements:\n- Maintain the original line breaks and punctuation\n- Separate words with spaces; append tone numbers directly after each syllable\n- Output only the RTGS transcription (no Thai script, no explanations)`;
+        default:
+          return `Convert the text into its pronunciation notation for ${name} (${code}) using the International Phonetic Alphabet (IPA).\nRequirements:\n- Preserve the original line breaks and bullet structure while replacing words with their IPA transcription\n- Separate words with spaces and use syllable dots if they aid readability\n- Output only the IPA transcription without the original text or any commentary`;
+      }
+    })();
+    const prompt = `${instructions}\n\nText:\n${trimmed}`;
+    return this.requestText(prompt, false, 'shortcut');
   }
 
   async generateTargetedTranslation(text, targetCode = 'en') {

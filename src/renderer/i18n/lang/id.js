@@ -30,6 +30,7 @@
     noPreviousAI: 'Tidak ada pesan AI sebelumnya untuk dilanjutkan.',
     selectionExplanation: 'Penjelasan pilihan',
     selectionTranslation: 'Terjemahkan pilihan',
+    selectionPronunciation: 'Ucapkan pilihan',
     updateAvailable: (v) => `Versi baru (${v}) tersedia. Buka unduhan?`,
     upToDate: 'Anda sudah versi terbaru.',
     updateCheckFailed: 'Gagal memeriksa pembaruan.',

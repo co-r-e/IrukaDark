@@ -31,6 +31,7 @@
     noPreviousAI: 'No previous AI message to continue.',
     selectionExplanation: 'Selection Explanation',
     selectionTranslation: 'Translate Selection',
+    selectionPronunciation: 'Pronounce Selection',
     updateAvailable: (v) => `A new version (${v}) is available. Open downloads page?`,
     upToDate: 'You are up to date.',
     updateCheckFailed: 'Failed to check updates.',

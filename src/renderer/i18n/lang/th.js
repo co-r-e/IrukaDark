@@ -30,6 +30,7 @@
     noPreviousAI: 'ไม่มีข้อความ AI ก่อนหน้าให้ทำต่อ',
     selectionExplanation: 'คำอธิบายส่วนที่เลือก',
     selectionTranslation: 'แปลส่วนที่เลือก',
+    selectionPronunciation: 'ออกเสียงส่วนที่เลือก',
     updateAvailable: (v) => `มีเวอร์ชันใหม่ (${v}) พร้อมใช้ เปิดหน้าดาวน์โหลดไหม?`,
     upToDate: 'เป็นเวอร์ชันล่าสุดแล้ว',
     updateCheckFailed: 'ตรวจสอบการอัปเดตล้มเหลว',

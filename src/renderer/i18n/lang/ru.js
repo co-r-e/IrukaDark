@@ -31,6 +31,7 @@
     noPreviousAI: 'Нет предыдущего сообщения ИИ для продолжения.',
     selectionExplanation: 'Пояснение выделения',
     selectionTranslation: 'Перевести выделение',
+    selectionPronunciation: 'Произнести выделение',
     updateAvailable: (v) => `Доступна новая версия (${v}). Открыть загрузки?`,
     upToDate: 'У вас последняя версия.',
     updateCheckFailed: 'Не удалось проверить обновления.',
