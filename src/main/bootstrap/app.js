@@ -1,0 +1,1090 @@
+/*!
+ * IrukaDark — (c) 2025 CORe Inc.
+ * License: MIT. See https://github.com/co-r-e/IrukaDark/blob/HEAD/LICENSE
+ */
+const {
+  app,
+  ipcMain,
+  systemPreferences,
+  Menu,
+  globalShortcut,
+  BrowserWindow,
+  shell,
+} = require('electron');
+const path = require('path');
+const fs = require('fs');
+
+const { loadPrefs, savePrefs, setPref, getPref } = require('../services/preferences');
+const { WindowManager } = require('../windows/windowManager');
+const { SettingsController } = require('../services/settingsController');
+const menuBuilder = require('../menu');
+const {
+  showWindowNonActivating,
+  tryCopySelectedText,
+  captureInteractiveArea,
+} = require('../shortcuts');
+const {
+  getGenAIClientForKey,
+  modelCandidates,
+  restGenerateText,
+  restGenerateImage,
+  sdkGenerateText,
+  sdkGenerateImage,
+} = require('../ai');
+const { getMainWindow, setMainWindow, setPopupWindow } = require('../context');
+
+const isDev = process.env.NODE_ENV === 'development';
+
+function loadPortableEnv() {
+  try {
+    const portableFlag = String(process.env.PORTABLE_MODE || process.env.ALLOW_ENV_LOCAL || '')
+      .trim()
+      .toLowerCase();
+    const allowEnvLocal =
+      portableFlag && portableFlag !== '0' && portableFlag !== 'false' && portableFlag !== 'off';
+    if (!allowEnvLocal) return;
+
+    const dotenv = require('dotenv');
+    const envPaths = [
+      path.join(__dirname, '../../../.env.local'),
+      path.join(__dirname, '../../.env.local'),
+      path.join(process.cwd(), '.env.local'),
+    ];
+    for (const envPath of envPaths) {
+      if (fs.existsSync(envPath)) {
+        dotenv.config({ path: envPath });
+        break;
+      }
+    }
+  } catch (error) {
+    if (isDev) console.warn('Failed to load portable env:', error?.message);
+  }
+}
+
+function bootstrapApp() {
+  loadPortableEnv();
+
+  const initialShowMain = ['1', 'true', 'on'].includes(
+    String(process.env.SHOW_MAIN_ON_START || '1').toLowerCase()
+  );
+  const initialPopupMarginRightEnv = parseInt(process.env.POPUP_MARGIN_RIGHT || '', 10);
+  const initialPopupMarginRight = Number.isFinite(initialPopupMarginRightEnv)
+    ? initialPopupMarginRightEnv
+    : 0;
+
+  const windowManager = new WindowManager({
+    getPref,
+    initialShowMain,
+    initialPopupMarginRight,
+  });
+
+  const settingsController = new SettingsController({
+    windowManager,
+    menuRefresher: () => createAppMenu(),
+    setPref,
+    getPref,
+  });
+
+  function getCurrentLanguage() {
+    try {
+      const prefLang = getPref('MENU_LANGUAGE');
+      if (prefLang) return String(prefLang);
+    } catch {}
+    return process.env.MENU_LANGUAGE || 'en';
+  }
+
+  async function openInputDialog({
+    title = 'Input',
+    label = '',
+    placeholder = '',
+    value = '',
+    password = false,
+    lang = 'en',
+  } = {}) {
+    const { BrowserWindow, ipcMain } = require('electron');
+    const mainWindow = getMainWindow();
+    return await new Promise((resolve) => {
+      try {
+        const win = new BrowserWindow({
+          width: 480,
+          height: 200,
+          resizable: false,
+          minimizable: false,
+          maximizable: false,
+          modal: true,
+          parent: mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined,
+          show: false,
+          alwaysOnTop: true,
+          title,
+          frame: false,
+          transparent: true,
+          backgroundColor: '#00000000',
+          vibrancy: process.platform === 'darwin' ? 'sidebar' : undefined,
+          visualEffectState: process.platform === 'darwin' ? 'active' : undefined,
+          webPreferences: {
+            contextIsolation: true,
+            nodeIntegration: false,
+            preload: path.join(__dirname, '../../prompt_preload.js'),
+          },
+        });
+        try {
+          win.setMenuBarVisibility(false);
+        } catch {}
+
+        const htmlPath = path.join(__dirname, '../../prompt.html');
+        win
+          .loadFile(htmlPath)
+          .then(() => {
+            try {
+              win.show();
+            } catch {}
+            try {
+              const theme = String(process.env.UI_THEME || 'dark');
+              win.webContents.send('prompt:init', {
+                title,
+                label,
+                placeholder,
+                value,
+                password,
+                lang,
+                theme,
+              });
+            } catch {}
+          })
+          .catch(() => resolve(null));
+
+        const cleanup = () => {
+          try {
+            win.close();
+          } catch {}
+        };
+
+        const submitHandler = (_e, payload) => {
+          try {
+            ipcMain.removeListener('prompt:submit', submitHandler);
+          } catch {}
+          try {
+            ipcMain.removeListener('prompt:cancel', cancelHandler);
+          } catch {}
+          cleanup();
+          resolve(typeof payload?.value === 'string' ? payload.value : '');
+        };
+        const cancelHandler = () => {
+          try {
+            ipcMain.removeListener('prompt:submit', submitHandler);
+          } catch {}
+          try {
+            ipcMain.removeListener('prompt:cancel', cancelHandler);
+          } catch {}
+          cleanup();
+          resolve(null);
+        };
+        ipcMain.once('prompt:submit', submitHandler);
+        ipcMain.once('prompt:cancel', cancelHandler);
+
+        win.on('closed', () => {
+          try {
+            ipcMain.removeListener('prompt:submit', submitHandler);
+          } catch {}
+          try {
+            ipcMain.removeListener('prompt:cancel', cancelHandler);
+          } catch {}
+          resolve(null);
+        });
+      } catch {
+        resolve(null);
+      }
+    });
+  }
+
+  function createAppMenu() {
+    try {
+      const ctx = {
+        currentLang: getCurrentLanguage(),
+        getPref,
+        setPref,
+        openInputDialog,
+        handleLanguageChange: (lang) => settingsController.handleLanguageChange(lang),
+        handleThemeChange: (theme) => settingsController.handleThemeChange(theme),
+        handleToneChange: (tone) => settingsController.handleToneChange(tone),
+        handleWindowOpacityChange: (opacity) =>
+          settingsController.handleWindowOpacityChange(opacity),
+        handlePinAllSpacesChange: (enabled) => settingsController.handlePinAllSpacesChange(enabled),
+        hasPopupWindow: () => windowManager.hasPopupWindow(),
+        togglePopupWindow: () => windowManager.togglePopupWindow(),
+        rebuild: () => createAppMenu(),
+      };
+      menuBuilder(ctx);
+    } catch (error) {
+      if (isDev) console.warn('Failed to create menu:', error?.message);
+      try {
+        const fallback = Menu.buildFromTemplate([{ role: 'editMenu' }, { role: 'windowMenu' }]);
+        Menu.setApplicationMenu(fallback);
+      } catch {}
+    }
+  }
+
+  function migrateEnvToPrefs() {
+    try {
+      const prefs = loadPrefs();
+      let changed = false;
+      const maybeCopy = (k) => {
+        if (!prefs[k] && process.env[k]) {
+          prefs[k] = String(process.env[k]);
+          changed = true;
+        }
+      };
+      [
+        'GEMINI_API_KEY',
+        'GEMINI_MODEL',
+        'WEB_SEARCH_MODEL',
+        'UI_THEME',
+        'PIN_ALL_SPACES',
+        'ENABLE_GOOGLE_SEARCH',
+        'WINDOW_OPACITY',
+        'GLASS_LEVEL',
+        'TONE',
+      ].forEach(maybeCopy);
+      if (changed) savePrefs(prefs);
+    } catch {}
+  }
+
+  function resolveApiKeys() {
+    const order = [
+      'GEMINI_API_KEY',
+      'GOOGLE_GENAI_API_KEY',
+      'GENAI_API_KEY',
+      'GOOGLE_API_KEY',
+      'NEXT_PUBLIC_GEMINI_API_KEY',
+      'NEXT_PUBLIC_GOOGLE_API_KEY',
+    ];
+    const seen = new Set();
+    const out = [];
+    try {
+      const prefs = loadPrefs();
+      for (const k of order) {
+        const v = prefs?.[k];
+        if (v && String(v).trim() && !seen.has(String(v).trim())) {
+          seen.add(String(v).trim());
+          out.push(String(v).trim());
+        }
+      }
+    } catch {}
+    for (const k of order) {
+      const v = process.env[k];
+      if (v && String(v).trim() && !seen.has(String(v).trim())) {
+        seen.add(String(v).trim());
+        out.push(String(v).trim());
+      }
+    }
+    return out;
+  }
+
+  let currentAIController = null;
+  let currentAIKind = null;
+  let currentAICancelFlag = null;
+
+  function registerGlobalShortcuts() {
+    const registerShortcut = (accel, detailed = false) => {
+      try {
+        const ok = globalShortcut.register(accel, () => {
+          (async () => {
+            try {
+              const text = await tryCopySelectedText();
+              const mainWindow = getMainWindow();
+              if (!mainWindow || mainWindow.isDestroyed()) return;
+              if (text) {
+                mainWindow.webContents.send(
+                  detailed ? 'explain-clipboard-detailed' : 'explain-clipboard',
+                  text
+                );
+              } else {
+                mainWindow.webContents.send('explain-clipboard-error', '');
+              }
+            } catch (e) {
+              if (isDev) console.warn('Clipboard explain failed:', e?.message);
+            }
+          })();
+        });
+        return ok;
+      } catch (e) {
+        return false;
+      }
+    };
+
+    const baseCandidates = ['Alt+A'];
+    let baseUsed = '';
+    for (const c of baseCandidates) {
+      if (registerShortcut(c, false)) {
+        baseUsed = c;
+        break;
+      }
+    }
+
+    const detailedCandidates = ['Alt+Shift+A'];
+    let detailedUsed = '';
+    for (const c of detailedCandidates) {
+      if (registerShortcut(c, true)) {
+        detailedUsed = c;
+        break;
+      }
+    }
+
+    const translateCandidates = ['Alt+R'];
+    let translateUsed = '';
+    for (const c of translateCandidates) {
+      try {
+        const ok = globalShortcut.register(c, () => {
+          (async () => {
+            try {
+              const text = await tryCopySelectedText();
+              const mainWindow = getMainWindow();
+              if (!mainWindow || mainWindow.isDestroyed()) return;
+              if (text) {
+                mainWindow.webContents.send('translate-clipboard', text);
+              } else {
+                mainWindow.webContents.send('explain-clipboard-error', '');
+              }
+            } catch (e) {
+              if (isDev) console.warn('Clipboard translate failed:', e?.message);
+            }
+          })();
+        });
+        if (ok) {
+          translateUsed = c;
+          break;
+        }
+      } catch {}
+    }
+
+    const pronounceCandidates = ['Alt+Q'];
+    let pronounceUsed = '';
+    for (const c of pronounceCandidates) {
+      try {
+        const ok = globalShortcut.register(c, () => {
+          (async () => {
+            try {
+              const text = await tryCopySelectedText();
+              const mainWindow = getMainWindow();
+              if (!mainWindow || mainWindow.isDestroyed()) return;
+              if (text) {
+                mainWindow.webContents.send('pronounce-clipboard', text);
+              } else {
+                mainWindow.webContents.send('explain-clipboard-error', '');
+              }
+            } catch (e) {
+              if (isDev) console.warn('Clipboard pronunciation failed:', e?.message);
+            }
+          })();
+        });
+        if (ok) {
+          pronounceUsed = c;
+          break;
+        }
+      } catch {}
+    }
+
+    const screenshotCandidates = ['Alt+S'];
+    for (const c of screenshotCandidates) {
+      try {
+        const ok = globalShortcut.register(c, () => {
+          (async () => {
+            try {
+              const { data, mimeType } = await captureInteractiveArea();
+              if (!data) return;
+              const mainWindow = getMainWindow();
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                if (!mainWindow.isVisible()) mainWindow.show();
+                try {
+                  mainWindow.focus();
+                } catch {}
+                mainWindow.webContents.send('explain-screenshot', { data, mimeType });
+              }
+            } catch (e) {
+              if (isDev) console.warn('Screenshot explain failed:', e?.message);
+            }
+          })();
+        });
+        if (ok) break;
+      } catch {}
+    }
+
+    const screenshotDetailedCandidates = ['Alt+Shift+S'];
+    for (const c of screenshotDetailedCandidates) {
+      try {
+        const ok = globalShortcut.register(c, () => {
+          (async () => {
+            try {
+              const { data, mimeType } = await captureInteractiveArea();
+              if (!data) return;
+              const mainWindow = getMainWindow();
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                if (!mainWindow.isVisible()) mainWindow.show();
+                try {
+                  mainWindow.focus();
+                } catch {}
+                mainWindow.webContents.send('explain-screenshot-detailed', { data, mimeType });
+              }
+            } catch (e) {
+              if (isDev) console.warn('Screenshot detailed explain failed:', e?.message);
+            }
+          })();
+        });
+        if (ok) break;
+      } catch {}
+    }
+
+    try {
+      const mainWindow = getMainWindow();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('shortcut-registered', baseUsed);
+        mainWindow.webContents.send('shortcut-detailed-registered', detailedUsed);
+        mainWindow.webContents.send('shortcut-translate-registered', translateUsed);
+        mainWindow.webContents.send('shortcut-pronounce-registered', pronounceUsed);
+      }
+    } catch {}
+
+    if (!baseUsed && !detailedUsed) {
+      if (isDev) console.warn('Failed to register any global shortcut');
+    } else if (!baseUsed) {
+      if (isDev) console.warn('Base shortcut registration failed; detailed only');
+    } else if (!detailedUsed) {
+      if (isDev) console.warn('Detailed shortcut registration failed; base only');
+    }
+  }
+
+  function setupPopupIpcHandlers() {
+    ipcMain.handle('popup:pointer', (_e, phase) => {
+      return windowManager.handlePopupPointer(phase);
+    });
+    ipcMain.handle('popup:get-bounds', () => windowManager.getPopupBounds());
+    ipcMain.handle('popup:set-position', (_e, pos) => windowManager.setPopupPosition(pos));
+  }
+
+  function setupCaptureHandlers() {
+    ipcMain.handle('capture:interactive', async () => {
+      try {
+        const data = await captureInteractiveArea();
+        return data;
+      } catch (e) {
+        return { data: '', mimeType: '', error: e?.message || 'Failed to capture area' };
+      }
+    });
+  }
+
+  function setupUiHandlers() {
+    ipcMain.handle('get-model', () => {
+      return getPref('GEMINI_MODEL') || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
+    });
+
+    ipcMain.handle('get-tone', () => {
+      return getPref('TONE') || process.env.TONE || 'casual';
+    });
+
+    ipcMain.handle('get-ui-theme', () => {
+      return getPref('UI_THEME') || process.env.UI_THEME || 'dark';
+    });
+
+    ipcMain.handle('open-external', (_e, url) => {
+      try {
+        if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
+          shell.openExternal(url);
+          return true;
+        }
+      } catch {}
+      return false;
+    });
+
+    ipcMain.handle('ui:ensure-visible', (_e, opts) => {
+      const mainWindow = getMainWindow();
+      if (!mainWindow || mainWindow.isDestroyed()) return false;
+      try {
+        const wantFocus = !!(opts && opts.focus);
+        if (!mainWindow.isVisible()) {
+          try {
+            if (wantFocus) mainWindow.show();
+            else showWindowNonActivating(mainWindow);
+          } catch {
+            mainWindow.show();
+          }
+        }
+        if (wantFocus) {
+          try {
+            mainWindow.focus();
+          } catch {}
+        }
+        return true;
+      } catch {}
+      return false;
+    });
+
+    ipcMain.handle('ui:show-app-menu', (event, pos) => {
+      try {
+        let menu = Menu.getApplicationMenu();
+        if (!menu) {
+          createAppMenu();
+          menu = Menu.getApplicationMenu();
+        }
+        if (!menu) return false;
+        const win = BrowserWindow.fromWebContents(event.sender);
+        const x = Math.max(0, Math.round((pos && pos.x) || 0));
+        const y = Math.max(0, Math.round((pos && pos.y) || 0));
+        menu.popup({ window: win, x, y });
+        return true;
+      } catch {
+        return false;
+      }
+    });
+
+    ipcMain.handle('get-ui-language', () => {
+      return getPref('MENU_LANGUAGE') || process.env.MENU_LANGUAGE || 'en';
+    });
+
+    ipcMain.handle('save-web-search-setting', (_e, enabled) => {
+      settingsController.handleWebSearchToggle(!!enabled);
+      return true;
+    });
+
+    ipcMain.handle('get-glass-level', () => {
+      return getPref('GLASS_LEVEL') || process.env.GLASS_LEVEL || 'medium';
+    });
+
+    ipcMain.handle('get-web-search-enabled', () => {
+      const v = String(getPref('ENABLE_GOOGLE_SEARCH') || process.env.ENABLE_GOOGLE_SEARCH || '0');
+      return v !== '0' && v.toLowerCase() !== 'false' && v.toLowerCase() !== 'off';
+    });
+
+    ipcMain.handle('get-window-opacity', () => {
+      const v = parseFloat(getPref('WINDOW_OPACITY') || process.env.WINDOW_OPACITY || '1');
+      return Number.isFinite(v) ? v : 1;
+    });
+  }
+
+  function setupAiHandlers() {
+    ipcMain.handle('cancel-ai', (_e, payload = {}) => {
+      const { fromShortcut } = payload || {};
+      try {
+        if (currentAIController) {
+          if (fromShortcut && currentAIKind === 'shortcut') {
+            if (currentAICancelFlag) currentAICancelFlag.user = true;
+            currentAIController.abort();
+            return true;
+          }
+          if (!fromShortcut) {
+            currentAIController.abort();
+            return true;
+          }
+        }
+      } catch {}
+      return false;
+    });
+
+    ipcMain.handle('ai:generate', async (_e, payload) => {
+      try {
+        const keys = resolveApiKeys();
+        if (!keys.length) {
+          return 'API key is not set. Please set GEMINI_API_KEY in .env.local file.';
+        }
+        const prompt = String(payload?.prompt ?? '');
+        if (!prompt) return '';
+        const source = String(payload?.source || 'chat');
+        const isShortcut = source === 'shortcut' || payload?.fromShortcut === true;
+        const requestedModel = String(
+          process.env.GEMINI_MODEL || payload?.model || 'gemini-2.5-flash-lite'
+        );
+        let generationConfig = payload?.generationConfig || {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 2048,
+        };
+        if (isShortcut) {
+          const maxTokEnv = Number.parseInt(process.env.SHORTCUT_MAX_TOKENS || '', 10);
+          const cap = Number.isFinite(maxTokEnv) && maxTokEnv > 0 ? maxTokEnv : 1024;
+          generationConfig = {
+            ...generationConfig,
+            maxOutputTokens: Math.min(cap, Number(generationConfig.maxOutputTokens || 2048)),
+            topK: Math.min(32, Number(generationConfig.topK || 40)),
+            topP: Math.min(0.9, Number(generationConfig.topP || 0.95)),
+          };
+        }
+        const useGoogleSearch = payload?.useWebSearch === true;
+        const searchPreferred =
+          getPref('WEB_SEARCH_MODEL') || process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash';
+        const modelsToTry =
+          requestedModel === searchPreferred ? [requestedModel] : [requestedModel, searchPreferred];
+
+        const isInvalid = (msg) => /API_KEY_INVALID|API key not valid/i.test(String(msg || ''));
+        const tryOne = async (key) => {
+          let client = null;
+          try {
+            client = await getGenAIClientForKey(key);
+          } catch (e) {
+            if (isDev) console.log('SDK client creation failed:', e?.message);
+          }
+
+          const controller = new AbortController();
+          const cancelFlag = { user: false };
+          const timeoutMs = useGoogleSearch ? 60000 : 30000;
+          const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+          currentAIController = controller;
+          currentAIKind = isShortcut ? 'shortcut' : 'chat';
+          currentAICancelFlag = cancelFlag;
+
+          try {
+            for (const modelName of modelsToTry) {
+              const bare = modelCandidates(modelName)[0].replace(/^models\//, '');
+
+              if (!isShortcut) {
+                if (client) {
+                  try {
+                    const r1 = await sdkGenerateText(client, modelName, prompt, generationConfig, {
+                      useGoogleSearch,
+                    });
+                    if (r1) {
+                      clearTimeout(timeoutId);
+                      return r1;
+                    }
+                  } catch (e) {
+                    if (isDev) console.log(`SDK with tools failed for ${modelName}:`, e?.message);
+                  }
+                }
+              }
+
+              try {
+                const r3 = await restGenerateText(key, bare, prompt, generationConfig, {
+                  useGoogleSearch,
+                  signal: controller.signal,
+                });
+                if (r3) {
+                  clearTimeout(timeoutId);
+                  return r3;
+                }
+              } catch (e) {
+                const m = e?.message || '';
+                if (isInvalid(m)) {
+                  clearTimeout(timeoutId);
+                  throw new Error('API_KEY_INVALID');
+                }
+                if (e.name === 'AbortError') {
+                  clearTimeout(timeoutId);
+                  if (cancelFlag.user) throw new Error('CANCELLED');
+                  throw new Error('Request timed out');
+                }
+                if (isDev) console.log(`REST with tools failed for ${modelName}:`, m);
+              }
+
+              if (!useGoogleSearch) {
+                if (!isShortcut && client) {
+                  try {
+                    const r2 = await sdkGenerateText(client, modelName, prompt, generationConfig, {
+                      useGoogleSearch: false,
+                    });
+                    if (r2) {
+                      clearTimeout(timeoutId);
+                      return r2;
+                    }
+                  } catch {}
+                }
+                try {
+                  const r4 = await restGenerateText(key, bare, prompt, generationConfig, {
+                    useGoogleSearch: false,
+                    signal: controller.signal,
+                  });
+                  if (r4) {
+                    clearTimeout(timeoutId);
+                    return r4;
+                  }
+                } catch (e) {
+                  const m = e?.message || '';
+                  if (isInvalid(m)) {
+                    clearTimeout(timeoutId);
+                    throw new Error('API_KEY_INVALID');
+                  }
+                }
+              }
+            }
+
+            clearTimeout(timeoutId);
+            throw new Error('All model attempts failed');
+          } catch (e) {
+            clearTimeout(timeoutId);
+            throw e;
+          } finally {
+            try {
+              if (currentAIController === controller) {
+                currentAIController = null;
+                currentAIKind = null;
+                currentAICancelFlag = null;
+              }
+            } catch {}
+          }
+        };
+
+        for (const key of keys) {
+          try {
+            const out = await tryOne(key);
+            if (out) return out;
+          } catch (e) {
+            if (String(e?.message) === 'API_KEY_INVALID') {
+              continue;
+            } else {
+              return `API error occurred: ${e?.message || 'Unknown error'}`;
+            }
+          }
+        }
+        return 'API error occurred: No valid Gemini API key found. Please set a valid key (e.g., GEMINI_API_KEY) in .env.local.';
+      } catch (err) {
+        return `API error occurred: ${err?.message || 'Unknown error'}`;
+      }
+    });
+
+    ipcMain.handle('ai:generate-with-image', async (_e, payload) => {
+      try {
+        const keys = resolveApiKeys();
+        if (!keys.length) {
+          return 'API key is not set. Please set GEMINI_API_KEY in .env.local file.';
+        }
+        const prompt = String(payload?.prompt ?? '');
+        const imageBase64 = String(payload?.imageBase64 || '');
+        const mimeType = String(payload?.mimeType || 'image/png');
+        if (!prompt || !imageBase64) return '';
+        const source = String(payload?.source || 'chat');
+        const isShortcut = source === 'shortcut' || payload?.fromShortcut === true;
+        const requestedModel = String(
+          process.env.GEMINI_MODEL || payload?.model || 'gemini-2.5-flash-lite'
+        );
+        let generationConfig = payload?.generationConfig || {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 2048,
+        };
+        if (isShortcut) {
+          const maxTokEnv = Number.parseInt(process.env.SHORTCUT_MAX_TOKENS || '', 10);
+          const cap = Number.isFinite(maxTokEnv) && maxTokEnv > 0 ? maxTokEnv : 1024;
+          generationConfig = {
+            ...generationConfig,
+            maxOutputTokens: Math.min(cap, Number(generationConfig.maxOutputTokens || 2048)),
+            topK: Math.min(32, Number(generationConfig.topK || 40)),
+            topP: Math.min(0.9, Number(generationConfig.topP || 0.95)),
+          };
+        }
+        const useGoogleSearch = payload?.useWebSearch === true;
+        const searchPreferred =
+          getPref('WEB_SEARCH_MODEL') || process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash';
+        const modelsToTry =
+          requestedModel === searchPreferred ? [requestedModel] : [requestedModel, searchPreferred];
+
+        const isInvalid = (msg) => /API_KEY_INVALID|API key not valid/i.test(String(msg || ''));
+        const tryOne = async (key) => {
+          let client = null;
+          try {
+            client = await getGenAIClientForKey(key);
+          } catch (e) {
+            if (isDev) console.log('SDK client creation failed:', e?.message);
+          }
+
+          const controller = new AbortController();
+          const cancelFlag = { user: false };
+          const timeoutMs = useGoogleSearch ? 60000 : 45000;
+          const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+          currentAIController = controller;
+          currentAIKind = isShortcut ? 'shortcut' : 'chat';
+          currentAICancelFlag = cancelFlag;
+
+          try {
+            for (const modelName of modelsToTry) {
+              const bare = modelCandidates(modelName)[0].replace(/^models\//, '');
+
+              if (!isShortcut) {
+                if (client) {
+                  try {
+                    const r1 = await sdkGenerateImage(
+                      client,
+                      modelName,
+                      prompt,
+                      imageBase64,
+                      mimeType,
+                      generationConfig,
+                      { useGoogleSearch }
+                    );
+                    if (r1) {
+                      clearTimeout(timeoutId);
+                      return r1;
+                    }
+                  } catch (e) {
+                    if (isDev) console.log(`SDK with tools failed for ${modelName}:`, e?.message);
+                  }
+                }
+              }
+
+              try {
+                const r3 = await restGenerateImage(
+                  key,
+                  bare,
+                  prompt,
+                  imageBase64,
+                  mimeType,
+                  generationConfig,
+                  { useGoogleSearch, signal: controller.signal }
+                );
+                if (r3) {
+                  clearTimeout(timeoutId);
+                  return r3;
+                }
+              } catch (e) {
+                const m = e?.message || '';
+                if (isInvalid(m)) {
+                  clearTimeout(timeoutId);
+                  throw new Error('API_KEY_INVALID');
+                }
+                if (e.name === 'AbortError') {
+                  clearTimeout(timeoutId);
+                  if (cancelFlag.user) throw new Error('CANCELLED');
+                  throw new Error('Request timed out');
+                }
+                if (isDev) console.log(`REST with tools failed for ${modelName}:`, m);
+              }
+
+              if (!useGoogleSearch) {
+                if (!isShortcut && client) {
+                  try {
+                    const r2 = await sdkGenerateImage(
+                      client,
+                      modelName,
+                      prompt,
+                      imageBase64,
+                      mimeType,
+                      generationConfig,
+                      { useGoogleSearch: false }
+                    );
+                    if (r2) {
+                      clearTimeout(timeoutId);
+                      return r2;
+                    }
+                  } catch {}
+                }
+                try {
+                  const r4 = await restGenerateImage(
+                    key,
+                    bare,
+                    prompt,
+                    imageBase64,
+                    mimeType,
+                    generationConfig,
+                    { useGoogleSearch: false, signal: controller.signal }
+                  );
+                  if (r4) {
+                    clearTimeout(timeoutId);
+                    return r4;
+                  }
+                } catch (e) {
+                  const m = e?.message || '';
+                  if (isInvalid(m)) {
+                    clearTimeout(timeoutId);
+                    throw new Error('API_KEY_INVALID');
+                  }
+                }
+              }
+            }
+
+            clearTimeout(timeoutId);
+            throw new Error('All model attempts failed');
+          } catch (e) {
+            clearTimeout(timeoutId);
+            throw e;
+          } finally {
+            try {
+              if (currentAIController === controller) {
+                currentAIController = null;
+                currentAIKind = null;
+                currentAICancelFlag = null;
+              }
+            } catch {}
+          }
+        };
+
+        for (const key of keys) {
+          try {
+            const out = await tryOne(key);
+            if (out) return out;
+          } catch (e) {
+            if (String(e?.message) === 'API_KEY_INVALID') {
+              continue;
+            } else {
+              return `API error occurred: ${e?.message || 'Unknown error'}`;
+            }
+          }
+        }
+        return 'API error occurred: No valid Gemini API key found. Please set a valid key (e.g., GEMINI_API_KEY) in .env.local.';
+      } catch (err) {
+        return `API error occurred: ${err?.message || 'Unknown error'}`;
+      }
+    });
+  }
+
+  function setupRendererSync() {
+    const mainWindow = getMainWindow();
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    const payload = {
+      menuLanguage: process.env.MENU_LANGUAGE || 'en',
+      uiTheme: process.env.UI_THEME || 'dark',
+      tone: getPref('TONE') || process.env.TONE || 'casual',
+    };
+    const send = () => {
+      try {
+        mainWindow.webContents.send('app-config', payload);
+      } catch {}
+    };
+    try {
+      if (mainWindow.webContents.isLoading && mainWindow.webContents.isLoading()) {
+        mainWindow.webContents.once('did-finish-load', send);
+      } else {
+        send();
+      }
+    } catch {
+      send();
+    }
+  }
+
+  app.whenReady().then(async () => {
+    try {
+      const userData = app.getPath('userData');
+      const prefsPath = path.join(userData, 'irukadark.prefs.json');
+      if (fs.existsSync(prefsPath)) {
+        const raw = fs.readFileSync(prefsPath, 'utf8');
+        const prefs = JSON.parse(raw || '{}') || {};
+        const keys = [
+          'MENU_LANGUAGE',
+          'UI_THEME',
+          'PIN_ALL_SPACES',
+          'WINDOW_OPACITY',
+          'ENABLE_GOOGLE_SEARCH',
+          'GLASS_LEVEL',
+          'GEMINI_API_KEY',
+          'GEMINI_MODEL',
+          'WEB_SEARCH_MODEL',
+          'TONE',
+        ];
+        for (const k of keys) {
+          if (typeof prefs[k] !== 'undefined' && prefs[k] !== null) {
+            process.env[k] = String(prefs[k]);
+          }
+        }
+      }
+    } catch {}
+
+    migrateEnvToPrefs();
+
+    try {
+      if (process.platform === 'darwin' && typeof app.setAboutPanelOptions === 'function') {
+        app.setAboutPanelOptions({
+          applicationName: 'IrukaDark',
+          applicationVersion: app.getVersion(),
+          iconPath: path.resolve(__dirname, '../../renderer/assets/icons/icon.png'),
+        });
+      }
+    } catch {}
+
+    windowManager.createMainWindow();
+    createAppMenu();
+    registerGlobalShortcuts();
+    setupPopupIpcHandlers();
+    setupCaptureHandlers();
+    setupUiHandlers();
+    setupAiHandlers();
+    setupRendererSync();
+
+    try {
+      const { preflightPermissionsOnce } = require('../permissions');
+      setTimeout(() => {
+        try {
+          preflightPermissionsOnce({
+            loadPrefs,
+            savePrefs,
+            bringAppToFront: () => windowManager.bringAppToFront(),
+          });
+        } catch {}
+      }, 400);
+    } catch {}
+
+    try {
+      const trusted = systemPreferences.isTrustedAccessibilityClient(false);
+      const mainWindow = getMainWindow();
+      if (!trusted && mainWindow && !mainWindow.isDestroyed()) {
+        setTimeout(() => {
+          try {
+            mainWindow.webContents.send('accessibility-warning');
+          } catch {}
+        }, 800);
+      }
+    } catch {}
+
+    try {
+      setTimeout(async () => {
+        try {
+          const keys = resolveApiKeys();
+          if (keys && keys.length) {
+            await getGenAIClientForKey(keys[0]).catch(() => {});
+          }
+        } catch {}
+      }, 0);
+    } catch {}
+  });
+
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      app.quit();
+    }
+  });
+
+  app.on('before-quit', () => {
+    try {
+      const { BrowserWindow } = require('electron');
+      const wins = BrowserWindow.getAllWindows ? BrowserWindow.getAllWindows() : [];
+      for (const w of wins) {
+        try {
+          w.removeAllListeners('close');
+        } catch {}
+        try {
+          if (!w.isDestroyed()) w.close();
+        } catch {}
+      }
+    } catch {}
+  });
+
+  app.on('will-quit', () => {
+    try {
+      const { BrowserWindow } = require('electron');
+      const wins = BrowserWindow.getAllWindows ? BrowserWindow.getAllWindows() : [];
+      for (const w of wins) {
+        try {
+          if (!w.isDestroyed()) w.destroy();
+        } catch {}
+      }
+    } catch {}
+    try {
+      globalShortcut.unregisterAll();
+    } catch {}
+  });
+
+  app.on('quit', () => {
+    try {
+      setPopupWindow(null);
+    } catch {}
+    try {
+      setMainWindow(null);
+    } catch {}
+  });
+
+  app.on('activate', () => {
+    if (!getMainWindow() || getMainWindow().isDestroyed()) {
+      windowManager.createMainWindow();
+    }
+  });
+}
+
+module.exports = {
+  bootstrapApp,
+};

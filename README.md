@@ -91,6 +91,25 @@ Notes:
 - Only Google AI Studio API Keys are supported; Vertex AI (service account/OAuth) is not wired in this repo.
 - If multiple variables are set, the app prefers `GEMINI_API_KEY` and will skip invalid keys automatically.
 
+## Architecture Overview
+
+IrukaDark は Electron をベースに、メインプロセスとレンダラープロセスを薄い責務ごとに分割しています。今後の機能追加時は下記のレイアウトを参考にしてください。
+
+- `src/main.js` — エントリポイント。内部で `src/main/bootstrap/app.js` を呼び出します。
+- `src/main/bootstrap/app.js` — アプリの初期化ロジック。ウィンドウ生成、メニュー構築、IPC などの起動フローをここに集約しています。
+- `src/main/windows/` — `WindowManager` などウィンドウ関連のユーティリティ。
+- `src/main/services/` — 設定永続化 (`preferences.js`) や UI 設定を反映するコントローラ (`settingsController.js`) など、メインプロセスのサービス層。
+- `src/main/context.js` — メイン／ポップアップウィンドウを共有するためのシンプルなストア。
+- `src/renderer/state/` — UI 言語・トーンなどレンダラーのクライアントサイド状態。
+- `src/renderer/features/` — スラッシュコマンド定義など UI 機能単位のヘルパー。
+- `src/renderer/app.js` — レンダラーのメイン実装。上記モジュールを読み込みつつ UI を制御します。
+
+構成の要点:
+
+1. **メインプロセスの責務分離** — 設定保存、ウィンドウ制御、メニュー更新、AI リクエストなどをモジュール単位で分割し、新規機能が既存コードを汚さず追加できます。
+2. **レンダラーの状態管理の薄型化** — 言語・トーン・スラッシュコマンドなどを別ファイルに切り出し、UI ロジックを読みやすくしています。
+3. **再利用しやすい入口** — どのファイルを編集すればよいかが明確になり、開発チームが増えてもキャッチアップしやすい構造です。
+
 ### Settings storage and portable mode
 
 - Default: settings live in the user data directory and can be edited in‑app (AI Settings).

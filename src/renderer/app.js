@@ -3,27 +3,20 @@
  * License: MIT. See https://github.com/co-r-e/IrukaDark/blob/HEAD/LICENSE
  */
 const I18N_STRINGS = (typeof window !== 'undefined' && window.IRUKADARK_I18N) || {};
-
-// Language display names for prompt targeting
-const LANG_NAMES = {
-  en: 'English',
-  ja: 'Japanese',
-  es: 'Spanish',
-  'es-419': 'Latin American Spanish',
-  'zh-Hans': 'Simplified Chinese',
-  'zh-Hant': 'Traditional Chinese',
-  hi: 'Hindi',
-  'pt-BR': 'Brazilian Portuguese',
-  fr: 'French',
-  de: 'German',
-  ar: 'Arabic',
-  ru: 'Russian',
-  ko: 'Korean',
-  id: 'Indonesian',
-  vi: 'Vietnamese',
-  th: 'Thai',
-  it: 'Italian',
-  tr: 'Turkish',
+const STATE = (typeof window !== 'undefined' && window.IRUKADARK_STATE) || {
+  getLanguage: () => 'en',
+  setLanguage: () => {},
+  getTone: () => 'casual',
+  setTone: () => {},
+};
+const SLASHES = (typeof window !== 'undefined' && window.IRUKADARK_SLASHES) || {
+  SLASH_TRANSLATE_TARGETS: [],
+  SLASH_TRANSLATE_LOOKUP: {},
+  SLASH_WEB_TARGETS: [],
+  getLangMeta: (code) => ({ code, name: code, rtl: false }),
+  normalizeTranslateCode: () => null,
+  getLanguageDisplayName: (code) => code,
+  LANG_NAMES: {},
 };
 
 // Build a set of possible "Sources" markers across languages
@@ -38,142 +31,53 @@ const SOURCE_MARKERS = (() => {
     return base;
   }
 })();
-
-const DEFAULT_TRANSLATE_CODES = [
-  'en',
-  'ja',
-  'de',
-  'es',
-  'es-419',
-  'fr',
-  'id',
-  'it',
-  'ko',
-  'pt-BR',
-  'ru',
-  'th',
-  'tr',
-  'vi',
-  'zh-Hans',
-  'zh-Hant',
-];
-
-const TRANSLATE_CODE_MAP = new Map();
-
-function sanitizeTranslateSuffix(code) {
-  return String(code || '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '-');
-}
-
-function availableTranslateCodes() {
-  const ordered = [...DEFAULT_TRANSLATE_CODES];
-  const seen = new Set(ordered.map((c) => c));
-  try {
-    const codes = Object.keys(I18N_STRINGS || {});
-    if (Array.isArray(codes)) {
-      for (const code of codes) {
-        if (!seen.has(code)) {
-          ordered.push(code);
-          seen.add(code);
-        }
-      }
-    }
-  } catch {}
-  return ordered;
-}
-
-function buildTranslateTargets() {
-  const codes = availableTranslateCodes();
-  const unique = Array.from(new Set(codes.filter(Boolean)));
-  return unique.map((rawCode) => {
-    const canonical = String(rawCode);
-    const lower = canonical.toLowerCase();
-    TRANSLATE_CODE_MAP.set(lower, canonical);
-    const suffix = sanitizeTranslateSuffix(canonical);
-    return {
-      key: `/translate_${suffix}`,
-      match: `/translate_${lower}`,
-      label: `/translate_${suffix}`,
-      target: canonical,
-      descKey: 'slashTranslateIntoLanguage',
-      languageCode: canonical,
-    };
-  });
-}
-
-const SLASH_TRANSLATE_TARGETS = buildTranslateTargets();
-TRANSLATE_CODE_MAP.set('zh-cn', TRANSLATE_CODE_MAP.get('zh-hans') || 'zh-Hans');
-TRANSLATE_CODE_MAP.set('zh-sg', TRANSLATE_CODE_MAP.get('zh-hans') || 'zh-Hans');
-TRANSLATE_CODE_MAP.set('zh-tw', TRANSLATE_CODE_MAP.get('zh-hant') || 'zh-Hant');
-TRANSLATE_CODE_MAP.set('zh-hk', TRANSLATE_CODE_MAP.get('zh-hant') || 'zh-Hant');
-
-const SLASH_TRANSLATE_LOOKUP = SLASH_TRANSLATE_TARGETS.reduce((map, cfg) => {
-  map[cfg.match] = cfg;
-  return map;
-}, {});
-
-const SLASH_WEB_TARGETS = [
-  {
-    key: '/web on',
-    match: '/web on',
-    label: '/web on',
-    descKey: 'slashDescriptions.webOn',
-  },
-  {
-    key: '/web off',
-    match: '/web off',
-    label: '/web off',
-    descKey: 'slashDescriptions.webOff',
-  },
-  {
-    key: '/web status',
-    match: '/web status',
-    label: '/web status',
-    descKey: 'slashDescriptions.webStatus',
-  },
-];
+const SLASH_TRANSLATE_TARGETS = SLASHES.SLASH_TRANSLATE_TARGETS || [];
+const SLASH_TRANSLATE_LOOKUP = SLASHES.SLASH_TRANSLATE_LOOKUP || {};
+const SLASH_WEB_TARGETS = SLASHES.SLASH_WEB_TARGETS || [];
 
 function getLangMeta(code) {
+  if (SLASHES && typeof SLASHES.getLangMeta === 'function') {
+    return SLASHES.getLangMeta(code);
+  }
   const lang = String(code || 'en');
-  const name = LANG_NAMES[lang] || 'English';
+  const name = SLASHES.LANG_NAMES ? SLASHES.LANG_NAMES[lang] || 'English' : lang;
   const rtlLocales = new Set(['ar', 'he', 'fa', 'ur']);
   const rtl = rtlLocales.has(lang);
   return { code: lang, name, rtl };
 }
 
 function normalizeTranslateCode(code) {
-  if (!code) return null;
-  const canonical = TRANSLATE_CODE_MAP.get(String(code).toLowerCase());
-  return canonical || null;
+  if (SLASHES && typeof SLASHES.normalizeTranslateCode === 'function') {
+    return SLASHES.normalizeTranslateCode(code);
+  }
+  return code || null;
 }
 
 function getLanguageDisplayName(code) {
-  const fallback = LANG_NAMES[code] || code;
-  const lang = getCurrentUILanguage() || 'en';
-  const tryCodes = [code];
-  if (/^zh-hans$/i.test(code)) tryCodes.push('zh-CN');
-  if (/^zh-hant$/i.test(code)) tryCodes.push('zh-TW');
-  try {
-    const display = new Intl.DisplayNames([lang], { type: 'language' });
-    for (const candidate of tryCodes) {
-      const name = display.of(candidate);
-      if (name && name !== candidate) {
-        return name;
-      }
-    }
-  } catch {}
-  return fallback;
+  if (SLASHES && typeof SLASHES.getLanguageDisplayName === 'function') {
+    return SLASHES.getLanguageDisplayName(code, getCurrentUILanguage());
+  }
+  return code;
 }
 
-let CURRENT_LANG = 'en';
 function getCurrentUILanguage() {
-  return CURRENT_LANG;
+  return (STATE && typeof STATE.getLanguage === 'function' && STATE.getLanguage()) || 'en';
 }
-// Tone (formal/casual) — default to casual per spec
-let CURRENT_TONE = 'casual';
+
+function setCurrentUILanguage(code) {
+  if (STATE && typeof STATE.setLanguage === 'function') {
+    STATE.setLanguage(code);
+  }
+}
+
 function getCurrentTone() {
-  return CURRENT_TONE || 'casual';
+  return (STATE && typeof STATE.getTone === 'function' && STATE.getTone()) || 'casual';
+}
+
+function setCurrentTone(value) {
+  if (STATE && typeof STATE.setTone === 'function') {
+    STATE.setTone(value);
+  }
 }
 function getUIText(key, ...args) {
   const lang = getCurrentUILanguage();
@@ -249,12 +153,12 @@ class IrukaDarkApp {
     try {
       if (window.electronAPI && window.electronAPI.getTone) {
         window.electronAPI.getTone().then((tone) => {
-          CURRENT_TONE = tone === 'formal' ? 'formal' : 'casual';
+          setCurrentTone(tone);
         });
       }
       if (window.electronAPI && window.electronAPI.onToneChanged) {
         window.electronAPI.onToneChanged((tone) => {
-          CURRENT_TONE = tone === 'formal' ? 'formal' : 'casual';
+          setCurrentTone(tone);
         });
       }
     } catch {}
@@ -400,11 +304,30 @@ class IrukaDarkApp {
           : undefined;
       } catch {}
     };
+    on('onAppConfig', async (config) => {
+      try {
+        const cfg = config || {};
+        if (cfg.menuLanguage) {
+          const lang = String(cfg.menuLanguage || 'en');
+          await ensureLangLoaded(lang);
+          setCurrentUILanguage(lang);
+          this.updateUILanguage();
+        }
+        if (cfg.uiTheme) {
+          this.applyTheme(cfg.uiTheme);
+        }
+        if (cfg.tone) {
+          setCurrentTone(cfg.tone);
+        }
+      } catch (error) {
+        console.error('Failed to apply app-config payload', error);
+      }
+    });
     on('onThemeChanged', (theme) => this.applyTheme(theme));
     on('onLanguageChanged', async (lang) => {
       const next = lang || 'en';
       await ensureLangLoaded(next);
-      CURRENT_LANG = next;
+      setCurrentUILanguage(next);
       this.updateUILanguage();
     });
     on('onWindowOpacityChanged', (value) => this.applySolidWindowClass(value));
@@ -502,7 +425,7 @@ class IrukaDarkApp {
     try {
       if (window.electronAPI && window.electronAPI.getUILanguage) {
         const lang = await window.electronAPI.getUILanguage();
-        CURRENT_LANG = lang || 'en';
+        setCurrentUILanguage(lang || 'en');
         this.updateUILanguage();
       }
     } catch {}

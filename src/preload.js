@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('shortcut-pronounce-registered', (_e, a) => cb(a)),
   onThemeChanged: (cb) => ipcRenderer.on('theme-changed', (_e, theme) => cb(theme)),
   onToneChanged: (cb) => ipcRenderer.on('tone-changed', (_e, tone) => cb(tone)),
+  onAppConfig: (cb) => ipcRenderer.on('app-config', (_e, cfg) => cb(cfg)),
   showAppMenu: (pos) => ipcRenderer.invoke('ui:show-app-menu', pos),
   onExplainScreenshot: (cb) => ipcRenderer.on('explain-screenshot', (_e, p) => cb(p)),
   onExplainScreenshotDetailed: (cb) =>
