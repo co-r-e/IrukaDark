@@ -33,6 +33,10 @@
     selectionExplanation: '選択範囲の解説',
     selectionTranslation: '選択範囲の翻訳',
     selectionPronunciation: '選択範囲の発音',
+    urlContextSummary: (url) => `URLの概要を取得します:\n${url}`,
+    urlContextDetailed: (url) => `URLの内容を詳しく解説します:\n${url}`,
+    invalidUrlSelection:
+      '有効なURLが見つかりません。http(s)のURLを1件だけ選択して再度お試しください。',
     updateAvailable: (v) =>
       `新しいバージョン（${v}）が利用可能です。ダウンロードページを開きますか？`,
     upToDate: '最新の状態です。',

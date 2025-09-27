@@ -123,6 +123,8 @@ IrukaDark は Electron をベースに、メインプロセスとレンダラー
 2. Select text and press the global shortcut
    - Concise: Option+A
    - Detailed: Option+Shift+A
+   - URL summary: Option+1 (Gemini URL Context quick digest)
+   - URL analysis: Option+Shift+1 (Gemini URL Context detailed breakdown)
    - Translate: Option+R (pure translation into the UI language)
    - Screenshot explain: Option+S (interactive area selection)
    - Screenshot explain (detailed): Option+Shift+S
@@ -148,7 +150,8 @@ Initial Layout
 
 #### Heads‑up
 
-- On some machines, the auto‑copy used by Option+A can be blocked by OS settings, permissions, or other apps. If quick explain fails, use Option+S (area screenshot explain) instead — it works reliably in most cases and is often sufficient.
+- On some machines, the auto-copy used by Option+A can be blocked by OS settings, permissions, or other apps. If quick explain fails, use Option+S (area screenshot explain) instead — it works reliably in most cases and is often sufficient.
+- Option+1 / Option+Shift+1 require that the highlighted text is a single HTTP(S) URL. The app hands that URL to Gemini’s URL Context retrieval, so the target page needs to be publicly reachable.
 - On macOS, the app first tries to read selected text via Accessibility (AX) without touching the clipboard; only if that fails does it fall back to sending Cmd+C.
 - If the main window is hidden when Option+A succeeds, it automatically reappears non‑activating so you can see the answer (your current app keeps focus).
 

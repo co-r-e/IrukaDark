@@ -32,6 +32,10 @@
     selectionExplanation: 'Explicación de la selección',
     selectionTranslation: 'Traducir selección',
     selectionPronunciation: 'Pronunciar selección',
+    urlContextSummary: (url) => `Resumen del enlace seleccionado:\n${url}`,
+    urlContextDetailed: (url) => `Análisis detallado del enlace seleccionado:\n${url}`,
+    invalidUrlSelection:
+      'No se detectó ninguna URL válida. Selecciona una única URL con http(s) e inténtalo de nuevo.',
     updateAvailable: (v) => `Nueva versión (${v}) disponible. ¿Abrir descargas?`,
     upToDate: 'Estás al día.',
     updateCheckFailed: 'Error al comprobar actualizaciones.',

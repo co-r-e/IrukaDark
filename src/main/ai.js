@@ -113,6 +113,19 @@ function extractSourcesFromSDKResult(result) {
         if (url) out.push({ url, title: String(title || url) });
       }
     }
+    const urlContextMeta =
+      cand.urlContextMetadata ||
+      cand.url_context_metadata ||
+      r.urlContextMetadata ||
+      r.url_context_metadata ||
+      {};
+    let urlMetaItems = urlContextMeta?.urlMetadata || urlContextMeta?.url_metadata || [];
+    if (!Array.isArray(urlMetaItems)) urlMetaItems = [];
+    for (const item of urlMetaItems) {
+      const metaUrl = item?.retrievedUrl || item?.retrieved_url || item?.url || '';
+      const title = item?.title || item?.pageTitle || item?.name || metaUrl || '';
+      if (metaUrl) out.push({ url: String(metaUrl), title: String(title || metaUrl) });
+    }
     const seen = new Set();
     return out.filter((s) => {
       if (!s || !s.url) return false;
@@ -149,6 +162,19 @@ function extractSourcesFromRESTData(data) {
         if (url) out.push({ url, title: String(title || url) });
       }
     }
+    const urlContextMeta =
+      cand.urlContextMetadata ||
+      cand.url_context_metadata ||
+      data?.urlContextMetadata ||
+      data?.url_context_metadata ||
+      {};
+    let urlMetaItems = urlContextMeta?.urlMetadata || urlContextMeta?.url_metadata || [];
+    if (!Array.isArray(urlMetaItems)) urlMetaItems = [];
+    for (const item of urlMetaItems) {
+      const metaUrl = item?.retrievedUrl || item?.retrieved_url || item?.url || '';
+      const title = item?.title || item?.pageTitle || item?.name || metaUrl || '';
+      if (metaUrl) out.push({ url: String(metaUrl), title: String(title || metaUrl) });
+    }
     const seen = new Set();
     return out.filter((s) => {
       if (!s || !s.url) return false;
@@ -174,13 +200,18 @@ async function restGenerateText(
   modelBare,
   prompt,
   generationConfig,
-  { useGoogleSearch = false, signal } = {}
+  { useGoogleSearch = false, signal, urlContextUrl = '' } = {}
 ) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelBare}:generateContent`;
+  const trimmedUrl = typeof urlContextUrl === 'string' ? urlContextUrl.trim() : '';
+  const wantsUrlContext = !!trimmedUrl;
+  const tools = [];
+  if (useGoogleSearch) tools.push({ googleSearch: {} });
+  if (wantsUrlContext) tools.push({ urlContext: {} });
   const body = {
     contents: [{ parts: [{ text: String(prompt || '') }] }],
     generationConfig: generationConfig || undefined,
-    tools: useGoogleSearch ? [{ googleSearch: {} }] : undefined,
+    tools: tools.length ? tools : undefined,
   };
   const res = await fetch(url, {
     method: 'POST',
@@ -247,35 +278,43 @@ async function sdkGenerateText(
   modelName,
   prompt,
   generationConfig,
-  { useGoogleSearch = false } = {}
+  { useGoogleSearch = false, urlContextUrl = '' } = {}
 ) {
   const candidates = modelCandidates(modelName);
+  const trimmedUrl = typeof urlContextUrl === 'string' ? urlContextUrl.trim() : '';
+  const wantsUrlContext = !!trimmedUrl;
+  const tools = [];
+  if (useGoogleSearch) tools.push({ googleSearch: {} });
+  if (wantsUrlContext) tools.push({ urlContext: {} });
   if (genAI && typeof genAI.getGenerativeModel === 'function') {
     for (const m of candidates) {
       try {
         const model = genAI.getGenerativeModel({ model: m, generationConfig });
         try {
-          const r0 = await model.generateContent({
+          const request = {
             contents: [{ role: 'user', parts: [{ text: String(prompt) }] }],
-            tools: useGoogleSearch ? [{ googleSearch: {} }] : undefined,
             generationConfig,
-          });
+            tools: tools.length ? tools : undefined,
+          };
+          const r0 = await model.generateContent(request);
           const t0 = extractTextFromSDKResult(r0);
           const s0 = extractSourcesFromSDKResult(r0);
           if (t0) return { text: t0, sources: s0 };
         } catch {}
-        try {
-          const r1 = await model.generateContent(String(prompt));
-          const t1 = extractTextFromSDKResult(r1);
-          const s1 = extractSourcesFromSDKResult(r1);
-          if (t1) return { text: t1, sources: s1 };
-        } catch {}
-        try {
-          const r2 = await model.generateContent({ input: String(prompt) });
-          const t2 = extractTextFromSDKResult(r2);
-          const s2 = extractSourcesFromSDKResult(r2);
-          if (t2) return { text: t2, sources: s2 };
-        } catch {}
+        if (!wantsUrlContext) {
+          try {
+            const r1 = await model.generateContent(String(prompt));
+            const t1 = extractTextFromSDKResult(r1);
+            const s1 = extractSourcesFromSDKResult(r1);
+            if (t1) return { text: t1, sources: s1 };
+          } catch {}
+          try {
+            const r2 = await model.generateContent({ input: String(prompt) });
+            const t2 = extractTextFromSDKResult(r2);
+            const s2 = extractSourcesFromSDKResult(r2);
+            if (t2) return { text: t2, sources: s2 };
+          } catch {}
+        }
       } catch {}
     }
   }
@@ -285,7 +324,7 @@ async function sdkGenerateText(
         const r = await genAI.responses.generate({
           model: m,
           input: String(prompt),
-          tools: useGoogleSearch ? [{ googleSearch: {} }] : undefined,
+          tools: tools.length ? tools : undefined,
         });
         const t = extractTextFromSDKResult(r);
         const s = extractSourcesFromSDKResult(r);

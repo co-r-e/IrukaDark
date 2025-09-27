@@ -32,6 +32,10 @@
     selectionExplanation: 'Пояснение выделения',
     selectionTranslation: 'Перевести выделение',
     selectionPronunciation: 'Произнести выделение',
+    urlContextSummary: (url) => `Запрос краткого обзора выбранного URL:\n${url}`,
+    urlContextDetailed: (url) => `Запрос подробного разбора выбранного URL:\n${url}`,
+    invalidUrlSelection:
+      'Не найден допустимый URL. Выделите один HTTP(S)-адрес и попробуйте снова.',
     updateAvailable: (v) => `Доступна новая версия (${v}). Открыть загрузки?`,
     upToDate: 'У вас последняя версия.',
     updateCheckFailed: 'Не удалось проверить обновления.',

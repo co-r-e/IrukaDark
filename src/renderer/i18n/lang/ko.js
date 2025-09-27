@@ -31,6 +31,10 @@
     selectionExplanation: '선택 영역 설명',
     selectionTranslation: '선택 영역 번역',
     selectionPronunciation: '선택 영역 발음',
+    urlContextSummary: (url) => `선택한 URL 요약 요청:\n${url}`,
+    urlContextDetailed: (url) => `선택한 URL 상세 분석 요청:\n${url}`,
+    invalidUrlSelection:
+      '유효한 URL을 찾을 수 없습니다. HTTP(S) URL 한 개만 선택하고 다시 시도하세요.',
     updateAvailable: (v) => `새 버전(${v})을 사용할 수 있습니다. 다운로드 페이지를 열까요?`,
     upToDate: '최신 상태입니다.',
     updateCheckFailed: '업데이트 확인에 실패했습니다.',

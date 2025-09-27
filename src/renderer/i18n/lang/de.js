@@ -32,6 +32,10 @@
     selectionExplanation: 'Erläuterung der Auswahl',
     selectionTranslation: 'Auswahl übersetzen',
     selectionPronunciation: 'Auswahl aussprechen',
+    urlContextSummary: (url) => `Kurzfassung der ausgewählten URL:\n${url}`,
+    urlContextDetailed: (url) => `Ausführliche Analyse der ausgewählten URL:\n${url}`,
+    invalidUrlSelection:
+      'Keine gültige URL gefunden. Bitte genau eine HTTP(S)-URL markieren und erneut versuchen.',
     updateAvailable: (v) => `Neue Version (${v}) verfügbar. Downloads öffnen?`,
     upToDate: 'Du bist auf dem neuesten Stand.',
     updateCheckFailed: 'Update‑Prüfung fehlgeschlagen.',

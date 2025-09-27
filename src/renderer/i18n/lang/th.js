@@ -31,6 +31,10 @@
     selectionExplanation: 'คำอธิบายส่วนที่เลือก',
     selectionTranslation: 'แปลส่วนที่เลือก',
     selectionPronunciation: 'ออกเสียงส่วนที่เลือก',
+    urlContextSummary: (url) => `สรุป URL ที่เลือก:\n${url}`,
+    urlContextDetailed: (url) => `วิเคราะห์รายละเอียดของ URL ที่เลือก:\n${url}`,
+    invalidUrlSelection:
+      'ไม่พบ URL ที่ถูกต้อง โปรดเลือก URL แบบ HTTP(S) เพียงรายการเดียวแล้วลองอีกครั้ง',
     updateAvailable: (v) => `มีเวอร์ชันใหม่ (${v}) พร้อมใช้ เปิดหน้าดาวน์โหลดไหม?`,
     upToDate: 'เป็นเวอร์ชันล่าสุดแล้ว',
     updateCheckFailed: 'ตรวจสอบการอัปเดตล้มเหลว',

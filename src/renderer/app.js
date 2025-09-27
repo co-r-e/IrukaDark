@@ -335,9 +335,18 @@ class IrukaDarkApp {
     on('onExplainClipboardDetailed', (text) => this.handleExplainClipboardDetailed(text));
     on('onTranslateClipboard', (text) => this.handleTranslateClipboard(text));
     on('onPronounceClipboard', (text) => this.handlePronounceClipboard(text));
-    on('onExplainClipboardError', (msg) =>
-      this.showToast(msg || getUIText('textNotRetrieved'), 'error')
-    );
+    on('onSummarizeUrlContext', (url) => this.handleSummarizeUrlContext(url));
+    on('onSummarizeUrlContextDetailed', (url) => this.handleSummarizeUrlContextDetailed(url));
+    on('onExplainClipboardError', (msg) => {
+      const key = String(msg || '').trim();
+      if (key === 'INVALID_URL_SELECTION') {
+        this.showToast(getUIText('invalidUrlSelection'), 'error');
+      } else if (key) {
+        this.showToast(key, 'error');
+      } else {
+        this.showToast(getUIText('textNotRetrieved'), 'error');
+      }
+    });
     on('onExplainScreenshot', (payload) => this.handleExplainScreenshot(payload));
     on('onExplainScreenshotDetailed', (payload) => this.handleExplainScreenshotDetailed(payload));
     // Do not show the accessibility warning in chat
@@ -373,6 +382,20 @@ class IrukaDarkApp {
       if (!accel) return;
       const display = String(accel || '').replace(/\bAlt\b/g, 'Option');
       if (accel && accel !== 'Alt+Q') {
+        this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
+      }
+    });
+    on('onShortcutUrlSummaryRegistered', (accel) => {
+      if (!accel) return;
+      const display = String(accel || '').replace(/\bAlt\b/g, 'Option');
+      if (accel && accel !== 'Alt+1') {
+        this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
+      }
+    });
+    on('onShortcutUrlDetailedRegistered', (accel) => {
+      if (!accel) return;
+      const display = String(accel || '').replace(/\bAlt\b/g, 'Option');
+      if (accel && accel !== 'Alt+Shift+1') {
         this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
       }
     });
@@ -588,6 +611,118 @@ class IrukaDarkApp {
       this.syncHeader();
     } finally {
       // Re-enable auto-scroll after the detailed flow completes
+      this.disableAutoScroll = false;
+    }
+  }
+
+  normalizeUrlForShortcut(url) {
+    try {
+      const normalized = new URL(String(url || '').trim());
+      if (!/^https?:$/i.test(normalized.protocol)) return '';
+      return normalized.toString();
+    } catch (error) {
+      return '';
+    }
+  }
+
+  formatUrlContextQuestion(url, mode = 'summary') {
+    try {
+      if (mode === 'detailed') {
+        const label = getUIText('urlContextDetailed', url);
+        if (label && label !== 'urlContextDetailed') return label;
+      } else {
+        const label = getUIText('urlContextSummary', url);
+        if (label && label !== 'urlContextSummary') return label;
+      }
+    } catch {}
+    const prefix = mode === 'detailed' ? 'URL detailed review:' : 'URL summary:';
+    return `${prefix}\n${url}`;
+  }
+
+  async handleSummarizeUrlContext(url) {
+    await this.cancelActiveShortcut();
+    const token = ++this.shortcutRequestId;
+    const targetUrl = this.normalizeUrlForShortcut(url);
+    if (!targetUrl) return;
+    this.disableAutoScroll = true;
+    this.addMessage('system-question', this.formatUrlContextQuestion(targetUrl, 'summary'));
+    this.syncHeader();
+    this.showTypingIndicator();
+
+    try {
+      const historyText = this.buildHistoryContext();
+      const response = await this.geminiService.generateUrlSummary(
+        targetUrl,
+        historyText,
+        'summary'
+      );
+
+      if (token !== this.shortcutRequestId) {
+        return;
+      }
+      this.hideTypingIndicator();
+      if (this.cancelRequested) {
+        return;
+      }
+      this.addMessage('ai', response);
+      try {
+        window.electronAPI &&
+          window.electronAPI.ensureVisible &&
+          window.electronAPI.ensureVisible(false);
+      } catch {}
+      this.syncHeader();
+    } catch (e) {
+      if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
+        return;
+      }
+      this.hideTypingIndicator();
+      this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
+      this.syncHeader();
+    } finally {
+      this.disableAutoScroll = false;
+    }
+  }
+
+  async handleSummarizeUrlContextDetailed(url) {
+    await this.cancelActiveShortcut();
+    const token = ++this.shortcutRequestId;
+    const targetUrl = this.normalizeUrlForShortcut(url);
+    if (!targetUrl) return;
+    this.disableAutoScroll = true;
+    this.addMessage('system-question', this.formatUrlContextQuestion(targetUrl, 'detailed'));
+    this.syncHeader();
+    this.showTypingIndicator();
+
+    try {
+      const historyText = this.buildHistoryContext();
+      const response = await this.geminiService.generateUrlSummary(
+        targetUrl,
+        historyText,
+        'detailed'
+      );
+
+      if (token !== this.shortcutRequestId) {
+        return;
+      }
+      this.hideTypingIndicator();
+      if (this.cancelRequested) {
+        return;
+      }
+      this.addMessage('ai', response);
+      try {
+        window.electronAPI &&
+          window.electronAPI.ensureVisible &&
+          window.electronAPI.ensureVisible(false);
+      } catch {}
+      this.syncHeader();
+    } catch (e) {
+      if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
+        return;
+      }
+      this.hideTypingIndicator();
+      this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
+      this.syncHeader();
+    } finally {
       this.disableAutoScroll = false;
     }
   }
@@ -1823,15 +1958,25 @@ class GeminiService {
     } catch (error) {}
   }
 
-  async requestText(prompt, useWebSearch = false, source = 'chat') {
+  async requestText(prompt, useWebSearch = false, source = 'chat', options = {}) {
     try {
       if (window.electronAPI && window.electronAPI.aiGenerate) {
         const cfg = this.defaultGenerationConfig();
+        const generationConfig = {
+          ...cfg,
+          ...(options && options.generationConfigOverrides
+            ? options.generationConfigOverrides
+            : {}),
+        };
         const result = await window.electronAPI.aiGenerate(prompt, {
           model: this.model,
-          generationConfig: cfg,
+          generationConfig,
           useWebSearch: !!useWebSearch,
           source,
+          urlContextUrl:
+            options && options.urlContextUrl ? String(options.urlContextUrl) : undefined,
+          urlContextMode:
+            options && options.urlContextMode ? String(options.urlContextMode) : undefined,
         });
         if (typeof result === 'string') return { text: result, sources: [] };
         if (result && typeof result.text === 'string') {
@@ -1877,6 +2022,87 @@ class GeminiService {
     } catch (error) {
       return { text: `${getUIText('apiError')} ${error?.message || 'Unknown error'}`, sources: [] };
     }
+  }
+
+  normalizeUrlForPrompt(url) {
+    try {
+      const normalized = new URL(String(url || '').trim());
+      if (!/^https?:$/i.test(normalized.protocol)) return '';
+      return normalized.toString();
+    } catch {
+      return '';
+    }
+  }
+
+  async generateUrlSummary(url, historyText = '', mode = 'summary') {
+    const normalizedUrl = this.normalizeUrlForPrompt(url);
+    if (!normalizedUrl) {
+      throw new Error('Invalid URL');
+    }
+    const lang =
+      (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
+    const tone = typeof getCurrentTone === 'function' ? getCurrentTone() : 'casual';
+    const { name, code } = getLangMeta(lang);
+    const baseConfig = this.defaultGenerationConfig();
+    const baseTopK = Number(baseConfig.topK);
+    const baseTopP = Number(baseConfig.topP);
+    const baseMaxTokens = Number(baseConfig.maxOutputTokens);
+    const safeTopK = Number.isFinite(baseTopK) ? baseTopK : 40;
+    const safeTopP = Number.isFinite(baseTopP) ? baseTopP : 0.95;
+    const safeMaxTokens = Number.isFinite(baseMaxTokens) ? baseMaxTokens : 2048;
+    const cfgOverrides = {
+      temperature: mode === 'summary' ? 0.5 : 0.6,
+      topK: Math.min(32, safeTopK),
+      topP: Math.min(mode === 'summary' ? 0.9 : 0.92, safeTopP),
+      maxOutputTokens: Math.min(mode === 'summary' ? 640 : 960, safeMaxTokens),
+    };
+
+    let prompt;
+    if (lang === 'ja') {
+      if (mode === 'summary') {
+        const toneSuffix =
+          tone === 'casual'
+            ? '\n- 口調はやさしく温かみのあるタメ口（常体）。くだけすぎない。絵文字は使わない'
+            : '\n- 口調は丁寧で落ち着いた敬体';
+        prompt = `次のURLの内容を読み取り、3〜4文で要点を日本語で要約してください。構成は「結論となる要点 → なぜ重要か → 今すぐ取れるアクションや次の一歩」の順にしてください。\n- 根拠となる見出し、数値、引用があれば短く触れてください\n- 信頼できる情報が取得できなかった場合は正直に伝え、リンクの確認方法や代替手段を示してください${toneSuffix}\n\nURL:\n${normalizedUrl}`;
+      } else {
+        const toneSuffix =
+          tone === 'casual'
+            ? '\n- 口調はやさしく温かみのあるタメ口（常体）。くだけすぎない。絵文字は使わない'
+            : '\n- 口調は丁寧で落ち着いた敬体';
+        prompt = `次のURLの内容を詳しく解説してください。以下の構成でまとめ、必要に応じて箇条書きや表を活用してください。\n1. 概要（2〜3文）\n2. 重要ポイント（箇条書き。見出し名や数値、引用など具体的な根拠を含める）\n3. 背景・文脈\n4. リスク・注意点\n5. 推奨アクション（あれば）\n- 情報が取得できなかった場合は理由と確認方法を説明してください${toneSuffix}\n\nURL:\n${normalizedUrl}`;
+      }
+      if (historyText && historyText.trim()) {
+        prompt = `【チャット履歴（直近）】\n${historyText}\n\nこの文脈を踏まえて回答してください。\n\n${prompt}`;
+      }
+    } else {
+      if (mode === 'summary') {
+        let toneLine = '';
+        if (tone === 'casual') {
+          toneLine = ' Use a friendly, conversational tone (no emojis).';
+        } else if (tone === 'formal') {
+          toneLine = ' Use a clear, professional tone.';
+        }
+        prompt = `Read the page at ${normalizedUrl} and summarize it in ${name} (${code}) using 3-4 sentences that cover: key takeaway(s), why they matter, and immediate actions or next steps.${toneLine}\nInclude concrete details (section titles, statistics, quotes) when available. If the page cannot be retrieved, say so explicitly and suggest how to verify or alternative sources.`;
+      } else {
+        let toneLine = '';
+        if (tone === 'casual') {
+          toneLine = ' Use a friendly, conversational tone (no emojis).';
+        } else if (tone === 'formal') {
+          toneLine = ' Use a clear, professional tone.';
+        }
+        prompt = `Provide a detailed explanation of the page at ${normalizedUrl} in ${name} (${code}). Structure the answer with headings for: Overview (2-3 sentences), Key Details (bullet list with section names, data, or quotes), Context/Background, Risks or Caveats, and Recommended Actions.${toneLine} Reference important data or sections explicitly. If the URL cannot be accessed, explain what failed and offer next steps.`;
+      }
+      if (historyText && historyText.trim()) {
+        prompt = `Recent chat context:\n${historyText}\n\nUse this context when crafting your response.\n\n${prompt}`;
+      }
+    }
+
+    return this.requestText(prompt, false, 'shortcut', {
+      urlContextUrl: normalizedUrl,
+      urlContextMode: mode,
+      generationConfigOverrides: cfgOverrides,
+    });
   }
 
   async generateResponse(userMessage, historyText = '', useWebSearch = false) {

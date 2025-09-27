@@ -35,6 +35,30 @@ const { getMainWindow, setMainWindow, setPopupWindow } = require('../context');
 
 const isDev = process.env.NODE_ENV === 'development';
 
+function extractFirstValidUrl(rawText) {
+  if (!rawText) return '';
+  const sanitize = (token) =>
+    String(token || '')
+      .trim()
+      .replace(/^[\s<\[("'`“”‘’]+/, '')
+      .replace(/[>\])"'`“”‘’]+$/u, '')
+      .replace(/[,.;:!?、。]+$/u, '');
+  const tokens = String(rawText).split(/\s+/).map(sanitize).filter(Boolean);
+  for (const token of tokens) {
+    let candidate = token;
+    if (!/^https?:\/\//i.test(candidate) && /^www\./i.test(candidate)) {
+      candidate = `https://${candidate}`;
+    }
+    try {
+      const url = new URL(candidate);
+      if (url.protocol === 'http:' || url.protocol === 'https:') {
+        return url.toString();
+      }
+    } catch {}
+  }
+  return '';
+}
+
 function loadPortableEnv() {
   try {
     const portableFlag = String(process.env.PORTABLE_MODE || process.env.ALLOW_ENV_LOCAL || '')
@@ -312,6 +336,34 @@ function bootstrapApp() {
       }
     };
 
+    const registerUrlShortcut = (accel, detailed = false) => {
+      try {
+        const ok = globalShortcut.register(accel, () => {
+          (async () => {
+            try {
+              const text = await tryCopySelectedText();
+              const mainWindow = getMainWindow();
+              if (!mainWindow || mainWindow.isDestroyed()) return;
+              const url = extractFirstValidUrl(text);
+              if (url) {
+                mainWindow.webContents.send(
+                  detailed ? 'summarize-url-context-detailed' : 'summarize-url-context',
+                  url
+                );
+              } else {
+                mainWindow.webContents.send('explain-clipboard-error', 'INVALID_URL_SELECTION');
+              }
+            } catch (e) {
+              if (isDev) console.warn('URL context shortcut failed:', e?.message);
+            }
+          })();
+        });
+        return ok;
+      } catch (e) {
+        return false;
+      }
+    };
+
     const baseCandidates = ['Alt+A'];
     let baseUsed = '';
     for (const c of baseCandidates) {
@@ -326,6 +378,24 @@ function bootstrapApp() {
     for (const c of detailedCandidates) {
       if (registerShortcut(c, true)) {
         detailedUsed = c;
+        break;
+      }
+    }
+
+    const urlSummaryCandidates = ['Alt+1'];
+    let urlSummaryUsed = '';
+    for (const c of urlSummaryCandidates) {
+      if (registerUrlShortcut(c, false)) {
+        urlSummaryUsed = c;
+        break;
+      }
+    }
+
+    const urlDetailedCandidates = ['Alt+Shift+1'];
+    let urlDetailedUsed = '';
+    for (const c of urlDetailedCandidates) {
+      if (registerUrlShortcut(c, true)) {
+        urlDetailedUsed = c;
         break;
       }
     }
@@ -441,6 +511,8 @@ function bootstrapApp() {
         mainWindow.webContents.send('shortcut-detailed-registered', detailedUsed);
         mainWindow.webContents.send('shortcut-translate-registered', translateUsed);
         mainWindow.webContents.send('shortcut-pronounce-registered', pronounceUsed);
+        mainWindow.webContents.send('shortcut-url-summary-registered', urlSummaryUsed);
+        mainWindow.webContents.send('shortcut-url-detailed-registered', urlDetailedUsed);
       }
     } catch {}
 
@@ -589,6 +661,8 @@ function bootstrapApp() {
         if (!prompt) return '';
         const source = String(payload?.source || 'chat');
         const isShortcut = source === 'shortcut' || payload?.fromShortcut === true;
+        const urlContextUrlRaw = payload?.urlContextUrl ? String(payload.urlContextUrl).trim() : '';
+        const urlContextUrl = urlContextUrlRaw ? urlContextUrlRaw : '';
         const requestedModel = String(
           process.env.GEMINI_MODEL || payload?.model || 'gemini-2.5-flash-lite'
         );
@@ -640,6 +714,7 @@ function bootstrapApp() {
                   try {
                     const r1 = await sdkGenerateText(client, modelName, prompt, generationConfig, {
                       useGoogleSearch,
+                      urlContextUrl,
                     });
                     if (r1) {
                       clearTimeout(timeoutId);
@@ -655,6 +730,7 @@ function bootstrapApp() {
                 const r3 = await restGenerateText(key, bare, prompt, generationConfig, {
                   useGoogleSearch,
                   signal: controller.signal,
+                  urlContextUrl,
                 });
                 if (r3) {
                   clearTimeout(timeoutId);
@@ -679,6 +755,7 @@ function bootstrapApp() {
                   try {
                     const r2 = await sdkGenerateText(client, modelName, prompt, generationConfig, {
                       useGoogleSearch: false,
+                      urlContextUrl,
                     });
                     if (r2) {
                       clearTimeout(timeoutId);
@@ -690,6 +767,7 @@ function bootstrapApp() {
                   const r4 = await restGenerateText(key, bare, prompt, generationConfig, {
                     useGoogleSearch: false,
                     signal: controller.signal,
+                    urlContextUrl,
                   });
                   if (r4) {
                     clearTimeout(timeoutId);

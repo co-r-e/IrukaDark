@@ -31,6 +31,10 @@
     selectionExplanation: 'Giải thích vùng chọn',
     selectionTranslation: 'Dịch vùng chọn',
     selectionPronunciation: 'Phát âm vùng chọn',
+    urlContextSummary: (url) => `Yêu cầu tóm tắt URL đã chọn:\n${url}`,
+    urlContextDetailed: (url) => `Yêu cầu phân tích chi tiết URL đã chọn:\n${url}`,
+    invalidUrlSelection:
+      'Không tìm thấy URL hợp lệ. Hãy chọn một URL HTTP(S) duy nhất rồi thử lại.',
     updateAvailable: (v) => `Có phiên bản mới (${v}). Mở trang tải xuống?`,
     upToDate: 'Bạn đang dùng phiên bản mới nhất.',
     updateCheckFailed: 'Không thể kiểm tra cập nhật.',

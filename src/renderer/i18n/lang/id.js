@@ -31,6 +31,10 @@
     selectionExplanation: 'Penjelasan pilihan',
     selectionTranslation: 'Terjemahkan pilihan',
     selectionPronunciation: 'Ucapkan pilihan',
+    urlContextSummary: (url) => `Ringkasan URL yang dipilih:\n${url}`,
+    urlContextDetailed: (url) => `Analisis mendalam URL yang dipilih:\n${url}`,
+    invalidUrlSelection:
+      'Tidak ada URL valid yang ditemukan. Pilih satu URL HTTP(S) lalu coba lagi.',
     updateAvailable: (v) => `Versi baru (${v}) tersedia. Buka unduhan?`,
     upToDate: 'Anda sudah versi terbaru.',
     updateCheckFailed: 'Gagal memeriksa pembaruan.',

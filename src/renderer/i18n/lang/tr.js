@@ -31,6 +31,10 @@
     selectionExplanation: 'Seçim açıklaması',
     selectionTranslation: 'Seçimi çevir',
     selectionPronunciation: 'Seçimi telaffuz et',
+    urlContextSummary: (url) => `Seçilen URL için özet isteği:\n${url}`,
+    urlContextDetailed: (url) => `Seçilen URL için ayrıntılı analiz isteği:\n${url}`,
+    invalidUrlSelection:
+      'Geçerli bir URL bulunamadı. Lütfen tek bir HTTP(S) URL seçip tekrar deneyin.',
     updateAvailable: (v) => `Yeni sürüm (${v}) mevcut. İndirmeleri açalım mı?`,
     upToDate: 'Güncelsiniz.',
     updateCheckFailed: 'Güncelleme kontrolü başarısız.',
