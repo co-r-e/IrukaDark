@@ -742,6 +742,7 @@ button:disabled {
   color: inherit;
   text-decoration: underline;
   opacity: 0.9;
+  font-size: 10px;
 }
 .source-list a:hover {
   opacity: 1;

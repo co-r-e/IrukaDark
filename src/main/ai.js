@@ -1,49 +1,50 @@
 // AI helper functions (SDK/REST wrappers) for Electron main process
 
 async function getGenAIClientForKey(apiKey) {
+  if (!apiKey) throw new Error('GEMINI_API_KEY is not set.');
   if (!global.__irukadark_genai_clients) global.__irukadark_genai_clients = new Map();
   const cache = global.__irukadark_genai_clients;
   if (cache.has(apiKey)) return cache.get(apiKey);
-  try {
-    const mod = await import('@google/genai');
-    if (!apiKey) throw new Error('GEMINI_API_KEY is not set.');
-    let Ctor = mod.GoogleAI || mod.GoogleGenerativeAI || mod.default || null;
-    if (!Ctor) {
-      for (const k of Object.keys(mod)) {
-        const val = mod[k];
-        if (typeof val === 'function' && /Google|Gen|AI/i.test(k)) {
-          Ctor = val;
-          break;
-        }
-      }
-    }
-    if (!Ctor) throw new Error('Unable to find Google GenAI client export.');
-    let client = null;
-    try {
-      client = new Ctor(apiKey);
-    } catch {}
-    if (!client) {
-      try {
-        client = new Ctor({ apiKey });
-      } catch {}
-    }
-    if (!client) throw new Error('Failed to create Google GenAI client instance.');
-    cache.set(apiKey, client);
-    return client;
-  } catch (e) {
-    const msg = e && e.message ? e.message : String(e);
-    try {
-      const legacy = await import('@google/generative-ai');
-      if (!apiKey) throw new Error('GEMINI_API_KEY is not set.');
-      const L = legacy.GoogleGenerativeAI || legacy.default;
-      if (!L) throw new Error(msg);
-      const client = new L(apiKey);
-      cache.set(apiKey, client);
-      return client;
-    } catch (_) {
-      throw new Error(`Failed to initialize Google GenAI SDK (@google/genai). ${msg}`);
+
+  const mod = await import('@google/genai');
+  const candidates = [mod.GoogleGenAI, mod.GoogleAI, mod.GoogleGenerativeAI];
+  let ClientCtor = null;
+  for (const ctor of candidates) {
+    if (typeof ctor === 'function') {
+      ClientCtor = ctor;
+      break;
     }
   }
+  if (!ClientCtor) {
+    for (const key of Object.keys(mod)) {
+      const val = mod[key];
+      if (typeof val === 'function' && /Google|Gen|AI/.test(key)) {
+        ClientCtor = val;
+        break;
+      }
+    }
+  }
+  if (!ClientCtor) {
+    throw new Error('Unable to find Google GenAI client export in @google/genai.');
+  }
+
+  let client = null;
+  try {
+    client = new ClientCtor({ apiKey });
+  } catch (err) {
+    try {
+      client = new ClientCtor(apiKey);
+    } catch (_) {
+      const reason = err?.message || 'Unknown error';
+      throw new Error(`Failed to create Google GenAI client instance. ${reason}`);
+    }
+  }
+  if (!client) {
+    throw new Error('Failed to create Google GenAI client instance.');
+  }
+
+  cache.set(apiKey, client);
+  return client;
 }
 
 function extractTextFromSDKResult(result) {
@@ -83,6 +84,98 @@ function extractTextFromSDKResult(result) {
   return '';
 }
 
+function collectSourcesFromGroundingMetadata(rawMeta) {
+  const out = [];
+  try {
+    if (!rawMeta || typeof rawMeta !== 'object') return out;
+    const meta = rawMeta;
+    const pushSource = (url, title) => {
+      if (!url) return;
+      const normalized = String(url).trim();
+      if (!normalized) return;
+      out.push({ url: normalized, title: String(title || normalized) });
+    };
+
+    const rawAttrs = meta.groundingAttributions || meta.grounding_attributions || [];
+    const attrs = Array.isArray(rawAttrs) ? rawAttrs : [];
+    if (attrs.length) {
+      for (const a of attrs) {
+        const web =
+          a?.web || a?.webSearchResult || a?.web_search_result || a?.source || a?.site || null;
+        if (web) {
+          pushSource(web.uri || web.url || web.link, web.title || web.pageTitle || web.name);
+        }
+        const retrieved = a?.retrievedContext || a?.retrieved_context;
+        if (retrieved) {
+          pushSource(
+            retrieved.uri || retrieved.url,
+            retrieved.title || retrieved.text || retrieved.documentName || retrieved.document_name
+          );
+        }
+      }
+    }
+
+    const rawChunks = meta.groundingChunks || meta.grounding_chunks || [];
+    const chunks = Array.isArray(rawChunks) ? rawChunks : [];
+    const chunkSources = chunks.map((chunk) => {
+      if (!chunk || typeof chunk !== 'object') return null;
+      const web = chunk.web || chunk.webSearchResult || chunk.web_search_result;
+      if (web) {
+        const url = web.uri || web.url || web.link;
+        const title = web.title || web.pageTitle || web.name;
+        if (url) return { url, title };
+      }
+      const retrieved = chunk.retrievedContext || chunk.retrieved_context;
+      if (retrieved) {
+        const url = retrieved.uri || retrieved.url;
+        const title =
+          retrieved.title || retrieved.text || retrieved.documentName || retrieved.document_name;
+        if (url) return { url, title };
+      }
+      const maps = chunk.maps || chunk.map;
+      if (maps) {
+        const url =
+          maps.uri ||
+          maps.googleMapsUri ||
+          maps.google_maps_uri ||
+          maps.flagContentUri ||
+          maps.flag_content_uri;
+        const title = maps.title || maps.text || maps.placeId || maps.place_id;
+        if (url) return { url, title };
+      }
+      return null;
+    });
+
+    const supportIndexSet = new Set();
+    const addIndices = (list) => {
+      if (!Array.isArray(list)) return;
+      for (const idx of list) {
+        const num = Number(idx);
+        if (Number.isInteger(num) && num >= 0) supportIndexSet.add(num);
+      }
+    };
+
+    const supports = meta.groundingSupports || meta.grounding_supports || [];
+    if (Array.isArray(supports)) {
+      for (const s of supports) {
+        addIndices(s?.groundingChunkIndices || s?.grounding_chunk_indices);
+      }
+    }
+    if (attrs.length) {
+      for (const a of attrs) {
+        addIndices(a?.groundingChunkIndices || a?.grounding_chunk_indices);
+      }
+    }
+
+    chunkSources.forEach((entry, idx) => {
+      if (!entry || !entry.url) return;
+      if (supportIndexSet.size && !supportIndexSet.has(idx)) return;
+      pushSource(entry.url, entry.title);
+    });
+  } catch {}
+  return out;
+}
+
 function extractSourcesFromSDKResult(result) {
   try {
     const r = result?.response || result || {};
@@ -94,16 +187,8 @@ function extractSourcesFromSDKResult(result) {
       r.groundingMetadata ||
       r.grounding_metadata ||
       {};
-    let attrs = gm.groundingAttributions || gm.grounding_attributions || [];
-    if (!Array.isArray(attrs)) attrs = [];
     const out = [];
-    for (const a of attrs) {
-      const web = a?.web || a?.webSearchResult || a?.source || a?.site || null;
-      if (!web) continue;
-      const url = web.uri || web.url || web.link || '';
-      const title = web.title || web.pageTitle || web.name || url || '';
-      if (url) out.push({ url, title: String(title || url) });
-    }
+    out.push(...collectSourcesFromGroundingMetadata(gm));
     const cites = r.citations || r.citationMetadata || cand.citationMetadata || null;
     const citeItems = cites?.citations || cites?.sources || [];
     if (Array.isArray(citeItems)) {
@@ -143,16 +228,8 @@ function extractSourcesFromRESTData(data) {
   try {
     const cand = data?.candidates?.[0] || {};
     const gm = cand.groundingMetadata || cand.grounding_metadata || data?.groundingMetadata || {};
-    let attrs = gm.groundingAttributions || gm.grounding_attributions || [];
-    if (!Array.isArray(attrs)) attrs = [];
     const out = [];
-    for (const a of attrs) {
-      const web = a?.web || a?.webSearchResult || a?.source || null;
-      if (!web) continue;
-      const url = web.uri || web.url || '';
-      const title = web.title || web.pageTitle || url || '';
-      if (url) out.push({ url, title: String(title || url) });
-    }
+    out.push(...collectSourcesFromGroundingMetadata(gm));
     const cites = cand.citationMetadata || data?.citationMetadata || null;
     const citeItems = cites?.citations || [];
     if (Array.isArray(citeItems)) {
@@ -280,59 +357,30 @@ async function sdkGenerateText(
   generationConfig,
   { useGoogleSearch = false, urlContextUrl = '' } = {}
 ) {
+  if (!genAI?.models || typeof genAI.models.generateContent !== 'function') return null;
   const candidates = modelCandidates(modelName);
   const trimmedUrl = typeof urlContextUrl === 'string' ? urlContextUrl.trim() : '';
   const wantsUrlContext = !!trimmedUrl;
   const tools = [];
   if (useGoogleSearch) tools.push({ googleSearch: {} });
   if (wantsUrlContext) tools.push({ urlContext: {} });
-  if (genAI && typeof genAI.getGenerativeModel === 'function') {
-    for (const m of candidates) {
-      try {
-        const model = genAI.getGenerativeModel({ model: m, generationConfig });
-        try {
-          const request = {
-            contents: [{ role: 'user', parts: [{ text: String(prompt) }] }],
-            generationConfig,
-            tools: tools.length ? tools : undefined,
-          };
-          const r0 = await model.generateContent(request);
-          const t0 = extractTextFromSDKResult(r0);
-          const s0 = extractSourcesFromSDKResult(r0);
-          if (t0) return { text: t0, sources: s0 };
-        } catch {}
-        if (!wantsUrlContext) {
-          try {
-            const r1 = await model.generateContent(String(prompt));
-            const t1 = extractTextFromSDKResult(r1);
-            const s1 = extractSourcesFromSDKResult(r1);
-            if (t1) return { text: t1, sources: s1 };
-          } catch {}
-          try {
-            const r2 = await model.generateContent({ input: String(prompt) });
-            const t2 = extractTextFromSDKResult(r2);
-            const s2 = extractSourcesFromSDKResult(r2);
-            if (t2) return { text: t2, sources: s2 };
-          } catch {}
-        }
-      } catch {}
-    }
+
+  for (const model of candidates) {
+    const config = { ...(generationConfig || {}) };
+    if (tools.length) config.tools = tools;
+    const request = {
+      model,
+      contents: [{ role: 'user', parts: [{ text: String(prompt || '') }] }],
+      config: Object.keys(config).length ? config : undefined,
+    };
+    try {
+      const response = await genAI.models.generateContent(request);
+      const text = extractTextFromSDKResult(response);
+      const sources = extractSourcesFromSDKResult(response);
+      if (text) return { text, sources };
+    } catch {}
   }
-  if (genAI && genAI.responses && typeof genAI.responses.generate === 'function') {
-    for (const m of candidates) {
-      try {
-        const r = await genAI.responses.generate({
-          model: m,
-          input: String(prompt),
-          tools: tools.length ? tools : undefined,
-        });
-        const t = extractTextFromSDKResult(r);
-        const s = extractSourcesFromSDKResult(r);
-        if (t) return { text: t, sources: s };
-      } catch {}
-    }
-  }
-  return '';
+  return null;
 }
 
 async function sdkGenerateImage(
@@ -344,54 +392,34 @@ async function sdkGenerateImage(
   generationConfig,
   { useGoogleSearch = false } = {}
 ) {
+  if (!genAI?.models || typeof genAI.models.generateContent !== 'function') return null;
   const candidates = modelCandidates(modelName);
   const imagePart = {
     inlineData: { data: String(imageBase64 || ''), mimeType: String(mimeType || 'image/png') },
   };
-  if (genAI && typeof genAI.getGenerativeModel === 'function') {
-    for (const m of candidates) {
-      try {
-        const model = genAI.getGenerativeModel({ model: m, generationConfig });
-        try {
-          const r0 = await model.generateContent({
-            contents: [{ role: 'user', parts: [{ text: String(prompt) }, imagePart] }],
-            tools: useGoogleSearch ? [{ googleSearch: {} }] : undefined,
-            generationConfig,
-          });
-          const t0 = extractTextFromSDKResult(r0);
-          const s0 = extractSourcesFromSDKResult(r0);
-          if (t0) return { text: t0, sources: s0 };
-        } catch {}
-        try {
-          const r1 = await model.generateContent([{ text: String(prompt) }, imagePart]);
-          const t1 = extractTextFromSDKResult(r1);
-          const s1 = extractSourcesFromSDKResult(r1);
-          if (t1) return { text: t1, sources: s1 };
-        } catch {}
-        try {
-          const r2 = await model.generateContent({ input: [{ text: String(prompt) }, imagePart] });
-          const t2 = extractTextFromSDKResult(r2);
-          const s2 = extractSourcesFromSDKResult(r2);
-          if (t2) return { text: t2, sources: s2 };
-        } catch {}
-      } catch {}
-    }
+  const tools = useGoogleSearch ? [{ googleSearch: {} }] : [];
+
+  for (const model of candidates) {
+    const config = { ...(generationConfig || {}) };
+    if (tools.length) config.tools = tools;
+    const request = {
+      model,
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: String(prompt || '') }, imagePart],
+        },
+      ],
+      config: Object.keys(config).length ? config : undefined,
+    };
+    try {
+      const response = await genAI.models.generateContent(request);
+      const text = extractTextFromSDKResult(response);
+      const sources = extractSourcesFromSDKResult(response);
+      if (text) return { text, sources };
+    } catch {}
   }
-  if (genAI && genAI.responses && typeof genAI.responses.generate === 'function') {
-    for (const m of candidates) {
-      try {
-        const r = await genAI.responses.generate({
-          model: m,
-          input: [{ text: String(prompt) }, imagePart],
-          tools: useGoogleSearch ? [{ googleSearch: {} }] : undefined,
-        });
-        const t = extractTextFromSDKResult(r);
-        const s = extractSourcesFromSDKResult(r);
-        if (t) return { text: t, sources: s };
-      } catch {}
-    }
-  }
-  return '';
+  return null;
 }
 
 module.exports = {
