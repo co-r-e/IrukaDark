@@ -31,6 +31,7 @@
     selectionExplanation: 'Seçim açıklaması',
     selectionTranslation: 'Seçimi çevir',
     selectionPronunciation: 'Seçimi telaffuz et',
+    selectionEmpathy: 'Seçim için empatik yanıt',
     urlContextSummary: (url) => `Seçilen URL için özet isteği:\n${url}`,
     urlContextDetailed: (url) => `Seçilen URL için ayrıntılı analiz isteği:\n${url}`,
     invalidUrlSelection:

@@ -364,6 +364,55 @@ function bootstrapApp() {
       }
     };
 
+    const registerEmpathyShortcut = (accel) => {
+      try {
+        const ok = globalShortcut.register(accel, () => {
+          (async () => {
+            try {
+              const text = await tryCopySelectedText();
+              const mainWindow = getMainWindow();
+              if (!mainWindow || mainWindow.isDestroyed()) return;
+              if (text) {
+                mainWindow.webContents.send('empathize-clipboard', text);
+              } else {
+                mainWindow.webContents.send('explain-clipboard-error', '');
+              }
+            } catch (e) {
+              if (isDev) console.warn('Empathy shortcut failed:', e?.message);
+            }
+          })();
+        });
+        return ok;
+      } catch (e) {
+        return false;
+      }
+    };
+
+    const registerSnsPostShortcut = (accel) => {
+      try {
+        const ok = globalShortcut.register(accel, () => {
+          (async () => {
+            try {
+              const text = await tryCopySelectedText();
+              const mainWindow = getMainWindow();
+              if (!mainWindow || mainWindow.isDestroyed()) return;
+              const url = extractFirstValidUrl(text);
+              if (url) {
+                mainWindow.webContents.send('sns-post-from-url', url);
+              } else {
+                mainWindow.webContents.send('explain-clipboard-error', 'INVALID_URL_SELECTION');
+              }
+            } catch (e) {
+              if (isDev) console.warn('SNS post shortcut failed:', e?.message);
+            }
+          })();
+        });
+        return ok;
+      } catch (e) {
+        return false;
+      }
+    };
+
     const baseCandidates = ['Alt+A'];
     let baseUsed = '';
     for (const c of baseCandidates) {
@@ -400,6 +449,15 @@ function bootstrapApp() {
       }
     }
 
+    const snsPostCandidates = ['Control+Alt+1', 'Alt+Control+1'];
+    let snsPostUsed = '';
+    for (const c of snsPostCandidates) {
+      if (registerSnsPostShortcut(c)) {
+        snsPostUsed = c;
+        break;
+      }
+    }
+
     const translateCandidates = ['Alt+R'];
     let translateUsed = '';
     for (const c of translateCandidates) {
@@ -425,6 +483,15 @@ function bootstrapApp() {
           break;
         }
       } catch {}
+    }
+
+    const empathyCandidates = ['Alt+Control+Z', 'Control+Alt+Z'];
+    let empathyUsed = '';
+    for (const c of empathyCandidates) {
+      if (registerEmpathyShortcut(c)) {
+        empathyUsed = c;
+        break;
+      }
     }
 
     const pronounceCandidates = ['Alt+Q'];
@@ -511,8 +578,10 @@ function bootstrapApp() {
         mainWindow.webContents.send('shortcut-detailed-registered', detailedUsed);
         mainWindow.webContents.send('shortcut-translate-registered', translateUsed);
         mainWindow.webContents.send('shortcut-pronounce-registered', pronounceUsed);
+        mainWindow.webContents.send('shortcut-empathy-registered', empathyUsed);
         mainWindow.webContents.send('shortcut-url-summary-registered', urlSummaryUsed);
         mainWindow.webContents.send('shortcut-url-detailed-registered', urlDetailedUsed);
+        mainWindow.webContents.send('shortcut-sns-post-registered', snsPostUsed);
       }
     } catch {}
 

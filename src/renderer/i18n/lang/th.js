@@ -31,6 +31,7 @@
     selectionExplanation: 'คำอธิบายส่วนที่เลือก',
     selectionTranslation: 'แปลส่วนที่เลือก',
     selectionPronunciation: 'ออกเสียงส่วนที่เลือก',
+    selectionEmpathy: 'ตอบกลับเห็นใจข้อความที่เลือก',
     urlContextSummary: (url) => `สรุป URL ที่เลือก:\n${url}`,
     urlContextDetailed: (url) => `วิเคราะห์รายละเอียดของ URL ที่เลือก:\n${url}`,
     invalidUrlSelection:

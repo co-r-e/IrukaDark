@@ -32,6 +32,7 @@
     selectionExplanation: 'Пояснение выделения',
     selectionTranslation: 'Перевести выделение',
     selectionPronunciation: 'Произнести выделение',
+    selectionEmpathy: 'Эмпатичный ответ для выделенного текста',
     urlContextSummary: (url) => `Запрос краткого обзора выбранного URL:\n${url}`,
     urlContextDetailed: (url) => `Запрос подробного разбора выбранного URL:\n${url}`,
     invalidUrlSelection:

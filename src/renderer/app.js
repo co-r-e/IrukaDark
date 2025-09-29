@@ -335,8 +335,10 @@ class IrukaDarkApp {
     on('onExplainClipboardDetailed', (text) => this.handleExplainClipboardDetailed(text));
     on('onTranslateClipboard', (text) => this.handleTranslateClipboard(text));
     on('onPronounceClipboard', (text) => this.handlePronounceClipboard(text));
+    on('onEmpathizeClipboard', (text) => this.handleEmpathizeClipboard(text));
     on('onSummarizeUrlContext', (url) => this.handleSummarizeUrlContext(url));
     on('onSummarizeUrlContextDetailed', (url) => this.handleSummarizeUrlContextDetailed(url));
+    on('onSnsPostFromUrl', (url) => this.handleSnsPostFromUrl(url));
     on('onExplainClipboardError', (msg) => {
       const key = String(msg || '').trim();
       if (key === 'INVALID_URL_SELECTION') {
@@ -385,6 +387,13 @@ class IrukaDarkApp {
         this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
       }
     });
+    on('onShortcutEmpathyRegistered', (accel) => {
+      if (!accel) return;
+      const display = String(accel || '').replace(/\bAlt\b/g, 'Option');
+      if (accel && accel !== 'Alt+Control+Z') {
+        this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
+      }
+    });
     on('onShortcutUrlSummaryRegistered', (accel) => {
       if (!accel) return;
       const display = String(accel || '').replace(/\bAlt\b/g, 'Option');
@@ -396,6 +405,13 @@ class IrukaDarkApp {
       if (!accel) return;
       const display = String(accel || '').replace(/\bAlt\b/g, 'Option');
       if (accel && accel !== 'Alt+Shift+1') {
+        this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
+      }
+    });
+    on('onShortcutSnsPostRegistered', (accel) => {
+      if (!accel) return;
+      const display = String(accel || '').replace(/\bAlt\b/g, 'Option');
+      if (accel && accel !== 'Control+Alt+1') {
         this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
       }
     });
@@ -639,6 +655,14 @@ class IrukaDarkApp {
     return `${prefix}\n${url}`;
   }
 
+  formatSnsPostQuestion(url) {
+    try {
+      const label = getUIText('snsPostRequest', url);
+      if (label && label !== 'snsPostRequest') return label;
+    } catch {}
+    return `SNS post draft request:\n${url}`;
+  }
+
   async handleSummarizeUrlContext(url) {
     await this.cancelActiveShortcut();
     const token = ++this.shortcutRequestId;
@@ -727,6 +751,46 @@ class IrukaDarkApp {
     }
   }
 
+  async handleSnsPostFromUrl(url) {
+    await this.cancelActiveShortcut();
+    const token = ++this.shortcutRequestId;
+    const targetUrl = this.normalizeUrlForShortcut(url);
+    if (!targetUrl) return;
+    this.disableAutoScroll = true;
+    this.addMessage('system-question', this.formatSnsPostQuestion(targetUrl));
+    this.syncHeader();
+    this.showTypingIndicator();
+
+    try {
+      const historyText = this.buildHistoryContext();
+      const response = await this.geminiService.generateSnsPostFromUrl(targetUrl, historyText);
+
+      if (token !== this.shortcutRequestId) {
+        return;
+      }
+      this.hideTypingIndicator();
+      if (this.cancelRequested) {
+        return;
+      }
+      this.addMessage('ai', response);
+      try {
+        window.electronAPI &&
+          window.electronAPI.ensureVisible &&
+          window.electronAPI.ensureVisible(false);
+      } catch {}
+      this.syncHeader();
+    } catch (e) {
+      if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
+        return;
+      }
+      this.hideTypingIndicator();
+      this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
+      this.syncHeader();
+    } finally {
+      this.disableAutoScroll = false;
+    }
+  }
+
   /**
    * 選択テキストの純粋な翻訳（出力のみ、説明なし）
    */
@@ -785,6 +849,54 @@ class IrukaDarkApp {
 
     try {
       const response = await this.geminiService.generatePronunciation(content);
+      if (token !== this.shortcutRequestId) {
+        return;
+      }
+      this.hideTypingIndicator();
+      if (this.cancelRequested) {
+        return;
+      }
+      this.addMessage('ai', response);
+      try {
+        window.electronAPI &&
+          window.electronAPI.ensureVisible &&
+          window.electronAPI.ensureVisible(false);
+      } catch {}
+      this.syncHeader();
+    } catch (e) {
+      if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
+        return;
+      }
+      this.hideTypingIndicator();
+      this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
+      this.syncHeader();
+    } finally {
+      this.disableAutoScroll = false;
+    }
+  }
+
+  /**
+   * 選択テキストに寄り添う共感コメントを生成
+   */
+  async handleEmpathizeClipboard(text) {
+    await this.cancelActiveShortcut();
+    const token = ++this.shortcutRequestId;
+    const content = (text || '').trim();
+    if (!content) return;
+    this.disableAutoScroll = true;
+    const label = getUIText('selectionEmpathy');
+    const questionLabel =
+      label && label !== 'selectionEmpathy'
+        ? label
+        : getCurrentUILanguage() === 'ja'
+          ? '選択範囲への共感コメント'
+          : 'Empathy reply for selection';
+    this.addMessage('system-question', questionLabel);
+    this.syncHeader();
+    this.showTypingIndicator();
+
+    try {
+      const response = await this.geminiService.generateEmpathyReply(content);
       if (token !== this.shortcutRequestId) {
         return;
       }
@@ -1752,8 +1864,9 @@ class IrukaDarkApp {
     } else if (type === 'system-question') {
       // ショートカット由来のシステム表示（2行まで表示し、クリックで展開/折りたたみ）
       messageDiv.className = 'message-enter';
+      const safe = this.escapeHtml(content).replace(/\n/g, '<br>');
       messageDiv.innerHTML =
-        '<div class="message-system message-system-compact">' + this.escapeHtml(content) + '</div>';
+        '<div class="message-system message-system-compact">' + safe + '</div>';
       try {
         const el = messageDiv.querySelector('.message-system-compact');
         if (el) {
@@ -1766,8 +1879,9 @@ class IrukaDarkApp {
     } else if (type === 'system') {
       // すべてのシステムメッセージはコンパクト表示に統一（2行クランプ、クリックで展開）
       messageDiv.className = 'message-enter';
+      const safe = this.escapeHtml(content).replace(/\n/g, '<br>');
       messageDiv.innerHTML =
-        '<div class="message-system message-system-compact">' + this.escapeHtml(content) + '</div>';
+        '<div class="message-system message-system-compact">' + safe + '</div>';
       try {
         const el = messageDiv.querySelector('.message-system-compact');
         if (el) {
@@ -1779,8 +1893,9 @@ class IrukaDarkApp {
     } else {
       // Fallback: treat as compact system style for consistency
       messageDiv.className = 'message-enter';
+      const safe = this.escapeHtml(content).replace(/\n/g, '<br>');
       messageDiv.innerHTML =
-        '<div class="message-system message-system-compact">' + this.escapeHtml(content) + '</div>';
+        '<div class="message-system message-system-compact">' + safe + '</div>';
       try {
         const el = messageDiv.querySelector('.message-system-compact');
         if (el) {
@@ -2105,6 +2220,47 @@ class GeminiService {
     });
   }
 
+  async generateSnsPostFromUrl(url, historyText = '') {
+    const normalizedUrl = this.normalizeUrlForPrompt(url);
+    if (!normalizedUrl) {
+      throw new Error('Invalid URL');
+    }
+    const baseConfig = this.defaultGenerationConfig();
+    const baseTopK = Number(baseConfig.topK);
+    const baseTopP = Number(baseConfig.topP);
+    const baseMaxTokens = Number(baseConfig.maxOutputTokens);
+    const cfgOverrides = {
+      temperature: 0.6,
+      topK: Number.isFinite(baseTopK) ? Math.min(36, baseTopK) : 36,
+      topP: Number.isFinite(baseTopP) ? Math.min(0.92, baseTopP) : 0.92,
+      maxOutputTokens: Number.isFinite(baseMaxTokens) ? Math.min(640, baseMaxTokens) : 640,
+    };
+
+    let prompt = `Step 1: Read and analyze this webpage: ${normalizedUrl}
+   - Summarize the main content in 2-3 sentences.
+   - Identify 1-2 key new tools/technologies mentioned (e.g., features, updates, or innovations).
+   - Note any benefits, use cases, or why it's cool/exciting.
+
+Step 2: Craft the X post in casual English:
+   - Jump straight into the hook/explanation (e.g., "This new AI doodle tool turns sketches into pro art in seconds.").
+   - Explain the tool/tech simply and enthusiastically, but keep it factual and understated. Expand with details on how it works, benefits, and a simple use case.
+   - Keep it around 500 characters and positive.
+   - Use line breaks to separate ideas for better flow.
+   - Add hashtags like #TechTips #NewTools at the end.
+
+Output only the final X post from Step 2. Do not label the steps or include extra commentary.`;
+
+    if (historyText && historyText.trim()) {
+      prompt = `Recent chat context:\n${historyText}\n\nUse this context only if it helps tailor the tone or focus.\n\n${prompt}`;
+    }
+
+    return this.requestText(prompt, false, 'shortcut', {
+      urlContextUrl: normalizedUrl,
+      urlContextMode: 'sns-post',
+      generationConfigOverrides: cfgOverrides,
+    });
+  }
+
   async generateResponse(userMessage, historyText = '', useWebSearch = false) {
     const prompt = this.buildTextOnlyPrompt(userMessage, historyText);
     return this.requestText(prompt, useWebSearch, 'chat');
@@ -2178,6 +2334,34 @@ ${t}`;
     })();
     const prompt = `${instructions}\n\nText:\n${trimmed}`;
     return this.requestText(prompt, false, 'shortcut');
+  }
+
+  async generateEmpathyReply(text) {
+    const trimmed = text.length > 1500 ? text.slice(0, 1500) + ' …(truncated)' : text;
+    const prompt = `You are preparing a short quote-repost comment for a social media post (X/Twitter or Reddit).
+
+Original post:
+"""
+${trimmed}
+"""
+
+Instructions:
+- Detect the language of the original post and respond in that exact language.
+- Write exactly one sentence that lightly mirrors the poster's feeling and offers gentle empathy or encouragement.
+- Keep the vibe light, friendly, and frankly spoken. For Japanese, blend casual speech with soft politeness (〜ですね / 〜ですよ / 〜ますね). For other languages, stay informal, warm, and respectful.
+- Keep it under 35 words (or 70 characters for CJK scripts) and avoid emojis, hashtags, mentions, or quotes.
+- Refer to the situation without copying long phrases verbatim.
+
+If the text is empty or the language cannot be determined, reply in English with: "I'm here for you, even if I don't fully understand yet."`;
+    const cfgOverrides = {
+      temperature: 0.6,
+      topK: 28,
+      topP: 0.88,
+      maxOutputTokens: 180,
+    };
+    return this.requestText(prompt, false, 'shortcut', {
+      generationConfigOverrides: cfgOverrides,
+    });
   }
 
   async generateTargetedTranslation(text, targetCode = 'en') {

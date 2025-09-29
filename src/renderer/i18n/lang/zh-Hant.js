@@ -30,6 +30,7 @@
     selectionExplanation: '選取範圍解說',
     selectionTranslation: '翻譯選取範圍',
     selectionPronunciation: '標註選取範圍讀音',
+    selectionEmpathy: '對選取文字的共感回覆',
     urlContextSummary: (url) => `請求取得所選 URL 的概要：\n${url}`,
     urlContextDetailed: (url) => `請求對所選 URL 進行詳細解析：\n${url}`,
     invalidUrlSelection: '找不到有效的 URL。請選擇單一 HTTP(S) URL 後再試一次。',

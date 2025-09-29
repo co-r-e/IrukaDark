@@ -32,6 +32,7 @@
     selectionExplanation: 'Explication de la sélection',
     selectionTranslation: 'Traduire la sélection',
     selectionPronunciation: 'Prononcer la sélection',
+    selectionEmpathy: 'Réponse empathique pour la sélection',
     urlContextSummary: (url) => `Résumé de l’URL sélectionnée :\n${url}`,
     urlContextDetailed: (url) => `Analyse détaillée de l’URL sélectionnée :\n${url}`,
     invalidUrlSelection:

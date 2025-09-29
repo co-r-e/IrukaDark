@@ -31,6 +31,7 @@
     selectionExplanation: '선택 영역 설명',
     selectionTranslation: '선택 영역 번역',
     selectionPronunciation: '선택 영역 발음',
+    selectionEmpathy: '선택한 텍스트 공감 댓글',
     urlContextSummary: (url) => `선택한 URL 요약 요청:\n${url}`,
     urlContextDetailed: (url) => `선택한 URL 상세 분석 요청:\n${url}`,
     invalidUrlSelection:

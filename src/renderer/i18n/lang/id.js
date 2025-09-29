@@ -31,6 +31,7 @@
     selectionExplanation: 'Penjelasan pilihan',
     selectionTranslation: 'Terjemahkan pilihan',
     selectionPronunciation: 'Ucapkan pilihan',
+    selectionEmpathy: 'Balasan empati untuk pilihan',
     urlContextSummary: (url) => `Ringkasan URL yang dipilih:\n${url}`,
     urlContextDetailed: (url) => `Analisis mendalam URL yang dipilih:\n${url}`,
     invalidUrlSelection:

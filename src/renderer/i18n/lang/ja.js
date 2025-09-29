@@ -33,8 +33,10 @@
     selectionExplanation: '選択範囲の解説',
     selectionTranslation: '選択範囲の翻訳',
     selectionPronunciation: '選択範囲の発音',
+    selectionEmpathy: '選択範囲への共感コメント',
     urlContextSummary: (url) => `URLの概要を取得します:\n${url}`,
     urlContextDetailed: (url) => `URLの内容を詳しく解説します:\n${url}`,
+    snsPostRequest: (url) => `SNS投稿用のドラフトを作成します:\n${url}`,
     invalidUrlSelection:
       '有効なURLが見つかりません。http(s)のURLを1件だけ選択して再度お試しください。',
     updateAvailable: (v) =>

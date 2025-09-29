@@ -29,6 +29,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onSummarizeUrlContext: (cb) => ipcRenderer.on('summarize-url-context', (_e, url) => cb(url)),
   onSummarizeUrlContextDetailed: (cb) =>
     ipcRenderer.on('summarize-url-context-detailed', (_e, url) => cb(url)),
+  onSnsPostFromUrl: (cb) => ipcRenderer.on('sns-post-from-url', (_e, url) => cb(url)),
+  onEmpathizeClipboard: (cb) => ipcRenderer.on('empathize-clipboard', (_e, t) => cb(t)),
   onAccessibilityWarning: (cb) => ipcRenderer.on('accessibility-warning', () => cb()),
   onShortcutRegistered: (cb) => ipcRenderer.on('shortcut-registered', (_e, a) => cb(a)),
   onShortcutDetailedRegistered: (cb) =>
@@ -37,10 +39,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('shortcut-translate-registered', (_e, a) => cb(a)),
   onShortcutPronounceRegistered: (cb) =>
     ipcRenderer.on('shortcut-pronounce-registered', (_e, a) => cb(a)),
+  onShortcutEmpathyRegistered: (cb) =>
+    ipcRenderer.on('shortcut-empathy-registered', (_e, a) => cb(a)),
   onShortcutUrlSummaryRegistered: (cb) =>
     ipcRenderer.on('shortcut-url-summary-registered', (_e, a) => cb(a)),
   onShortcutUrlDetailedRegistered: (cb) =>
     ipcRenderer.on('shortcut-url-detailed-registered', (_e, a) => cb(a)),
+  onShortcutSnsPostRegistered: (cb) =>
+    ipcRenderer.on('shortcut-sns-post-registered', (_e, a) => cb(a)),
   onThemeChanged: (cb) => ipcRenderer.on('theme-changed', (_e, theme) => cb(theme)),
   onToneChanged: (cb) => ipcRenderer.on('tone-changed', (_e, tone) => cb(tone)),
   onAppConfig: (cb) => ipcRenderer.on('app-config', (_e, cfg) => cb(cfg)),

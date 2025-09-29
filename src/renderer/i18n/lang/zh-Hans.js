@@ -30,6 +30,7 @@
     selectionExplanation: '选区解读',
     selectionTranslation: '翻译选区',
     selectionPronunciation: '标注选区读音',
+    selectionEmpathy: '针对选中文本的共感回复',
     urlContextSummary: (url) => `请求对所选 URL 进行概览：\n${url}`,
     urlContextDetailed: (url) => `请求对所选 URL 进行详细解读：\n${url}`,
     invalidUrlSelection: '未检测到有效的 URL。请选择唯一的 HTTP(S) URL 后重试。',

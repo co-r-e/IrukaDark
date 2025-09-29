@@ -31,6 +31,7 @@
     selectionExplanation: 'Giải thích vùng chọn',
     selectionTranslation: 'Dịch vùng chọn',
     selectionPronunciation: 'Phát âm vùng chọn',
+    selectionEmpathy: 'Phản hồi đồng cảm cho vùng chọn',
     urlContextSummary: (url) => `Yêu cầu tóm tắt URL đã chọn:\n${url}`,
     urlContextDetailed: (url) => `Yêu cầu phân tích chi tiết URL đã chọn:\n${url}`,
     invalidUrlSelection:

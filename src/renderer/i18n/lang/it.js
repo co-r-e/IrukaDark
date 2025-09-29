@@ -32,6 +32,7 @@
     selectionExplanation: 'Spiegazione selezione',
     selectionTranslation: 'Traduci selezione',
     selectionPronunciation: 'Pronuncia selezione',
+    selectionEmpathy: 'Risposta empatica per la selezione',
     urlContextSummary: (url) => `Riepilogo dell’URL selezionato:\n${url}`,
     urlContextDetailed: (url) => `Analisi dettagliata dell’URL selezionato:\n${url}`,
     invalidUrlSelection: 'Nessun URL valido rilevato. Seleziona un solo URL HTTP(S) e riprova.',
