@@ -8,7 +8,7 @@ const isDev = process.env.NODE_ENV === 'development';
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Timings for temporary hide/show during shortcut copy
-const HIDE_DELAY_MS_MAC = 140;
+const HIDE_DELAY_MS_MAC = 200;
 
 // Clipboard freshness watcher removed — not needed after spec change
 
@@ -56,23 +56,27 @@ async function pollClipboardChange(beforeText, maxWaitMs) {
     }
     last = now;
     const elapsed = Date.now() - start;
-    const interval = elapsed < 240 ? 18 : elapsed < 900 ? 45 : 90;
+    const interval = elapsed < 300 ? 30 : elapsed < 900 ? 60 : 100;
     await delay(interval);
   }
   return last && last.trim() ? last.trim() : '';
 }
 
-function triggerMacCopyShortcut() {
-  try {
-    exec(
-      'osascript -e \'tell application "System Events" to keystroke "c" using {command down}\'',
-      (error) => {
-        if (error && isDev) console.warn('osascript error:', error.message);
-      }
-    );
-  } catch (e) {
-    if (isDev) console.warn('Failed to invoke osascript:', e?.message);
-  }
+async function triggerMacCopyShortcut() {
+  return new Promise((resolve) => {
+    try {
+      exec(
+        'osascript -e \'tell application "System Events" to keystroke "c" using {command down}\'',
+        (error) => {
+          if (error && isDev) console.warn('osascript error:', error.message);
+          resolve(!error);
+        }
+      );
+    } catch (e) {
+      if (isDev) console.warn('Failed to invoke osascript:', e?.message);
+      resolve(false);
+    }
+  });
 }
 
 async function macReadSelectedTextViaAX() {
@@ -157,7 +161,8 @@ async function tryCopySelectedText() {
         return axText.trim();
       }
       try {
-        triggerMacCopyShortcut();
+        await triggerMacCopyShortcut();
+        await delay(50);
       } catch {}
       const polled = await pollClipboardChange(before, macMaxWait);
       if (polled) return polled;
