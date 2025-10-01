@@ -23,6 +23,7 @@ const {
   tryCopySelectedText,
   captureInteractiveArea,
 } = require('../shortcuts');
+const { fetchUrlContent } = require('../services/urlContent');
 const {
   getGenAIClientForKey,
   modelCandidates,
@@ -701,6 +702,24 @@ function bootstrapApp() {
     });
   }
 
+  function setupUrlContentHandlers() {
+    ipcMain.handle('url:fetch-content', async (_event, payload = {}) => {
+      try {
+        const raw = typeof payload === 'string' ? payload : payload?.url;
+        const timeoutMs = Number.isFinite(payload?.timeoutMs)
+          ? Number(payload.timeoutMs)
+          : undefined;
+        const maxLength = Number.isFinite(payload?.maxLength)
+          ? Number(payload.maxLength)
+          : undefined;
+        const result = await fetchUrlContent(raw, { timeoutMs, maxLength });
+        return result;
+      } catch (error) {
+        return { error: error?.message || 'Failed to fetch URL content' };
+      }
+    });
+  }
+
   function setupAiHandlers() {
     ipcMain.handle('cancel-ai', (_e, payload = {}) => {
       const { fromShortcut } = payload || {};
@@ -1140,6 +1159,7 @@ function bootstrapApp() {
     setupPopupIpcHandlers();
     setupCaptureHandlers();
     setupUiHandlers();
+    setupUrlContentHandlers();
     setupAiHandlers();
     setupRendererSync();
 

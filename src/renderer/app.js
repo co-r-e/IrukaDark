@@ -2149,11 +2149,45 @@ class GeminiService {
     }
   }
 
+  async fetchUrlPlainText(url, maxLength = 5000) {
+    if (!window.electronAPI || typeof window.electronAPI.fetchUrlContent !== 'function') {
+      throw new Error('URL content bridge unavailable');
+    }
+    const safeMaxLength = Math.max(1000, Math.min(maxLength, 20000));
+    const result = await window.electronAPI.fetchUrlContent(url, {
+      maxLength: safeMaxLength,
+      timeoutMs: 12000,
+    });
+    if (!result || typeof result !== 'object') {
+      throw new Error('Failed to fetch URL content');
+    }
+    if (typeof result.error === 'string' && result.error) {
+      throw new Error(result.error);
+    }
+    const text = String(result.text || '').trim();
+    if (!text) {
+      throw new Error('No readable content found at URL');
+    }
+    return {
+      text,
+      truncated: !!result.truncated,
+      finalUrl: result.finalUrl || url,
+    };
+  }
+
   async generateUrlSummary(url, historyText = '', mode = 'summary') {
     const normalizedUrl = this.normalizeUrlForPrompt(url);
     if (!normalizedUrl) {
       throw new Error('Invalid URL');
     }
+
+    const maxLength = mode === 'summary' ? 5000 : 10000;
+    const {
+      text: pageText,
+      truncated,
+      finalUrl,
+    } = await this.fetchUrlPlainText(normalizedUrl, maxLength);
+
     const lang =
       (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
     const tone = typeof getCurrentTone === 'function' ? getCurrentTone() : 'casual';
@@ -2172,50 +2206,50 @@ class GeminiService {
       maxOutputTokens: Math.min(mode === 'summary' ? 640 : 960, safeMaxTokens),
     };
 
+    const truncatedNote = truncated
+      ? lang === 'ja'
+        ? '\n※ 抽出したコンテンツは長さ制限のため一部のみ掲載しています。'
+        : '\nNote: Extracted content was truncated for length.'
+      : '';
+
     let prompt;
     if (lang === 'ja') {
+      const historyBlock =
+        historyText && historyText.trim()
+          ? `【チャット履歴（直近）】\n${historyText.trim()}\n\nこの文脈を踏まえて回答してください。\n\n`
+          : '';
       if (mode === 'summary') {
         const toneSuffix =
           tone === 'casual'
             ? '\n- 口調はやさしく温かみのあるタメ口（常体）。くだけすぎない。絵文字は使わない'
             : '\n- 口調は丁寧で落ち着いた敬体';
-        prompt = `次のURLの内容を読み取り、3〜4文で要点を日本語で要約してください。構成は「結論となる要点 → なぜ重要か → 今すぐ取れるアクションや次の一歩」の順にしてください。\n- 根拠となる見出し、数値、引用があれば短く触れてください\n- 信頼できる情報が取得できなかった場合は正直に伝え、リンクの確認方法や代替手段を示してください${toneSuffix}\n\nURL:\n${normalizedUrl}`;
+        prompt = `${historyBlock}以下のウェブサイト内容をもとに、3〜4文の日本語要約を作成してください。構成は「結論となる要点 → なぜ重要か → 今すぐ取れるアクションや次の一歩」の順にしてください。\n- 根拠となる見出し、数値、引用があれば短く触れてください\n- 信頼できる情報が取得できなかった場合は正直に伝え、リンクの確認方法や代替手段を示してください${toneSuffix}${truncatedNote}\n\nWebsite URL: ${finalUrl}\n\nContent:\n${pageText}\n\n回答:`;
       } else {
         const toneSuffix =
           tone === 'casual'
             ? '\n- 口調はやさしく温かみのあるタメ口（常体）。くだけすぎない。絵文字は使わない'
             : '\n- 口調は丁寧で落ち着いた敬体';
-        prompt = `次のURLの内容を詳しく解説してください。以下の構成でまとめ、必要に応じて箇条書きや表を活用してください。\n1. 概要（2〜3文）\n2. 重要ポイント（箇条書き。見出し名や数値、引用など具体的な根拠を含める）\n3. 背景・文脈\n4. リスク・注意点\n5. 推奨アクション（あれば）\n- 情報が取得できなかった場合は理由と確認方法を説明してください${toneSuffix}\n\nURL:\n${normalizedUrl}`;
-      }
-      if (historyText && historyText.trim()) {
-        prompt = `【チャット履歴（直近）】\n${historyText}\n\nこの文脈を踏まえて回答してください。\n\n${prompt}`;
+        prompt = `${historyBlock}以下のウェブサイト内容をもとに、次の構成で詳しく解説してください。必要に応じて箇条書きや表を活用してください。\n1. 概要（2〜3文）\n2. 重要ポイント（箇条書き。見出し名や数値、引用など具体的な根拠を含める）\n3. 背景・文脈\n4. リスク・注意点\n5. 推奨アクション（あれば）\n- 情報が取得できなかった場合は理由と確認方法を説明してください${toneSuffix}${truncatedNote}\n\nWebsite URL: ${finalUrl}\n\nContent:\n${pageText}\n\n回答:`;
       }
     } else {
+      const historyBlock =
+        historyText && historyText.trim()
+          ? `Recent chat context:\n${historyText.trim()}\n\nUse this context when crafting your response.\n\n`
+          : '';
+      const toneLine =
+        tone === 'casual'
+          ? ' Use a friendly, conversational tone (no emojis).'
+          : tone === 'formal'
+            ? ' Use a clear, professional tone.'
+            : '';
       if (mode === 'summary') {
-        let toneLine = '';
-        if (tone === 'casual') {
-          toneLine = ' Use a friendly, conversational tone (no emojis).';
-        } else if (tone === 'formal') {
-          toneLine = ' Use a clear, professional tone.';
-        }
-        prompt = `Read the page at ${normalizedUrl} and summarize it in ${name} (${code}) using 3-4 sentences that cover: key takeaway(s), why they matter, and immediate actions or next steps.${toneLine}\nInclude concrete details (section titles, statistics, quotes) when available. If the page cannot be retrieved, say so explicitly and suggest how to verify or alternative sources.`;
+        prompt = `${historyBlock}Based on the following website content, write a 3-4 sentence summary in ${name} (${code}) that covers: key takeaway(s), why they matter, and immediate actions or next steps.${toneLine}${truncatedNote}\nInclude concrete details (section titles, statistics, quotes) when available. If the page cannot be verified, say so explicitly and suggest how to confirm it or alternative sources.\n\nWebsite URL: ${finalUrl}\n\nContent:\n${pageText}\n\nProvide the summary:`;
       } else {
-        let toneLine = '';
-        if (tone === 'casual') {
-          toneLine = ' Use a friendly, conversational tone (no emojis).';
-        } else if (tone === 'formal') {
-          toneLine = ' Use a clear, professional tone.';
-        }
-        prompt = `Provide a detailed explanation of the page at ${normalizedUrl} in ${name} (${code}). Structure the answer with headings for: Overview (2-3 sentences), Key Details (bullet list with section names, data, or quotes), Context/Background, Risks or Caveats, and Recommended Actions.${toneLine} Reference important data or sections explicitly. If the URL cannot be accessed, explain what failed and offer next steps.`;
-      }
-      if (historyText && historyText.trim()) {
-        prompt = `Recent chat context:\n${historyText}\n\nUse this context when crafting your response.\n\n${prompt}`;
+        prompt = `${historyBlock}Based on the following website content, produce a detailed analysis in ${name} (${code}) with the headings: Overview (2-3 sentences), Key Details (bullet list with section names, data, or quotes), Context/Background, Risks or Caveats, and Recommended Actions.${toneLine}${truncatedNote}\nIf the page cannot be verified, explain what failed and offer next steps.\n\nWebsite URL: ${finalUrl}\n\nContent:\n${pageText}\n\nProvide the detailed analysis:`;
       }
     }
 
     return this.requestText(prompt, false, 'shortcut', {
-      urlContextUrl: normalizedUrl,
-      urlContextMode: mode,
       generationConfigOverrides: cfgOverrides,
     });
   }
