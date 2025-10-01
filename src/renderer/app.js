@@ -2088,10 +2088,6 @@ class GeminiService {
           generationConfig,
           useWebSearch: !!useWebSearch,
           source,
-          urlContextUrl:
-            options && options.urlContextUrl ? String(options.urlContextUrl) : undefined,
-          urlContextMode:
-            options && options.urlContextMode ? String(options.urlContextMode) : undefined,
         });
         if (typeof result === 'string') return { text: result, sources: [] };
         if (result && typeof result.text === 'string') {
@@ -2270,27 +2266,46 @@ class GeminiService {
       maxOutputTokens: Number.isFinite(baseMaxTokens) ? Math.min(640, baseMaxTokens) : 640,
     };
 
-    let prompt = `Step 1: Read and analyze this webpage: ${normalizedUrl}
-   - Summarize the main content in 2-3 sentences.
-   - Identify 1-2 key new tools/technologies mentioned (e.g., features, updates, or innovations).
-   - Note any benefits, use cases, or why it's cool/exciting.
+    const {
+      text: pageText,
+      truncated,
+      finalUrl,
+    } = await this.fetchUrlPlainText(normalizedUrl, 8000);
 
-Step 2: Craft the X post in casual English:
-   - Jump straight into the hook/explanation (e.g., "This new AI doodle tool turns sketches into pro art in seconds.").
-   - Explain the tool/tech simply and enthusiastically, but keep it factual and understated. Expand with details on how it works, benefits, and a simple use case.
-   - Keep it around 500 characters and positive.
-   - Use line breaks to separate ideas for better flow.
-   - Add hashtags like #TechTips #NewTools at the end.
+    const lang =
+      (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
+    const tone = typeof getCurrentTone === 'function' ? getCurrentTone() : 'casual';
+    const { name, code } = getLangMeta(lang);
+    const truncatedNote = truncated
+      ? lang === 'ja'
+        ? '\n※ 抽出したコンテンツは長さ制限のため一部のみ掲載しています。'
+        : '\nNote: Extracted content was truncated for length.'
+      : '';
 
-Output only the final X post from Step 2. Do not label the steps or include extra commentary.`;
-
-    if (historyText && historyText.trim()) {
-      prompt = `Recent chat context:\n${historyText}\n\nUse this context only if it helps tailor the tone or focus.\n\n${prompt}`;
+    let prompt;
+    if (lang === 'ja') {
+      const toneSuffix =
+        tone === 'casual'
+          ? '\n- 口調はフレンドリーで親しみやすい常体。ただしくだけすぎず、絵文字は使わない'
+          : '\n- 口調は落ち着いた丁寧語で、読みやすさを意識する';
+      prompt = `以下のウェブサイト内容をもとに、X向けのカジュアルな投稿文（約500文字）を作成してください。\nフォーカスすべき点:\n- どんな内容か\n- 主要なポイント\n- 読者に寄り添う会話調${toneSuffix}${truncatedNote}\n- 引用したい数値や固有名詞があれば自然に織り込む\n- 最後に内容に合ったハッシュタグを2〜3個付ける（例: #TechTips）\n\nWebsite URL: ${finalUrl}\n\nContent:\n${pageText}\n\n投稿文:`;
+      if (historyText && historyText.trim()) {
+        prompt = `【チャット履歴（直近）】\n${historyText}\n\nこの文脈を踏まえてトーンや強調点を調整してください。\n\n${prompt}`;
+      }
+    } else {
+      const toneLine =
+        tone === 'casual'
+          ? ' Use a friendly, conversational tone (no emojis).'
+          : tone === 'formal'
+            ? ' Use a clear, professional tone.'
+            : '';
+      prompt = `Based on the following website content, write a casual X post in ${name} (${code}) that explains the content.\n\nFocus on:\n- What the content is about\n- Key takeaways\n- Conversational tone${toneLine}${truncatedNote}\nKeep it around 500 characters, use natural line breaks, and end with 2-3 relevant hashtags such as #TechTips.\n\nWebsite URL: ${finalUrl}\n\nContent:\n${pageText}\n\nGenerate the post:`;
+      if (historyText && historyText.trim()) {
+        prompt = `Recent chat context:\n${historyText}\n\nUse this context if it helps tailor tone or emphasis.\n\n${prompt}`;
+      }
     }
 
     return this.requestText(prompt, false, 'shortcut', {
-      urlContextUrl: normalizedUrl,
-      urlContextMode: 'sns-post',
       generationConfigOverrides: cfgOverrides,
     });
   }

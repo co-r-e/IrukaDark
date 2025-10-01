@@ -277,14 +277,11 @@ async function restGenerateText(
   modelBare,
   prompt,
   generationConfig,
-  { useGoogleSearch = false, signal, urlContextUrl = '' } = {}
+  { useGoogleSearch = false, signal } = {}
 ) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelBare}:generateContent`;
-  const trimmedUrl = typeof urlContextUrl === 'string' ? urlContextUrl.trim() : '';
-  const wantsUrlContext = !!trimmedUrl;
   const tools = [];
   if (useGoogleSearch) tools.push({ googleSearch: {} });
-  if (wantsUrlContext) tools.push({ urlContext: {} });
   const body = {
     contents: [{ parts: [{ text: String(prompt || '') }] }],
     generationConfig: generationConfig || undefined,
@@ -355,15 +352,12 @@ async function sdkGenerateText(
   modelName,
   prompt,
   generationConfig,
-  { useGoogleSearch = false, urlContextUrl = '' } = {}
+  { useGoogleSearch = false } = {}
 ) {
   if (!genAI?.models || typeof genAI.models.generateContent !== 'function') return null;
   const candidates = modelCandidates(modelName);
-  const trimmedUrl = typeof urlContextUrl === 'string' ? urlContextUrl.trim() : '';
-  const wantsUrlContext = !!trimmedUrl;
   const tools = [];
   if (useGoogleSearch) tools.push({ googleSearch: {} });
-  if (wantsUrlContext) tools.push({ urlContext: {} });
 
   for (const model of candidates) {
     const config = { ...(generationConfig || {}) };

@@ -20,7 +20,7 @@ Lightweight local AI chat for macOS. Explain or translate selected text, or chat
 - Area screenshot explain (interactive selection)
   - Option+S (detailed: Option+Shift+S)
 - Gemini integration via Google GenAI SDK (@google/genai) — default: 2.5 Flash Lite
-  - URL ContextとWeb検索の応答には常に参照バッジが付き、クリックで実際に参照されたリンクが開示されます
+  - Web検索を有効にした応答には参照バッジが付き、クリックで取得元リンクを確認できます
 - Optional floating logo popup window (toggle from menu)
 - Clean, minimal UI with dark/light themes
 - Slash command palette with suggestions, nested sub-commands, and multi-language `/translate`
@@ -62,7 +62,7 @@ Notes
 Common fixes
 
 - `API_KEY_INVALID`: wrong key type or pasted with spaces/quotes.
-- `All model attempts failed`: the chosen model may not support URL Context/Web Search tools, the API key could lack access, or the target site timed out. Switch to `gemini-2.5-flash` or retry later.
+- `All model attempts failed`: the chosen model may not support Google Web Search tools, the API key could lack access, or the target site timed out. Switch to `gemini-2.5-flash` or retry later.
 - `npm install` errors: check network/proxy.
 - Option+A does nothing: ensure selection and required permissions; try manual copy then Option+A.
 
@@ -99,7 +99,7 @@ IrukaDark は Electron をベースに、メインプロセスとレンダラー
 
 - `src/main.js` — エントリポイント。内部で `src/main/bootstrap/app.js` を呼び出します。
 - `src/main/bootstrap/app.js` — アプリの初期化ロジック。ウィンドウ生成、メニュー構築、IPC などの起動フローをここに集約しています。
-- `src/main/ai.js` — SDK/REST ラッパー。`@google/genai` の `models.generateContent` を使って URL Context / Web Search ツールを一元的に呼び出します。
+- `src/main/ai.js` — SDK/REST ラッパー。`@google/genai` の `models.generateContent` を使ってテキスト生成（必要に応じて Web Search ツール）を一元的に呼び出します。
 - `src/main/windows/` — `WindowManager` などウィンドウ関連のユーティリティ。
 - `src/main/services/` — 設定永続化 (`preferences.js`) や UI 設定を反映するコントローラ (`settingsController.js`) など、メインプロセスのサービス層。
 - `src/main/context.js` — メイン／ポップアップウィンドウを共有するためのシンプルなストア。
@@ -126,8 +126,8 @@ IrukaDark は Electron をベースに、メインプロセスとレンダラー
 2. Select text and press the global shortcut
    - Concise: Option+A
    - Detailed: Option+Shift+A
-   - URL summary: Option+1 (Gemini URL Context quick digest)
-   - URL analysis: Option+Shift+1 (Gemini URL Context detailed breakdown)
+   - URL summary: Option+1 (fetch + sanitize + quick digest)
+   - URL analysis: Option+Shift+1 (fetch + sanitize + structured deep dive)
    - Translate: Option+R (pure translation into the UI language)
    - Screenshot explain: Option+S (interactive area selection)
    - Screenshot explain (detailed): Option+Shift+S
@@ -135,13 +135,12 @@ IrukaDark は Electron をベースに、メインプロセスとレンダラー
 4. Right-click anywhere to open the application menu at the cursor
    - Even in detailed shortcut flows, the view auto-scrolls to the “Thinking…” indicator.
 
-### URL Context shortcuts
+### URL shortcuts
 
-- Summary (`Option+1`): sends the selected HTTP(S) URL to Gemini’s URL Context API and returns a four-sentence digest focused on takeaway → importance → next step.
-- Detailed (`Option+Shift+1`): requests a structured deep dive (overview, key points, context, risks, recommended actions) tailored to the UI language/tone.
-- Requirements: selection must contain exactly one publicly reachable URL; paywalled or blocked pages may fail, triggering the REST fallback or the `All model attempts failed` error noted above.
-- Output: responses include a References badge listing every URL provided by Gemini (URL Context metadata plus any web search grounding); click the badge to open source links.
-- Tips: if you need to re-run with a different tone or model, reselect the URL and press the shortcut again; shortcuts respect `SHORTCUT_MAX_TOKENS` and use the configured Gemini model unless overridden by `WEB_SEARCH_MODEL` when web search is enabled.
+- Summary (`Option+1`): fetches the selected HTTP(S) URL inside the app, strips scripts/styles/markup, trims to ~5k characters, and prompts Gemini to return a four-sentence digest ordered as takeaway → importance → next step.
+- Detailed (`Option+Shift+1`): performs the same fetch/sanitization but requests a structured deep dive (overview, key points, background, risks, recommended actions) tailored to the UI language/tone.
+- Requirements: selection must contain exactly one publicly reachable URL; paywalled or blocked pages may still fail to fetch and will surface an error message with next steps.
+- Tips: reselect the URL and press the shortcut again if you want a different tone or model; shortcuts respect `SHORTCUT_MAX_TOKENS` and use the configured Gemini model unless overridden by `WEB_SEARCH_MODEL` when web search is enabled.
 
 ## Cleanup
 
@@ -162,8 +161,7 @@ Initial Layout
 #### Heads‑up
 
 - On some machines, the auto-copy used by Option+A can be blocked by OS settings, permissions, or other apps. If quick explain fails, use Option+S (area screenshot explain) instead — it works reliably in most cases and is often sufficient.
-- Option+1 / Option+Shift+1 require that the highlighted text is a single HTTP(S) URL. The app hands that URL to Gemini’s URL Context retrieval, so the target page needs to be publicly reachable.
-- Whenever URL Context or Web Search succeeds you’ll see a References badge under the reply; click it to review every source URL the model grounded on.
+- Option+1 / Option+Shift+1 require that the highlighted text is a single HTTP(S) URL. The app fetches the page directly; private, paywalled、もしくは JavaScript 必須のサイトは失敗する場合があります。
 - On macOS, the app first tries to read selected text via Accessibility (AX) without touching the clipboard; only if that fails does it fall back to sending Cmd+C.
 - If the main window is hidden when Option+A succeeds, it automatically reappears non‑activating so you can see the answer (your current app keeps focus).
 

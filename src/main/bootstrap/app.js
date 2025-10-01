@@ -749,8 +749,6 @@ function bootstrapApp() {
         if (!prompt) return '';
         const source = String(payload?.source || 'chat');
         const isShortcut = source === 'shortcut' || payload?.fromShortcut === true;
-        const urlContextUrlRaw = payload?.urlContextUrl ? String(payload.urlContextUrl).trim() : '';
-        const urlContextUrl = urlContextUrlRaw ? urlContextUrlRaw : '';
         const requestedModel = String(
           process.env.GEMINI_MODEL || payload?.model || 'gemini-2.5-flash-lite'
         );
@@ -802,7 +800,6 @@ function bootstrapApp() {
                   try {
                     const r1 = await sdkGenerateText(client, modelName, prompt, generationConfig, {
                       useGoogleSearch,
-                      urlContextUrl,
                     });
                     if (r1) {
                       clearTimeout(timeoutId);
@@ -818,7 +815,6 @@ function bootstrapApp() {
                 const r3 = await restGenerateText(key, bare, prompt, generationConfig, {
                   useGoogleSearch,
                   signal: controller.signal,
-                  urlContextUrl,
                 });
                 if (r3) {
                   clearTimeout(timeoutId);
@@ -843,7 +839,6 @@ function bootstrapApp() {
                   try {
                     const r2 = await sdkGenerateText(client, modelName, prompt, generationConfig, {
                       useGoogleSearch: false,
-                      urlContextUrl,
                     });
                     if (r2) {
                       clearTimeout(timeoutId);
@@ -855,7 +850,6 @@ function bootstrapApp() {
                   const r4 = await restGenerateText(key, bare, prompt, generationConfig, {
                     useGoogleSearch: false,
                     signal: controller.signal,
-                    urlContextUrl,
                   });
                   if (r4) {
                     clearTimeout(timeoutId);
