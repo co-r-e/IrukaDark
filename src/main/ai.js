@@ -1,10 +1,46 @@
 // AI helper functions (SDK/REST wrappers) for Electron main process
 
+// GenAI client cache with TTL and size limit
+const CLIENT_CACHE_TTL = 3600000; // 1 hour
+const CLIENT_CACHE_MAX_SIZE = 10;
+
+function initClientCache() {
+  if (!global.__irukadark_genai_clients) {
+    global.__irukadark_genai_clients = new Map();
+  }
+  return global.__irukadark_genai_clients;
+}
+
+function cleanupClientCache(cache) {
+  const now = Date.now();
+  const toDelete = [];
+  for (const [key, entry] of cache.entries()) {
+    if (now > entry.expiresAt) {
+      toDelete.push(key);
+    }
+  }
+  for (const key of toDelete) {
+    cache.delete(key);
+  }
+  // Evict oldest if over size limit
+  if (cache.size > CLIENT_CACHE_MAX_SIZE) {
+    const entries = Array.from(cache.entries()).sort((a, b) => a[1].createdAt - b[1].createdAt);
+    const toRemove = entries.slice(0, cache.size - CLIENT_CACHE_MAX_SIZE);
+    for (const [key] of toRemove) {
+      cache.delete(key);
+    }
+  }
+}
+
 async function getGenAIClientForKey(apiKey) {
   if (!apiKey) throw new Error('GEMINI_API_KEY is not set.');
-  if (!global.__irukadark_genai_clients) global.__irukadark_genai_clients = new Map();
-  const cache = global.__irukadark_genai_clients;
-  if (cache.has(apiKey)) return cache.get(apiKey);
+  const cache = initClientCache();
+  cleanupClientCache(cache);
+
+  const entry = cache.get(apiKey);
+  if (entry && Date.now() <= entry.expiresAt) {
+    return entry.client;
+  }
 
   const mod = await import('@google/genai');
   const candidates = [mod.GoogleGenAI, mod.GoogleAI, mod.GoogleGenerativeAI];
@@ -43,7 +79,12 @@ async function getGenAIClientForKey(apiKey) {
     throw new Error('Failed to create Google GenAI client instance.');
   }
 
-  cache.set(apiKey, client);
+  const now = Date.now();
+  cache.set(apiKey, {
+    client,
+    createdAt: now,
+    expiresAt: now + CLIENT_CACHE_TTL,
+  });
   return client;
 }
 

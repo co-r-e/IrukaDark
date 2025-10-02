@@ -309,6 +309,63 @@ function bootstrapApp() {
   let currentAIKind = null;
   let currentAICancelFlag = null;
 
+  // Response cache with TTL (5 minutes) and LRU eviction
+  class ResponseCache {
+    constructor(maxSize = 100, ttlMs = 300000) {
+      this.cache = new Map();
+      this.maxSize = maxSize;
+      this.ttlMs = ttlMs;
+    }
+
+    _cleanup() {
+      const now = Date.now();
+      const toDelete = [];
+      for (const [key, entry] of this.cache.entries()) {
+        if (now > entry.expiresAt) {
+          toDelete.push(key);
+        }
+      }
+      for (const key of toDelete) {
+        this.cache.delete(key);
+      }
+    }
+
+    get(key) {
+      this._cleanup();
+      const entry = this.cache.get(key);
+      if (!entry) return null;
+      if (Date.now() > entry.expiresAt) {
+        this.cache.delete(key);
+        return null;
+      }
+      // Move to end (LRU)
+      this.cache.delete(key);
+      this.cache.set(key, entry);
+      return entry.value;
+    }
+
+    set(key, value) {
+      this._cleanup();
+      // Evict oldest if at capacity
+      if (this.cache.size >= this.maxSize) {
+        const firstKey = this.cache.keys().next().value;
+        if (firstKey !== undefined) {
+          this.cache.delete(firstKey);
+        }
+      }
+      this.cache.set(key, {
+        value,
+        expiresAt: Date.now() + this.ttlMs,
+      });
+    }
+
+    clear() {
+      this.cache.clear();
+    }
+  }
+
+  const responseCache = new ResponseCache();
+
   function registerGlobalShortcuts() {
     const registerShortcut = (accel, detailed = false) => {
       try {
@@ -739,19 +796,33 @@ function bootstrapApp() {
       return false;
     });
 
-    ipcMain.handle('ai:generate', async (_e, payload) => {
+    // Common AI generation handler for both text and image
+    async function handleAIGeneration(payload, imageData = null) {
       try {
         const keys = resolveApiKeys();
         if (!keys.length) {
           return 'API key is not set. Please set GEMINI_API_KEY in .env.local file.';
         }
         const prompt = String(payload?.prompt ?? '');
-        if (!prompt) return '';
+        const hasImage = imageData && imageData.imageBase64;
+        if (!prompt || (hasImage && !imageData.imageBase64)) return '';
+
         const source = String(payload?.source || 'chat');
         const isShortcut = source === 'shortcut' || payload?.fromShortcut === true;
         const requestedModel = String(
           process.env.GEMINI_MODEL || payload?.model || 'gemini-2.5-flash-lite'
         );
+        const useGoogleSearch = payload?.useWebSearch === true;
+
+        // Check cache for non-shortcut requests
+        if (!isShortcut) {
+          const imageHash = hasImage ? imageData.imageBase64.substring(0, 32) : 'no-image';
+          const cacheKey = `${prompt}-${requestedModel}-${useGoogleSearch}-${imageHash}`;
+          const cached = responseCache.get(cacheKey);
+          if (cached) {
+            return cached;
+          }
+        }
         let generationConfig = payload?.generationConfig || {
           temperature: 0.7,
           topK: 40,
@@ -768,13 +839,14 @@ function bootstrapApp() {
             topP: Math.min(0.9, Number(generationConfig.topP || 0.95)),
           };
         }
-        const useGoogleSearch = payload?.useWebSearch === true;
         const searchPreferred =
           getPref('WEB_SEARCH_MODEL') || process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash';
         const modelsToTry =
           requestedModel === searchPreferred ? [requestedModel] : [requestedModel, searchPreferred];
 
         const isInvalid = (msg) => /API_KEY_INVALID|API key not valid/i.test(String(msg || ''));
+        const errorLog = [];
+
         const tryOne = async (key) => {
           let client = null;
           try {
@@ -785,7 +857,7 @@ function bootstrapApp() {
 
           const controller = new AbortController();
           const cancelFlag = { user: false };
-          const timeoutMs = useGoogleSearch ? 60000 : 30000;
+          const timeoutMs = useGoogleSearch ? 60000 : hasImage ? 45000 : 30000;
           const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
           currentAIController = controller;
           currentAIKind = isShortcut ? 'shortcut' : 'chat';
@@ -795,30 +867,55 @@ function bootstrapApp() {
             for (const modelName of modelsToTry) {
               const bare = modelCandidates(modelName)[0].replace(/^models\//, '');
 
-              if (!isShortcut) {
-                if (client) {
-                  try {
-                    const r1 = await sdkGenerateText(client, modelName, prompt, generationConfig, {
-                      useGoogleSearch,
-                    });
-                    if (r1) {
-                      clearTimeout(timeoutId);
-                      return r1;
-                    }
-                  } catch (e) {
-                    if (isDev) console.log(`SDK with tools failed for ${modelName}:`, e?.message);
+              // Try SDK first (chat only, skip for shortcuts)
+              if (!isShortcut && client) {
+                try {
+                  const r1 = hasImage
+                    ? await sdkGenerateImage(
+                        client,
+                        modelName,
+                        prompt,
+                        imageData.imageBase64,
+                        imageData.mimeType,
+                        generationConfig,
+                        { useGoogleSearch }
+                      )
+                    : await sdkGenerateText(client, modelName, prompt, generationConfig, {
+                        useGoogleSearch,
+                      });
+                  if (r1) {
+                    clearTimeout(timeoutId);
+                    return r1;
                   }
+                } catch (e) {
+                  errorLog.push({
+                    model: modelName,
+                    method: 'SDK',
+                    error: e?.message || 'Unknown',
+                  });
+                  if (isDev) console.log(`SDK failed for ${modelName}:`, e?.message);
                 }
               }
 
+              // Try REST (always attempt)
               try {
-                const r3 = await restGenerateText(key, bare, prompt, generationConfig, {
-                  useGoogleSearch,
-                  signal: controller.signal,
-                });
-                if (r3) {
+                const r2 = hasImage
+                  ? await restGenerateImage(
+                      key,
+                      bare,
+                      prompt,
+                      imageData.imageBase64,
+                      imageData.mimeType,
+                      generationConfig,
+                      { useGoogleSearch, signal: controller.signal }
+                    )
+                  : await restGenerateText(key, bare, prompt, generationConfig, {
+                      useGoogleSearch,
+                      signal: controller.signal,
+                    });
+                if (r2) {
                   clearTimeout(timeoutId);
-                  return r3;
+                  return r2;
                 }
               } catch (e) {
                 const m = e?.message || '';
@@ -831,42 +928,33 @@ function bootstrapApp() {
                   if (cancelFlag.user) throw new Error('CANCELLED');
                   throw new Error('Request timed out');
                 }
-                if (isDev) console.log(`REST with tools failed for ${modelName}:`, m);
-              }
-
-              if (!useGoogleSearch) {
-                if (!isShortcut && client) {
-                  try {
-                    const r2 = await sdkGenerateText(client, modelName, prompt, generationConfig, {
-                      useGoogleSearch: false,
-                    });
-                    if (r2) {
-                      clearTimeout(timeoutId);
-                      return r2;
-                    }
-                  } catch {}
-                }
-                try {
-                  const r4 = await restGenerateText(key, bare, prompt, generationConfig, {
-                    useGoogleSearch: false,
-                    signal: controller.signal,
-                  });
-                  if (r4) {
-                    clearTimeout(timeoutId);
-                    return r4;
-                  }
-                } catch (e) {
-                  const m = e?.message || '';
-                  if (isInvalid(m)) {
-                    clearTimeout(timeoutId);
-                    throw new Error('API_KEY_INVALID');
-                  }
-                }
+                errorLog.push({ model: modelName, method: 'REST', error: m });
+                if (isDev) console.log(`REST failed for ${modelName}:`, m);
               }
             }
 
             clearTimeout(timeoutId);
-            throw new Error('All model attempts failed');
+            // Generate detailed error message
+            const errorTypes = {
+              timeout: errorLog.filter((e) => /timed? ?out|timeout/i.test(e.error)).length,
+              rateLimit: errorLog.filter((e) => /rate limit|quota|too many requests/i.test(e.error))
+                .length,
+              modelNotFound: errorLog.filter((e) => /model.*not found|404/i.test(e.error)).length,
+              permission: errorLog.filter((e) => /permission|403|forbidden/i.test(e.error)).length,
+            };
+            const models = [...new Set(errorLog.map((e) => e.model))].join(', ');
+            let suggestion = 'Please check your API key and model settings.';
+            if (errorTypes.timeout > 0) {
+              suggestion =
+                'The request timed out. Try again later, or disable web search if enabled.';
+            } else if (errorTypes.rateLimit > 0) {
+              suggestion = 'API rate limit exceeded. Please wait a moment and try again.';
+            } else if (errorTypes.modelNotFound > 0) {
+              suggestion = `Model(s) not found: ${models}. Check your GEMINI_MODEL setting.`;
+            } else if (errorTypes.permission > 0) {
+              suggestion = 'Permission denied. Verify your API key has access to the model.';
+            }
+            throw new Error(`All model attempts failed. Tried: ${models}. ${suggestion}`);
           } catch (e) {
             clearTimeout(timeoutId);
             throw e;
@@ -881,15 +969,37 @@ function bootstrapApp() {
           }
         };
 
-        for (const key of keys) {
-          try {
-            const out = await tryOne(key);
-            if (out) return out;
-          } catch (e) {
-            if (String(e?.message) === 'API_KEY_INVALID') {
-              continue;
-            } else {
-              return `API error occurred: ${e?.message || 'Unknown error'}`;
+        // Try keys in parallel (max 2 at a time for efficiency)
+        const maxParallel = Math.min(2, keys.length);
+        for (let i = 0; i < keys.length; i += maxParallel) {
+          const batch = keys.slice(i, i + maxParallel);
+          const promises = batch.map((key) =>
+            tryOne(key)
+              .then((result) => ({ status: 'fulfilled', value: result }))
+              .catch((error) => ({ status: 'rejected', reason: error }))
+          );
+
+          const results = await Promise.all(promises);
+
+          for (const result of results) {
+            if (result.status === 'fulfilled' && result.value) {
+              // Cache successful non-shortcut responses
+              if (!isShortcut) {
+                const imageHash = hasImage ? imageData.imageBase64.substring(0, 32) : 'no-image';
+                const cacheKey = `${prompt}-${requestedModel}-${useGoogleSearch}-${imageHash}`;
+                responseCache.set(cacheKey, result.value);
+              }
+              return result.value;
+            }
+          }
+
+          // Check if we should stop early due to non-auth errors
+          for (const result of results) {
+            if (result.status === 'rejected') {
+              const errMsg = String(result.reason?.message || '');
+              if (errMsg !== 'API_KEY_INVALID') {
+                return `API error occurred: ${errMsg || 'Unknown error'}`;
+              }
             }
           }
         }
@@ -897,190 +1007,16 @@ function bootstrapApp() {
       } catch (err) {
         return `API error occurred: ${err?.message || 'Unknown error'}`;
       }
+    }
+
+    ipcMain.handle('ai:generate', async (_e, payload) => {
+      return handleAIGeneration(payload, null);
     });
 
     ipcMain.handle('ai:generate-with-image', async (_e, payload) => {
-      try {
-        const keys = resolveApiKeys();
-        if (!keys.length) {
-          return 'API key is not set. Please set GEMINI_API_KEY in .env.local file.';
-        }
-        const prompt = String(payload?.prompt ?? '');
-        const imageBase64 = String(payload?.imageBase64 || '');
-        const mimeType = String(payload?.mimeType || 'image/png');
-        if (!prompt || !imageBase64) return '';
-        const source = String(payload?.source || 'chat');
-        const isShortcut = source === 'shortcut' || payload?.fromShortcut === true;
-        const requestedModel = String(
-          process.env.GEMINI_MODEL || payload?.model || 'gemini-2.5-flash-lite'
-        );
-        let generationConfig = payload?.generationConfig || {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 2048,
-        };
-        if (isShortcut) {
-          const maxTokEnv = Number.parseInt(process.env.SHORTCUT_MAX_TOKENS || '', 10);
-          const cap = Number.isFinite(maxTokEnv) && maxTokEnv > 0 ? maxTokEnv : 1024;
-          generationConfig = {
-            ...generationConfig,
-            maxOutputTokens: Math.min(cap, Number(generationConfig.maxOutputTokens || 2048)),
-            topK: Math.min(32, Number(generationConfig.topK || 40)),
-            topP: Math.min(0.9, Number(generationConfig.topP || 0.95)),
-          };
-        }
-        const useGoogleSearch = payload?.useWebSearch === true;
-        const searchPreferred =
-          getPref('WEB_SEARCH_MODEL') || process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash';
-        const modelsToTry =
-          requestedModel === searchPreferred ? [requestedModel] : [requestedModel, searchPreferred];
-
-        const isInvalid = (msg) => /API_KEY_INVALID|API key not valid/i.test(String(msg || ''));
-        const tryOne = async (key) => {
-          let client = null;
-          try {
-            client = await getGenAIClientForKey(key);
-          } catch (e) {
-            if (isDev) console.log('SDK client creation failed:', e?.message);
-          }
-
-          const controller = new AbortController();
-          const cancelFlag = { user: false };
-          const timeoutMs = useGoogleSearch ? 60000 : 45000;
-          const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-          currentAIController = controller;
-          currentAIKind = isShortcut ? 'shortcut' : 'chat';
-          currentAICancelFlag = cancelFlag;
-
-          try {
-            for (const modelName of modelsToTry) {
-              const bare = modelCandidates(modelName)[0].replace(/^models\//, '');
-
-              if (!isShortcut) {
-                if (client) {
-                  try {
-                    const r1 = await sdkGenerateImage(
-                      client,
-                      modelName,
-                      prompt,
-                      imageBase64,
-                      mimeType,
-                      generationConfig,
-                      { useGoogleSearch }
-                    );
-                    if (r1) {
-                      clearTimeout(timeoutId);
-                      return r1;
-                    }
-                  } catch (e) {
-                    if (isDev) console.log(`SDK with tools failed for ${modelName}:`, e?.message);
-                  }
-                }
-              }
-
-              try {
-                const r3 = await restGenerateImage(
-                  key,
-                  bare,
-                  prompt,
-                  imageBase64,
-                  mimeType,
-                  generationConfig,
-                  { useGoogleSearch, signal: controller.signal }
-                );
-                if (r3) {
-                  clearTimeout(timeoutId);
-                  return r3;
-                }
-              } catch (e) {
-                const m = e?.message || '';
-                if (isInvalid(m)) {
-                  clearTimeout(timeoutId);
-                  throw new Error('API_KEY_INVALID');
-                }
-                if (e.name === 'AbortError') {
-                  clearTimeout(timeoutId);
-                  if (cancelFlag.user) throw new Error('CANCELLED');
-                  throw new Error('Request timed out');
-                }
-                if (isDev) console.log(`REST with tools failed for ${modelName}:`, m);
-              }
-
-              if (!useGoogleSearch) {
-                if (!isShortcut && client) {
-                  try {
-                    const r2 = await sdkGenerateImage(
-                      client,
-                      modelName,
-                      prompt,
-                      imageBase64,
-                      mimeType,
-                      generationConfig,
-                      { useGoogleSearch: false }
-                    );
-                    if (r2) {
-                      clearTimeout(timeoutId);
-                      return r2;
-                    }
-                  } catch {}
-                }
-                try {
-                  const r4 = await restGenerateImage(
-                    key,
-                    bare,
-                    prompt,
-                    imageBase64,
-                    mimeType,
-                    generationConfig,
-                    { useGoogleSearch: false, signal: controller.signal }
-                  );
-                  if (r4) {
-                    clearTimeout(timeoutId);
-                    return r4;
-                  }
-                } catch (e) {
-                  const m = e?.message || '';
-                  if (isInvalid(m)) {
-                    clearTimeout(timeoutId);
-                    throw new Error('API_KEY_INVALID');
-                  }
-                }
-              }
-            }
-
-            clearTimeout(timeoutId);
-            throw new Error('All model attempts failed');
-          } catch (e) {
-            clearTimeout(timeoutId);
-            throw e;
-          } finally {
-            try {
-              if (currentAIController === controller) {
-                currentAIController = null;
-                currentAIKind = null;
-                currentAICancelFlag = null;
-              }
-            } catch {}
-          }
-        };
-
-        for (const key of keys) {
-          try {
-            const out = await tryOne(key);
-            if (out) return out;
-          } catch (e) {
-            if (String(e?.message) === 'API_KEY_INVALID') {
-              continue;
-            } else {
-              return `API error occurred: ${e?.message || 'Unknown error'}`;
-            }
-          }
-        }
-        return 'API error occurred: No valid Gemini API key found. Please set a valid key (e.g., GEMINI_API_KEY) in .env.local.';
-      } catch (err) {
-        return `API error occurred: ${err?.message || 'Unknown error'}`;
-      }
+      const imageBase64 = String(payload?.imageBase64 || '');
+      const mimeType = String(payload?.mimeType || 'image/png');
+      return handleAIGeneration(payload, { imageBase64, mimeType });
     });
   }
 

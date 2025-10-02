@@ -128,6 +128,8 @@ class IrukaDarkApp {
     // Generation state
     this.isGenerating = false;
     this.cancelRequested = false;
+    // Cache i18n elements for performance
+    this.i18nElementsCache = null;
     this.initializeElements();
     this.bindEvents();
     this.updateUILanguage();
@@ -181,19 +183,33 @@ class IrukaDarkApp {
     } catch {}
   }
 
-  // HTML内の静的テキストを更新するメソッド
+  // HTML内の静的テキストを更新するメソッド（要素キャッシュ付き）
   updateStaticHTMLText() {
-    document.querySelectorAll('[data-i18n]').forEach((el) => {
-      const key = el.dataset.i18n;
-      el.textContent = getUIText(key);
+    // Build cache on first run
+    if (!this.i18nElementsCache) {
+      this.i18nElementsCache = {
+        textContent: Array.from(document.querySelectorAll('[data-i18n]')),
+        title: Array.from(document.querySelectorAll('[data-i18n-title]')),
+        placeholder: Array.from(document.querySelectorAll('[data-i18n-placeholder]')),
+      };
+    }
+
+    // Update from cache
+    this.i18nElementsCache.textContent.forEach((el) => {
+      if (el.isConnected) {
+        const key = el.dataset.i18n;
+        el.textContent = getUIText(key);
+      }
     });
-    document.querySelectorAll('[data-i18n-title]').forEach((el) => {
-      const key = el.dataset.i18nTitle;
-      el.title = getUIText(key);
+    this.i18nElementsCache.title.forEach((el) => {
+      if (el.isConnected) {
+        const key = el.dataset.i18nTitle;
+        el.title = getUIText(key);
+      }
     });
-    document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
-      const key = el.dataset.i18nPlaceholder;
-      if (el.placeholder !== undefined) {
+    this.i18nElementsCache.placeholder.forEach((el) => {
+      if (el.isConnected && el.placeholder !== undefined) {
+        const key = el.dataset.i18nPlaceholder;
         el.placeholder = getUIText(key);
       }
     });
