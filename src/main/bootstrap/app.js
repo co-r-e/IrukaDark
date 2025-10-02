@@ -372,9 +372,19 @@ function bootstrapApp() {
         const ok = globalShortcut.register(accel, () => {
           (async () => {
             try {
-              const text = await tryCopySelectedText();
               const mainWindow = getMainWindow();
               if (!mainWindow || mainWindow.isDestroyed()) return;
+
+              // Show window immediately for fastest response
+              if (!mainWindow.isVisible()) {
+                try {
+                  showWindowNonActivating(mainWindow);
+                } catch {
+                  mainWindow.show();
+                }
+              }
+
+              const text = await tryCopySelectedText();
               if (text) {
                 mainWindow.webContents.send(
                   detailed ? 'explain-clipboard-detailed' : 'explain-clipboard',
@@ -399,9 +409,19 @@ function bootstrapApp() {
         const ok = globalShortcut.register(accel, () => {
           (async () => {
             try {
-              const text = await tryCopySelectedText();
               const mainWindow = getMainWindow();
               if (!mainWindow || mainWindow.isDestroyed()) return;
+
+              // Show window immediately for fastest response
+              if (!mainWindow.isVisible()) {
+                try {
+                  showWindowNonActivating(mainWindow);
+                } catch {
+                  mainWindow.show();
+                }
+              }
+
+              const text = await tryCopySelectedText();
               const url = extractFirstValidUrl(text);
               if (url) {
                 mainWindow.webContents.send(
@@ -427,9 +447,19 @@ function bootstrapApp() {
         const ok = globalShortcut.register(accel, () => {
           (async () => {
             try {
-              const text = await tryCopySelectedText();
               const mainWindow = getMainWindow();
               if (!mainWindow || mainWindow.isDestroyed()) return;
+
+              // Show window immediately for fastest response
+              if (!mainWindow.isVisible()) {
+                try {
+                  showWindowNonActivating(mainWindow);
+                } catch {
+                  mainWindow.show();
+                }
+              }
+
+              const text = await tryCopySelectedText();
               if (text) {
                 mainWindow.webContents.send('empathize-clipboard', text);
               } else {
@@ -451,9 +481,19 @@ function bootstrapApp() {
         const ok = globalShortcut.register(accel, () => {
           (async () => {
             try {
-              const text = await tryCopySelectedText();
               const mainWindow = getMainWindow();
               if (!mainWindow || mainWindow.isDestroyed()) return;
+
+              // Show window immediately for fastest response
+              if (!mainWindow.isVisible()) {
+                try {
+                  showWindowNonActivating(mainWindow);
+                } catch {
+                  mainWindow.show();
+                }
+              }
+
+              const text = await tryCopySelectedText();
               const url = extractFirstValidUrl(text);
               if (url) {
                 mainWindow.webContents.send('sns-post-from-url', url);
@@ -523,9 +563,19 @@ function bootstrapApp() {
         const ok = globalShortcut.register(c, () => {
           (async () => {
             try {
-              const text = await tryCopySelectedText();
               const mainWindow = getMainWindow();
               if (!mainWindow || mainWindow.isDestroyed()) return;
+
+              // Show window immediately for fastest response
+              if (!mainWindow.isVisible()) {
+                try {
+                  showWindowNonActivating(mainWindow);
+                } catch {
+                  mainWindow.show();
+                }
+              }
+
+              const text = await tryCopySelectedText();
               if (text) {
                 mainWindow.webContents.send('translate-clipboard', text);
               } else {
@@ -559,9 +609,19 @@ function bootstrapApp() {
         const ok = globalShortcut.register(c, () => {
           (async () => {
             try {
-              const text = await tryCopySelectedText();
               const mainWindow = getMainWindow();
               if (!mainWindow || mainWindow.isDestroyed()) return;
+
+              // Show window immediately for fastest response
+              if (!mainWindow.isVisible()) {
+                try {
+                  showWindowNonActivating(mainWindow);
+                } catch {
+                  mainWindow.show();
+                }
+              }
+
+              const text = await tryCopySelectedText();
               if (text) {
                 mainWindow.webContents.send('pronounce-clipboard', text);
               } else {
