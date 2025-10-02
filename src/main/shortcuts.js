@@ -8,7 +8,7 @@ const isDev = process.env.NODE_ENV === 'development';
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Timings for temporary hide/show during shortcut copy
-const HIDE_DELAY_MS_MAC = 200;
+const HIDE_DELAY_MS_MAC = 300;
 
 // Clipboard freshness watcher removed — not needed after spec change
 
@@ -162,7 +162,7 @@ async function tryCopySelectedText() {
       }
       try {
         await triggerMacCopyShortcut();
-        await delay(50);
+        await delay(200);
       } catch {}
       const polled = await pollClipboardChange(before, macMaxWait);
       if (polled) return polled;
