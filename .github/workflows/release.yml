@@ -92,7 +92,11 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           # electron-builder が GitHub API を叩く際のトークン（安全側で渡しておく）
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 詳細ログを出して codesign/notarize の状況を可視化
+          DEBUG: electron-builder,electron-notarize,electron-osx-sign*
+          ELECTRON_BUILDER_DEBUG: 'true'
         run: |
+          set -euxo pipefail
           npx electron-builder --mac dmg --${{ matrix.arch }} --publish=never
 
       - name: Generate SHA256 checksums
