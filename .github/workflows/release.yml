@@ -1,4 +1,4 @@
-name: Build and Release
+name: Release macOS DMGs (x64 & arm64, npm)
 
 on:
   push:
@@ -6,143 +6,111 @@ on:
       - 'v*'
 
 permissions:
-  contents: write
-
-env:
-  # electron-builder uses GH_TOKEN to create/upload GitHub Releases
-  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  contents: write   # リリース作成・アセットアップロードに必要
 
 jobs:
-  prepare:
-    name: Prepare Release (overwrite-safe)
+  create_release:
+    name: Create GitHub Release
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Ensure gh is available
-        run: gh --version
-
-      - name: Delete existing release if present
+      - name: Create release for ${{ github.ref_name }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          draft: false
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          TAG="${{ github.ref_name }}"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Existing release for $TAG found. Deleting…"
-            gh release delete "$TAG" -y || true
-          else
-            echo "No existing release for $TAG."
-          fi
 
-      - name: Re-create empty release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          TAG="${{ github.ref_name }}"
-          TITLE="IrukaDark ${TAG}"
-          gh release create "$TAG" --title "$TITLE" --notes "Automated build for $TAG" --latest --target ${{ github.sha }}
-  mac-x64:
-    needs: prepare
-    name: macOS x64 (Intel)
-    runs-on: macos-13
+  build_macos:
+    name: Build macOS (${{ matrix.arch }})
+    needs: create_release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Apple Silicon
+          - arch: arm64
+            runs_on: macos-15
+          # Intel（必要に応じて macos-15-intel 等へ切替可）
+          - arch: x64
+            runs_on: macos-13
+    runs-on: ${{ matrix.runs_on }}
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Set up Node.js 20 (npm cache enabled)
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20'
+          cache: 'npm'
 
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
-
-      - name: Build app
-        env:
-          # macOS signing (optional)
-          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - name: Install dependencies (npm)
+        shell: bash
         run: |
-          set -euo pipefail
-          BASE_CMD=(npx electron-builder --mac dmg --x64 --publish never)
-          if [[ -n "${CSC_LINK:-}" && -n "${CSC_KEY_PASSWORD:-}" ]]; then
-            echo "Signing enabled (Developer ID certificate provided)."
-            "${BASE_CMD[@]}"
+          set -euxo pipefail
+          if [ -f package-lock.json ]; then
+            npm ci
           else
-            echo "Signing secrets not set. Building unsigned."
-            "${BASE_CMD[@]}" --config.mac.identity=null
+            npm install
           fi
 
-      - name: Rename artifacts with tag
-        run: node scripts/rename-artifacts.js "${{ github.ref_name }}"
-
-      - name: Generate SHA-256 checksums
-        run: node scripts/generate-sha256.js
-
-      - name: Upload artifacts to release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          TAG="${{ github.ref_name }}"
-          shopt -s nullglob
-          ls dist/
-          gh release upload "$TAG" dist/*.dmg dist/*.zip dist/*.blockmap dist/*.sha256 --clobber
-
-  mac-arm64:
-    needs: prepare
-    name: macOS arm64 (Apple Silicon)
-    runs-on: macos-14
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Cache Electron caches
+        uses: actions/cache@v4
         with:
-          node-version: 20
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+          key: ${{ runner.os }}-${{ matrix.arch }}-electron-${{ hashFiles('**/package-lock.json') }}
 
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
-
-      - name: Build app
+      - name: Decode signing certs and Apple API key
         env:
-          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          CSC_LINK_BASE64: ${{ secrets.CSC_LINK_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+        shell: bash
         run: |
-          set -euo pipefail
-          BASE_CMD=(npx electron-builder --mac dmg --arm64 --publish never)
-          if [[ -n "${CSC_LINK:-}" && -n "${CSC_KEY_PASSWORD:-}" ]]; then
-            echo "Signing enabled (Developer ID certificate provided)."
-            "${BASE_CMD[@]}"
-          else
-            echo "Signing secrets not set. Building unsigned."
-            "${BASE_CMD[@]}" --config.mac.identity=null
-          fi
+          set -euxo pipefail
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
+          API_KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
+          # Developer ID (.p12)
+          echo "$CSC_LINK_BASE64" | base64 --decode > "$CERT_PATH"
+          {
+            echo "CSC_LINK=$CERT_PATH"
+            echo "CSC_KEY_PASSWORD=$CSC_KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+          # App Store Connect API Key (.p8)
+          echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$API_KEY_PATH"
+          echo "APPLE_API_KEY=$API_KEY_PATH" >> "$GITHUB_ENV"
 
-      - name: Rename artifacts with tag
-        run: node scripts/rename-artifacts.js "${{ github.ref_name }}"
+      - name: Build DMG (${{ matrix.arch }}) with electron-builder
+        env:
+          # notarize 用（electron-builder が自動で notarytool を利用）
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          # electron-builder が GitHub API を叩く際のトークン（安全側で渡しておく）
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx electron-builder --mac dmg --${{ matrix.arch }} --publish=never
 
-      - name: Generate SHA-256 checksums
-        run: node scripts/generate-sha256.js
+      - name: Generate SHA256 checksums
+        shell: bash
+        run: |
+          set -euxo pipefail
+          shopt -s nullglob
+          cd dist
+          for f in *.dmg; do
+            shasum -a 256 "$f" > "$f.sha256"
+          done
 
-      - name: Upload artifacts to release
+      - name: Upload DMG and checksums to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: |
+            dist/*.dmg
+            dist/*.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          TAG="${{ github.ref_name }}"
-          shopt -s nullglob
-          ls dist/
-          gh release upload "$TAG" dist/*.dmg dist/*.zip dist/*.blockmap dist/*.sha256 --clobber
-
-  # macOS only
