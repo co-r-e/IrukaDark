@@ -6,7 +6,8 @@ yarn-error.log*
 
 # Production builds
 dist/
-build/
+build/*
+!build/entitlements.mac.plist
 *.dmg
 *.exe
 *.deb

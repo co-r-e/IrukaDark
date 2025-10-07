@@ -1,0 +1,14 @@
+# electron-builder.yml
+appId: com.example.irukadark        # ←変更
+productName: "IrukaDark"            # ←変更
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  hardenedRuntime: true           # Notarizationに必須
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+dmg:
+  artifactName: "${productName}-${version}-${arch}.${ext}"
