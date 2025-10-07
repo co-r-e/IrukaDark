@@ -1339,7 +1339,7 @@ class IrukaDarkApp {
       const act = (parts[1] || '').toLowerCase();
       if (act === 'on') {
         this.webSearchEnabled = true;
-        // Save to .env.local
+        // Persist setting via main process
         if (window.electronAPI && window.electronAPI.saveWebSearchSetting) {
           window.electronAPI.saveWebSearchSetting(true);
         }
@@ -1348,7 +1348,7 @@ class IrukaDarkApp {
       }
       if (act === 'off') {
         this.webSearchEnabled = false;
-        // Save to .env.local
+        // Persist setting via main process
         if (window.electronAPI && window.electronAPI.saveWebSearchSetting) {
           window.electronAPI.saveWebSearchSetting(false);
         }

@@ -2,7 +2,7 @@
   if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
   window.__IRUKA_REGISTER_I18N__('it', {
     errorOccurred: 'Si è verificato un errore',
-    apiKeyMissing: 'Chiave API mancante. Imposta GEMINI_API_KEY in .env.local.',
+    apiKeyMissing: 'Chiave API mancante. Imposta GEMINI_API_KEY.',
     apiUnavailable: "L'API di Electron non è disponibile. Riavvia l'app.",
     unexpectedResponse: "Risposta inattesa dall'API.",
     apiError: 'Errore API:',

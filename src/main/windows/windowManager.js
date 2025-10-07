@@ -286,9 +286,7 @@ class WindowManager {
   }
 
   applySavedOpacity(win) {
-    const savedOpacity = parseFloat(
-      this.getPref('WINDOW_OPACITY') || process.env.WINDOW_OPACITY || '1'
-    );
+    const savedOpacity = parseFloat(this.getPref('WINDOW_OPACITY') || '1');
     if (!Number.isNaN(savedOpacity)) {
       try {
         win.setOpacity(savedOpacity);
@@ -298,7 +296,7 @@ class WindowManager {
 
   readPinAllSpacesPref() {
     return !['0', 'false', 'off'].includes(
-      String(this.getPref('PIN_ALL_SPACES') || process.env.PIN_ALL_SPACES || '1').toLowerCase()
+      String(this.getPref('PIN_ALL_SPACES') || '1').toLowerCase()
     );
   }
 

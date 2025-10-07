@@ -2,7 +2,7 @@
   if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
   window.__IRUKA_REGISTER_I18N__('th', {
     errorOccurred: 'เกิดข้อผิดพลาด',
-    apiKeyMissing: 'ยังไม่ได้ตั้งค่า API key กรุณาตั้งค่า GEMINI_API_KEY ใน .env.local',
+    apiKeyMissing: 'ยังไม่ได้ตั้งค่า API key กรุณาตั้งค่า GEMINI_API_KEY',
     apiUnavailable: 'ไม่สามารถใช้ API ของ Electron ได้ โปรดรีสตาร์ตแอป',
     unexpectedResponse: 'ได้รับการตอบกลับจาก API ที่ไม่คาดคิด',
     apiError: 'ข้อผิดพลาดของ API:',

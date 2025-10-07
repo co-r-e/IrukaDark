@@ -2,7 +2,7 @@
   if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
   window.__IRUKA_REGISTER_I18N__('fr', {
     errorOccurred: "Un truc s'est mal passé",
-    apiKeyMissing: 'Pas de clé API. Mets GEMINI_API_KEY dans .env.local.',
+    apiKeyMissing: 'Pas de clé API. Définissez GEMINI_API_KEY.',
     apiUnavailable: "L'API de Electron n'est pas dispo. Redémarre l'application.",
     unexpectedResponse: "Réponse inattendue de l'API.",
     apiError: "Erreur d'API :",

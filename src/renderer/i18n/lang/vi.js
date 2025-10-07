@@ -2,7 +2,7 @@
   if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
   window.__IRUKA_REGISTER_I18N__('vi', {
     errorOccurred: 'Đã xảy ra lỗi',
-    apiKeyMissing: 'Chưa đặt khóa API. Hãy đặt GEMINI_API_KEY trong .env.local.',
+    apiKeyMissing: 'Chưa đặt khóa API. Hãy đặt GEMINI_API_KEY.',
     apiUnavailable: 'API Electron không khả dụng. Vui lòng khởi động lại ứng dụng.',
     unexpectedResponse: 'Phản hồi bất ngờ từ API.',
     apiError: 'Lỗi API:',
