@@ -2,15 +2,11 @@
   if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
   window.__IRUKA_REGISTER_I18N__('en', {
     errorOccurred: 'An error occurred',
-    apiKeyMissing: 'API key is not set. Please set GEMINI_API_KEY.',
     apiUnavailable: 'Electron API is not available. Please restart the app.',
     unexpectedResponse: 'Unexpected response from API.',
     apiError: 'API error occurred:',
     textNotRetrieved: 'Text retrieval failed',
     thinking: 'Thinking...',
-    searching: 'Searching the web...',
-    accessibilityWarning:
-      'For automatic copying, please grant permission in System Preferences > Security & Privacy > Accessibility.',
     shortcutRegistered: (accel) => `Shortcut set to ${accel}`,
     failedToRegisterShortcut:
       'Failed to register shortcut. There may be a conflict with another app.',
@@ -18,7 +14,6 @@
     send: 'Send',
     stop: 'Stop',
     canceled: 'Canceled.',
-    historyCleared: 'Chat history cleared.',
     historyCompacted: 'Compressed chat history with a summary.',
     availableCommands:
       'Available commands: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
@@ -39,7 +34,6 @@
     invalidUrlSelection: 'No valid URL detected. Select one HTTP(S) URL and try again.',
     updateAvailable: (v) => `A new version (${v}) is available. Open downloads page?`,
     upToDate: 'You are up to date.',
-    updateCheckFailed: 'Failed to check updates.',
     slashDescriptions: {
       what: 'Clarify the last AI output',
       next: 'Continue the last AI output',

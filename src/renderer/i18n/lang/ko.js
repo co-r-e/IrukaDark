@@ -2,22 +2,17 @@
   if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
   window.__IRUKA_REGISTER_I18N__('ko', {
     errorOccurred: '오류가 발생했습니다',
-    apiKeyMissing: 'API 키가 설정되지 않았습니다. GEMINI_API_KEY를 설정하세요.',
     apiUnavailable: 'Electron API를 사용할 수 없습니다. 앱을 다시 시작하세요.',
     unexpectedResponse: 'API로부터 예기치 않은 응답이 왔습니다.',
     apiError: 'API 오류:',
     textNotRetrieved: '텍스트를 가져오지 못했습니다',
     thinking: '생각 중…',
-    searching: '웹에서 검색 중…',
-    accessibilityWarning:
-      '자동 복사를 위해 시스템 설정 > 보안 및 개인 정보 보호 > 손쉬운 사용에서 권한을 허용하세요.',
     shortcutRegistered: (accel) => `단축키가 ${accel}로 설정되었습니다`,
     failedToRegisterShortcut: '단축키 등록 실패. 다른 앱과 충돌할 수 있습니다.',
     placeholder: 'IrukaDark에 질문하세요…',
     send: '보내기',
     stop: '중지',
     canceled: '취소되었습니다.',
-    historyCleared: '채팅 기록이 삭제되었습니다.',
     historyCompacted: '기록을 요약하여 압축했습니다.',
     availableCommands:
       '명령어: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
@@ -34,11 +29,11 @@
     selectionEmpathy: '선택한 텍스트 공감 댓글',
     urlContextSummary: (url) => `선택한 URL 요약 요청:\n${url}`,
     urlContextDetailed: (url) => `선택한 URL 상세 분석 요청:\n${url}`,
+    snsPostRequest: (url) => `이 URL로 X 게시물 초안 작성:\n${url}`,
     invalidUrlSelection:
       '유효한 URL을 찾을 수 없습니다. HTTP(S) URL 한 개만 선택하고 다시 시도하세요.',
     updateAvailable: (v) => `새 버전(${v})을 사용할 수 있습니다. 다운로드 페이지를 열까요?`,
     upToDate: '최신 상태입니다.',
-    updateCheckFailed: '업데이트 확인에 실패했습니다.',
     slashDescriptions: {
       what: '마지막 AI 답변을 쉽게 설명',
       next: '마지막 AI 답변 이어서 생성',

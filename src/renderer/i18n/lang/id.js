@@ -2,22 +2,17 @@
   if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
   window.__IRUKA_REGISTER_I18N__('id', {
     errorOccurred: 'Terjadi kesalahan',
-    apiKeyMissing: 'Kunci API belum diatur. Setel GEMINI_API_KEY.',
     apiUnavailable: 'API Electron tidak tersedia. Mulai ulang aplikasi.',
     unexpectedResponse: 'Respons API tidak terduga.',
     apiError: 'Kesalahan API:',
     textNotRetrieved: 'Gagal mengambil teks',
     thinking: 'Berpikir…',
-    searching: 'Mencari di web…',
-    accessibilityWarning:
-      'Untuk penyalinan otomatis, beri izin di Pengaturan Sistem > Keamanan & Privasi > Aksesibilitas.',
     shortcutRegistered: (accel) => `Pintasan disetel ke ${accel}`,
     failedToRegisterShortcut: 'Gagal mendaftarkan pintasan. Mungkin konflik dengan aplikasi lain.',
     placeholder: 'Tanyakan pada IrukaDark…',
     send: 'Kirim',
     stop: 'Berhenti',
     canceled: 'Dibatalkan.',
-    historyCleared: 'Riwayat obrolan dihapus.',
     historyCompacted: 'Riwayat diringkas dan dipadatkan.',
     availableCommands:
       'Perintah: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
@@ -34,11 +29,11 @@
     selectionEmpathy: 'Balasan empati untuk pilihan',
     urlContextSummary: (url) => `Ringkasan URL yang dipilih:\n${url}`,
     urlContextDetailed: (url) => `Analisis mendalam URL yang dipilih:\n${url}`,
+    snsPostRequest: (url) => `Buat draf posting X dari URL ini:\n${url}`,
     invalidUrlSelection:
       'Tidak ada URL valid yang ditemukan. Pilih satu URL HTTP(S) lalu coba lagi.',
     updateAvailable: (v) => `Versi baru (${v}) tersedia. Buka unduhan?`,
     upToDate: 'Anda sudah versi terbaru.',
-    updateCheckFailed: 'Gagal memeriksa pembaruan.',
     slashDescriptions: {
       what: 'Jelaskan ulang jawaban AI terakhir',
       next: 'Lanjutkan jawaban AI terakhir',

@@ -2,15 +2,11 @@
   if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
   window.__IRUKA_REGISTER_I18N__('fr', {
     errorOccurred: "Un truc s'est mal passé",
-    apiKeyMissing: 'Pas de clé API. Définissez GEMINI_API_KEY.',
     apiUnavailable: "L'API de Electron n'est pas dispo. Redémarre l'application.",
     unexpectedResponse: "Réponse inattendue de l'API.",
     apiError: "Erreur d'API :",
     textNotRetrieved: 'Impossible de récupérer le texte',
     thinking: 'Réflexion…',
-    searching: 'Recherche sur le web…',
-    accessibilityWarning:
-      "Pour la copie automatique, accordez l'autorisation dans Réglages Système > Sécurité et confidentialité > Accessibilité.",
     shortcutRegistered: (accel) => `Raccourci défini sur ${accel}`,
     failedToRegisterShortcut:
       'Échec de l’enregistrement du raccourci. Conflit possible avec une autre app.',
@@ -18,7 +14,6 @@
     send: 'Envoyer',
     stop: 'Arrêter',
     canceled: 'Annulé.',
-    historyCleared: 'Historique effacé.',
     historyCompacted: 'Historique résumé et compacté.',
     availableCommands:
       'Commandes : /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
@@ -35,12 +30,12 @@
     selectionEmpathy: 'Réponse empathique pour la sélection',
     urlContextSummary: (url) => `Résumé de l’URL sélectionnée :\n${url}`,
     urlContextDetailed: (url) => `Analyse détaillée de l’URL sélectionnée :\n${url}`,
+    snsPostRequest: (url) => `Préparer un post X à partir de cette URL :\n${url}`,
     invalidUrlSelection:
       'Aucune URL valide détectée. Sélectionnez une seule URL http(s) puis réessayez.',
     updateAvailable: (v) =>
       `Nouvelle version (${v}) disponible. Ouvrir la page de téléchargement ?`,
     upToDate: 'Vous êtes à jour.',
-    updateCheckFailed: 'Échec de la vérification des mises à jour.',
     slashDescriptions: {
       what: 'Clarifier la dernière réponse de l’IA',
       next: 'Continuer la dernière réponse de l’IA',

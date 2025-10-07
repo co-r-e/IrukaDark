@@ -2,21 +2,17 @@
   if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
   window.__IRUKA_REGISTER_I18N__('zh-Hant', {
     errorOccurred: '發生錯誤',
-    apiKeyMissing: '尚未設定 API 金鑰。請設定 GEMINI_API_KEY。',
     apiUnavailable: 'Electron API 無法使用。請重新啟動應用程式。',
     unexpectedResponse: 'API 回傳了非預期的回應。',
     apiError: 'API 錯誤：',
     textNotRetrieved: '無法取得文字',
     thinking: '思考中…',
-    searching: '正在進行網頁搜尋…',
-    accessibilityWarning: '若要自動複製，請於系統設定 > 隱私權與安全性 > 輔助使用授予權限。',
     shortcutRegistered: (accel) => `快捷鍵已設為 ${accel}`,
     failedToRegisterShortcut: '無法註冊快捷鍵。可能與其他應用程式衝突。',
     placeholder: '向 IrukaDark 發問…',
     send: '傳送',
     stop: '停止',
     canceled: '已取消。',
-    historyCleared: '已清除聊天記錄。',
     historyCompacted: '已彙整並壓縮聊天記錄。',
     availableCommands:
       '可用指令：/clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
@@ -33,10 +29,10 @@
     selectionEmpathy: '對選取文字的共感回覆',
     urlContextSummary: (url) => `請求取得所選 URL 的概要：\n${url}`,
     urlContextDetailed: (url) => `請求對所選 URL 進行詳細解析：\n${url}`,
+    snsPostRequest: (url) => `根據此 URL 草擬一則 X 貼文：\n${url}`,
     invalidUrlSelection: '找不到有效的 URL。請選擇單一 HTTP(S) URL 後再試一次。',
     updateAvailable: (v) => `有新版本（${v}）。是否開啟下載頁？`,
     upToDate: '已是最新版本。',
-    updateCheckFailed: '檢查更新失敗。',
     slashDescriptions: {
       what: '說明上一則 AI 回覆',
       next: '接續上一則 AI 回覆',

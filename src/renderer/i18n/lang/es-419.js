@@ -2,22 +2,17 @@
   if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
   window.__IRUKA_REGISTER_I18N__('es-419', {
     errorOccurred: 'Se ha producido un error',
-    apiKeyMissing: 'No hay clave de API. Configura GEMINI_API_KEY.',
     apiUnavailable: 'La API de Electron no está disponible. Reinicia la aplicación.',
     unexpectedResponse: 'Respuesta inesperada de la API.',
     apiError: 'Error de API:',
     textNotRetrieved: 'No se pudo obtener el texto',
     thinking: 'Pensando...',
-    searching: 'Buscando en la web...',
-    accessibilityWarning:
-      'Para copiar automáticamente, da permiso en Preferencias del sistema > Privacidad y seguridad > Accesibilidad.',
     shortcutRegistered: (accel) => `Atajo configurado a ${accel}`,
     failedToRegisterShortcut: 'No se pudo registrar el atajo. Puede haber conflicto con otra app.',
     placeholder: 'Pregunta a IrukaDark...',
     send: 'Enviar',
     stop: 'Detener',
     canceled: 'Cancelado.',
-    historyCleared: 'Historial borrado.',
     historyCompacted: 'Historial resumido.',
     availableCommands:
       'Comandos: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
@@ -34,11 +29,11 @@
     selectionEmpathy: 'Respuesta empática para la selección',
     urlContextSummary: (url) => `Resumen del enlace seleccionado:\n${url}`,
     urlContextDetailed: (url) => `Análisis detallado del enlace seleccionado:\n${url}`,
+    snsPostRequest: (url) => `Redactar un post en X a partir de esta URL:\n${url}`,
     invalidUrlSelection:
       'No se detectó ninguna URL válida. Selecciona una sola URL con http(s) y vuelve a intentarlo.',
     updateAvailable: (v) => `Nueva versión (${v}) disponible. ¿Abrir descargas?`,
     upToDate: 'Estás al día.',
-    updateCheckFailed: 'Error al comprobar actualizaciones.',
     slashDescriptions: {
       what: 'Aclarar la última respuesta de la IA',
       next: 'Continuar la última respuesta de la IA',

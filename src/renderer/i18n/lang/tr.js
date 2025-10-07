@@ -2,22 +2,17 @@
   if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
   window.__IRUKA_REGISTER_I18N__('tr', {
     errorOccurred: 'Bir hata oluştu',
-    apiKeyMissing: 'API anahtarı yok. GEMINI_API_KEY değerini ayarlayın.',
     apiUnavailable: 'Electron API kullanılamıyor. Uygulamayı yeniden başlatın.',
     unexpectedResponse: 'API beklenmeyen yanıt döndürdü.',
     apiError: 'API hatası:',
     textNotRetrieved: 'Metin alınamadı',
     thinking: 'Düşünüyorum…',
-    searching: "Web'de aranıyor…",
-    accessibilityWarning:
-      'Otomatik kopyalama için Sistem Ayarları > Güvenlik ve Gizlilik > Erişilebilirlik izni verin.',
     shortcutRegistered: (accel) => `Kısayol ${accel} olarak ayarlandı`,
     failedToRegisterShortcut: 'Kısayol kaydedilemedi. Başka bir uygulama ile çakışıyor olabilir.',
     placeholder: "IrukaDark'a sor…",
     send: 'Gönder',
     stop: 'Durdur',
     canceled: 'İptal edildi.',
-    historyCleared: 'Sohbet geçmişi temizlendi.',
     historyCompacted: 'Geçmiş özetlenip sıkıştırıldı.',
     availableCommands:
       'Komutlar: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
@@ -34,11 +29,11 @@
     selectionEmpathy: 'Seçim için empatik yanıt',
     urlContextSummary: (url) => `Seçilen URL için özet isteği:\n${url}`,
     urlContextDetailed: (url) => `Seçilen URL için ayrıntılı analiz isteği:\n${url}`,
+    snsPostRequest: (url) => `Bu URL'den bir X gönderisi taslağı oluştur:\n${url}`,
     invalidUrlSelection:
       'Geçerli bir URL bulunamadı. Lütfen tek bir HTTP(S) URL seçip tekrar deneyin.',
     updateAvailable: (v) => `Yeni sürüm (${v}) mevcut. İndirmeleri açalım mı?`,
     upToDate: 'Güncelsiniz.',
-    updateCheckFailed: 'Güncelleme kontrolü başarısız.',
     slashDescriptions: {
       what: 'Son yapay zekâ yanıtını açıklığa kavuştur',
       next: 'Son yapay zekâ yanıtına devam et',

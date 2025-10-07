@@ -2,22 +2,17 @@
   if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
   window.__IRUKA_REGISTER_I18N__('th', {
     errorOccurred: 'เกิดข้อผิดพลาด',
-    apiKeyMissing: 'ยังไม่ได้ตั้งค่า API key กรุณาตั้งค่า GEMINI_API_KEY',
     apiUnavailable: 'ไม่สามารถใช้ API ของ Electron ได้ โปรดรีสตาร์ตแอป',
     unexpectedResponse: 'ได้รับการตอบกลับจาก API ที่ไม่คาดคิด',
     apiError: 'ข้อผิดพลาดของ API:',
     textNotRetrieved: 'ดึงข้อความไม่สำเร็จ',
     thinking: 'กำลังคิด…',
-    searching: 'กำลังค้นเว็บ…',
-    accessibilityWarning:
-      'หากต้องการคัดลอกอัตโนมัติ โปรดให้สิทธิ์ที่ การตั้งค่าระบบ > ความปลอดภัยและความเป็นส่วนตัว > การช่วยสำหรับการเข้าถึง',
     shortcutRegistered: (accel) => `ตั้งคีย์ลัดเป็น ${accel}`,
     failedToRegisterShortcut: 'ไม่สามารถลงทะเบียนคีย์ลัด อาจขัดแย้งกับแอปอื่น',
     placeholder: 'ถาม IrukaDark…',
     send: 'ส่ง',
     stop: 'หยุด',
     canceled: 'ยกเลิกแล้ว',
-    historyCleared: 'ล้างประวัติแชทแล้ว',
     historyCompacted: 'สรุปและย่อประวัติแล้ว',
     availableCommands:
       'คำสั่ง: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
@@ -34,11 +29,11 @@
     selectionEmpathy: 'ตอบกลับเห็นใจข้อความที่เลือก',
     urlContextSummary: (url) => `สรุป URL ที่เลือก:\n${url}`,
     urlContextDetailed: (url) => `วิเคราะห์รายละเอียดของ URL ที่เลือก:\n${url}`,
+    snsPostRequest: (url) => `ร่างโพสต์ X จาก URL นี้:\n${url}`,
     invalidUrlSelection:
       'ไม่พบ URL ที่ถูกต้อง โปรดเลือก URL แบบ HTTP(S) เพียงรายการเดียวแล้วลองอีกครั้ง',
     updateAvailable: (v) => `มีเวอร์ชันใหม่ (${v}) พร้อมใช้ เปิดหน้าดาวน์โหลดไหม?`,
     upToDate: 'เป็นเวอร์ชันล่าสุดแล้ว',
-    updateCheckFailed: 'ตรวจสอบการอัปเดตล้มเหลว',
     slashDescriptions: {
       what: 'อธิบายคำตอบล่าสุดของ AI ให้เข้าใจง่าย',
       next: 'ต่อยอดคำตอบล่าสุดของ AI',

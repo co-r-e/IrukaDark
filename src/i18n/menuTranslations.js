@@ -41,8 +41,6 @@ const menuTranslations = {
     showLogoPopup: 'Show Logo Popup',
     pinAllSpaces: 'Show Over All Apps/Spaces',
     help: 'Help',
-    checkForUpdates: 'Check for Updates…',
-    openDownloadsPage: 'Open Downloads Page',
   },
   ja: {
     irukadark: 'IrukaDark',
@@ -86,8 +84,6 @@ const menuTranslations = {
     showLogoPopup: 'ロゴ別窓を表示',
     pinAllSpaces: '全アプリ・全スペースで表示',
     help: 'ヘルプ',
-    checkForUpdates: 'アップデートを確認…',
-    openDownloadsPage: 'ダウンロードページを開く',
   },
   es: {
     irukadark: 'IrukaDark',
@@ -130,8 +126,6 @@ const menuTranslations = {
     toneFormal: 'Formal',
     toneCasual: 'Informal',
     help: 'Ayuda',
-    checkForUpdates: 'Buscar actualizaciones…',
-    openDownloadsPage: 'Abrir página de descargas',
   },
   'zh-Hans': {
     irukadark: 'IrukaDark',
@@ -174,8 +168,6 @@ const menuTranslations = {
     toneFormal: '正式',
     toneCasual: '口语',
     help: '帮助',
-    checkForUpdates: '检查更新…',
-    openDownloadsPage: '打开下载页面',
   },
   'zh-Hant': {
     irukadark: 'IrukaDark',
@@ -218,8 +210,6 @@ const menuTranslations = {
     toneFormal: '正式',
     toneCasual: '口語',
     help: '說明',
-    checkForUpdates: '檢查更新…',
-    openDownloadsPage: '開啟下載頁面',
   },
   hi: {
     irukadark: 'IrukaDark',
@@ -262,8 +252,6 @@ const menuTranslations = {
     toneFormal: 'औपचारिक',
     toneCasual: 'अनौपचारिक',
     help: 'सहायता',
-    checkForUpdates: 'अपडेट जाँचें…',
-    openDownloadsPage: 'डाउनलोड पेज खोलें',
   },
   'pt-BR': {
     irukadark: 'IrukaDark',
@@ -306,8 +294,6 @@ const menuTranslations = {
     toneFormal: 'Formal',
     toneCasual: 'Informal',
     help: 'Ajuda',
-    checkForUpdates: 'Verificar atualizações…',
-    openDownloadsPage: 'Abrir página de downloads',
   },
   fr: {
     irukadark: 'IrukaDark',
@@ -350,8 +336,6 @@ const menuTranslations = {
     toneFormal: 'Formel',
     toneCasual: 'Décontracté',
     help: 'Aide',
-    checkForUpdates: 'Vérifier les mises à jour…',
-    openDownloadsPage: 'Ouvrir la page de téléchargements',
   },
   de: {
     irukadark: 'IrukaDark',
@@ -394,8 +378,6 @@ const menuTranslations = {
     toneFormal: 'Förmlich',
     toneCasual: 'Locker',
     help: 'Hilfe',
-    checkForUpdates: 'Nach Updates suchen…',
-    openDownloadsPage: 'Downloadseite öffnen',
   },
   ar: {
     irukadark: 'IrukaDark',
@@ -438,8 +420,6 @@ const menuTranslations = {
     toneFormal: 'رسمي',
     toneCasual: 'غير رسمي',
     help: 'مساعدة',
-    checkForUpdates: 'التحقق من وجود تحديثات…',
-    openDownloadsPage: 'فتح صفحة التنزيلات',
   },
   ru: {
     irukadark: 'IrukaDark',
@@ -482,8 +462,6 @@ const menuTranslations = {
     toneFormal: 'Официальный',
     toneCasual: 'Разговорный',
     help: 'Справка',
-    checkForUpdates: 'Проверить обновления…',
-    openDownloadsPage: 'Открыть страницу загрузок',
   },
   ko: {
     irukadark: 'IrukaDark',
@@ -526,8 +504,6 @@ const menuTranslations = {
     toneFormal: '격식체',
     toneCasual: '캐주얼',
     help: '도움말',
-    checkForUpdates: '업데이트 확인…',
-    openDownloadsPage: '다운로드 페이지 열기',
   },
   id: {
     irukadark: 'IrukaDark',
@@ -570,8 +546,6 @@ const menuTranslations = {
     toneFormal: 'Resmi',
     toneCasual: 'Santai',
     help: 'Bantuan',
-    checkForUpdates: 'Periksa pembaruan…',
-    openDownloadsPage: 'Buka halaman unduhan',
   },
   vi: {
     irukadark: 'IrukaDark',
@@ -614,8 +588,6 @@ const menuTranslations = {
     toneFormal: 'Trang trọng',
     toneCasual: 'Thân mật',
     help: 'Trợ giúp',
-    checkForUpdates: 'Kiểm tra cập nhật…',
-    openDownloadsPage: 'Mở trang tải xuống',
   },
   th: {
     irukadark: 'IrukaDark',
@@ -658,8 +630,6 @@ const menuTranslations = {
     toneFormal: 'ทางการ',
     toneCasual: 'ไม่เป็นทางการ',
     help: 'วิธีใช้',
-    checkForUpdates: 'ตรวจสอบการอัปเดต…',
-    openDownloadsPage: 'เปิดหน้าดาวน์โหลด',
   },
   it: {
     irukadark: 'IrukaDark',
@@ -702,8 +672,6 @@ const menuTranslations = {
     toneFormal: 'Formale',
     toneCasual: 'Informale',
     help: 'Aiuto',
-    checkForUpdates: 'Controlla aggiornamenti…',
-    openDownloadsPage: 'Apri pagina dei download',
   },
   tr: {
     irukadark: 'IrukaDark',
@@ -746,8 +714,6 @@ const menuTranslations = {
     toneFormal: 'Resmî',
     toneCasual: 'Gündelik',
     help: 'Yardım',
-    checkForUpdates: 'Güncellemeleri denetle…',
-    openDownloadsPage: 'İndirme sayfasını aç',
   },
 };
 

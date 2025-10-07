@@ -2,15 +2,11 @@
   if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
   window.__IRUKA_REGISTER_I18N__('ru', {
     errorOccurred: 'Что-то пошло не так',
-    apiKeyMissing: 'Нет ключа API. Укажите GEMINI_API_KEY.',
     apiUnavailable: 'API Electron недоступен. Перезапустите приложение.',
     unexpectedResponse: 'Неожиданный ответ от API.',
     apiError: 'Ошибка API:',
     textNotRetrieved: 'Не удалось получить текст',
     thinking: 'Думаю…',
-    searching: 'Поиск в интернете…',
-    accessibilityWarning:
-      'Для автокопирования дайте разрешение: Настройки системы > Безопасность и конфиденциальность > Универсальный доступ.',
     shortcutRegistered: (accel) => `Горячая клавиша установлена: ${accel}`,
     failedToRegisterShortcut:
       'Не удалось зарегистрировать горячую клавишу. Возможно, конфликт с другой программой.',
@@ -18,7 +14,6 @@
     send: 'Отправить',
     stop: 'Стоп',
     canceled: 'Отменено.',
-    historyCleared: 'История чата очищена.',
     historyCompacted: 'История кратко изложена и сжата.',
     availableCommands:
       'Команды: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
@@ -35,11 +30,11 @@
     selectionEmpathy: 'Эмпатичный ответ для выделенного текста',
     urlContextSummary: (url) => `Запрос краткого обзора выбранного URL:\n${url}`,
     urlContextDetailed: (url) => `Запрос подробного разбора выбранного URL:\n${url}`,
+    snsPostRequest: (url) => `Черновик поста в X на основе этой ссылки:\n${url}`,
     invalidUrlSelection:
       'Не найден допустимый URL. Выделите один HTTP(S)-адрес и попробуйте снова.',
     updateAvailable: (v) => `Доступна новая версия (${v}). Открыть загрузки?`,
     upToDate: 'У вас последняя версия.',
-    updateCheckFailed: 'Не удалось проверить обновления.',
     slashDescriptions: {
       what: 'Разъяснить последний ответ ИИ',
       next: 'Продолжить последний ответ ИИ',

@@ -2,15 +2,11 @@
   if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
   window.__IRUKA_REGISTER_I18N__('de', {
     errorOccurred: 'Ein Fehler ist aufgetreten',
-    apiKeyMissing: 'API‑Schlüssel fehlt. Bitte setze GEMINI_API_KEY.',
     apiUnavailable: 'Electron‑API ist nicht verfügbar. Bitte App neu starten.',
     unexpectedResponse: 'Unerwartete Antwort der API.',
     apiError: 'API‑Fehler:',
     textNotRetrieved: 'Text konnte nicht abgerufen werden',
     thinking: 'Denke nach…',
-    searching: 'Websuche läuft…',
-    accessibilityWarning:
-      'Für automatisches Kopieren bitte in Systemeinstellungen > Sicherheit & Datenschutz > Bedienungshilfen erlauben.',
     shortcutRegistered: (accel) => `Tastenkürzel auf ${accel} gesetzt`,
     failedToRegisterShortcut:
       'Registrierung des Kürzels fehlgeschlagen. Möglicher Konflikt mit anderer App.',
@@ -18,7 +14,6 @@
     send: 'Senden',
     stop: 'Stopp',
     canceled: 'Abgebrochen.',
-    historyCleared: 'Chat‑Verlauf gelöscht.',
     historyCompacted: 'Verlauf zusammengefasst und komprimiert.',
     availableCommands:
       'Befehle: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate',
@@ -35,11 +30,11 @@
     selectionEmpathy: 'Einfühlsame Antwort auf die Auswahl',
     urlContextSummary: (url) => `Kurzfassung der ausgewählten URL:\n${url}`,
     urlContextDetailed: (url) => `Ausführliche Analyse der ausgewählten URL:\n${url}`,
+    snsPostRequest: (url) => `X-Beitrag aus dieser URL erstellen:\n${url}`,
     invalidUrlSelection:
       'Keine gültige URL gefunden. Bitte genau eine HTTP(S)-URL markieren und erneut versuchen.',
     updateAvailable: (v) => `Neue Version (${v}) verfügbar. Downloads öffnen?`,
     upToDate: 'Du bist auf dem neuesten Stand.',
-    updateCheckFailed: 'Update‑Prüfung fehlgeschlagen.',
     slashDescriptions: {
       what: 'Die letzte KI-Antwort verständlicher erklären',
       next: 'Die letzte KI-Antwort fortsetzen',
