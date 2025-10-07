@@ -12,7 +12,6 @@ const {
   shell,
 } = require('electron');
 const path = require('path');
-const fs = require('fs');
 
 const { loadPrefs, savePrefs, setPref, getPref } = require('../services/preferences');
 const { WindowManager } = require('../windows/windowManager');
@@ -60,42 +59,9 @@ function extractFirstValidUrl(rawText) {
   return '';
 }
 
-function loadPortableEnv() {
-  try {
-    const portableFlag = String(process.env.PORTABLE_MODE || process.env.ALLOW_ENV_LOCAL || '')
-      .trim()
-      .toLowerCase();
-    const allowEnvLocal =
-      portableFlag && portableFlag !== '0' && portableFlag !== 'false' && portableFlag !== 'off';
-    if (!allowEnvLocal) return;
-
-    const dotenv = require('dotenv');
-    const envPaths = [
-      path.join(__dirname, '../../../.env.local'),
-      path.join(__dirname, '../../.env.local'),
-      path.join(process.cwd(), '.env.local'),
-    ];
-    for (const envPath of envPaths) {
-      if (fs.existsSync(envPath)) {
-        dotenv.config({ path: envPath });
-        break;
-      }
-    }
-  } catch (error) {
-    if (isDev) console.warn('Failed to load portable env:', error?.message);
-  }
-}
-
 function bootstrapApp() {
-  loadPortableEnv();
-
-  const initialShowMain = ['1', 'true', 'on'].includes(
-    String(process.env.SHOW_MAIN_ON_START || '1').toLowerCase()
-  );
-  const initialPopupMarginRightEnv = parseInt(process.env.POPUP_MARGIN_RIGHT || '', 10);
-  const initialPopupMarginRight = Number.isFinite(initialPopupMarginRightEnv)
-    ? initialPopupMarginRightEnv
-    : 0;
+  const initialShowMain = true;
+  const initialPopupMarginRight = 0;
 
   const windowManager = new WindowManager({
     getPref,
@@ -115,7 +81,7 @@ function bootstrapApp() {
       const prefLang = getPref('MENU_LANGUAGE');
       if (prefLang) return String(prefLang);
     } catch {}
-    return process.env.MENU_LANGUAGE || 'en';
+    return 'en';
   }
 
   async function openInputDialog({
@@ -164,7 +130,7 @@ function bootstrapApp() {
               win.show();
             } catch {}
             try {
-              const theme = String(process.env.UI_THEME || 'dark');
+              const theme = String(getPref('UI_THEME') || 'dark');
               win.webContents.send('prompt:init', {
                 title,
                 label,
@@ -249,59 +215,15 @@ function bootstrapApp() {
     }
   }
 
-  function migrateEnvToPrefs() {
-    try {
-      const prefs = loadPrefs();
-      let changed = false;
-      const maybeCopy = (k) => {
-        if (!prefs[k] && process.env[k]) {
-          prefs[k] = String(process.env[k]);
-          changed = true;
-        }
-      };
-      [
-        'GEMINI_API_KEY',
-        'GEMINI_MODEL',
-        'WEB_SEARCH_MODEL',
-        'UI_THEME',
-        'PIN_ALL_SPACES',
-        'ENABLE_GOOGLE_SEARCH',
-        'WINDOW_OPACITY',
-        'GLASS_LEVEL',
-        'TONE',
-      ].forEach(maybeCopy);
-      if (changed) savePrefs(prefs);
-    } catch {}
-  }
-
   function resolveApiKeys() {
-    const order = [
-      'GEMINI_API_KEY',
-      'GOOGLE_GENAI_API_KEY',
-      'GENAI_API_KEY',
-      'GOOGLE_API_KEY',
-      'NEXT_PUBLIC_GEMINI_API_KEY',
-      'NEXT_PUBLIC_GOOGLE_API_KEY',
-    ];
-    const seen = new Set();
     const out = [];
     try {
       const prefs = loadPrefs();
-      for (const k of order) {
-        const v = prefs?.[k];
-        if (v && String(v).trim() && !seen.has(String(v).trim())) {
-          seen.add(String(v).trim());
-          out.push(String(v).trim());
-        }
+      const key = prefs?.GEMINI_API_KEY;
+      if (key && String(key).trim()) {
+        out.push(String(key).trim());
       }
     } catch {}
-    for (const k of order) {
-      const v = process.env[k];
-      if (v && String(v).trim() && !seen.has(String(v).trim())) {
-        seen.add(String(v).trim());
-        out.push(String(v).trim());
-      }
-    }
     return out;
   }
 
@@ -733,15 +655,15 @@ function bootstrapApp() {
 
   function setupUiHandlers() {
     ipcMain.handle('get-model', () => {
-      return getPref('GEMINI_MODEL') || process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
+      return getPref('GEMINI_MODEL') || 'gemini-2.5-flash-lite';
     });
 
     ipcMain.handle('get-tone', () => {
-      return getPref('TONE') || process.env.TONE || 'casual';
+      return getPref('TONE') || 'casual';
     });
 
     ipcMain.handle('get-ui-theme', () => {
-      return getPref('UI_THEME') || process.env.UI_THEME || 'dark';
+      return getPref('UI_THEME') || 'dark';
     });
 
     ipcMain.handle('open-external', (_e, url) => {
@@ -796,7 +718,7 @@ function bootstrapApp() {
     });
 
     ipcMain.handle('get-ui-language', () => {
-      return getPref('MENU_LANGUAGE') || process.env.MENU_LANGUAGE || 'en';
+      return getPref('MENU_LANGUAGE') || 'en';
     });
 
     ipcMain.handle('save-web-search-setting', (_e, enabled) => {
@@ -805,16 +727,16 @@ function bootstrapApp() {
     });
 
     ipcMain.handle('get-glass-level', () => {
-      return getPref('GLASS_LEVEL') || process.env.GLASS_LEVEL || 'medium';
+      return getPref('GLASS_LEVEL') || 'medium';
     });
 
     ipcMain.handle('get-web-search-enabled', () => {
-      const v = String(getPref('ENABLE_GOOGLE_SEARCH') || process.env.ENABLE_GOOGLE_SEARCH || '0');
+      const v = String(getPref('ENABLE_GOOGLE_SEARCH') || '0');
       return v !== '0' && v.toLowerCase() !== 'false' && v.toLowerCase() !== 'off';
     });
 
     ipcMain.handle('get-window-opacity', () => {
-      const v = parseFloat(getPref('WINDOW_OPACITY') || process.env.WINDOW_OPACITY || '1');
+      const v = parseFloat(getPref('WINDOW_OPACITY') || '1');
       return Number.isFinite(v) ? v : 1;
     });
   }
@@ -861,7 +783,7 @@ function bootstrapApp() {
       try {
         const keys = resolveApiKeys();
         if (!keys.length) {
-          return 'API key is not set. Please set GEMINI_API_KEY in .env.local file.';
+          return 'API key is not set. Please set GEMINI_API_KEY.';
         }
         const prompt = String(payload?.prompt ?? '');
         const hasImage = imageData && imageData.imageBase64;
@@ -870,7 +792,7 @@ function bootstrapApp() {
         const source = String(payload?.source || 'chat');
         const isShortcut = source === 'shortcut' || payload?.fromShortcut === true;
         const requestedModel = String(
-          process.env.GEMINI_MODEL || payload?.model || 'gemini-2.5-flash-lite'
+          payload?.model || getPref('GEMINI_MODEL') || 'gemini-2.5-flash-lite'
         );
         const useGoogleSearch = payload?.useWebSearch === true;
 
@@ -890,8 +812,7 @@ function bootstrapApp() {
           maxOutputTokens: 2048,
         };
         if (isShortcut) {
-          const maxTokEnv = Number.parseInt(process.env.SHORTCUT_MAX_TOKENS || '', 10);
-          const cap = Number.isFinite(maxTokEnv) && maxTokEnv > 0 ? maxTokEnv : 1024;
+          const cap = 1024;
           generationConfig = {
             ...generationConfig,
             maxOutputTokens: Math.min(cap, Number(generationConfig.maxOutputTokens || 2048)),
@@ -899,8 +820,7 @@ function bootstrapApp() {
             topP: Math.min(0.9, Number(generationConfig.topP || 0.95)),
           };
         }
-        const searchPreferred =
-          getPref('WEB_SEARCH_MODEL') || process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash';
+        const searchPreferred = getPref('WEB_SEARCH_MODEL') || 'gemini-2.5-flash';
         const modelsToTry =
           requestedModel === searchPreferred ? [requestedModel] : [requestedModel, searchPreferred];
 
@@ -1063,7 +983,7 @@ function bootstrapApp() {
             }
           }
         }
-        return 'API error occurred: No valid Gemini API key found. Please set a valid key (e.g., GEMINI_API_KEY) in .env.local.';
+        return 'API error occurred: No valid Gemini API key found. Please set a valid key (e.g., GEMINI_API_KEY).';
       } catch (err) {
         return `API error occurred: ${err?.message || 'Unknown error'}`;
       }
@@ -1084,9 +1004,9 @@ function bootstrapApp() {
     const mainWindow = getMainWindow();
     if (!mainWindow || mainWindow.isDestroyed()) return;
     const payload = {
-      menuLanguage: process.env.MENU_LANGUAGE || 'en',
-      uiTheme: process.env.UI_THEME || 'dark',
-      tone: getPref('TONE') || process.env.TONE || 'casual',
+      menuLanguage: getPref('MENU_LANGUAGE') || 'en',
+      uiTheme: getPref('UI_THEME') || 'dark',
+      tone: getPref('TONE') || 'casual',
     };
     const send = () => {
       try {
@@ -1105,34 +1025,6 @@ function bootstrapApp() {
   }
 
   app.whenReady().then(async () => {
-    try {
-      const userData = app.getPath('userData');
-      const prefsPath = path.join(userData, 'irukadark.prefs.json');
-      if (fs.existsSync(prefsPath)) {
-        const raw = fs.readFileSync(prefsPath, 'utf8');
-        const prefs = JSON.parse(raw || '{}') || {};
-        const keys = [
-          'MENU_LANGUAGE',
-          'UI_THEME',
-          'PIN_ALL_SPACES',
-          'WINDOW_OPACITY',
-          'ENABLE_GOOGLE_SEARCH',
-          'GLASS_LEVEL',
-          'GEMINI_API_KEY',
-          'GEMINI_MODEL',
-          'WEB_SEARCH_MODEL',
-          'TONE',
-        ];
-        for (const k of keys) {
-          if (typeof prefs[k] !== 'undefined' && prefs[k] !== null) {
-            process.env[k] = String(prefs[k]);
-          }
-        }
-      }
-    } catch {}
-
-    migrateEnvToPrefs();
-
     try {
       if (process.platform === 'darwin' && typeof app.setAboutPanelOptions === 'function') {
         app.setAboutPanelOptions({
