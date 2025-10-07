@@ -1,4 +1,4 @@
-name: Release macOS DMGs (x64 & arm64, npm)
+name: Build and Release
 
 on:
   push:
