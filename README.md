@@ -84,9 +84,6 @@ Common fixes
 - `PIN_ALL_SPACES` (optional): `1` to keep windows over all apps/spaces, `0` to limit to current space
 - `ENABLE_GOOGLE_SEARCH` (optional): `1` to enable grounded web search (default: `0`)
 - `CLIPBOARD_MAX_WAIT_MS` (optional): Max wait for detecting a fresh copy after the shortcut (default: 1200ms)
-- `SHORTCUT_MAX_TOKENS` (optional): Max output tokens for shortcut flows (Option+A/S). Default 1024; effective range 1–2048
-- `SHOW_MAIN_ON_START` (optional): `1` to show the main window on launch (default: `1`)
-- `POPUP_MARGIN_RIGHT` (optional): Initial right margin (in px) for the logo popup. Default: `0`
 
 Notes:
 
@@ -113,12 +110,11 @@ IrukaDark は Electron をベースに、メインプロセスとレンダラー
 2. **レンダラーの状態管理の薄型化** — 言語・トーン・スラッシュコマンドなどを別ファイルに切り出し、UI ロジックを読みやすくしています。
 3. **再利用しやすい入口** — どのファイルを編集すればよいかが明確になり、開発チームが増えてもキャッチアップしやすい構造です。
 
-### Settings storage and portable mode
+### Settings storage
 
-- Default: settings live in the user data directory and can be edited in‑app (AI Settings).
+- アプリ設定はユーザーデータディレクトリに保存され、メニューから編集できます（AI Settings）。
   - macOS: `~/Library/Application Support/IrukaDark/irukadark.prefs.json`
-- `.env.local` is NOT loaded by default. To use a portable `.env.local`, launch with `PORTABLE_MODE=1`.
-- Portable mode reads/writes `.env.local` in the app folder and is handy for USB‑stick style use.
+- `.env.local` や環境変数による上書きは行いません。設定変更はアプリ内メニューから行ってください。
 
 ## Usage
 
@@ -140,7 +136,7 @@ IrukaDark は Electron をベースに、メインプロセスとレンダラー
 - Summary (`Option+1`): fetches the selected HTTP(S) URL inside the app, strips scripts/styles/markup, trims to ~5k characters, and prompts Gemini to return a four-sentence digest ordered as takeaway → importance → next step.
 - Detailed (`Option+Shift+1`): performs the same fetch/sanitization but requests a structured deep dive (overview, key points, background, risks, recommended actions) tailored to the UI language/tone.
 - Requirements: selection must contain exactly one publicly reachable URL; paywalled or blocked pages may still fail to fetch and will surface an error message with next steps.
-- Tips: reselect the URL and press the shortcut again if you want a different tone or model; shortcuts respect `SHORTCUT_MAX_TOKENS` and use the configured Gemini model unless overridden by `WEB_SEARCH_MODEL` when web search is enabled.
+- Tips: reselect the URL and press the shortcut again if you want a different tone or model; shortcuts use the configured Gemini model unless overridden by `WEB_SEARCH_MODEL` when web search is enabled.
 
 ## Cleanup
 
@@ -153,7 +149,7 @@ npm run clean:dry    # preview what would be removed
 
 Initial Layout
 
-- On launch the logo popup appears near the right edge, vertically centered. The main window starts shown by default (configurable via `SHOW_MAIN_ON_START`).
+- On launch the logo popup appears near the right edge, vertically centered. The main window starts shown by default.
 - Click the logo to toggle the main window.
 - When Option+A produces an answer, the main window auto‑unhides non‑activating so you can see the result if it was hidden.
 - Any link in chat output opens in your default browser (never inside the app window).

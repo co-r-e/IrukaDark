@@ -30,48 +30,8 @@ function savePrefs(prefs) {
   } catch {}
 }
 
-function isPortableMode() {
-  const v = String(process.env.PORTABLE_MODE || '')
-    .trim()
-    .toLowerCase();
-  return v && v !== '0' && v !== 'false' && v !== 'off';
-}
-
-function getPortableEnvPath() {
-  try {
-    const inAsar = /app\.asar/i.test(String(app.getAppPath && app.getAppPath()));
-    if (inAsar) {
-      return path.join(app.getPath('userData'), '.env.local');
-    }
-  } catch {}
-  return path.join(__dirname, '../../../.env.local');
-}
-
-function upsertEnvVar(envPath, key, value) {
-  const envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
-  const lines = envContent.split('\n').filter(Boolean);
-  const idx = lines.findIndex((line) => line.startsWith(`${key}=`));
-  if (idx >= 0) lines[idx] = `${key}=${value}`;
-  else lines.push(`${key}=${value}`);
-  fs.writeFileSync(envPath, lines.join('\n') + '\n', 'utf8');
-}
-
 function setPref(key, value) {
   try {
-    if (isPortableMode()) {
-      const envPath = getPortableEnvPath();
-      if (value === undefined || value === null || value === '') {
-        const envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
-        const lines = envContent
-          .split('\n')
-          .filter(Boolean)
-          .filter((line) => !line.startsWith(`${key}=`));
-        fs.writeFileSync(envPath, lines.join('\n') + (lines.length ? '\n' : ''), 'utf8');
-      } else {
-        upsertEnvVar(envPath, key, String(value));
-      }
-      return true;
-    }
     const p = loadPrefs();
     if (value === undefined || value === null || value === '') {
       delete p[key];
@@ -100,7 +60,4 @@ module.exports = {
   savePrefs,
   setPref,
   getPref,
-  isPortableMode,
-  getPortableEnvPath,
-  upsertEnvVar,
 };

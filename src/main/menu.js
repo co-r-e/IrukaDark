@@ -7,12 +7,12 @@ function createAppMenu(ctx) {
   const t = menuTranslations[currentLang] || menuTranslations.en;
 
   const getPref = ctx.getPref;
-  const windowOpacity = parseFloat(getPref('WINDOW_OPACITY') || process.env.WINDOW_OPACITY || '1');
+  const windowOpacity = parseFloat(getPref('WINDOW_OPACITY') || '1');
   const pinAllSpaces = !['0', 'false', 'off'].includes(
-    String(getPref('PIN_ALL_SPACES') || process.env.PIN_ALL_SPACES || '1').toLowerCase()
+    String(getPref('PIN_ALL_SPACES') || '1').toLowerCase()
   );
-  const curTheme = String(getPref('UI_THEME') || process.env.UI_THEME || 'dark');
-  const curTone = String(getPref('TONE') || process.env.TONE || 'casual');
+  const curTheme = String(getPref('UI_THEME') || 'dark');
+  const curTone = String(getPref('TONE') || 'casual');
   const hasSavedGeminiKey = !!getPref('GEMINI_API_KEY');
   const placeholderSaved = currentLang.startsWith('ja')
     ? '••••••••（保存済み。変更するには新しいキーを入力／空で削除）'
@@ -33,9 +33,6 @@ function createAppMenu(ctx) {
     if (val === null) return;
     try {
       ctx.setPref(key, String(val));
-    } catch {}
-    try {
-      process.env[key] = String(val);
     } catch {}
     ctx.rebuild && ctx.rebuild();
   };
@@ -189,7 +186,7 @@ function createAppMenu(ctx) {
               label: 'GEMINI_MODEL',
               placeholder: 'e.g., gemini-2.5-flash-lite',
               password: false,
-              defaultValue: String(process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite'),
+              defaultValue: String(getPref('GEMINI_MODEL') || 'gemini-2.5-flash-lite'),
             });
           },
         },
@@ -201,7 +198,7 @@ function createAppMenu(ctx) {
               label: 'WEB_SEARCH_MODEL',
               placeholder: 'e.g., gemini-2.5-flash',
               password: false,
-              defaultValue: String(process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash'),
+              defaultValue: String(getPref('WEB_SEARCH_MODEL') || 'gemini-2.5-flash'),
             });
           },
         },
@@ -292,7 +289,7 @@ function createAppMenu(ctx) {
                   label: 'GEMINI_MODEL',
                   placeholder: 'e.g., gemini-2.5-flash-lite',
                   password: false,
-                  defaultValue: String(process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite'),
+                  defaultValue: String(getPref('GEMINI_MODEL') || 'gemini-2.5-flash-lite'),
                 });
               },
             },
@@ -304,7 +301,7 @@ function createAppMenu(ctx) {
                   label: 'WEB_SEARCH_MODEL',
                   placeholder: 'e.g., gemini-2.5-flash',
                   password: false,
-                  defaultValue: String(process.env.WEB_SEARCH_MODEL || 'gemini-2.5-flash'),
+                  defaultValue: String(getPref('WEB_SEARCH_MODEL') || 'gemini-2.5-flash'),
                 });
               },
             },

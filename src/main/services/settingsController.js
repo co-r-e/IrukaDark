@@ -12,7 +12,6 @@ class SettingsController {
     try {
       this.setPref('MENU_LANGUAGE', language);
     } catch {}
-    process.env.MENU_LANGUAGE = language;
     this.broadcastToWindows('language-changed', language);
     this.menuRefresher();
   }
@@ -22,7 +21,6 @@ class SettingsController {
     try {
       this.setPref('UI_THEME', value);
     } catch {}
-    process.env.UI_THEME = value;
     this.broadcastToWindows('theme-changed', value);
     this.menuRefresher();
   }
@@ -32,7 +30,6 @@ class SettingsController {
     try {
       this.setPref('TONE', v);
     } catch {}
-    process.env.TONE = v;
     this.broadcastToWindows('tone-changed', v);
     this.menuRefresher();
   }
@@ -41,7 +38,6 @@ class SettingsController {
     try {
       this.setPref('WINDOW_OPACITY', String(opacity));
     } catch {}
-    process.env.WINDOW_OPACITY = String(opacity);
     this.windowManager.setOpacityForWindows(opacity);
     this.menuRefresher();
   }
@@ -51,7 +47,6 @@ class SettingsController {
       this.setPref('PIN_ALL_SPACES', enabled ? '1' : '0');
     } catch {}
     this.windowManager.applyPinAllSpaces(enabled);
-    process.env.PIN_ALL_SPACES = enabled ? '1' : '0';
     this.menuRefresher();
   }
 
@@ -59,7 +54,6 @@ class SettingsController {
     try {
       this.setPref('ENABLE_GOOGLE_SEARCH', enabled ? '1' : '0');
     } catch {}
-    process.env.ENABLE_GOOGLE_SEARCH = enabled ? '1' : '0';
     this.menuRefresher();
   }
 
