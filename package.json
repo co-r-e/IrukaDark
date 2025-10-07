@@ -45,8 +45,7 @@
     "prettier": "^3.6.2"
   },
   "dependencies": {
-    "@google/genai": "^1.16.0",
-    "dotenv": "^16.3.1"
+    "@google/genai": "^1.16.0"
   },
   "repository": {
     "type": "git",
@@ -90,7 +89,6 @@
     "dmg": {
       "artifactName": "IrukaDark-${version}-mac-${arch}.dmg"
     },
-    "afterSign": "scripts/afterSign.js",
     "publish": [
       {
         "provider": "github",
