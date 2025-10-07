@@ -2,7 +2,7 @@
   if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
   window.__IRUKA_REGISTER_I18N__('tr', {
     errorOccurred: 'Bir hata oluştu',
-    apiKeyMissing: 'API anahtarı yok. .env.local içinde GEMINI_API_KEY ayarlayın.',
+    apiKeyMissing: 'API anahtarı yok. GEMINI_API_KEY değerini ayarlayın.',
     apiUnavailable: 'Electron API kullanılamıyor. Uygulamayı yeniden başlatın.',
     unexpectedResponse: 'API beklenmeyen yanıt döndürdü.',
     apiError: 'API hatası:',

@@ -2,7 +2,7 @@
   if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
   window.__IRUKA_REGISTER_I18N__('zh-Hant', {
     errorOccurred: '發生錯誤',
-    apiKeyMissing: '尚未設定 API 金鑰。請在 .env.local 設定 GEMINI_API_KEY。',
+    apiKeyMissing: '尚未設定 API 金鑰。請設定 GEMINI_API_KEY。',
     apiUnavailable: 'Electron API 無法使用。請重新啟動應用程式。',
     unexpectedResponse: 'API 回傳了非預期的回應。',
     apiError: 'API 錯誤：',

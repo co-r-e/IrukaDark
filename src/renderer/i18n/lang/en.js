@@ -2,7 +2,7 @@
   if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
   window.__IRUKA_REGISTER_I18N__('en', {
     errorOccurred: 'An error occurred',
-    apiKeyMissing: 'API key is not set. Please set GEMINI_API_KEY in .env.local file.',
+    apiKeyMissing: 'API key is not set. Please set GEMINI_API_KEY.',
     apiUnavailable: 'Electron API is not available. Please restart the app.',
     unexpectedResponse: 'Unexpected response from API.',
     apiError: 'API error occurred:',

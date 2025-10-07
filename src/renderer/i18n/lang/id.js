@@ -2,7 +2,7 @@
   if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
   window.__IRUKA_REGISTER_I18N__('id', {
     errorOccurred: 'Terjadi kesalahan',
-    apiKeyMissing: 'Kunci API belum diatur. Setel GEMINI_API_KEY di .env.local.',
+    apiKeyMissing: 'Kunci API belum diatur. Setel GEMINI_API_KEY.',
     apiUnavailable: 'API Electron tidak tersedia. Mulai ulang aplikasi.',
     unexpectedResponse: 'Respons API tidak terduga.',
     apiError: 'Kesalahan API:',

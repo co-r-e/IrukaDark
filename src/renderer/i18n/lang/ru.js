@@ -2,7 +2,7 @@
   if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
   window.__IRUKA_REGISTER_I18N__('ru', {
     errorOccurred: 'Что-то пошло не так',
-    apiKeyMissing: 'Нет ключа API. Укажите GEMINI_API_KEY в .env.local.',
+    apiKeyMissing: 'Нет ключа API. Укажите GEMINI_API_KEY.',
     apiUnavailable: 'API Electron недоступен. Перезапустите приложение.',
     unexpectedResponse: 'Неожиданный ответ от API.',
     apiError: 'Ошибка API:',

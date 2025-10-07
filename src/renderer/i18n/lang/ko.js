@@ -2,7 +2,7 @@
   if (typeof window === 'undefined' || !window.__IRUKA_REGISTER_I18N__) return;
   window.__IRUKA_REGISTER_I18N__('ko', {
     errorOccurred: '오류가 발생했습니다',
-    apiKeyMissing: 'API 키가 설정되지 않았습니다. .env.local에 GEMINI_API_KEY를 설정하세요.',
+    apiKeyMissing: 'API 키가 설정되지 않았습니다. GEMINI_API_KEY를 설정하세요.',
     apiUnavailable: 'Electron API를 사용할 수 없습니다. 앱을 다시 시작하세요.',
     unexpectedResponse: 'API로부터 예기치 않은 응답이 왔습니다.',
     apiError: 'API 오류:',
