@@ -1,14 +1,22 @@
-# electron-builder.yml
-appId: com.example.irukadark        # ←変更
-productName: "IrukaDark"            # ←変更
+appId: com.core.irukadark
+productName: "IrukaDark"
+asar: true
+files:
+  - "src/**/*"
+  - "!**/*.map"
+  - "!**/docs/**"
+  - "!**/tests/**"
+  - "!**/.github/**"
 mac:
   target:
     - target: dmg
-      arch:
-        - x64
-        - arm64
-  hardenedRuntime: true           # Notarizationに必須
+      arch: [x64, arm64]
+  hardenedRuntime: true
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
+  icon: src/renderer/assets/icons/icon.png
 dmg:
-  artifactName: "${productName}-${version}-${arch}.${ext}"
+  artifactName: "${productName}-${version}-mac-${arch}.dmg"
+publish:
+  - provider: github
+    releaseType: release

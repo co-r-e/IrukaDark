@@ -58,42 +58,5 @@
     "*.js": [
       "eslint --fix"
     ]
-  },
-  "build": {
-    "appId": "com.core.irukadark",
-    "productName": "IrukaDark",
-    "asar": true,
-    "files": [
-      "package.json",
-      "src/**/*",
-      "node_modules/**/*",
-      "!**/*.map",
-      "!**/docs/**",
-      "!**/tests/**",
-      "!**/.github/**"
-    ],
-    "directories": {
-      "buildResources": "build"
-    },
-    "mac": {
-      "category": "public.app-category.productivity",
-      "target": [
-        "dmg"
-      ],
-      "artifactName": "IrukaDark-${version}-mac-${arch}.${ext}",
-      "icon": "src/renderer/assets/icons/icon.png",
-      "hardenedRuntime": true,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
-    },
-    "dmg": {
-      "artifactName": "IrukaDark-${version}-mac-${arch}.dmg"
-    },
-    "publish": [
-      {
-        "provider": "github",
-        "releaseType": "release"
-      }
-    ]
   }
 }
