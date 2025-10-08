@@ -515,7 +515,7 @@ function bootstrapApp() {
       } catch {}
     }
 
-    const empathyCandidates = ['Alt+Control+Z', 'Control+Alt+Z'];
+    const empathyCandidates = ['Alt+Command+Z', 'Command+Alt+Z'];
     let empathyUsed = '';
     for (const c of empathyCandidates) {
       if (registerEmpathyShortcut(c)) {

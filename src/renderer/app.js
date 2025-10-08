@@ -406,7 +406,8 @@ class IrukaDarkApp {
     on('onShortcutEmpathyRegistered', (accel) => {
       if (!accel) return;
       const display = String(accel || '').replace(/\bAlt\b/g, 'Option');
-      if (accel && accel !== 'Alt+Control+Z') {
+      const defaultCombos = new Set(['Alt+Command+Z', 'Command+Alt+Z']);
+      if (!defaultCombos.has(accel)) {
         this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
       }
     });

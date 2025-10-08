@@ -54,6 +54,12 @@ coverage/
 # Temporary folders
 tmp/
 temp/
+native/macos/IrukaAutomation/.build/
+native/macos/IrukaAutomation/.cache/
+native/macos/IrukaAutomation/.swift-cache/
+native/macos/IrukaAutomation/.swift-config/
+native/macos/IrukaAutomation/.swift-security/
+native/macos/IrukaAutomation/dist/IrukaAutomation
 
 # Optional npm cache directory
 .npm

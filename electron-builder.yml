@@ -7,6 +7,11 @@ files:
   - "!**/docs/**"
   - "!**/tests/**"
   - "!**/.github/**"
+extraResources:
+  - from: native/macos/IrukaAutomation/dist
+    to: mac-automation
+    filter:
+      - "IrukaAutomation"
 mac:
   target:
     - target: dmg

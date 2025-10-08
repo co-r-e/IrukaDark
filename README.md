@@ -43,15 +43,21 @@ This is a friendly, no‑experience‑required guide from nothing to “running�
 npm install
 ```
 
-5. Get a Gemini API key
+5. Build the macOS automation helper (macOS only, required once per toolchain update)
+
+```bash
+npm run build:swift
+```
+
+6. Get a Gemini API key
    - Create an API key in Google AI Studio (not Vertex service account).
-6. Start the app
+7. Start the app
 
 ```bash
 npm start
 ```
 
-7. Set your API key in‑app (recommended)
+8. Set your API key in‑app (recommended)
    - macOS: App menu IrukaDark → AI Settings → “Set GEMINI_API_KEY”。モデル設定も同メニューから可能です。
 
 Notes
@@ -64,12 +70,13 @@ Common fixes
 - `API_KEY_INVALID`: wrong key type or pasted with spaces/quotes.
 - `All model attempts failed`: the chosen model may not support Google Web Search tools, the API key could lack access, or the target site timed out. Switch to `gemini-2.5-flash` or retry later.
 - `npm install` errors: check network/proxy.
-- Option+A does nothing: ensure selection and required permissions; try manual copy then Option+A.
+- Option+A does nothing: ensure selection and required permissions; run `npm run build:swift` once to build the helper, then grant Accessibility access when prompted; try manual copy then Option+A if the selection app blocks automation.
 
 ### Prerequisites
 
 - Node.js 18+ (LTS recommended)
 - npm 9+
+- Xcode Command Line Tools (Swift 5.9+) — required to build the macOS automation bridge helper
 
 ## Environment Variables
 
@@ -83,12 +90,14 @@ Common fixes
 - `WINDOW_OPACITY` (optional): `1`, `0.95`, `0.9`, `0.85`, `0.8` (also in menu)
 - `PIN_ALL_SPACES` (optional): `1` to keep windows over all apps/spaces, `0` to limit to current space
 - `ENABLE_GOOGLE_SEARCH` (optional): `1` to enable grounded web search (default: `0`)
-- `CLIPBOARD_MAX_WAIT_MS` (optional): Max wait for detecting a fresh copy after the shortcut (default: 1200ms)
+- `CLIPBOARD_MAX_WAIT_MS` (optional): Max wait for detecting a fresh copy after the shortcut (default: 1500ms)
+- `IRUKA_AUTOMATION_BRIDGE_PATH` (optional): Absolute path to the Swift automation helper binary (useful for custom build pipelines)
 
 Notes:
 
 - Only Google AI Studio API Keys are supported; Vertex AI (service account/OAuth) is not wired in this repo.
 - If multiple variables are set, the app prefers `GEMINI_API_KEY` and will skip invalid keys automatically.
+- The first time you trigger a shortcut that reads the selection, macOS will prompt for Accessibility access for the bundled IrukaAutomation helper; allow it to enable CGEvent copy and AXSelectedText fallback.
 
 ## Architecture Overview
 
