@@ -33,6 +33,7 @@ const SOURCE_MARKERS = (() => {
 })();
 const SLASH_TRANSLATE_TARGETS = SLASHES.SLASH_TRANSLATE_TARGETS || [];
 const SLASH_TRANSLATE_LOOKUP = SLASHES.SLASH_TRANSLATE_LOOKUP || {};
+const SLASH_TRANSLATE_MODE_TARGETS = SLASHES.SLASH_TRANSLATE_MODE_TARGETS || [];
 const SLASH_WEB_TARGETS = SLASHES.SLASH_WEB_TARGETS || [];
 
 function getLangMeta(code) {
@@ -125,6 +126,9 @@ class IrukaDarkApp {
     this.shortcutRequestId = 0;
     // Web search toggle (default from env or OFF)
     this.webSearchEnabled = false;
+    // Translate mode: literal (direct) or free (interpretive)
+    this.translateMode = 'literal';
+    this.pendingTranslateModeAck = null;
     // Generation state
     this.isGenerating = false;
     this.cancelRequested = false;
@@ -335,11 +339,29 @@ class IrukaDarkApp {
         if (cfg.tone) {
           setCurrentTone(cfg.tone);
         }
+        if (cfg.translateMode) {
+          this.translateMode = cfg.translateMode === 'free' ? 'free' : 'literal';
+          this.pendingTranslateModeAck = null;
+        }
       } catch (error) {
         console.error('Failed to apply app-config payload', error);
       }
     });
     on('onThemeChanged', (theme) => this.applyTheme(theme));
+    on('onTranslateModeChanged', (mode) => {
+      const normalized = mode === 'free' ? 'free' : 'literal';
+      const changed = this.translateMode !== normalized;
+      this.translateMode = normalized;
+      if (this.pendingTranslateModeAck === normalized) {
+        this.pendingTranslateModeAck = null;
+        return;
+      }
+      const key = changed ? 'translateModeUpdated' : 'translateModeAlready';
+      const message = getUIText(key, this.getTranslateModeLabel());
+      if (message) {
+        this.addMessage('system', message);
+      }
+    });
     on('onLanguageChanged', async (lang) => {
       const next = lang || 'en';
       await ensureLangLoaded(next);
@@ -463,6 +485,8 @@ class IrukaDarkApp {
     this.initializeLanguage();
     // Web検索設定の読み込み
     this.loadWebSearchSetting();
+    // 翻訳モードの読み込み
+    this.loadTranslateMode();
   }
 
   async loadWebSearchSetting() {
@@ -474,6 +498,60 @@ class IrukaDarkApp {
     } catch (error) {
       console.error('Failed to load web search setting:', error);
       this.webSearchEnabled = false;
+    }
+  }
+
+  async loadTranslateMode() {
+    try {
+      if (window.electronAPI && window.electronAPI.getTranslateMode) {
+        const mode = await window.electronAPI.getTranslateMode();
+        this.translateMode = mode === 'free' ? 'free' : 'literal';
+        this.pendingTranslateModeAck = null;
+      }
+    } catch (error) {
+      console.error('Failed to load translate mode:', error);
+      this.translateMode = 'literal';
+      this.pendingTranslateModeAck = null;
+    }
+  }
+
+  getTranslateModeLabel(mode = this.translateMode) {
+    const m = mode === 'free' ? 'free' : 'literal';
+    return m === 'free'
+      ? getUIText('translateModeNameFree') || 'Free translation'
+      : getUIText('translateModeNameLiteral') || 'Literal translation';
+  }
+
+  async persistTranslateMode(mode) {
+    try {
+      if (window.electronAPI && window.electronAPI.saveTranslateMode) {
+        await window.electronAPI.saveTranslateMode(mode);
+      }
+    } catch (error) {
+      console.error('Failed to save translate mode:', error);
+    }
+  }
+
+  async setTranslateMode(mode, { silentIfSame = false } = {}) {
+    const normalized = mode === 'free' ? 'free' : 'literal';
+    if (this.translateMode === normalized) {
+      if (!silentIfSame) {
+        const already = getUIText('translateModeAlready', this.getTranslateModeLabel());
+        if (already) this.addMessage('system', already);
+      }
+      return;
+    }
+    this.translateMode = normalized;
+    this.pendingTranslateModeAck = normalized;
+    const updated = getUIText('translateModeUpdated', this.getTranslateModeLabel());
+    if (updated) this.addMessage('system', updated);
+    await this.persistTranslateMode(normalized);
+  }
+
+  showTranslateModeStatus() {
+    const message = getUIText('translateModeStatus', this.getTranslateModeLabel());
+    if (message) {
+      this.addMessage('system', message);
     }
   }
 
@@ -1173,6 +1251,18 @@ class IrukaDarkApp {
       await this.runSlashTranslation(translate.target || lower.split('_')[1] || 'en', translate);
       return;
     }
+    if (lower === '/translate literal' || lower === '/translate mode literal') {
+      await this.setTranslateMode('literal');
+      return;
+    }
+    if (lower === '/translate free' || lower === '/translate mode free') {
+      await this.setTranslateMode('free');
+      return;
+    }
+    if (lower === '/translate status' || lower === '/translate mode status') {
+      this.showTranslateModeStatus();
+      return;
+    }
     if (lower === '/clear') {
       try {
         this.chatHistoryData = [];
@@ -1385,7 +1475,8 @@ class IrukaDarkApp {
       this.showTypingIndicator();
       const translation = await this.geminiService.generateTargetedTranslation(
         String(lastAI.content || ''),
-        code
+        code,
+        this.translateMode
       );
       this.hideTypingIndicator();
       if (this.cancelRequested) {
@@ -1435,6 +1526,16 @@ class IrukaDarkApp {
         descKey: 'slashDescriptions.translate',
         children: SLASH_TRANSLATE_TARGETS,
         childSeparator: '_',
+      },
+      {
+        key: '/translate mode',
+        match: '/translate mode',
+        label: '/translate mode',
+        descKey: 'slashDescriptions.translateMode',
+        children: SLASH_TRANSLATE_MODE_TARGETS,
+        childSeparator: ' ',
+        childBase: '/translate',
+        childMatchBase: '/translate',
       },
       {
         key: '/clear',
@@ -1556,6 +1657,22 @@ class IrukaDarkApp {
     if (normalized.startsWith('/translate_')) {
       return SLASH_TRANSLATE_TARGETS.filter((c) => c.match.startsWith(normalized));
     }
+    if (normalized.startsWith('/translate mode')) {
+      const wantsChildren =
+        normalized === '/translate mode' && (raw.endsWith(' ') || lower.endsWith(' '));
+      if (wantsChildren) {
+        return SLASH_TRANSLATE_MODE_TARGETS;
+      }
+      return SLASH_TRANSLATE_MODE_TARGETS.filter((c) =>
+        c.match.startsWith(normalized.replace('/translate mode', '/translate').trim())
+      );
+    }
+    if (normalized.startsWith('/translate ')) {
+      return SLASH_TRANSLATE_MODE_TARGETS.filter((c) => c.match.startsWith(normalized));
+    }
+    if (normalized === '/translate' && (raw.endsWith(' ') || lower.endsWith(' '))) {
+      return SLASH_TRANSLATE_MODE_TARGETS;
+    }
     if (normalized.startsWith('/websearch')) {
       const aliased = normalized.replace(/^\/websearch/, '/web');
       if (aliased.startsWith('/web ')) {
@@ -1640,6 +1757,10 @@ class IrukaDarkApp {
       const lower = String(cmd || '').toLowerCase();
       const meta = this.slashCommands.find((c) => c.match === lower);
       if (meta?.children?.length) {
+        if (typeof meta.childBase === 'string') {
+          this.messageInput.value = meta.childBase;
+          this.autosizeMessageInput();
+        }
         this.expandSlashSubcommands(meta);
         return;
       }
@@ -1652,10 +1773,13 @@ class IrukaDarkApp {
 
   expandSlashSubcommands(meta) {
     if (!this.messageInput) return;
-    const base = meta?.key || meta?.match || '/';
+    const base =
+      typeof meta?.childBase === 'string' ? meta.childBase : meta?.key || meta?.match || '/';
+    const matchBase =
+      typeof meta?.childMatchBase === 'string' ? meta.childMatchBase : meta?.match || base;
     const separator = typeof meta?.childSeparator === 'string' ? meta.childSeparator : '_';
     let nextValue = this.messageInput.value || base;
-    if (!nextValue.toLowerCase().startsWith((meta?.match || base).toLowerCase())) {
+    if (!nextValue.toLowerCase().startsWith(matchBase.toLowerCase())) {
       nextValue = base;
     }
     if (separator === '_') {
@@ -2430,11 +2554,12 @@ If the text is empty or the language cannot be determined, reply in English with
     });
   }
 
-  async generateTargetedTranslation(text, targetCode = 'en') {
+  async generateTargetedTranslation(text, targetCode = 'en', mode = 'literal') {
     const canonical = normalizeTranslateCode(targetCode) || 'en';
     const { name } = getLangMeta(canonical);
     const trimmed = text.length > 12000 ? text.slice(0, 12000) + ' …(truncated)' : text;
-    const prompt = `Translate the following text strictly into ${name} (${canonical}).
+    const normalizedMode = mode === 'free' ? 'free' : 'literal';
+    const literalPrompt = `Translate the following text strictly into ${name} (${canonical}).
 
 Rules:
 - Output the translation only. No explanations or prefaces.
@@ -2444,7 +2569,24 @@ Rules:
 
 Text:
 ${trimmed}`;
-    return this.requestText(prompt, false, 'chat');
+    const freePrompt = `Translate the following text into ${name} (${canonical}) with a natural, sense-for-sense rendering.
+
+Guidelines:
+- Convey the speaker's intent and tone in smooth, idiomatic ${name} (${canonical}).
+- Rephrase or reorganize when it improves clarity, but keep every key fact, number, name, and quoted text accurate.
+- Preserve Markdown structure, lists, and code blocks; for code and identifiers, keep the original unless clarity demands a brief adjustment.
+- Output only the translated text—no explanations, footnotes, or commentary.
+
+Text:
+${trimmed}`;
+    const prompt = normalizedMode === 'free' ? freePrompt : literalPrompt;
+    const cfgOverrides =
+      normalizedMode === 'free'
+        ? { temperature: 0.65, topP: 0.9, maxOutputTokens: 640 }
+        : { temperature: 0.4, topP: 0.82, maxOutputTokens: 512 };
+    return this.requestText(prompt, false, 'chat', {
+      generationConfigOverrides: cfgOverrides,
+    });
   }
 
   /** テキストのみを解説する（UI言語に合わせて出力言語を切替） */

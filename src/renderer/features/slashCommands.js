@@ -99,6 +99,30 @@
     return map;
   }, {});
 
+  const SLASH_TRANSLATE_MODE_TARGETS = [
+    {
+      key: '/translate literal',
+      match: '/translate literal',
+      label: '/translate literal',
+      descKey: 'slashDescriptions.translateLiteral',
+      mode: 'literal',
+    },
+    {
+      key: '/translate free',
+      match: '/translate free',
+      label: '/translate free',
+      descKey: 'slashDescriptions.translateFree',
+      mode: 'free',
+    },
+    {
+      key: '/translate status',
+      match: '/translate status',
+      label: '/translate status',
+      descKey: 'slashDescriptions.translateStatus',
+      mode: 'status',
+    },
+  ];
+
   const SLASH_WEB_TARGETS = [
     {
       key: '/web on',
@@ -160,5 +184,6 @@
     normalizeTranslateCode,
     getLanguageDisplayName,
     LANG_NAMES,
+    SLASH_TRANSLATE_MODE_TARGETS,
   };
 })();

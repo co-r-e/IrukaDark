@@ -726,6 +726,12 @@ function bootstrapApp() {
       return true;
     });
 
+    ipcMain.handle('save-translate-mode', (_e, mode) => {
+      const normalized = String(mode || '').toLowerCase() === 'free' ? 'free' : 'literal';
+      settingsController.handleTranslateModeChange(normalized);
+      return normalized;
+    });
+
     ipcMain.handle('get-glass-level', () => {
       return getPref('GLASS_LEVEL') || 'medium';
     });
@@ -733,6 +739,11 @@ function bootstrapApp() {
     ipcMain.handle('get-web-search-enabled', () => {
       const v = String(getPref('ENABLE_GOOGLE_SEARCH') || '0');
       return v !== '0' && v.toLowerCase() !== 'false' && v.toLowerCase() !== 'off';
+    });
+
+    ipcMain.handle('get-translate-mode', () => {
+      const raw = String(getPref('TRANSLATE_MODE') || 'literal').toLowerCase();
+      return raw === 'free' ? 'free' : 'literal';
     });
 
     ipcMain.handle('get-window-opacity', () => {
@@ -1007,6 +1018,10 @@ function bootstrapApp() {
       menuLanguage: getPref('MENU_LANGUAGE') || 'en',
       uiTheme: getPref('UI_THEME') || 'dark',
       tone: getPref('TONE') || 'casual',
+      translateMode: (() => {
+        const raw = String(getPref('TRANSLATE_MODE') || 'literal').toLowerCase();
+        return raw === 'free' ? 'free' : 'literal';
+      })(),
     };
     const send = () => {
       try {

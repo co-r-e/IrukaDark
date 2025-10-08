@@ -57,6 +57,15 @@ class SettingsController {
     this.menuRefresher();
   }
 
+  handleTranslateModeChange(mode) {
+    const normalized = String(mode === 'free' ? 'free' : 'literal');
+    try {
+      this.setPref('TRANSLATE_MODE', normalized);
+    } catch {}
+    this.broadcastToWindows('translate-mode-changed', normalized);
+    this.menuRefresher();
+  }
+
   broadcastToWindows(channel, payload) {
     const mainWindow = getMainWindow();
     const popupWindow = getPopupWindow();

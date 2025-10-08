@@ -58,6 +58,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('explain-screenshot-detailed', (_e, p) => cb(p)),
   saveWebSearchSetting: (enabled) => ipcRenderer.invoke('save-web-search-setting', enabled),
   getWebSearchEnabled: () => ipcRenderer.invoke('get-web-search-enabled'),
+  saveTranslateMode: (mode) => ipcRenderer.invoke('save-translate-mode', mode),
+  getTranslateMode: () => ipcRenderer.invoke('get-translate-mode'),
+  onTranslateModeChanged: (cb) => ipcRenderer.on('translate-mode-changed', (_e, mode) => cb(mode)),
   // Popup interactions
   notifyPopupPointer: (phase) => ipcRenderer.invoke('popup:pointer', String(phase || '')),
   getPopupBounds: () => ipcRenderer.invoke('popup:get-bounds'),
