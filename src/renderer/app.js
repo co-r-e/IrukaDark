@@ -2413,7 +2413,7 @@ ${trimmed}
 
 Instructions:
 - Detect the language of the original post and respond in that exact language.
-- Write exactly one sentence that lightly mirrors the poster's feeling and offers gentle empathy or encouragement.
+- Write exactly one sentence that casually agrees with the poster in a natural, upbeat tone (think "Sounds great—I'm with you on this" / 「いいね！私もそう思います。」).
 - Keep the vibe light, friendly, and frankly spoken. For Japanese, blend casual speech with soft politeness (〜ですね / 〜ですよ / 〜ますね). For other languages, stay informal, warm, and respectful.
 - Keep it under 35 words (or 70 characters for CJK scripts) and avoid emojis, hashtags, mentions, or quotes.
 - Refer to the situation without copying long phrases verbatim.
