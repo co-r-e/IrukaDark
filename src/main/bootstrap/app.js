@@ -12,6 +12,7 @@ const {
   shell,
 } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 const { loadPrefs, savePrefs, setPref, getPref } = require('../services/preferences');
 const { WindowManager } = require('../windows/windowManager');
@@ -34,6 +35,26 @@ const {
 const { getMainWindow, setMainWindow, setPopupWindow } = require('../context');
 
 const isDev = process.env.NODE_ENV === 'development';
+
+function resolveAppLogPath() {
+  try {
+    const logsDir = app?.getPath?.('logs');
+    if (!logsDir) return undefined;
+    fs.mkdirSync(logsDir, { recursive: true });
+    return path.join(logsDir, 'automation.log');
+  } catch {
+    return undefined;
+  }
+}
+
+function logShortcutEvent(event, payload = {}) {
+  try {
+    const target = resolveAppLogPath();
+    if (!target) return;
+    const record = { ts: new Date().toISOString(), event, ...payload };
+    fs.appendFile(target, JSON.stringify(record) + '\n', () => {});
+  } catch {}
+}
 
 function extractFirstValidUrl(rawText) {
   if (!rawText) return '';
@@ -292,6 +313,10 @@ function bootstrapApp() {
     const registerShortcut = (accel, detailed = false) => {
       try {
         const ok = globalShortcut.register(accel, () => {
+          logShortcutEvent('shortcut.trigger', {
+            accel,
+            kind: detailed ? 'explain_detailed' : 'explain',
+          });
           (async () => {
             try {
               const mainWindow = getMainWindow();
@@ -322,6 +347,7 @@ function bootstrapApp() {
         });
         return ok;
       } catch (e) {
+        logShortcutEvent('shortcut.register.error', { accel, error: e?.message || '' });
         return false;
       }
     };
@@ -329,6 +355,7 @@ function bootstrapApp() {
     const registerUrlShortcut = (accel, detailed = false) => {
       try {
         const ok = globalShortcut.register(accel, () => {
+          logShortcutEvent('shortcut.trigger', { accel, kind: detailed ? 'url_detailed' : 'url' });
           (async () => {
             try {
               const mainWindow = getMainWindow();
@@ -360,6 +387,7 @@ function bootstrapApp() {
         });
         return ok;
       } catch (e) {
+        logShortcutEvent('shortcut.register.error', { accel, error: e?.message || '' });
         return false;
       }
     };
@@ -367,6 +395,7 @@ function bootstrapApp() {
     const registerEmpathyShortcut = (accel) => {
       try {
         const ok = globalShortcut.register(accel, () => {
+          logShortcutEvent('shortcut.trigger', { accel, kind: 'empathy' });
           (async () => {
             try {
               const mainWindow = getMainWindow();
@@ -394,6 +423,7 @@ function bootstrapApp() {
         });
         return ok;
       } catch (e) {
+        logShortcutEvent('shortcut.register.error', { accel, error: e?.message || '' });
         return false;
       }
     };
@@ -483,6 +513,7 @@ function bootstrapApp() {
     for (const c of translateCandidates) {
       try {
         const ok = globalShortcut.register(c, () => {
+          logShortcutEvent('shortcut.trigger', { accel: c, kind: 'translate' });
           (async () => {
             try {
               const mainWindow = getMainWindow();
@@ -529,6 +560,7 @@ function bootstrapApp() {
     for (const c of pronounceCandidates) {
       try {
         const ok = globalShortcut.register(c, () => {
+          logShortcutEvent('shortcut.trigger', { accel: c, kind: 'pronounce' });
           (async () => {
             try {
               const mainWindow = getMainWindow();
@@ -565,6 +597,7 @@ function bootstrapApp() {
     for (const c of screenshotCandidates) {
       try {
         const ok = globalShortcut.register(c, () => {
+          logShortcutEvent('shortcut.trigger', { accel: c, kind: 'screenshot' });
           (async () => {
             try {
               const { data, mimeType } = await captureInteractiveArea();
@@ -590,6 +623,7 @@ function bootstrapApp() {
     for (const c of screenshotDetailedCandidates) {
       try {
         const ok = globalShortcut.register(c, () => {
+          logShortcutEvent('shortcut.trigger', { accel: c, kind: 'screenshot_detailed' });
           (async () => {
             try {
               const { data, mimeType } = await captureInteractiveArea();
@@ -623,6 +657,16 @@ function bootstrapApp() {
         mainWindow.webContents.send('shortcut-url-detailed-registered', urlDetailedUsed);
         mainWindow.webContents.send('shortcut-sns-post-registered', snsPostUsed);
       }
+      logShortcutEvent('shortcut.register.summary', {
+        baseUsed,
+        detailedUsed,
+        translateUsed,
+        pronounceUsed,
+        empathyUsed,
+        urlSummaryUsed,
+        urlDetailedUsed,
+        snsPostUsed,
+      });
     } catch {}
 
     if (!baseUsed && !detailedUsed) {

@@ -2,6 +2,18 @@
 
 すべての重要な変更はこのファイルに記録します。
 
+## v1.0.21 (2025-10-13)
+
+### Fixed
+
+- 配布版で Option/Alt+`A` 等のショートカットが無反応になる問題を修正。Swift ヘルパーを electron-builder の `afterSign` で確実に署名し、TCC(アクセシビリティ)が一貫して認識するようにしました。
+- Swift ヘルパーを Universal2（arm64 + x86_64）に統一。x64 配布で arm64 専用ヘルパーが同梱される問題を解消。
+- ショートカットとブリッジ呼び出しの詳細ログを `~/Library/Logs/IrukaDark/automation.log` に出力。
+
+### Changed
+
+- 初回起動でヘルパーの `ensure-accessibility` を非同期実行し、OS の許可ダイアログを早期に提示。
+
 ## v1.0.17 (2025-10-03)
 
 - URLサマリー系ショートカット（Option+1 / Option+Shift+1）がアプリ内でURLを取得・整形してからGeminiへ渡すパイプラインに刷新。URL Context API依存を廃止し、言語別テンプレートと長文トリミング時の注意書きを追加。

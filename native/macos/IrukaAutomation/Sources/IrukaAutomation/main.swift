@@ -307,6 +307,7 @@ final class SelectedTextStateMachine {
 
 enum Command: String {
   case selectedText = "selected-text"
+  case ensureAccessibility = "ensure-accessibility"
   case help = "help"
   case version = "version"
 }
@@ -325,6 +326,8 @@ struct IrukaAutomationCLI {
     switch command {
     case .selectedText:
       runSelectedText(arguments: Array(args.dropFirst(2)))
+    case .ensureAccessibility:
+      runEnsureAccessibility(arguments: Array(args.dropFirst(2)))
     case .help:
       printUsageAndExit(code: nil, message: nil, exitCode: EXIT_SUCCESS)
     case .version:
@@ -337,6 +340,31 @@ struct IrukaAutomationCLI {
       )
       print(output.encoded())
       exit(EXIT_SUCCESS)
+    }
+  }
+
+  private static func runEnsureAccessibility(arguments: [String]) {
+    let shouldPrompt = true
+    if SelectedTextStateMachine.ensureAccessibility(prompt: shouldPrompt) {
+      let output = BridgeOutput(
+        status: .ok,
+        text: nil,
+        source: nil,
+        code: nil,
+        message: "accessibility_trusted"
+      )
+      print(output.encoded())
+      exit(EXIT_SUCCESS)
+    } else {
+      let output = BridgeOutput(
+        status: .error,
+        text: nil,
+        source: nil,
+        code: FlowError.bridgeNotTrusted.rawValue,
+        message: "Accessibility permission is required."
+      )
+      print(output.encoded())
+      exit(EXIT_FAILURE)
     }
   }
 

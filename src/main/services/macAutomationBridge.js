@@ -12,6 +12,43 @@ const PROMPT_BACKOFF_MS = 60_000;
 let cachedExecutablePath = null;
 let lastPromptAttempt = 0;
 let didWarnMissing = false;
+let bridgeLogPath = null;
+
+function resolveLogPath() {
+  if (bridgeLogPath !== null) return bridgeLogPath;
+  try {
+    const logsDir = app?.getPath?.('logs');
+    if (!logsDir) {
+      bridgeLogPath = undefined;
+      return bridgeLogPath;
+    }
+    // Electron's logs path on macOS is already '~/Library/Logs/<AppName>'
+    // so we should not append the app name again.
+    fs.mkdirSync(logsDir, { recursive: true });
+    bridgeLogPath = path.join(logsDir, 'automation.log');
+  } catch {
+    bridgeLogPath = undefined;
+  }
+  return bridgeLogPath;
+}
+
+function logBridgeEvent(event, payload = {}) {
+  try {
+    const target = resolveLogPath();
+    if (!target) return;
+
+    const record = {
+      ts: new Date().toISOString(),
+      event,
+      ...payload,
+    };
+
+    const serialized = JSON.stringify(record);
+    fs.appendFile(target, `${serialized}\n`, () => {});
+  } catch {
+    // Swallow logging errors; never break shortcut flow.
+  }
+}
 
 function resolveExecutablePath() {
   if (cachedExecutablePath !== null) return cachedExecutablePath;
@@ -47,10 +84,22 @@ function resolveExecutablePath() {
     try {
       fs.accessSync(candidate, fs.constants.X_OK);
       cachedExecutablePath = candidate;
+      logBridgeEvent('resolveExecutablePath.success', {
+        candidate,
+        packaged: !!app?.isPackaged,
+        arch: process.arch,
+        pid: process.pid,
+      });
       return cachedExecutablePath;
     } catch {}
   }
 
+  logBridgeEvent('resolveExecutablePath.failure', {
+    packaged: !!app?.isPackaged,
+    arch: process.arch,
+    pid: process.pid,
+    searchCount: searchPaths.length,
+  });
   cachedExecutablePath = null;
   return null;
 }
@@ -68,6 +117,11 @@ function spawnBridge(
         );
         didWarnMissing = true;
       }
+      logBridgeEvent('spawnBridge.notFound', {
+        command,
+        timeoutMs,
+        promptAccessibility,
+      });
       reject(new Error('SWIFT_BRIDGE_NOT_AVAILABLE'));
       return;
     }
@@ -77,6 +131,14 @@ function spawnBridge(
 
     const child = spawn(executable, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    logBridgeEvent('spawnBridge.start', {
+      command,
+      timeoutMs,
+      promptAccessibility,
+      executable,
+      childPid: child.pid,
     });
 
     let stdout = '';
@@ -107,6 +169,15 @@ function spawnBridge(
       if (finished) return;
       finished = true;
       clearTimeout(timer);
+      logBridgeEvent('spawnBridge.error', {
+        command,
+        timeoutMs,
+        promptAccessibility,
+        executable,
+        message: error?.message || '',
+        code: error?.code || '',
+        errno: error?.errno || '',
+      });
       reject(error);
     });
 
@@ -119,6 +190,15 @@ function spawnBridge(
       if (!payloadRaw) {
         const error = new Error('SWIFT_BRIDGE_EMPTY_OUTPUT');
         error.meta = { code, signal, stderr: stderr.trim() };
+        logBridgeEvent('spawnBridge.emptyOutput', {
+          command,
+          timeoutMs,
+          promptAccessibility,
+          executable,
+          exitCode: code,
+          signal,
+          stderr: stderr.trim(),
+        });
         reject(error);
         return;
       }
@@ -130,10 +210,31 @@ function spawnBridge(
       } catch (e) {
         const error = new Error('SWIFT_BRIDGE_INVALID_JSON');
         error.meta = { stdout: payloadRaw, stderr: stderr.trim(), cause: e };
+        logBridgeEvent('spawnBridge.invalidJson', {
+          command,
+          timeoutMs,
+          promptAccessibility,
+          executable,
+          exitCode: code,
+          signal,
+          stdout: payloadRaw,
+          stderr: stderr.trim(),
+          error: e?.message || '',
+        });
         reject(error);
         return;
       }
 
+      logBridgeEvent('spawnBridge.exit', {
+        command,
+        timeoutMs,
+        promptAccessibility,
+        executable,
+        exitCode: code,
+        signal,
+        payload,
+        stderr: stderr.trim(),
+      });
       resolve({ code, signal, payload, stderr: stderr.trim() });
     });
   });

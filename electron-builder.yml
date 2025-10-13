@@ -25,3 +25,4 @@ dmg:
 publish:
   - provider: github
     releaseType: release
+afterSign: build/after-sign.js

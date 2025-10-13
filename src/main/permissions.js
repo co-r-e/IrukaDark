@@ -1,8 +1,9 @@
 // Permissions preflight helpers
 const { app, systemPreferences, clipboard } = require('electron');
-const { exec } = require('child_process');
-const fs = require('fs');
+const { spawn } = require('child_process');
 const path = require('path');
+const fs = require('fs');
+const { exec } = require('child_process');
 
 function preflightAccessibility() {
   try {
@@ -12,6 +13,25 @@ function preflightAccessibility() {
         systemPreferences.isTrustedAccessibilityClient(true);
       } catch {}
     }
+  } catch {}
+}
+
+function preflightAutomationHelper() {
+  if (process.platform !== 'darwin') return;
+  try {
+    const resources = process.resourcesPath || path.resolve(__dirname, '../../..');
+    const helper = path.join(resources, 'mac-automation', 'IrukaAutomation');
+    try {
+      fs.accessSync(helper, fs.constants.X_OK);
+    } catch {
+      return; // Helper not present; nothing to prompt
+    }
+    // Fire-and-forget a short ensure-accessibility to trigger OS prompt for the helper process.
+    const child = spawn(helper, ['ensure-accessibility', '--timeout-ms', '200'], {
+      stdio: 'ignore',
+      detached: true,
+    });
+    child.unref();
   } catch {}
 }
 
@@ -34,6 +54,9 @@ function preflightPermissionsOnce({ loadPrefs, savePrefs, bringAppToFront }) {
   if (prefs && prefs.PERMISSIONS_PREFLIGHT_DONE) return;
   try {
     preflightAccessibility();
+  } catch {}
+  try {
+    preflightAutomationHelper();
   } catch {}
   try {
     preflightScreenRecording();
