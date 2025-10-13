@@ -2580,10 +2580,14 @@ Guidelines:
 Text:
 ${trimmed}`;
     const prompt = normalizedMode === 'free' ? freePrompt : literalPrompt;
+    const baseConfig = this.defaultGenerationConfig();
+    const safeMaxTokens = Number.isFinite(Number(baseConfig.maxOutputTokens))
+      ? Number(baseConfig.maxOutputTokens)
+      : 2048;
     const cfgOverrides =
       normalizedMode === 'free'
-        ? { temperature: 0.65, topP: 0.9, maxOutputTokens: 640 }
-        : { temperature: 0.4, topP: 0.82, maxOutputTokens: 512 };
+        ? { temperature: 0.65, topP: 0.9, maxOutputTokens: safeMaxTokens }
+        : { temperature: 0.4, topP: 0.82, maxOutputTokens: safeMaxTokens };
     return this.requestText(prompt, false, 'chat', {
       generationConfigOverrides: cfgOverrides,
     });

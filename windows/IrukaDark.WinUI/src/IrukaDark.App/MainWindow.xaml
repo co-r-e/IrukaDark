@@ -1,0 +1,70 @@
+<Window
+    x:Class="IrukaDark.App.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="IrukaDark"
+    Width="420"
+    Height="560">
+    <Grid Padding="24" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Orientation="Horizontal" Spacing="12">
+            <TextBlock Text="IrukaDark for Windows" FontSize="20" FontWeight="Bold" />
+            <ToggleSwitch x:Name="OnTopToggle" Header="Always on top" Toggled="OnTopToggle_OnToggled" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Spacing="16">
+            <TextBlock Text="Global Shortcuts" FontSize="16" FontWeight="SemiBold" />
+            <ListView ItemsSource="{x:Bind ViewModel.RegisteredHotkeys, Mode=OneWay}">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="models:HotkeyRegistration" xmlns:models="using:IrukaDark.App.Models">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <TextBlock Text="{x:Bind Description}" Width="160" />
+                            <TextBlock Text="{x:Bind DisplayGesture}" />
+                            <TextBlock Text="{x:Bind Status}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+
+            <Button Content="Capture Region" Click="CaptureButton_OnClick" />
+
+            <TextBlock Text="Conversation" FontSize="16" FontWeight="SemiBold" Margin="0,12,0,0" />
+            <ComboBox Margin="0,0,0,8" SelectionChanged="FilterCombo_OnSelectionChanged" SelectedIndex="0">
+                <ComboBoxItem Content="All messages" Tag="All" />
+                <ComboBoxItem Content="User only" Tag="User" />
+                <ComboBoxItem Content="Assistant only" Tag="Assistant" />
+            </ComboBox>
+            <ListView ItemsSource="{x:Bind ViewModel.TranscriptView, Mode=OneWay}" Height="220">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="models:ChatMessage" xmlns:models="using:IrukaDark.App.Models">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{x:Bind Role}" FontWeight="SemiBold" />
+                            <TextBlock Text="{x:Bind Content}" TextWrapping="WrapWholeWords" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Orientation="Vertical" Spacing="8">
+            <TextBlock Text="Gemini" FontSize="16" FontWeight="SemiBold" />
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBox Width="280" PlaceholderText="API Key" Text="{x:Bind ViewModel.ApiKey, Mode=TwoWay}" />
+                <Button Content="Save" Click="SaveApiKey_OnClick" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBox Width="280" PlaceholderText="Enter text to preview" Text="{x:Bind ViewModel.DraftMessage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <Button Content="Preview" Click="PreviewSend_OnClick" />
+            </StackPanel>
+            <TextBlock Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}" TextWrapping="Wrap" />
+        </StackPanel>
+    </Grid>
+</Window>

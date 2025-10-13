@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <OutputType>WinExe</OutputType>
+    <Nullable>enable</Nullable>
+    <UseWinUI>true</UseWinUI>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x64;arm64</Platforms>
+    <RootNamespace>IrukaDark.App</RootNamespace>
+    <AssemblyName>IrukaDark.App</AssemblyName>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <GenerateAppInstallerFile>false</GenerateAppInstallerFile>
+    <PackageCertificateThumbprint></PackageCertificateThumbprint>
+    <AppxPackage>true</AppxPackage>
+    <AppxBundle>Always</AppxBundle>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.0" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.3233" />
+    <PackageReference Include="CommunityToolkit.WinUI" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="app.manifest">
+      <SubType>Designer</SubType>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\\**\\*.*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
