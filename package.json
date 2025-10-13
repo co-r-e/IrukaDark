@@ -1,6 +1,6 @@
 {
   "name": "irukadark",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "description": "Local AI Chat App (Off-mode only)",
   "main": "src/main.js",
   "scripts": {
