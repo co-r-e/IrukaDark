@@ -57,6 +57,12 @@ jobs:
             npm install
           fi
 
+      - name: Build Swift automation bridge
+        shell: bash
+        run: |
+          set -euxo pipefail
+          npm run build:swift
+
       - name: Cache Electron caches
         uses: actions/cache@v4
         with:
