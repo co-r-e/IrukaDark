@@ -20,7 +20,7 @@ Lightweight local AI chat for macOS. Explain or translate selected text, or chat
 - Area screenshot explain (interactive selection)
   - Option+S (detailed: Option+Shift+S)
 - Gemini integration via Google GenAI SDK (@google/genai) — default: 2.5 Flash Lite
-  - Web検索を有効にした応答には参照バッジが付き、クリックで取得元リンクを確認できます
+  - When Web Search is enabled, responses include reference badges you can click to view the source links.
 - Optional floating logo popup window (toggle from menu)
 - Clean, minimal UI with dark/light themes
 - Slash command palette with suggestions, nested sub-commands, and multi-language `/translate`
@@ -58,7 +58,7 @@ npm start
 ```
 
 8. Set your API key in‑app (recommended)
-   - macOS: App menu IrukaDark → AI Settings → “Set GEMINI_API_KEY”。モデル設定も同メニューから可能です。
+   - macOS: App menu IrukaDark → AI Settings → Set GEMINI_API_KEY. You can also choose the model from the same menu.
 
 Notes
 
@@ -101,29 +101,29 @@ Notes:
 
 ## Architecture Overview
 
-IrukaDark は Electron をベースに、メインプロセスとレンダラープロセスを薄い責務ごとに分割しています。今後の機能追加時は下記のレイアウトを参考にしてください。
+IrukaDark is built on Electron and splits the main and renderer responsibilities into small, focused modules. Use the layout below as a guide when adding features.
 
-- `src/main.js` — エントリポイント。内部で `src/main/bootstrap/app.js` を呼び出します。
-- `src/main/bootstrap/app.js` — アプリの初期化ロジック。ウィンドウ生成、メニュー構築、IPC などの起動フローをここに集約しています。
-- `src/main/ai.js` — SDK/REST ラッパー。`@google/genai` の `models.generateContent` を使ってテキスト生成（必要に応じて Web Search ツール）を一元的に呼び出します。
-- `src/main/windows/` — `WindowManager` などウィンドウ関連のユーティリティ。
-- `src/main/services/` — 設定永続化 (`preferences.js`) や UI 設定を反映するコントローラ (`settingsController.js`) など、メインプロセスのサービス層。
-- `src/main/context.js` — メイン／ポップアップウィンドウを共有するためのシンプルなストア。
-- `src/renderer/state/` — UI 言語・トーンなどレンダラーのクライアントサイド状態。
-- `src/renderer/features/` — スラッシュコマンド定義など UI 機能単位のヘルパー。
-- `src/renderer/app.js` — レンダラーのメイン実装。上記モジュールを読み込みつつ UI を制御します。
+- `src/main.js` — Entry point that calls `src/main/bootstrap/app.js`.
+- `src/main/bootstrap/app.js` — App initialization logic. Centralizes window creation, menu construction, IPC, and other startup flows.
+- `src/main/ai.js` — SDK/REST wrapper that calls `@google/genai` `models.generateContent` for text generation (and Web Search tools when needed) through a single interface.
+- `src/main/windows/` — Window utilities such as `WindowManager`.
+- `src/main/services/` — Main‑process service layer: settings persistence (`preferences.js`) and controllers that apply UI settings (`settingsController.js`).
+- `src/main/context.js` — Simple store that shares main and popup windows.
+- `src/renderer/state/` — Client‑side renderer state (UI language, tone, etc.).
+- `src/renderer/features/` — UI feature helpers such as slash‑command definitions.
+- `src/renderer/app.js` — Renderer implementation that wires modules and drives the UI.
 
-構成の要点:
+Design highlights:
 
-1. **メインプロセスの責務分離** — 設定保存、ウィンドウ制御、メニュー更新、AI リクエストなどをモジュール単位で分割し、新規機能が既存コードを汚さず追加できます。
-2. **レンダラーの状態管理の薄型化** — 言語・トーン・スラッシュコマンドなどを別ファイルに切り出し、UI ロジックを読みやすくしています。
-3. **再利用しやすい入口** — どのファイルを編集すればよいかが明確になり、開発チームが増えてもキャッチアップしやすい構造です。
+1. Main‑process separation of concerns — settings save, window control, menu updates, and AI requests are split into modules so new features don’t pollute existing code.
+2. Lean renderer state — language, tone, and slash commands are factored into separate files to keep UI logic readable.
+3. Clear entry points — makes it obvious which files to edit, so new contributors can ramp up quickly.
 
 ### Settings storage
 
-- アプリ設定はユーザーデータディレクトリに保存され、メニューから編集できます（AI Settings）。
+- App settings are stored in the user data directory and can be edited from the menu (AI Settings).
   - macOS: `~/Library/Application Support/IrukaDark/irukadark.prefs.json`
-- `.env.local` や環境変数による上書きは行いません。設定変更はアプリ内メニューから行ってください。
+- No overrides via `.env.local` or environment variables; change settings from the in‑app menu.
 
 ## Usage
 
@@ -166,7 +166,7 @@ Initial Layout
 #### Heads‑up
 
 - On some machines, the auto-copy used by Option+A can be blocked by OS settings, permissions, or other apps. If quick explain fails, use Option+S (area screenshot explain) instead — it works reliably in most cases and is often sufficient.
-- Option+1 / Option+Shift+1 require that the highlighted text is a single HTTP(S) URL. The app fetches the page directly; private, paywalled、もしくは JavaScript 必須のサイトは失敗する場合があります。
+- Option+1 / Option+Shift+1 require that the highlighted text is a single HTTP(S) URL. The app fetches the page directly; private, paywalled, or JavaScript‑required sites may fail.
 - On macOS, the app first tries to read selected text via Accessibility (AX) without touching the clipboard; only if that fails does it fall back to sending Cmd+C.
 - If the main window is hidden when Option+A succeeds, it automatically reappears non‑activating so you can see the answer (your current app keeps focus).
 
