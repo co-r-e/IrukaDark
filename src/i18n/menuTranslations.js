@@ -41,6 +41,7 @@ const menuTranslations = {
     showLogoPopup: 'Show Logo Popup',
     pinAllSpaces: 'Show Over All Apps/Spaces',
     help: 'Help',
+    checkForUpdates: 'Check for Updates…',
   },
   ja: {
     irukadark: 'IrukaDark',
@@ -84,6 +85,7 @@ const menuTranslations = {
     showLogoPopup: 'ロゴ別窓を表示',
     pinAllSpaces: '全アプリ・全スペースで表示',
     help: 'ヘルプ',
+    checkForUpdates: 'アップデートを確認…',
   },
   es: {
     irukadark: 'IrukaDark',

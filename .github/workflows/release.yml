@@ -105,6 +105,15 @@ jobs:
           set -euxo pipefail
           npx electron-builder --mac dmg --${{ matrix.arch }} --publish=never
 
+      - name: Publish ZIP for auto‑update (GitHub provider)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEBUG: electron-builder
+        run: |
+          set -euxo pipefail
+          # Build and publish only ZIP + update YAML to the GitHub Release
+          npx electron-builder --mac zip --${{ matrix.arch }} --publish=always
+
       - name: Generate SHA256 checksums
         shell: bash
         run: |

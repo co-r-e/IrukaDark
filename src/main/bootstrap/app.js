@@ -33,6 +33,7 @@ const {
   sdkGenerateImage,
 } = require('../ai');
 const { getMainWindow, setMainWindow, setPopupWindow } = require('../context');
+const { setupAutoUpdates, manualCheckForUpdates } = require('../updates');
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -216,6 +217,7 @@ function bootstrapApp() {
         getPref,
         setPref,
         openInputDialog,
+        checkForUpdates: () => manualCheckForUpdates(),
         handleLanguageChange: (lang) => settingsController.handleLanguageChange(lang),
         handleThemeChange: (theme) => settingsController.handleThemeChange(theme),
         handleToneChange: (tone) => settingsController.handleToneChange(tone),
@@ -1103,6 +1105,9 @@ function bootstrapApp() {
     setupUrlContentHandlers();
     setupAiHandlers();
     setupRendererSync();
+    try {
+      setupAutoUpdates();
+    } catch {}
 
     try {
       const { preflightPermissionsOnce } = require('../permissions');

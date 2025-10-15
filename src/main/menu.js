@@ -264,7 +264,14 @@ function createAppMenu(ctx) {
       submenu: [
         { role: 'about', label: t.about },
         { type: 'separator' },
-        // Update and Downloads menu removed (no GitHub Releases / build pipeline)
+        {
+          label: t.checkForUpdates || 'Check for Updates…',
+          click: () => {
+            try {
+              ctx.checkForUpdates && ctx.checkForUpdates();
+            } catch {}
+          },
+        },
         { type: 'separator' },
         {
           label: t.aiSettings || menuTranslations.en.aiSettings,
@@ -339,7 +346,14 @@ function createAppMenu(ctx) {
     template.push({
       label: t.help || 'Help',
       submenu: [
-        // Update and Downloads menu removed
+        {
+          label: t.checkForUpdates || 'Check for Updates…',
+          click: () => {
+            try {
+              ctx.checkForUpdates && ctx.checkForUpdates();
+            } catch {}
+          },
+        },
       ],
     });
   }
