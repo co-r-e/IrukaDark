@@ -15,7 +15,7 @@
     canceled: '已取消。',
     historyCompacted: '已汇总并压缩聊天记录。',
     availableCommands:
-      '可用命令：/clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate, /translate literal, /translate free, /translate status',
+      '可用命令：/clear, /compact, /next, /table, /what do you mean?, /web (on/off/status), /translate, /translate literal, /translate free, /translate status',
     sourcesBadge: '来源',
     webSearchEnabled: '已启用网页搜索。',
     webSearchDisabled: '已禁用网页搜索。',
@@ -53,7 +53,6 @@
       webOn: '开启网页搜索',
       webOff: '关闭网页搜索',
       webStatus: '显示网页搜索状态',
-      contact: '打开联系页面',
     },
     slashTranslateIntoLanguage: (name) => `翻译成${name}`,
   });

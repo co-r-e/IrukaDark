@@ -117,17 +117,6 @@ function createAppMenu(ctx) {
       },
       { type: 'separator' },
       {
-        label: t.showLogoPopup,
-        type: 'checkbox',
-        checked: !!(ctx.hasPopupWindow && ctx.hasPopupWindow()),
-        click: () => {
-          try {
-            ctx.togglePopupWindow && ctx.togglePopupWindow();
-          } catch {}
-          ctx.rebuild && ctx.rebuild();
-        },
-      },
-      {
         label: t.language,
         submenu: (() => {
           const locales = [

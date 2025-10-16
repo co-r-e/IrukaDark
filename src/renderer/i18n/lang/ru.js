@@ -16,7 +16,7 @@
     canceled: 'Отменено.',
     historyCompacted: 'История кратко изложена и сжата.',
     availableCommands:
-      'Команды: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate, /translate literal, /translate free, /translate status',
+      'Команды: /clear, /compact, /next, /table, /what do you mean?, /web (on/off/status), /translate, /translate literal, /translate free, /translate status',
     sourcesBadge: 'Источники',
     webSearchEnabled: 'Веб‑поиск включен.',
     webSearchDisabled: 'Веб‑поиск выключен.',
@@ -55,7 +55,6 @@
       webOn: 'Включить веб-поиск',
       webOff: 'Выключить веб-поиск',
       webStatus: 'Показать статус веб-поиска',
-      contact: 'Открыть страницу контактов',
     },
     slashTranslateIntoLanguage: (name) => `Перевести на ${name}`,
   });

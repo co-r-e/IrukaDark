@@ -15,7 +15,7 @@
     canceled: '已取消。',
     historyCompacted: '已彙整並壓縮聊天記錄。',
     availableCommands:
-      '可用指令：/clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate, /translate literal, /translate free, /translate status',
+      '可用指令：/clear, /compact, /next, /table, /what do you mean?, /web (on/off/status), /translate, /translate literal, /translate free, /translate status',
     sourcesBadge: '來源',
     webSearchEnabled: '已啟用網頁搜尋。',
     webSearchDisabled: '已停用網頁搜尋。',
@@ -53,7 +53,6 @@
       webOn: '啟用網路搜尋',
       webOff: '停用網路搜尋',
       webStatus: '顯示網路搜尋狀態',
-      contact: '開啟聯絡頁面',
     },
     slashTranslateIntoLanguage: (name) => `翻譯成${name}`,
   });

@@ -15,7 +15,7 @@
     canceled: 'Đã hủy.',
     historyCompacted: 'Đã tóm tắt và nén lịch sử.',
     availableCommands:
-      'Lệnh: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate, /translate literal, /translate free, /translate status',
+      'Lệnh: /clear, /compact, /next, /table, /what do you mean?, /web (on/off/status), /translate, /translate literal, /translate free, /translate status',
     sourcesBadge: 'Nguồn',
     webSearchEnabled: 'Đã bật Tìm kiếm web.',
     webSearchDisabled: 'Đã tắt Tìm kiếm web.',
@@ -54,7 +54,6 @@
       webOn: 'Bật tìm kiếm web',
       webOff: 'Tắt tìm kiếm web',
       webStatus: 'Hiển thị trạng thái tìm kiếm web',
-      contact: 'Mở trang liên hệ',
     },
     slashTranslateIntoLanguage: (name) => `Dịch sang ${name}`,
   });

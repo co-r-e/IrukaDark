@@ -16,7 +16,7 @@
     canceled: 'Canceled.',
     historyCompacted: 'Compressed chat history with a summary.',
     availableCommands:
-      'Available commands: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate, /translate literal, /translate free, /translate status',
+      'Available commands: /clear, /compact, /next, /table, /what do you mean?, /web (on/off/status), /translate, /translate literal, /translate free, /translate status',
     sourcesBadge: 'Sources',
     webSearchEnabled: 'Web Search enabled.',
     webSearchDisabled: 'Web Search disabled.',
@@ -54,7 +54,6 @@
       webOn: 'Enable web search',
       webOff: 'Disable web search',
       webStatus: 'Show web search status',
-      contact: 'Open contact page',
     },
     slashTranslateIntoLanguage: (name) => `Translate into ${name}`,
   });

@@ -1409,18 +1409,6 @@ class IrukaDarkApp {
       return;
     }
 
-    if (lower === '/contact') {
-      try {
-        const fixed = 'https://co-r-e.net/contact';
-        await (window.electronAPI && window.electronAPI.openExternal
-          ? window.electronAPI.openExternal(fixed)
-          : Promise.resolve(false));
-      } catch (e) {
-        this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
-      }
-      return;
-    }
-
     // /web commands: on|off|status (legacy alias: /websearch)
     if (lower.startsWith('/websearch') || lower.startsWith('/web ') || lower === '/web') {
       const parts = cmd
@@ -1556,13 +1544,6 @@ class IrukaDarkApp {
         descKey: 'slashDescriptions.web',
         children: SLASH_WEB_TARGETS,
         childSeparator: ' ',
-      },
-      // 4) /contact must be last
-      {
-        key: '/contact',
-        match: '/contact',
-        label: '/contact',
-        descKey: 'slashDescriptions.contact',
       },
     ];
     this.slashCommands = this.slashCommands.map((cmd) => ({

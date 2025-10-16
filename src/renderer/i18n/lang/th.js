@@ -15,7 +15,7 @@
     canceled: 'ยกเลิกแล้ว',
     historyCompacted: 'สรุปและย่อประวัติแล้ว',
     availableCommands:
-      'คำสั่ง: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate, /translate literal, /translate free, /translate status',
+      'คำสั่ง: /clear, /compact, /next, /table, /what do you mean?, /web (on/off/status), /translate, /translate literal, /translate free, /translate status',
     sourcesBadge: 'แหล่งที่มา',
     webSearchEnabled: 'เปิดการค้นเว็บแล้ว',
     webSearchDisabled: 'ปิดการค้นเว็บแล้ว',
@@ -54,7 +54,6 @@
       webOn: 'เปิดการค้นเว็บ',
       webOff: 'ปิดการค้นเว็บ',
       webStatus: 'แสดงสถานะการค้นเว็บ',
-      contact: 'เปิดหน้าติดต่อ',
     },
     slashTranslateIntoLanguage: (name) => `แปลเป็น ${name}`,
   });

@@ -179,4 +179,3 @@ Initial Layout
 - `/what do you mean?`: Clarify the last AI output in simpler terms
 - `/translate`: Open a submenu with language-specific commands that mirror every UI locale (e.g. `/translate_JA`, `/translate_fr`) to translate the latest AI reply.
 - `/web`: Submenu with `/web on`, `/web off`, `/web status`
-- `/contact`: Open the contact page

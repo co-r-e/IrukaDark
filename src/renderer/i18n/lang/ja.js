@@ -16,7 +16,7 @@
     canceled: '中断しました。',
     historyCompacted: '履歴を要約して圧縮しました。',
     availableCommands:
-      '利用可能なコマンド: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate, /translate literal, /translate free, /translate status',
+      '利用可能なコマンド: /clear, /compact, /next, /table, /what do you mean?, /web (on/off/status), /translate, /translate literal, /translate free, /translate status',
     sourcesBadge: '参照',
     webSearchEnabled: 'Web検索を有効にしました。',
     webSearchDisabled: 'Web検索を無効にしました。',
@@ -56,7 +56,6 @@
       webOn: 'Web検索を有効化',
       webOff: 'Web検索を無効化',
       webStatus: 'Web検索の状態を表示',
-      contact: '連絡先ページを開く',
     },
     slashTranslateIntoLanguage: (name) => `${name}に翻訳`,
   });

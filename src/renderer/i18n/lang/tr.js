@@ -15,7 +15,7 @@
     canceled: 'İptal edildi.',
     historyCompacted: 'Geçmiş özetlenip sıkıştırıldı.',
     availableCommands:
-      'Komutlar: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate, /translate literal, /translate free, /translate status',
+      'Komutlar: /clear, /compact, /next, /table, /what do you mean?, /web (on/off/status), /translate, /translate literal, /translate free, /translate status',
     sourcesBadge: 'Kaynaklar',
     webSearchEnabled: 'Web araması etkinleştirildi.',
     webSearchDisabled: 'Web araması devre dışı.',
@@ -54,7 +54,6 @@
       webOn: 'Web aramasını aç',
       webOff: 'Web aramasını kapat',
       webStatus: 'Web araması durumunu göster',
-      contact: 'İletişim sayfasını aç',
     },
     slashTranslateIntoLanguage: (name) => `${name} diline çevir`,
   });

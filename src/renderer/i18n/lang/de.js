@@ -16,7 +16,7 @@
     canceled: 'Abgebrochen.',
     historyCompacted: 'Verlauf zusammengefasst und komprimiert.',
     availableCommands:
-      'Befehle: /clear, /compact, /next, /table, /what do you mean?, /contact, /web (on/off/status), /translate, /translate literal, /translate free, /translate status',
+      'Befehle: /clear, /compact, /next, /table, /what do you mean?, /web (on/off/status), /translate, /translate literal, /translate free, /translate status',
     sourcesBadge: 'Quellen',
     webSearchEnabled: 'Websuche aktiviert.',
     webSearchDisabled: 'Websuche deaktiviert.',
@@ -55,7 +55,6 @@
       webOn: 'Websuche aktivieren',
       webOff: 'Websuche deaktivieren',
       webStatus: 'Status der Websuche anzeigen',
-      contact: 'Kontaktseite öffnen',
     },
     slashTranslateIntoLanguage: (name) => `In ${name} übersetzen`,
   });
