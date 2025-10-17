@@ -753,7 +753,7 @@ button:disabled {
   font-size: 10px;
 }
 
-/* Markdown tables: horizontally scrollable, borderless, modern, wrapping */
+/* Markdown tables: horizontally scrollable, border-separated, wrapping */
 .md-table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -761,22 +761,30 @@ button:disabled {
   border-radius: 8px;
 }
 .message-ai-content table {
-  border-collapse: separate;
-  border-spacing: 0;
+  border-collapse: collapse;
   table-layout: auto;
   width: 100%;
-  font-size: 12px;
+  font-size: 10px;
+  border: 1px solid rgba(17, 24, 39, 0.14);
 }
 .message-ai-content th,
 .message-ai-content td {
-  border: none;
+  border: 1px solid rgba(17, 24, 39, 0.14);
   padding: 8px 10px;
   text-align: left;
+  background: transparent;
   /* Respect content newlines; prefer semantic wraps */
   white-space: pre-wrap; /* keep \n as line breaks */
   word-break: normal; /* do not break mid-word by default */
   overflow-wrap: break-word; /* allow break on long tokens if needed */
   hyphens: auto; /* hyphenate long English words when possible */
+}
+.theme-dark .message-ai-content table {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.theme-dark .message-ai-content th,
+.theme-dark .message-ai-content td {
+  border-color: rgba(255, 255, 255, 0.18);
 }
 /* Japanese: use stricter CJK line breaking rules */
 html[lang='ja'] .message-ai-content th,
@@ -804,17 +812,7 @@ html[lang='en'] .message-ai-content th code {
   overflow-wrap: anywhere;
 }
 .message-ai-content thead th {
-  background: rgba(17, 24, 39, 0.06);
   font-weight: 600;
-}
-.message-ai-content tbody tr:nth-child(odd) td {
-  background: rgba(17, 24, 39, 0.03);
-}
-.theme-dark .message-ai-content thead th {
-  background: rgba(255, 255, 255, 0.06);
-}
-.theme-dark .message-ai-content tbody tr:nth-child(odd) td {
-  background: rgba(255, 255, 255, 0.04);
 }
 
 /* Glass effect */
