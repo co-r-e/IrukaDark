@@ -33,6 +33,7 @@
     selectionTranslation: 'Перевести выделение',
     selectionPronunciation: 'Произнести выделение',
     selectionEmpathy: 'Эмпатичный ответ для выделенного текста',
+    selectionReplies: 'Варианты ответа для выделенного текста',
     urlContextSummary: (url) => `Запрос краткого обзора выбранного URL:\n${url}`,
     urlContextDetailed: (url) => `Запрос подробного разбора выбранного URL:\n${url}`,
     snsPostRequest: (url) => `Черновик поста в X на основе этой ссылки:\n${url}`,

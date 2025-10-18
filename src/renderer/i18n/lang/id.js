@@ -32,6 +32,7 @@
     selectionTranslation: 'Terjemahkan pilihan',
     selectionPronunciation: 'Ucapkan pilihan',
     selectionEmpathy: 'Balasan empati untuk pilihan',
+    selectionReplies: 'Variasi balasan untuk pilihan',
     urlContextSummary: (url) => `Ringkasan URL yang dipilih:\n${url}`,
     urlContextDetailed: (url) => `Analisis mendalam URL yang dipilih:\n${url}`,
     snsPostRequest: (url) => `Buat draf posting X dari URL ini:\n${url}`,

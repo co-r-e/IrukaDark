@@ -32,6 +32,7 @@
     selectionTranslation: 'Dịch vùng chọn',
     selectionPronunciation: 'Phát âm vùng chọn',
     selectionEmpathy: 'Phản hồi đồng cảm cho vùng chọn',
+    selectionReplies: 'Các phương án trả lời cho vùng chọn',
     urlContextSummary: (url) => `Yêu cầu tóm tắt URL đã chọn:\n${url}`,
     urlContextDetailed: (url) => `Yêu cầu phân tích chi tiết URL đã chọn:\n${url}`,
     snsPostRequest: (url) => `Tạo bản nháp bài đăng X từ URL này:\n${url}`,

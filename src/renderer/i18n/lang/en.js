@@ -33,6 +33,7 @@
     selectionTranslation: 'Translate Selection',
     selectionPronunciation: 'Pronounce Selection',
     selectionEmpathy: 'Empathy Reply for Selection',
+    selectionReplies: 'Reply Variations for Selection',
     urlContextSummary: (url) => `URL summary request:\n${url}`,
     urlContextDetailed: (url) => `Detailed URL analysis request:\n${url}`,
     snsPostRequest: (url) => `Draft an X post from this URL:\n${url}`,

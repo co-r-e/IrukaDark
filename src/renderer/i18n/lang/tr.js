@@ -32,6 +32,7 @@
     selectionTranslation: 'Seçimi çevir',
     selectionPronunciation: 'Seçimi telaffuz et',
     selectionEmpathy: 'Seçim için empatik yanıt',
+    selectionReplies: 'Seçim için yanıt seçenekleri',
     urlContextSummary: (url) => `Seçilen URL için özet isteği:\n${url}`,
     urlContextDetailed: (url) => `Seçilen URL için ayrıntılı analiz isteği:\n${url}`,
     snsPostRequest: (url) => `Bu URL'den bir X gönderisi taslağı oluştur:\n${url}`,

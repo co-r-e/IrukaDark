@@ -430,6 +430,41 @@ function bootstrapApp() {
       }
     };
 
+    const registerReplyShortcut = (accel) => {
+      try {
+        const ok = globalShortcut.register(accel, () => {
+          logShortcutEvent('shortcut.trigger', { accel, kind: 'reply_variations' });
+          (async () => {
+            try {
+              const mainWindow = getMainWindow();
+              if (!mainWindow || mainWindow.isDestroyed()) return;
+
+              if (!mainWindow.isVisible()) {
+                try {
+                  showWindowNonActivating(mainWindow);
+                } catch {
+                  mainWindow.show();
+                }
+              }
+
+              const text = await tryCopySelectedText();
+              if (text) {
+                mainWindow.webContents.send('reply-clipboard-variations', text);
+              } else {
+                mainWindow.webContents.send('explain-clipboard-error', '');
+              }
+            } catch (e) {
+              if (isDev) console.warn('Reply variations shortcut failed:', e?.message);
+            }
+          })();
+        });
+        return ok;
+      } catch (e) {
+        logShortcutEvent('shortcut.register.error', { accel, error: e?.message || '' });
+        return false;
+      }
+    };
+
     const registerSnsPostShortcut = (accel) => {
       try {
         const ok = globalShortcut.register(accel, () => {
@@ -557,6 +592,15 @@ function bootstrapApp() {
       }
     }
 
+    const replyCandidates = ['Alt+Z'];
+    let replyUsed = '';
+    for (const c of replyCandidates) {
+      if (registerReplyShortcut(c)) {
+        replyUsed = c;
+        break;
+      }
+    }
+
     const pronounceCandidates = ['Alt+Q'];
     let pronounceUsed = '';
     for (const c of pronounceCandidates) {
@@ -655,6 +699,7 @@ function bootstrapApp() {
         mainWindow.webContents.send('shortcut-translate-registered', translateUsed);
         mainWindow.webContents.send('shortcut-pronounce-registered', pronounceUsed);
         mainWindow.webContents.send('shortcut-empathy-registered', empathyUsed);
+        mainWindow.webContents.send('shortcut-reply-registered', replyUsed);
         mainWindow.webContents.send('shortcut-url-summary-registered', urlSummaryUsed);
         mainWindow.webContents.send('shortcut-url-detailed-registered', urlDetailedUsed);
         mainWindow.webContents.send('shortcut-sns-post-registered', snsPostUsed);
@@ -665,6 +710,7 @@ function bootstrapApp() {
         translateUsed,
         pronounceUsed,
         empathyUsed,
+        replyUsed,
         urlSummaryUsed,
         urlDetailedUsed,
         snsPostUsed,

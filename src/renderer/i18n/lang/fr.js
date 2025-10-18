@@ -33,6 +33,7 @@
     selectionTranslation: 'Traduire la sélection',
     selectionPronunciation: 'Prononcer la sélection',
     selectionEmpathy: 'Réponse empathique pour la sélection',
+    selectionReplies: 'Variations de réponse pour la sélection',
     urlContextSummary: (url) => `Résumé de l’URL sélectionnée :\n${url}`,
     urlContextDetailed: (url) => `Analyse détaillée de l’URL sélectionnée :\n${url}`,
     snsPostRequest: (url) => `Préparer un post X à partir de cette URL :\n${url}`,

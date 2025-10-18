@@ -32,6 +32,7 @@
     selectionTranslation: '翻译选区',
     selectionPronunciation: '标注选区读音',
     selectionEmpathy: '针对选中文本的共感回复',
+    selectionReplies: '选中文本的回复方案',
     urlContextSummary: (url) => `请求对所选 URL 进行概览：\n${url}`,
     urlContextDetailed: (url) => `请求对所选 URL 进行详细解读：\n${url}`,
     snsPostRequest: (url) => `基于此 URL 草拟一篇 X 帖子：\n${url}`,

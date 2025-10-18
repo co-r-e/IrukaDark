@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onTranslateClipboard: (cb) => ipcRenderer.on('translate-clipboard', (_e, t) => cb(t)),
   onPronounceClipboard: (cb) => ipcRenderer.on('pronounce-clipboard', (_e, t) => cb(t)),
   onExplainClipboardError: (cb) => ipcRenderer.on('explain-clipboard-error', (_e, msg) => cb(msg)),
+  onReplyClipboard: (cb) => ipcRenderer.on('reply-clipboard-variations', (_e, t) => cb(t)),
   onSummarizeUrlContext: (cb) => ipcRenderer.on('summarize-url-context', (_e, url) => cb(url)),
   onSummarizeUrlContextDetailed: (cb) =>
     ipcRenderer.on('summarize-url-context-detailed', (_e, url) => cb(url)),
@@ -43,6 +44,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('shortcut-pronounce-registered', (_e, a) => cb(a)),
   onShortcutEmpathyRegistered: (cb) =>
     ipcRenderer.on('shortcut-empathy-registered', (_e, a) => cb(a)),
+  onShortcutReplyRegistered: (cb) => ipcRenderer.on('shortcut-reply-registered', (_e, a) => cb(a)),
   onShortcutUrlSummaryRegistered: (cb) =>
     ipcRenderer.on('shortcut-url-summary-registered', (_e, a) => cb(a)),
   onShortcutUrlDetailedRegistered: (cb) =>

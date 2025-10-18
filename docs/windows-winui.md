@@ -43,10 +43,11 @@ windows/
    - Settings persist to `%LocalAppData%\IrukaDark\irukadark.prefs.json`.
 4. **Test the core scenarios**
    - Toggle **Always on top** to verify presenter transitions.
-   - Trigger hotkeys (`Alt+A`, `Alt+Shift+A`, `Alt+R`, `Alt+S`) and confirm the status banner updates.
-   - Click **Capture Region** to launch the `GraphicsCapturePicker`; the first frame is saved to `%LocalAppData%\IrukaDark\captures` and surfaced in the status panel.
-   - Verify that clipboard-driven shortcuts push entries into the in-app transcript viewer.
-   - Use the filter combo box (All/User/Assistant) and preview box to drive manual Gemini calls.
+
+- Trigger hotkeys (`Alt+A`, `Alt+Shift+A`, `Alt+Z`, `Alt+R`, `Alt+S`) and confirm the status banner updates.
+- Click **Capture Region** to launch the `GraphicsCapturePicker`; the first frame is saved to `%LocalAppData%\IrukaDark\captures` and surfaced in the status panel.
+- Verify that clipboard-driven shortcuts push entries into the in-app transcript viewer.
+- Use the filter combo box (All/User/Assistant) and preview box to drive manual Gemini calls.
 
 5. **Run unit tests (optional)**
    - `dotnet test windows/IrukaDark.WinUI/IrukaDark.WinUI.sln -c Debug -f net8.0-windows10.0.19041.0`

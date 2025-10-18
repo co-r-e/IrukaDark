@@ -32,6 +32,7 @@
     selectionTranslation: '선택 영역 번역',
     selectionPronunciation: '선택 영역 발음',
     selectionEmpathy: '선택한 텍스트 공감 댓글',
+    selectionReplies: '선택한 내용에 대한 답변 변형',
     urlContextSummary: (url) => `선택한 URL 요약 요청:\n${url}`,
     urlContextDetailed: (url) => `선택한 URL 상세 분석 요청:\n${url}`,
     snsPostRequest: (url) => `이 URL로 X 게시물 초안 작성:\n${url}`,

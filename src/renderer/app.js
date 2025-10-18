@@ -374,6 +374,7 @@ class IrukaDarkApp {
     on('onTranslateClipboard', (text) => this.handleTranslateClipboard(text));
     on('onPronounceClipboard', (text) => this.handlePronounceClipboard(text));
     on('onEmpathizeClipboard', (text) => this.handleEmpathizeClipboard(text));
+    on('onReplyClipboard', (text) => this.handleReplyClipboard(text));
     on('onSummarizeUrlContext', (url) => this.handleSummarizeUrlContext(url));
     on('onSummarizeUrlContextDetailed', (url) => this.handleSummarizeUrlContextDetailed(url));
     on('onSnsPostFromUrl', (url) => this.handleSnsPostFromUrl(url));
@@ -430,6 +431,13 @@ class IrukaDarkApp {
       const display = String(accel || '').replace(/\bAlt\b/g, 'Option');
       const defaultCombos = new Set(['Alt+Command+Z', 'Command+Alt+Z']);
       if (!defaultCombos.has(accel)) {
+        this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
+      }
+    });
+    on('onShortcutReplyRegistered', (accel) => {
+      if (!accel) return;
+      const display = String(accel || '').replace(/\bAlt\b/g, 'Option');
+      if (accel && accel !== 'Alt+Z') {
         this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
       }
     });
@@ -992,6 +1000,54 @@ class IrukaDarkApp {
 
     try {
       const response = await this.geminiService.generateEmpathyReply(content);
+      if (token !== this.shortcutRequestId) {
+        return;
+      }
+      this.hideTypingIndicator();
+      if (this.cancelRequested) {
+        return;
+      }
+      this.addMessage('ai', response);
+      try {
+        window.electronAPI &&
+          window.electronAPI.ensureVisible &&
+          window.electronAPI.ensureVisible(false);
+      } catch {}
+      this.syncHeader();
+    } catch (e) {
+      if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
+        return;
+      }
+      this.hideTypingIndicator();
+      this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
+      this.syncHeader();
+    } finally {
+      this.disableAutoScroll = false;
+    }
+  }
+
+  /**
+   * 選択テキストへの返信バリエーションを生成
+   */
+  async handleReplyClipboard(text) {
+    await this.cancelActiveShortcut();
+    const token = ++this.shortcutRequestId;
+    const content = (text || '').trim();
+    if (!content) return;
+    this.disableAutoScroll = true;
+    const label = getUIText('selectionReplies');
+    const questionLabel =
+      label && label !== 'selectionReplies'
+        ? label
+        : getCurrentUILanguage() === 'ja'
+          ? '選択範囲への返信バリエーション'
+          : 'Reply variations for selection';
+    this.addMessage('system-question', questionLabel);
+    this.syncHeader();
+    this.showTypingIndicator();
+
+    try {
+      const response = await this.geminiService.generateReplyVariations(content);
       if (token !== this.shortcutRequestId) {
         return;
       }
@@ -2529,6 +2585,54 @@ If the text is empty or the language cannot be determined, reply in English with
       topK: 28,
       topP: 0.88,
       maxOutputTokens: 180,
+    };
+    return this.requestText(prompt, false, 'shortcut', {
+      generationConfigOverrides: cfgOverrides,
+    });
+  }
+
+  async generateReplyVariations(text) {
+    const trimmed = text.length > 2000 ? text.slice(0, 2000) + ' …(truncated)' : text;
+    const uiLang =
+      (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
+    const uiName = getLanguageDisplayName(uiLang) || uiLang;
+    const prompt = `You will propose five alternative replies to the following original text.
+
+Original text:
+"""
+${trimmed}
+"""
+
+Instructions:
+- Detect the language of the original text and write each reply entirely in that language.
+- Keep each reply to one or two sentences, with a native, relaxed tone that still sounds respectfully polite (avoid stiff formality). No emojis, hashtags, or repeated wording between variants.
+- After each reply, add a paraphrase in ${uiName} (${uiLang}) that loosely rephrases the reply in natural ${uiName}.
+- Beneath the paraphrase, add a short explanation in ${uiName} (${uiLang}) describing the nuance or ideal usage of that reply. Explanations must sound natural and polite in ${uiName} and stay in ${uiName} only.
+
+Format the output in Markdown exactly as:
+
+1. Reply: <reply in source language>
+   Paraphrase (${uiName}): <paraphrase in ${uiName}>
+   Explanation (${uiName}): <explanation in ${uiName}>
+2. Reply: ...
+   Paraphrase (${uiName}): ...
+   Explanation (${uiName}): ...
+3. Reply: ...
+   Paraphrase (${uiName}): ...
+   Explanation (${uiName}): ...
+4. Reply: ...
+   Paraphrase (${uiName}): ...
+   Explanation (${uiName}): ...
+5. Reply: ...
+   Paraphrase (${uiName}): ...
+   Explanation (${uiName}): ...
+
+Do not add any extra sections, introductions, or closing remarks.`;
+    const cfgOverrides = {
+      temperature: 0.75,
+      topK: 32,
+      topP: 0.9,
+      maxOutputTokens: 720,
     };
     return this.requestText(prompt, false, 'shortcut', {
       generationConfigOverrides: cfgOverrides,
