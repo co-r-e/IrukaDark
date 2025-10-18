@@ -2607,25 +2607,31 @@ Instructions:
 - Detect the language of the original text and write each reply entirely in that language.
 - Keep each reply to one or two sentences, with a native, relaxed tone that still sounds respectfully polite (avoid stiff formality). No emojis, hashtags, or repeated wording between variants.
 - After each reply, add a paraphrase in ${uiName} (${uiLang}) that loosely rephrases the reply in natural ${uiName}.
-- Beneath the paraphrase, add a short explanation in ${uiName} (${uiLang}) describing the nuance or ideal usage of that reply. Explanations must sound natural and polite in ${uiName} and stay in ${uiName} only.
+- Present the paraphrase and explanation together in a Markdown table with two columns labelled “Paraphrase (${uiName})” and “Explanation (${uiName})”.
+- Explanations must sound natural and polite in ${uiName} and stay in ${uiName} only.
 
 Format the output in Markdown exactly as:
 
 1. Reply: <reply in source language>
-   Paraphrase (${uiName}): <paraphrase in ${uiName}>
-   Explanation (${uiName}): <explanation in ${uiName}>
+   | Paraphrase (${uiName}) | Explanation (${uiName}) |
+   | --- | --- |
+   | <paraphrase in ${uiName}> | <explanation in ${uiName}> |
 2. Reply: ...
-   Paraphrase (${uiName}): ...
-   Explanation (${uiName}): ...
+   | Paraphrase (${uiName}) | Explanation (${uiName}) |
+   | --- | --- |
+   | ... | ... |
 3. Reply: ...
-   Paraphrase (${uiName}): ...
-   Explanation (${uiName}): ...
+   | Paraphrase (${uiName}) | Explanation (${uiName}) |
+   | --- | --- |
+   | ... | ... |
 4. Reply: ...
-   Paraphrase (${uiName}): ...
-   Explanation (${uiName}): ...
+   | Paraphrase (${uiName}) | Explanation (${uiName}) |
+   | --- | --- |
+   | ... | ... |
 5. Reply: ...
-   Paraphrase (${uiName}): ...
-   Explanation (${uiName}): ...
+   | Paraphrase (${uiName}) | Explanation (${uiName}) |
+   | --- | --- |
+   | ... | ... |
 
 Do not add any extra sections, introductions, or closing remarks.`;
     const cfgOverrides = {
