@@ -16,6 +16,18 @@ function showWindowNonActivating(win) {
     } else {
       win.show();
     }
+
+    try {
+      if (typeof win.moveTop === 'function') {
+        win.moveTop();
+      }
+    } catch {}
+
+    try {
+      if (!win.isFocused()) {
+        win.focus();
+      }
+    } catch {}
   } catch {}
 }
 
