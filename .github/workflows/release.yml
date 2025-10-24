@@ -91,9 +91,8 @@ jobs:
           # App Store Connect API Key (.p8)
           echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$API_KEY_PATH"
           echo "APPLE_API_KEY=$API_KEY_PATH" >> "$GITHUB_ENV"
-          if [ -n "${APPLE_TEAM_ID:-}" ]; then
-            echo "APPLE_TEAM_ID=$APPLE_TEAM_ID" >> "$GITHUB_ENV"
-          fi
+          TEAM_ID_VALUE="${APPLE_TEAM_ID:-AYJLZRU9GG}"
+          echo "APPLE_TEAM_ID=$TEAM_ID_VALUE" >> "$GITHUB_ENV"
 
       - name: Build DMG (${{ matrix.arch }}) with electron-builder
         env:
