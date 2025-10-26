@@ -313,6 +313,72 @@ function modelCandidates(original) {
   return Array.from(new Set([bare, withPrefix]));
 }
 
+function collectTextPartsFromContent(content, bucket) {
+  if (!content) return;
+  const target = content?.parts ?? content;
+  if (Array.isArray(target)) {
+    for (const part of target) {
+      if (part && typeof part.text === 'string' && part.text.trim()) {
+        bucket.push(part.text);
+      }
+    }
+  } else if (target && typeof target.text === 'string' && target.text.trim()) {
+    bucket.push(target.text);
+  }
+}
+
+function extractTextFromRESTCandidate(candidate) {
+  try {
+    if (!candidate) return '';
+    const texts = [];
+    const contents = [];
+
+    const pushContent = (value) => {
+      if (!value) return;
+      if (Array.isArray(value)) {
+        contents.push(...value);
+      } else {
+        contents.push(value);
+      }
+    };
+
+    pushContent(candidate.content);
+    pushContent(candidate.contents);
+    // Some responses place text under outputs/output fields
+    pushContent(candidate.outputs);
+    pushContent(candidate.output);
+
+    if (!contents.length && typeof candidate.text === 'string') {
+      return candidate.text.trim();
+    }
+
+    for (const content of contents) {
+      collectTextPartsFromContent(content, texts);
+    }
+
+    if (!texts.length && typeof candidate.text === 'string' && candidate.text.trim()) {
+      texts.push(candidate.text);
+    }
+
+    return texts.join('\n').trim();
+  } catch {
+    return '';
+  }
+}
+
+function extractTextFromRESTData(data) {
+  try {
+    const candidates = Array.isArray(data?.candidates) ? data.candidates : [];
+    for (const candidate of candidates) {
+      const text = extractTextFromRESTCandidate(candidate);
+      if (text) {
+        return { text, finishReason: candidate?.finishReason || candidate?.finish_reason || '' };
+      }
+    }
+  } catch {}
+  return { text: '', finishReason: '' };
+}
+
 async function restGenerateText(
   apiKey,
   modelBare,
@@ -339,9 +405,18 @@ async function restGenerateText(
     throw new Error(`API Error: ${res.status} - ${t}`);
   }
   const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  const { text, finishReason } = extractTextFromRESTData(data);
   const sources = extractSourcesFromRESTData(data);
-  const outText = typeof text === 'string' && text.length ? text : 'Unexpected response from API.';
+  let outText = typeof text === 'string' && text.length ? text : '';
+  if (!outText) {
+    const reason = String(finishReason || '').toUpperCase();
+    if (reason.includes('SAFETY')) {
+      outText = 'The API blocked the response for safety reasons.';
+    }
+  }
+  if (!outText) {
+    outText = 'Unexpected response from API.';
+  }
   return { text: outText, sources };
 }
 
@@ -382,9 +457,18 @@ async function restGenerateImage(
     throw new Error(`API Error: ${res.status} - ${t}`);
   }
   const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  const { text, finishReason } = extractTextFromRESTData(data);
   const sources = extractSourcesFromRESTData(data);
-  const outText = typeof text === 'string' && text.length ? text : 'Unexpected response from API.';
+  let outText = typeof text === 'string' && text.length ? text : '';
+  if (!outText) {
+    const reason = String(finishReason || '').toUpperCase();
+    if (reason.includes('SAFETY')) {
+      outText = 'The API blocked the response for safety reasons.';
+    }
+  }
+  if (!outText) {
+    outText = 'Unexpected response from API.';
+  }
   return { text: outText, sources };
 }
 
