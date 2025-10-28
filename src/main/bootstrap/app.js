@@ -930,12 +930,12 @@ function bootstrapApp() {
           maxOutputTokens: 2048,
         };
         if (isShortcut) {
-          const cap = 1024;
+          const cap = 2048;
           generationConfig = {
             ...generationConfig,
             maxOutputTokens: Math.min(cap, Number(generationConfig.maxOutputTokens || 2048)),
-            topK: Math.min(32, Number(generationConfig.topK || 40)),
-            topP: Math.min(0.9, Number(generationConfig.topP || 0.95)),
+            topK: Math.min(40, Number(generationConfig.topK || 40)),
+            topP: Math.min(0.95, Number(generationConfig.topP || 0.95)),
           };
         }
         const searchPreferred = getPref('WEB_SEARCH_MODEL') || 'gemini-2.5-flash';
@@ -965,8 +965,8 @@ function bootstrapApp() {
             for (const modelName of modelsToTry) {
               const bare = modelCandidates(modelName)[0].replace(/^models\//, '');
 
-              // Try SDK first (chat only, skip for shortcuts)
-              if (!isShortcut && client) {
+              // Try SDK first (for all requests including shortcuts)
+              if (client) {
                 try {
                   const r1 = hasImage
                     ? await sdkGenerateImage(
@@ -995,7 +995,7 @@ function bootstrapApp() {
                 }
               }
 
-              // Try REST (always attempt)
+              // Try REST as fallback only (if SDK failed or unavailable)
               try {
                 const r2 = hasImage
                   ? await restGenerateImage(
