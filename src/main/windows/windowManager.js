@@ -3,10 +3,9 @@ const path = require('path');
 const { setMainWindow, getMainWindow, setPopupWindow, getPopupWindow } = require('../context');
 
 class WindowManager {
-  constructor({ getPref, initialShowMain = true, initialPopupMarginRight = 0 }) {
+  constructor({ getPref, initialShowMain = true }) {
     this.getPref = getPref;
     this.initialShowMain = initialShowMain;
-    this.initialPopupMarginRight = initialPopupMarginRight;
     this.popupPointerDown = false;
     this.popupMovedSinceDown = false;
     this.popupDownBounds = null;
@@ -111,7 +110,6 @@ class WindowManager {
       return null;
     }
 
-    const mainBounds = mainWindow.getBounds();
     const popupWidth = 84;
     const popupHeight = 84;
     const primary = screen.getPrimaryDisplay();

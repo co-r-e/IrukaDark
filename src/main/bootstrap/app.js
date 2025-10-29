@@ -83,12 +83,10 @@ function extractFirstValidUrl(rawText) {
 
 function bootstrapApp() {
   const initialShowMain = true;
-  const initialPopupMarginRight = 0;
 
   const windowManager = new WindowManager({
     getPref,
     initialShowMain,
-    initialPopupMarginRight,
   });
 
   const settingsController = new SettingsController({
