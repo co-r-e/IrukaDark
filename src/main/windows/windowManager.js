@@ -21,6 +21,9 @@ class WindowManager {
     // Store previous popup position to calculate delta movement
     this.prevPopupX = null;
     this.prevPopupY = null;
+    // Store expected main window position to avoid getBounds() errors on Windows
+    this.mainExpectedX = null;
+    this.mainExpectedY = null;
   }
 
   createMainWindow() {
@@ -74,6 +77,8 @@ class WindowManager {
         this.mainPopupOffsetY = null;
         this.prevPopupX = null;
         this.prevPopupY = null;
+        this.mainExpectedX = null;
+        this.mainExpectedY = null;
       } catch {}
     });
 
@@ -348,14 +353,18 @@ class WindowManager {
         return;
       }
       const popupBounds = popupWindow.getBounds();
-      const mainBounds = mainWindow.getBounds();
       const mainWidth = this.mainWindowWidth;
       const mainHeight = this.mainWindowHeight;
 
       let targetX, targetY;
 
-      // First time: calculate initial position based on offset
-      if (this.prevPopupX === null || this.prevPopupY === null) {
+      // First time: calculate initial position and store expected values
+      if (
+        this.prevPopupX === null ||
+        this.prevPopupY === null ||
+        this.mainExpectedX === null ||
+        this.mainExpectedY === null
+      ) {
         const gap = -10;
         targetX = popupBounds.x + Math.round((popupBounds.width - mainWidth) / 2);
         targetY = popupBounds.y - mainHeight - gap;
@@ -368,14 +377,17 @@ class WindowManager {
         // Store current popup position
         this.prevPopupX = popupBounds.x;
         this.prevPopupY = popupBounds.y;
+        // Store expected main position (avoid getBounds() on Windows)
+        this.mainExpectedX = targetX;
+        this.mainExpectedY = targetY;
       } else {
         // Calculate how much popup moved (delta)
         const dx = popupBounds.x - this.prevPopupX;
         const dy = popupBounds.y - this.prevPopupY;
 
-        // Move main window by the same delta to maintain fixed distance
-        targetX = mainBounds.x + dx;
-        targetY = mainBounds.y + dy;
+        // Move main window by the same delta using expected position (NOT getBounds())
+        targetX = this.mainExpectedX + dx;
+        targetY = this.mainExpectedY + dy;
 
         // Update stored popup position
         this.prevPopupX = popupBounds.x;
@@ -386,6 +398,10 @@ class WindowManager {
         const wa = nearest.workArea;
         targetX = Math.min(Math.max(targetX, wa.x), wa.x + wa.width - mainWidth);
         targetY = Math.min(Math.max(targetY, wa.y), wa.y + wa.height - mainHeight);
+
+        // Update expected position
+        this.mainExpectedX = targetX;
+        this.mainExpectedY = targetY;
       }
 
       // Use setBounds with fixed size to prevent window growth on Windows
