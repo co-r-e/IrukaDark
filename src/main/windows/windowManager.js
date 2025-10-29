@@ -15,6 +15,9 @@ class WindowManager {
     this.mainWindowWidth = 260;
     this.mainWindowHeight = 280;
     this.isRepositioning = false;
+    // Store fixed offset between popup and main window to prevent distance drift on Windows
+    this.mainPopupOffsetX = null;
+    this.mainPopupOffsetY = null;
   }
 
   createMainWindow() {
@@ -63,6 +66,9 @@ class WindowManager {
         const [width, height] = mainWindow.getSize();
         this.mainWindowWidth = width;
         this.mainWindowHeight = height;
+        // Reset offset when size changes so it's recalculated with new size
+        this.mainPopupOffsetX = null;
+        this.mainPopupOffsetY = null;
       } catch {}
     });
 
@@ -337,16 +343,38 @@ class WindowManager {
         return;
       }
       const popupBounds = popupWindow.getBounds();
-      const gap = -10;
-      // Use stored initial size instead of getBounds() to prevent size drift on Windows
       const mainWidth = this.mainWindowWidth;
       const mainHeight = this.mainWindowHeight;
-      let targetX = popupBounds.x + Math.round((popupBounds.width - mainWidth) / 2);
-      let targetY = popupBounds.y - mainHeight - gap;
-      const nearest = screen.getDisplayNearestPoint({ x: popupBounds.x, y: popupBounds.y });
-      const wa = nearest.workArea;
-      targetX = Math.min(Math.max(targetX, wa.x), wa.x + wa.width - mainWidth);
-      targetY = Math.min(Math.max(targetY, wa.y), wa.y + wa.height - mainHeight);
+
+      // Calculate target position
+      let targetX, targetY;
+
+      // First time: calculate and store the offset
+      if (this.mainPopupOffsetX === null || this.mainPopupOffsetY === null) {
+        const gap = -10;
+        targetX = popupBounds.x + Math.round((popupBounds.width - mainWidth) / 2);
+        targetY = popupBounds.y - mainHeight - gap;
+
+        const nearest = screen.getDisplayNearestPoint({ x: popupBounds.x, y: popupBounds.y });
+        const wa = nearest.workArea;
+        targetX = Math.min(Math.max(targetX, wa.x), wa.x + wa.width - mainWidth);
+        targetY = Math.min(Math.max(targetY, wa.y), wa.y + wa.height - mainHeight);
+
+        // Store the offset (main position relative to popup position)
+        this.mainPopupOffsetX = targetX - popupBounds.x;
+        this.mainPopupOffsetY = targetY - popupBounds.y;
+      } else {
+        // Use stored offset to maintain fixed distance
+        targetX = popupBounds.x + this.mainPopupOffsetX;
+        targetY = popupBounds.y + this.mainPopupOffsetY;
+
+        // Still apply screen bounds constraints
+        const nearest = screen.getDisplayNearestPoint({ x: popupBounds.x, y: popupBounds.y });
+        const wa = nearest.workArea;
+        targetX = Math.min(Math.max(targetX, wa.x), wa.x + wa.width - mainWidth);
+        targetY = Math.min(Math.max(targetY, wa.y), wa.y + wa.height - mainHeight);
+      }
+
       // Use setBounds with fixed size to prevent window growth on Windows
       this.isRepositioning = true;
       mainWindow.setBounds({
