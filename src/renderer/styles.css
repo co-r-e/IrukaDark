@@ -4,9 +4,17 @@
   box-sizing: border-box;
 }
 
+html {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   color: #1f2937;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 1rem;
 }
 
 :root {
@@ -222,6 +230,14 @@ html.solid-window.theme-dark .glass-effect {
 
 .rounded-lg {
   border-radius: 0.5rem;
+}
+
+.rounded-xl {
+  border-radius: 0.75rem;
+}
+
+.rounded-2xl {
+  border-radius: 1rem;
 }
 
 .rounded-full {

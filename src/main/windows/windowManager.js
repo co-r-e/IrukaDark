@@ -11,6 +11,10 @@ class WindowManager {
     this.popupMovedSinceDown = false;
     this.popupDownBounds = null;
     this.mainInitiallyShown = false;
+    // Store initial window sizes to prevent growth on Windows
+    this.mainWindowWidth = 260;
+    this.mainWindowHeight = 280;
+    this.isRepositioning = false;
   }
 
   createMainWindow() {
@@ -33,6 +37,7 @@ class WindowManager {
       show: false,
       icon: path.resolve(__dirname, '../../renderer/assets/icons/icon.png'),
       opacity: 1.0,
+      roundedCorners: true, // Enable rounded corners on Windows 11
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
@@ -49,6 +54,17 @@ class WindowManager {
     try {
       mainWindow.setMinimumSize(260, 140);
     } catch {}
+
+    // Update stored size when user manually resizes the window
+    mainWindow.on('resize', () => {
+      try {
+        // Ignore resize events during programmatic repositioning
+        if (this.isRepositioning) return;
+        const [width, height] = mainWindow.getSize();
+        this.mainWindowWidth = width;
+        this.mainWindowHeight = height;
+      } catch {}
+    });
 
     this.wireExternalLinkHandling(mainWindow);
     this.applyPinAllSpaces(this.readPinAllSpacesPref());
@@ -321,21 +337,25 @@ class WindowManager {
         return;
       }
       const popupBounds = popupWindow.getBounds();
-      const mainBounds = mainWindow.getBounds();
       const gap = -10;
-      let targetX = popupBounds.x + Math.round((popupBounds.width - mainBounds.width) / 2);
-      let targetY = popupBounds.y - mainBounds.height - gap;
+      // Use stored initial size instead of getBounds() to prevent size drift on Windows
+      const mainWidth = this.mainWindowWidth;
+      const mainHeight = this.mainWindowHeight;
+      let targetX = popupBounds.x + Math.round((popupBounds.width - mainWidth) / 2);
+      let targetY = popupBounds.y - mainHeight - gap;
       const nearest = screen.getDisplayNearestPoint({ x: popupBounds.x, y: popupBounds.y });
       const wa = nearest.workArea;
-      targetX = Math.min(Math.max(targetX, wa.x), wa.x + wa.width - mainBounds.width);
-      targetY = Math.min(Math.max(targetY, wa.y), wa.y + wa.height - mainBounds.height);
-      // Use setBounds instead of setPosition to ensure size remains constant on Windows
+      targetX = Math.min(Math.max(targetX, wa.x), wa.x + wa.width - mainWidth);
+      targetY = Math.min(Math.max(targetY, wa.y), wa.y + wa.height - mainHeight);
+      // Use setBounds with fixed size to prevent window growth on Windows
+      this.isRepositioning = true;
       mainWindow.setBounds({
         x: Math.round(targetX),
         y: Math.round(targetY),
-        width: mainBounds.width,
-        height: mainBounds.height,
+        width: mainWidth,
+        height: mainHeight,
       });
+      this.isRepositioning = false;
       if (!this.mainInitiallyShown && this.initialShowMain) {
         mainWindow.show();
         this.mainInitiallyShown = true;
