@@ -329,7 +329,13 @@ class WindowManager {
       const wa = nearest.workArea;
       targetX = Math.min(Math.max(targetX, wa.x), wa.x + wa.width - mainBounds.width);
       targetY = Math.min(Math.max(targetY, wa.y), wa.y + wa.height - mainBounds.height);
-      mainWindow.setPosition(Math.round(targetX), Math.round(targetY));
+      // Use setBounds instead of setPosition to ensure size remains constant on Windows
+      mainWindow.setBounds({
+        x: Math.round(targetX),
+        y: Math.round(targetY),
+        width: mainBounds.width,
+        height: mainBounds.height,
+      });
       if (!this.mainInitiallyShown && this.initialShowMain) {
         mainWindow.show();
         this.mainInitiallyShown = true;
