@@ -49,6 +49,7 @@ public partial class App : Application
             services.AddSingleton<ClipboardSelectionService>();
             services.AddSingleton<WindowCoordinator>();
             services.AddHttpClient<GeminiClient>();
+            services.AddHttpClient<UrlContentService>();
             services.AddSingleton<MainViewModel>();
             services.AddSingleton<MainWindow>();
         });

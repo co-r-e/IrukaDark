@@ -45,8 +45,15 @@ public class HotkeyManager : IDisposable
     {
         RegisterHotkey(HotkeyActions.ExplainCompact, "Explain (compact)", Modifiers.MOD_ALT, VirtualKey.VK_A);
         RegisterHotkey(HotkeyActions.ExplainDetailed, "Explain (detailed)", Modifiers.MOD_ALT | Modifiers.MOD_SHIFT, VirtualKey.VK_A);
+        RegisterHotkey(HotkeyActions.UrlSummary, "URL summary", Modifiers.MOD_ALT, VirtualKey.VK_1);
+        RegisterHotkey(HotkeyActions.UrlDetailed, "URL deep dive", Modifiers.MOD_ALT | Modifiers.MOD_SHIFT, VirtualKey.VK_1);
+        RegisterHotkey(HotkeyActions.Empathy, "Empathy reply", Modifiers.MOD_ALT | Modifiers.MOD_CONTROL, VirtualKey.VK_Z);
+        RegisterHotkey(HotkeyActions.ReplyVariations, "Reply variations", Modifiers.MOD_ALT, VirtualKey.VK_Z);
         RegisterHotkey(HotkeyActions.Translate, "Translate", Modifiers.MOD_ALT, VirtualKey.VK_R);
+        RegisterHotkey(HotkeyActions.SnsPost, "Social post", Modifiers.MOD_ALT | Modifiers.MOD_CONTROL, VirtualKey.VK_1);
         RegisterHotkey(HotkeyActions.Screenshot, "Screenshot", Modifiers.MOD_ALT, VirtualKey.VK_S);
+        RegisterHotkey(HotkeyActions.ScreenshotDetailed, "Screenshot (detailed)", Modifiers.MOD_ALT | Modifiers.MOD_SHIFT, VirtualKey.VK_S);
+        RegisterHotkey(HotkeyActions.Pronounce, "Pronounce selection", Modifiers.MOD_ALT, VirtualKey.VK_Q);
     }
 
     public IReadOnlyList<HotkeyRegistration> DescribeRegisteredHotkeys()
@@ -143,7 +150,10 @@ public class HotkeyManager : IDisposable
     private enum VirtualKey : uint
     {
         VK_A = 0x41,
+        VK_1 = 0x31,
+        VK_Z = 0x5A,
         VK_R = 0x52,
         VK_S = 0x53,
+        VK_Q = 0x51,
     }
 }

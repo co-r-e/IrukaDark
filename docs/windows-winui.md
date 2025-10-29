@@ -25,6 +25,9 @@ windows/
 - **Interactive capture** streams frames using `Direct3D11CaptureFramePool` and persists PNGs to `%LocalAppData%\IrukaDark\captures` for Gemini vision requests.
 - **Settings bridge** using `PreferencesService` that stores preferences in `%LocalAppData%\IrukaDark\irukadark.prefs.json`, mirroring the macOS schema for cross-platform reuse.
 - **Gemini client** implemented with `HttpClient` + JSON payloads. Prompts are centralized in `PromptBuilder` so the eventual clipboard/selection integration just swaps in real text.
+- **URL summaries** (`Alt+1`) and **deep dives** (`Alt+Shift+1`) mirror the macOS shortcuts by fetching page content, trimming it to 5 000 characters, and prompting Gemini for a digest or structured analysis.
+- **Empathy** (`Ctrl+Alt+Z`), **reply variations** (`Alt+Z`), **pronunciation helper** (`Alt+Q`), and **social post drafts** (`Ctrl+Alt+1`) reuse the clipboard selection or detected URL to generate tailored outputs via Gemini.
+- **Detailed screenshot analysis** (`Alt+Shift+S`) supplements the standard capture explain workflow with a deeper, structured breakdown.
 - **Dependency injection** provided by `Microsoft.Extensions.Hosting` to keep services testable and make future unit tests straightforward.
 - **Unit test harness** (`IrukaDark.App.Tests`) exercises prompt generation logic to keep language normalization in sync with macOS behavior.
 - **Clipboard preservation** keeps the user's original clipboard contents intact after automation-triggered copies.
@@ -44,7 +47,7 @@ windows/
 4. **Test the core scenarios**
    - Toggle **Always on top** to verify presenter transitions.
 
-- Trigger hotkeys (`Alt+A`, `Alt+Shift+A`, `Alt+Z`, `Alt+R`, `Alt+S`) and confirm the status banner updates.
+- Trigger hotkeys (`Alt+A`, `Alt+Shift+A`, `Alt+Z`, `Ctrl+Alt+Z`, `Alt+Q`, `Alt+1`, `Alt+Shift+1`, `Ctrl+Alt+1`, `Alt+R`, `Alt+S`, `Alt+Shift+S`) and confirm the status banner updates.
 - Click **Capture Region** to launch the `GraphicsCapturePicker`; the first frame is saved to `%LocalAppData%\IrukaDark\captures` and surfaced in the status panel.
 - Verify that clipboard-driven shortcuts push entries into the in-app transcript viewer.
 - Use the filter combo box (All/User/Assistant) and preview box to drive manual Gemini calls.

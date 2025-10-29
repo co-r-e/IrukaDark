@@ -42,16 +42,18 @@
                 <ComboBoxItem Content="User only" Tag="User" />
                 <ComboBoxItem Content="Assistant only" Tag="Assistant" />
             </ComboBox>
-            <ListView ItemsSource="{x:Bind ViewModel.TranscriptView, Mode=OneWay}" Height="220">
-                <ListView.ItemTemplate>
-                    <DataTemplate x:DataType="models:ChatMessage" xmlns:models="using:IrukaDark.App.Models">
-                        <StackPanel Spacing="4">
-                            <TextBlock Text="{x:Bind Role}" FontWeight="SemiBold" />
-                            <TextBlock Text="{x:Bind Content}" TextWrapping="WrapWholeWords" />
-                        </StackPanel>
-                    </DataTemplate>
-                </ListView.ItemTemplate>
-            </ListView>
+            <Border Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="12" Padding="8">
+                <ListView ItemsSource="{x:Bind ViewModel.TranscriptView, Mode=OneWay}" Height="220">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="models:ChatMessage" xmlns:models="using:IrukaDark.App.Models">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="{x:Bind Role}" FontWeight="SemiBold" />
+                                <TextBlock Text="{x:Bind Content}" TextWrapping="WrapWholeWords" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Border>
         </StackPanel>
 
         <StackPanel Grid.Row="2" Orientation="Vertical" Spacing="8">
