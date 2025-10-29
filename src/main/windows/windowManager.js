@@ -117,12 +117,16 @@ class WindowManager {
     const primary = screen.getPrimaryDisplay();
     const wa =
       primary && primary.workArea ? primary.workArea : { x: 0, y: 0, width: 1200, height: 800 };
-    const popupX = Math.round(
-      wa.x + wa.width - popupWidth - Math.max(0, this.initialPopupMarginRight)
-    );
-    const popupY = Math.round(wa.y + Math.max(0, Math.floor((wa.height - popupHeight) / 2)));
-    const mainX = popupX + Math.round((popupWidth - mainBounds.width) / 2);
-    const mainY = popupY - mainBounds.height + 10;
+
+    // Position main window at bottom right
+    const marginRight = 16;
+    const marginBottom = 12;
+    const mainX = Math.round(wa.x + wa.width - this.mainWindowWidth - marginRight);
+    const mainY = Math.round(wa.y + wa.height - this.mainWindowHeight - marginBottom);
+
+    // Position popup centered below main window
+    const popupX = Math.round(mainX + (this.mainWindowWidth - popupWidth) / 2);
+    const popupY = Math.round(mainY + this.mainWindowHeight - 10);
 
     const popupWindow = new BrowserWindow({
       width: popupWidth,
