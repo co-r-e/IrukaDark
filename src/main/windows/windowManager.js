@@ -362,19 +362,13 @@ class WindowManager {
         targetX = Math.min(Math.max(targetX, wa.x), wa.x + wa.width - mainWidth);
         targetY = Math.min(Math.max(targetY, wa.y), wa.y + wa.height - mainHeight);
 
-        // Store the offset (main position relative to popup position)
-        this.mainPopupOffsetX = targetX - popupBounds.x;
-        this.mainPopupOffsetY = targetY - popupBounds.y;
+        // Store the offset as integers (main position relative to popup position)
+        this.mainPopupOffsetX = Math.round(targetX - popupBounds.x);
+        this.mainPopupOffsetY = Math.round(targetY - popupBounds.y);
       } else {
-        // Use stored offset to maintain fixed distance
+        // Use stored offset to maintain fixed distance (no screen bounds constraints to prevent drift on Windows)
         targetX = popupBounds.x + this.mainPopupOffsetX;
         targetY = popupBounds.y + this.mainPopupOffsetY;
-
-        // Still apply screen bounds constraints
-        const nearest = screen.getDisplayNearestPoint({ x: popupBounds.x, y: popupBounds.y });
-        const wa = nearest.workArea;
-        targetX = Math.min(Math.max(targetX, wa.x), wa.x + wa.width - mainWidth);
-        targetY = Math.min(Math.max(targetY, wa.y), wa.y + wa.height - mainHeight);
       }
 
       // Use setBounds with fixed size to prevent window growth on Windows
