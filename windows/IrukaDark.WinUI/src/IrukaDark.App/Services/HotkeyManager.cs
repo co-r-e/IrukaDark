@@ -10,14 +10,27 @@ namespace IrukaDark.App.Services;
 public class HotkeyManager : IDisposable
 {
     private const int WM_HOTKEY = 0x0312;
+    private const int WH_KEYBOARD_LL = 13;
+    private const int WM_KEYDOWN = 0x0100;
+    private const int WM_KEYUP = 0x0101;
+    private const int WM_SYSKEYDOWN = 0x0104;
+    private const int WM_SYSKEYUP = 0x0105;
     private const nuint SUBCLASS_ID = 0xD4B00A1;
 
-    private readonly Dictionary<int, HotkeyRegistration> _registrations = new();
+    private readonly Dictionary<string, HotkeyRegistration> _registrations = new();
+    private readonly Dictionary<int, string> _systemHotkeys = new();
+    private readonly Dictionary<(Modifiers modifiers, VirtualKey key), string> _fallbackHotkeys = new();
+    private readonly HashSet<(Modifiers modifiers, VirtualKey key)> _activeFallbackKeys = new();
+
     private SUBCLASSPROC? _proc;
     private nint _hwnd;
     private bool _isSubclassed;
     private int _nextId = 1;
     private bool _disposed;
+
+    private IntPtr _keyboardHook = IntPtr.Zero;
+    private LowLevelKeyboardProc? _keyboardProc;
+    private Modifiers _modifierState = Modifiers.MOD_NONE;
 
     public event EventHandler<HotkeyRegistration>? HotkeyActivated;
 
@@ -63,14 +76,20 @@ public class HotkeyManager : IDisposable
 
     private void RegisterHotkey(string action, string description, Modifiers modifiers, VirtualKey key)
     {
+        var gesture = DescribeGesture(modifiers, key);
         var id = _nextId++;
-        if (!RegisterHotKey(_hwnd, id, (uint)modifiers, (uint)key))
+
+        if (RegisterHotKey(_hwnd, id, (uint)modifiers, (uint)key))
         {
-            _registrations[id] = new HotkeyRegistration(action, description, DescribeGesture(modifiers, key), "Registration failed");
+            _systemHotkeys[id] = action;
+            _registrations[action] = new HotkeyRegistration(action, description, gesture, "Ready");
             return;
         }
 
-        _registrations[id] = new HotkeyRegistration(action, description, DescribeGesture(modifiers, key), "Ready");
+        EnsureKeyboardHook();
+        var normalized = NormalizeModifiers(modifiers);
+        _fallbackHotkeys[(normalized, key)] = action;
+        _registrations[action] = new HotkeyRegistration(action, description, gesture, "Ready (fallback)");
     }
 
     private string DescribeGesture(Modifiers modifiers, VirtualKey key)
@@ -89,7 +108,7 @@ public class HotkeyManager : IDisposable
         if (msg == WM_HOTKEY)
         {
             var id = wParam.ToInt32();
-            if (_registrations.TryGetValue(id, out var registration))
+            if (_systemHotkeys.TryGetValue(id, out var action) && _registrations.TryGetValue(action, out var registration))
             {
                 HotkeyActivated?.Invoke(this, registration);
             }
@@ -105,11 +124,21 @@ public class HotkeyManager : IDisposable
             return;
         }
 
-        foreach (var id in new List<int>(_registrations.Keys))
+        foreach (var id in new List<int>(_systemHotkeys.Keys))
         {
             UnregisterHotKey(_hwnd, id);
         }
+        _systemHotkeys.Clear();
         _registrations.Clear();
+        _fallbackHotkeys.Clear();
+        _activeFallbackKeys.Clear();
+
+        if (_keyboardHook != IntPtr.Zero)
+        {
+            UnhookWindowsHookEx(_keyboardHook);
+            _keyboardHook = IntPtr.Zero;
+            _keyboardProc = null;
+        }
 
         if (_isSubclassed && _proc is not null)
         {
@@ -118,6 +147,100 @@ public class HotkeyManager : IDisposable
         }
 
         _disposed = true;
+    }
+
+    private void EnsureKeyboardHook()
+    {
+        if (_keyboardHook != IntPtr.Zero)
+        {
+            return;
+        }
+
+        _keyboardProc = KeyboardProc;
+        var moduleHandle = GetModuleHandle(null);
+        _keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, _keyboardProc, moduleHandle, 0);
+        if (_keyboardHook == IntPtr.Zero)
+        {
+            _keyboardProc = null;
+        }
+    }
+
+    private IntPtr KeyboardProc(int nCode, IntPtr wParam, IntPtr lParam)
+    {
+        if (nCode >= 0 && _fallbackHotkeys.Count > 0)
+        {
+            var message = wParam.ToInt32();
+            if (message is WM_KEYDOWN or WM_SYSKEYDOWN or WM_KEYUP or WM_SYSKEYUP)
+            {
+                var info = Marshal.PtrToStructure<Kbdllhookstruct>(lParam);
+                var key = (VirtualKey)info.VirtualKey;
+                var isKeyDown = message is WM_KEYDOWN or WM_SYSKEYDOWN;
+                var isKeyUp = message is WM_KEYUP or WM_SYSKEYUP;
+
+                UpdateModifierState(key, isKeyDown, isKeyUp);
+
+                if (isKeyDown)
+                {
+                    HandleFallbackTrigger(key);
+                }
+                else if (isKeyUp)
+                {
+                    HandleFallbackRelease(key);
+                }
+            }
+        }
+
+        return CallNextHookEx(_keyboardHook, nCode, wParam, lParam);
+    }
+
+    private void UpdateModifierState(VirtualKey key, bool isKeyDown, bool isKeyUp)
+    {
+        var modifier = key switch
+        {
+            VirtualKey.VK_LMENU or VirtualKey.VK_RMENU => Modifiers.MOD_ALT,
+            VirtualKey.VK_LCONTROL or VirtualKey.VK_RCONTROL => Modifiers.MOD_CONTROL,
+            VirtualKey.VK_LSHIFT or VirtualKey.VK_RSHIFT => Modifiers.MOD_SHIFT,
+            VirtualKey.VK_LWIN or VirtualKey.VK_RWIN => Modifiers.MOD_WIN,
+            _ => Modifiers.MOD_NONE
+        };
+
+        if (modifier == Modifiers.MOD_NONE)
+        {
+            return;
+        }
+
+        if (isKeyDown)
+        {
+            _modifierState |= modifier;
+        }
+        else if (isKeyUp)
+        {
+            _modifierState &= ~modifier;
+            _activeFallbackKeys.Clear();
+        }
+    }
+
+    private void HandleFallbackTrigger(VirtualKey key)
+    {
+        var normalized = NormalizeModifiers(_modifierState);
+        var combination = (normalized, key);
+
+        if (_fallbackHotkeys.TryGetValue(combination, out var action)
+            && _activeFallbackKeys.Add(combination)
+            && _registrations.TryGetValue(action, out var registration))
+        {
+            HotkeyActivated?.Invoke(this, registration);
+        }
+    }
+
+    private void HandleFallbackRelease(VirtualKey key)
+    {
+        _activeFallbackKeys.RemoveWhere(entry => entry.key == key);
+    }
+
+    private static Modifiers NormalizeModifiers(Modifiers modifiers)
+    {
+        return modifiers & (Modifiers.MOD_ALT | Modifiers.MOD_CONTROL | Modifiers.MOD_SHIFT | Modifiers.MOD_WIN);
     }
 
     [DllImport("user32.dll", SetLastError = true)]
@@ -135,7 +258,21 @@ public class HotkeyManager : IDisposable
     [DllImport("comctl32.dll", SetLastError = true)]
     private static extern nint DefSubclassProc(nint hWnd, uint msg, nint wParam, nint lParam);
 
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool UnhookWindowsHookEx(IntPtr hhk);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern IntPtr GetModuleHandle(string? lpModuleName);
+
     private delegate nint SUBCLASSPROC(nint hWnd, uint msg, nint wParam, nint lParam, nuint uIdSubclass, nuint dwRefData);
+
+    private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
     [Flags]
     private enum Modifiers : uint
@@ -155,5 +292,32 @@ public class HotkeyManager : IDisposable
         VK_R = 0x52,
         VK_S = 0x53,
         VK_Q = 0x51,
+        VK_LMENU = 0xA4,
+        VK_RMENU = 0xA5,
+        VK_LCONTROL = 0xA2,
+        VK_RCONTROL = 0xA3,
+        VK_LSHIFT = 0xA0,
+        VK_RSHIFT = 0xA1,
+        VK_LWIN = 0x5B,
+        VK_RWIN = 0x5C,
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Kbdllhookstruct
+    {
+        public uint VirtualKey;
+        public uint ScanCode;
+        public KbdllhookstructFlags Flags;
+        public uint Time;
+        public UIntPtr ExtraInfo;
+    }
+
+    [Flags]
+    private enum KbdllhookstructFlags : uint
+    {
+        LLKHF_EXTENDED = 0x01,
+        LLKHF_INJECTED = 0x10,
+        LLKHF_ALTDOWN = 0x20,
+        LLKHF_UP = 0x80,
     }
 }

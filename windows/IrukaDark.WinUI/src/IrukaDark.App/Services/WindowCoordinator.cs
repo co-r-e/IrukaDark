@@ -12,12 +12,6 @@ public class WindowCoordinator
 
     private const int DwmAttributeNcRenderingPolicy = 2;
     private const int DwmNcRenderingPolicyEnabled = 1;
-    private static readonly IntPtr HwndTopMost = new(-1);
-    private static readonly IntPtr HwndNoTopMost = new(-2);
-    private const uint SwpNosize = 0x0001;
-    private const uint SwpNomove = 0x0002;
-    private const uint SwpNoactivate = 0x0010;
-    private const uint SwpShowwindow = 0x0040;
 
     public void Attach(Window window)
     {
@@ -30,38 +24,24 @@ public class WindowCoordinator
 
     public void SetAlwaysOnTop(bool isEnabled)
     {
-        if (_windowHandle == IntPtr.Zero)
+        if (_appWindow is null)
         {
             return;
         }
 
-        if (!SetWindowPos(
-                _windowHandle,
-                isEnabled ? HwndTopMost : HwndNoTopMost,
-                0,
-                0,
-                0,
-                0,
-                SwpNomove | SwpNosize | SwpNoactivate | SwpShowwindow))
-        {
-            return;
-        }
-
-        if (!isEnabled && _appWindow is not null)
+        if (_appWindow.Presenter is not OverlappedPresenter presenter)
         {
             _appWindow.SetPresenter(AppWindowPresenterKind.Overlapped);
+            presenter = _appWindow.Presenter as OverlappedPresenter;
         }
-    }
 
-    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
-    private static extern bool SetWindowPos(
-        IntPtr hWnd,
-        IntPtr hWndInsertAfter,
-        int X,
-        int Y,
-        int cx,
-        int cy,
-        uint uFlags);
+        if (presenter is null)
+        {
+            return;
+        }
+
+        presenter.IsAlwaysOnTop = isEnabled;
+    }
 
     [System.Runtime.InteropServices.DllImport("dwmapi.dll", SetLastError = true)]
     private static extern int DwmSetWindowAttribute(
