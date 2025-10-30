@@ -760,7 +760,7 @@ function bootstrapApp() {
 
   function setupUiHandlers() {
     ipcMain.handle('get-model', () => {
-      return getPref('GEMINI_MODEL') || 'gemini-2.5-flash-lite';
+      return getPref('GEMINI_MODEL') || 'gemini-flash-lite-latest';
     });
 
     ipcMain.handle('get-tone', () => {
@@ -842,12 +842,12 @@ function bootstrapApp() {
     });
 
     ipcMain.handle('get-web-search-enabled', () => {
-      const v = String(getPref('ENABLE_GOOGLE_SEARCH') || '0');
+      const v = String(getPref('ENABLE_GOOGLE_SEARCH') || '1');
       return v !== '0' && v.toLowerCase() !== 'false' && v.toLowerCase() !== 'off';
     });
 
     ipcMain.handle('get-translate-mode', () => {
-      const raw = String(getPref('TRANSLATE_MODE') || 'literal').toLowerCase();
+      const raw = String(getPref('TRANSLATE_MODE') || 'free').toLowerCase();
       return raw === 'free' ? 'free' : 'literal';
     });
 
@@ -908,7 +908,7 @@ function bootstrapApp() {
         const source = String(payload?.source || 'chat');
         const isShortcut = source === 'shortcut' || payload?.fromShortcut === true;
         const requestedModel = String(
-          payload?.model || getPref('GEMINI_MODEL') || 'gemini-2.5-flash-lite'
+          payload?.model || getPref('GEMINI_MODEL') || 'gemini-flash-lite-latest'
         );
         const useGoogleSearch = payload?.useWebSearch === true;
 
@@ -1124,7 +1124,7 @@ function bootstrapApp() {
       uiTheme: getPref('UI_THEME') || 'dark',
       tone: getPref('TONE') || 'casual',
       translateMode: (() => {
-        const raw = String(getPref('TRANSLATE_MODE') || 'literal').toLowerCase();
+        const raw = String(getPref('TRANSLATE_MODE') || 'free').toLowerCase();
         return raw === 'free' ? 'free' : 'literal';
       })(),
     };
