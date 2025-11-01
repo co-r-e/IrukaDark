@@ -1157,7 +1157,7 @@ function bootstrapApp() {
 
         const aspectRatio = String(payload?.aspectRatio || '1:1');
         const generationConfig = payload?.generationConfig || {
-          temperature: 0.7,
+          temperature: 0.95,
           topK: 40,
           topP: 0.95,
           maxOutputTokens: 2048,

@@ -1649,11 +1649,10 @@ class IrukaDarkApp {
       this.hideTypingIndicator();
 
       if (!this.cancelRequested) {
-        results.forEach((result) => {
-          if (result?.imageBase64) {
-            this.addImageMessage(result.imageBase64, result.mimeType, prompt);
-          }
-        });
+        const validResults = results.filter((result) => result?.imageBase64);
+        if (validResults.length > 0) {
+          this.addImagesMessage(validResults, prompt);
+        }
       }
     } catch (error) {
       this.hideTypingIndicator();
@@ -1683,6 +1682,117 @@ class IrukaDarkApp {
     return this.geminiService.generateImageFromText(prompt, aspectRatio);
   }
 
+  addImagesMessage(results, altText = '') {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message ai-message';
+
+    const imagesContainer = document.createElement('div');
+    imagesContainer.className = 'images-container';
+
+    results.forEach(({ imageBase64, mimeType }) => {
+      const img = document.createElement('img');
+      img.src = `data:${mimeType};base64,${imageBase64}`;
+      img.alt = altText;
+      img.className = 'generated-image';
+      img.style.cursor = 'pointer';
+
+      // クリックで拡大表示（オプション）
+      img.addEventListener('click', () => {
+        this.showImageOverlay(imageBase64, mimeType, altText, img);
+      });
+
+      imagesContainer.appendChild(img);
+    });
+
+    messageDiv.appendChild(imagesContainer);
+    this.chatHistory.appendChild(messageDiv);
+
+    // Scroll to bottom to show the new images
+    if (!this.disableAutoScroll) {
+      this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+    }
+  }
+
+  showImageOverlay(imageBase64, mimeType, altText, imgElement) {
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '10000';
+    overlay.style.cursor = 'pointer';
+
+    // Image container
+    const imageContainer = document.createElement('div');
+    imageContainer.style.position = 'relative';
+    imageContainer.style.maxWidth = '90%';
+    imageContainer.style.maxHeight = '90%';
+
+    const enlargedImg = document.createElement('img');
+    enlargedImg.src = imgElement.src;
+    enlargedImg.style.maxWidth = '100%';
+    enlargedImg.style.maxHeight = '90vh';
+    enlargedImg.style.objectFit = 'contain';
+    enlargedImg.style.display = 'block';
+
+    // Download button
+    const downloadBtn = document.createElement('button');
+    downloadBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+      `;
+    downloadBtn.style.position = 'absolute';
+    downloadBtn.style.top = '10px';
+    downloadBtn.style.right = '10px';
+    downloadBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+    downloadBtn.style.border = 'none';
+    downloadBtn.style.borderRadius = '50%';
+    downloadBtn.style.width = '40px';
+    downloadBtn.style.height = '40px';
+    downloadBtn.style.cursor = 'pointer';
+    downloadBtn.style.display = 'flex';
+    downloadBtn.style.alignItems = 'center';
+    downloadBtn.style.justifyContent = 'center';
+    downloadBtn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)';
+    downloadBtn.style.transition = 'all 0.2s ease';
+    downloadBtn.style.zIndex = '10001';
+    downloadBtn.style.color = '#1f2937';
+
+    downloadBtn.addEventListener('mouseenter', () => {
+      downloadBtn.style.backgroundColor = 'rgba(255, 255, 255, 1)';
+      downloadBtn.style.transform = 'scale(1.1)';
+    });
+
+    downloadBtn.addEventListener('mouseleave', () => {
+      downloadBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+      downloadBtn.style.transform = 'scale(1)';
+    });
+
+    downloadBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.downloadImage(imageBase64, mimeType, altText);
+    });
+
+    imageContainer.appendChild(enlargedImg);
+    imageContainer.appendChild(downloadBtn);
+    overlay.appendChild(imageContainer);
+
+    // Close overlay when clicking anywhere except download button
+    overlay.addEventListener('click', () => {
+      document.body.removeChild(overlay);
+    });
+
+    document.body.appendChild(overlay);
+  }
+
   addImageMessage(imageBase64, mimeType, altText = '') {
     const messageDiv = document.createElement('div');
     messageDiv.className = 'message ai-message';
@@ -1695,87 +1805,10 @@ class IrukaDarkApp {
 
     // クリックで拡大表示（オプション）
     img.addEventListener('click', () => {
-      const overlay = document.createElement('div');
-      overlay.style.position = 'fixed';
-      overlay.style.top = '0';
-      overlay.style.left = '0';
-      overlay.style.width = '100%';
-      overlay.style.height = '100%';
-      overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
-      overlay.style.display = 'flex';
-      overlay.style.alignItems = 'center';
-      overlay.style.justifyContent = 'center';
-      overlay.style.zIndex = '10000';
-      overlay.style.cursor = 'pointer';
-
-      // Image container
-      const imageContainer = document.createElement('div');
-      imageContainer.style.position = 'relative';
-      imageContainer.style.maxWidth = '90%';
-      imageContainer.style.maxHeight = '90%';
-
-      const enlargedImg = document.createElement('img');
-      enlargedImg.src = img.src;
-      enlargedImg.style.maxWidth = '100%';
-      enlargedImg.style.maxHeight = '90vh';
-      enlargedImg.style.objectFit = 'contain';
-      enlargedImg.style.display = 'block';
-
-      // Download button
-      const downloadBtn = document.createElement('button');
-      downloadBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="7 10 12 15 17 10"></polyline>
-          <line x1="12" y1="15" x2="12" y2="3"></line>
-        </svg>
-      `;
-      downloadBtn.style.position = 'absolute';
-      downloadBtn.style.top = '10px';
-      downloadBtn.style.right = '10px';
-      downloadBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-      downloadBtn.style.border = 'none';
-      downloadBtn.style.borderRadius = '50%';
-      downloadBtn.style.width = '40px';
-      downloadBtn.style.height = '40px';
-      downloadBtn.style.cursor = 'pointer';
-      downloadBtn.style.display = 'flex';
-      downloadBtn.style.alignItems = 'center';
-      downloadBtn.style.justifyContent = 'center';
-      downloadBtn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)';
-      downloadBtn.style.transition = 'all 0.2s ease';
-      downloadBtn.style.zIndex = '10001';
-      downloadBtn.style.color = '#1f2937';
-
-      downloadBtn.addEventListener('mouseenter', () => {
-        downloadBtn.style.backgroundColor = 'rgba(255, 255, 255, 1)';
-        downloadBtn.style.transform = 'scale(1.1)';
-      });
-
-      downloadBtn.addEventListener('mouseleave', () => {
-        downloadBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-        downloadBtn.style.transform = 'scale(1)';
-      });
-
-      downloadBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.downloadImage(imageBase64, mimeType, altText);
-      });
-
-      imageContainer.appendChild(enlargedImg);
-      imageContainer.appendChild(downloadBtn);
-      overlay.appendChild(imageContainer);
-
-      // Close overlay when clicking anywhere except download button
-      overlay.addEventListener('click', () => {
-        document.body.removeChild(overlay);
-      });
-
-      document.body.appendChild(overlay);
+      this.showImageOverlay(imageBase64, mimeType, altText, img);
     });
 
     messageDiv.appendChild(img);
-
     this.chatHistory.appendChild(messageDiv);
 
     // Scroll to bottom to show the new image
