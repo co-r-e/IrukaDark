@@ -29,6 +29,8 @@ const {
   modelCandidates,
   restGenerateText,
   restGenerateImage,
+  restGenerateImageFromText,
+  restGenerateImageFromTextWithReference,
   sdkGenerateText,
   sdkGenerateImage,
 } = require('../ai');
@@ -851,6 +853,32 @@ function bootstrapApp() {
       return raw === 'free' ? 'free' : 'literal';
     });
 
+    ipcMain.handle('save-image-size', (_e, size) => {
+      const validSizes = ['auto', '1:1', '9:16', '16:9', '3:4', '4:3'];
+      const normalized = validSizes.includes(size) ? size : '1:1';
+      setPref('IMAGE_SIZE', normalized);
+      return normalized;
+    });
+
+    ipcMain.handle('get-image-size', () => {
+      const raw = String(getPref('IMAGE_SIZE') || '1:1');
+      const validSizes = ['auto', '1:1', '9:16', '16:9', '3:4', '4:3'];
+      return validSizes.includes(raw) ? raw : '1:1';
+    });
+
+    ipcMain.handle('save-image-count', (_e, count) => {
+      const validCounts = [1, 2, 3, 4];
+      const normalized = validCounts.includes(count) ? count : 1;
+      setPref('IMAGE_COUNT', normalized);
+      return normalized;
+    });
+
+    ipcMain.handle('get-image-count', () => {
+      const raw = parseInt(getPref('IMAGE_COUNT') || '1', 10);
+      const validCounts = [1, 2, 3, 4];
+      return validCounts.includes(raw) ? raw : 1;
+    });
+
     ipcMain.handle('get-window-opacity', () => {
       const v = parseFloat(getPref('WINDOW_OPACITY') || '1');
       return Number.isFinite(v) ? v : 1;
@@ -1113,6 +1141,110 @@ function bootstrapApp() {
       const imageBase64 = String(payload?.imageBase64 || '');
       const mimeType = String(payload?.mimeType || 'image/png');
       return handleAIGeneration(payload, { imageBase64, mimeType });
+    });
+
+    ipcMain.handle('ai:generate-image-from-text', async (_e, payload) => {
+      try {
+        const keys = resolveApiKeys();
+        if (!keys.length) {
+          return { error: 'API key is not set. Please set GEMINI_API_KEY.' };
+        }
+
+        const prompt = String(payload?.prompt ?? '');
+        if (!prompt) {
+          return { error: 'Prompt is required.' };
+        }
+
+        const aspectRatio = String(payload?.aspectRatio || '1:1');
+        const generationConfig = payload?.generationConfig || {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 2048,
+        };
+
+        // Check if reference image is provided
+        const referenceImage = payload?.referenceImage;
+        const referenceMimeType = payload?.referenceMimeType;
+        const hasReferenceImage = referenceImage && referenceMimeType;
+
+        const modelName = 'gemini-2.5-flash-image';
+        const errorLog = [];
+
+        // Create AbortController for cancellation and timeout
+        const controller = new AbortController();
+        const timeoutMs = 60000; // 60 seconds for image generation
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+        // Set as current AI controller for cancel functionality
+        currentAIController = controller;
+        currentAIKind = 'chat';
+
+        try {
+          for (const key of keys) {
+            try {
+              let result;
+
+              if (hasReferenceImage) {
+                // Use reference image-based generation
+                result = await restGenerateImageFromTextWithReference(
+                  key,
+                  modelName,
+                  prompt,
+                  referenceImage,
+                  referenceMimeType,
+                  generationConfig,
+                  {
+                    aspectRatio,
+                    signal: controller.signal,
+                  }
+                );
+              } else {
+                // Standard text-to-image generation
+                result = await restGenerateImageFromText(key, modelName, prompt, generationConfig, {
+                  aspectRatio,
+                  signal: controller.signal,
+                });
+              }
+
+              if (result && result.imageData) {
+                clearTimeout(timeoutId);
+                return {
+                  imageBase64: result.imageData,
+                  mimeType: result.mimeType || 'image/png',
+                };
+              }
+            } catch (err) {
+              const msg = String(err?.message || 'Unknown error');
+              errorLog.push(`Key ${key.substring(0, 8)}...: ${msg}`);
+
+              if (/API_KEY_INVALID|API key not valid/i.test(msg)) {
+                continue;
+              }
+
+              // If aborted, return error immediately
+              if (err.name === 'AbortError') {
+                clearTimeout(timeoutId);
+                return { error: 'Image generation was cancelled or timed out.' };
+              }
+
+              throw err;
+            }
+          }
+
+          clearTimeout(timeoutId);
+          return {
+            error: `Image generation failed: ${errorLog.join('; ')}`,
+          };
+        } finally {
+          clearTimeout(timeoutId);
+          currentAIController = null;
+        }
+      } catch (err) {
+        return {
+          error: `Image generation error: ${err?.message || 'Unknown error'}`,
+        };
+      }
     });
   }
 

@@ -32,7 +32,37 @@
         id="inputArea"
         class="px-3 pt-4 pb-6 border-t border-white/15 bg-white/5 backdrop-blur-sm"
       >
-        <div class="flex gap-3 items-end">
+        <div id="attachmentArea" class="attachment-area hidden"></div>
+        <input
+          type="file"
+          id="fileInput"
+          multiple
+          accept="image/*,application/pdf,text/plain,text/markdown,.txt,.md,.csv,.json,.xml,.html,.css,.js,.py,.java,.cpp,.c,.h"
+          style="display: none"
+        />
+        <div class="flex gap-0 items-end">
+          <button
+            id="plusBtn"
+            class="plus-btn w-7 h-7 rounded-full transition-all duration-200 hover:scale-105 inline-flex items-center justify-center shadow-lg flex-shrink-0"
+            data-i18n-title="addAttachment"
+          >
+            <svg
+              class="plus-icon no-gradient"
+              xmlns="http://www.w3.org/2000/svg"
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
           <div id="inputWrapper" class="flex-1 relative">
             <textarea
               id="messageInput"

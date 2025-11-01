@@ -541,6 +541,183 @@ async function sdkGenerateImage(
   return null;
 }
 
+async function restGenerateImageFromText(
+  apiKey,
+  modelBare,
+  prompt,
+  generationConfig,
+  { aspectRatio = '1:1', signal } = {}
+) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelBare}:generateContent`;
+
+  // Configure generation to produce images
+  const config = {
+    ...(generationConfig || {}),
+    responseModalities: ['IMAGE'],
+  };
+
+  const body = {
+    contents: [{ parts: [{ text: String(prompt || '') }] }],
+    generationConfig: config,
+  };
+
+  // Add image config for aspect ratio (use camelCase)
+  if (aspectRatio) {
+    body.generationConfig.imageConfig = { aspectRatio };
+  }
+
+  // Debug: Log request body
+  console.log('[DEBUG] Image generation request body:', JSON.stringify(body, null, 2));
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': String(apiKey || '').trim() },
+    body: JSON.stringify(body),
+    signal: signal || undefined,
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`API Error: ${res.status} - ${t}`);
+  }
+  const data = await res.json();
+
+  // Debug: Log response structure
+  console.log('[DEBUG] Image generation API response:', JSON.stringify(data, null, 2));
+
+  // Extract image data from response
+  const candidates = data?.candidates || [];
+  if (candidates.length === 0) {
+    console.error('[DEBUG] No candidates in response');
+    throw new Error('No candidates in API response.');
+  }
+
+  for (const candidate of candidates) {
+    const parts = candidate?.content?.parts || [];
+    console.log('[DEBUG] Candidate parts count:', parts.length);
+
+    for (const part of parts) {
+      console.log('[DEBUG] Part keys:', Object.keys(part));
+
+      if (part.inline_data && part.inline_data.data) {
+        console.log('[DEBUG] Found image in inline_data (snake_case)');
+        return {
+          imageData: part.inline_data.data,
+          mimeType: part.inline_data.mimeType || 'image/png',
+        };
+      }
+      // Also check for inlineData (camelCase)
+      if (part.inlineData && part.inlineData.data) {
+        console.log('[DEBUG] Found image in inlineData (camelCase)');
+        return {
+          imageData: part.inlineData.data,
+          mimeType: part.inlineData.mimeType || 'image/png',
+        };
+      }
+    }
+  }
+
+  // Check for safety or other finish reasons
+  const finishReason = candidates[0]?.finishReason || candidates[0]?.finish_reason || '';
+  console.log('[DEBUG] Finish reason:', finishReason);
+
+  if (String(finishReason).toUpperCase().includes('SAFETY')) {
+    throw new Error('The API blocked the image generation for safety reasons.');
+  }
+
+  throw new Error('No image data found in API response.');
+}
+
+async function restGenerateImageFromTextWithReference(
+  apiKey,
+  modelBare,
+  prompt,
+  referenceImageBase64,
+  referenceMimeType,
+  generationConfig,
+  { aspectRatio = '1:1', signal } = {}
+) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelBare}:generateContent`;
+
+  // Configure generation to produce images
+  const config = {
+    ...(generationConfig || {}),
+    responseModalities: ['IMAGE'],
+  };
+
+  // Build parts array with reference image and prompt
+  const parts = [{ text: String(prompt || '') }];
+
+  // Add reference image if provided
+  if (referenceImageBase64 && referenceMimeType) {
+    parts.push({
+      inlineData: {
+        data: String(referenceImageBase64),
+        mimeType: String(referenceMimeType),
+      },
+    });
+  }
+
+  const body = {
+    contents: [{ parts }],
+    generationConfig: config,
+  };
+
+  // Add image config for aspect ratio
+  if (aspectRatio) {
+    body.generationConfig.imageConfig = { aspectRatio };
+  }
+
+  console.log('[DEBUG] Image generation with reference request');
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': String(apiKey || '').trim() },
+    body: JSON.stringify(body),
+    signal: signal || undefined,
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`API Error: ${res.status} - ${t}`);
+  }
+  const data = await res.json();
+
+  console.log('[DEBUG] Image generation with reference API response received');
+
+  // Extract image data from response
+  const candidates = data?.candidates || [];
+  if (candidates.length === 0) {
+    console.error('[DEBUG] No candidates in response');
+    throw new Error('No candidates in API response.');
+  }
+
+  for (const candidate of candidates) {
+    const parts = candidate?.content?.parts || [];
+
+    for (const part of parts) {
+      if (part.inline_data && part.inline_data.data) {
+        return {
+          imageData: part.inline_data.data,
+          mimeType: part.inline_data.mimeType || 'image/png',
+        };
+      }
+      if (part.inlineData && part.inlineData.data) {
+        return {
+          imageData: part.inlineData.data,
+          mimeType: part.inlineData.mimeType || 'image/png',
+        };
+      }
+    }
+  }
+
+  // Check for safety or other finish reasons
+  const finishReason = candidates[0]?.finishReason || candidates[0]?.finish_reason || '';
+  if (String(finishReason).toUpperCase().includes('SAFETY')) {
+    throw new Error('The API blocked the image generation for safety reasons.');
+  }
+
+  throw new Error('No image data found in API response.');
+}
+
 module.exports = {
   getGenAIClientForKey,
   extractTextFromSDKResult,
@@ -549,6 +726,8 @@ module.exports = {
   modelCandidates,
   restGenerateText,
   restGenerateImage,
+  restGenerateImageFromText,
+  restGenerateImageFromTextWithReference,
   sdkGenerateText,
   sdkGenerateImage,
 };

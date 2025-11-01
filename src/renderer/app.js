@@ -13,6 +13,8 @@ const SLASHES = (typeof window !== 'undefined' && window.IRUKADARK_SLASHES) || {
   SLASH_TRANSLATE_TARGETS: [],
   SLASH_TRANSLATE_LOOKUP: {},
   SLASH_WEB_TARGETS: [],
+  SLASH_IMAGE_TARGETS: [],
+  SLASH_IMAGE_SIZE_TARGETS: [],
   getLangMeta: (code) => ({ code, name: code, rtl: false }),
   normalizeTranslateCode: () => null,
   getLanguageDisplayName: (code) => code,
@@ -35,6 +37,9 @@ const SLASH_TRANSLATE_TARGETS = SLASHES.SLASH_TRANSLATE_TARGETS || [];
 const SLASH_TRANSLATE_LOOKUP = SLASHES.SLASH_TRANSLATE_LOOKUP || {};
 const SLASH_TRANSLATE_MODE_TARGETS = SLASHES.SLASH_TRANSLATE_MODE_TARGETS || [];
 const SLASH_WEB_TARGETS = SLASHES.SLASH_WEB_TARGETS || [];
+const SLASH_IMAGE_TARGETS = SLASHES.SLASH_IMAGE_TARGETS || [];
+const SLASH_IMAGE_SIZE_TARGETS = SLASHES.SLASH_IMAGE_SIZE_TARGETS || [];
+const SLASH_IMAGE_COUNT_TARGETS = SLASHES.SLASH_IMAGE_COUNT_TARGETS || [];
 
 function getLangMeta(code) {
   if (SLASHES && typeof SLASHES.getLangMeta === 'function') {
@@ -85,12 +90,10 @@ function getUIText(key, ...args) {
   const strings = I18N_STRINGS[lang] || I18N_STRINGS.en;
   let value = strings;
 
-  // ネストされたキーを解決
   for (const k of key.split('.')) {
     value = value?.[k];
   }
 
-  // 関数なら実行、そうでなければそのまま返す
   if (typeof value === 'function') {
     return value(...args);
   }
@@ -120,42 +123,32 @@ class IrukaDarkApp {
   constructor() {
     this.geminiService = new GeminiService();
     this.chatHistoryData = [];
-    // Auto-scroll control: disabled during detailed shortcut flow
     this.disableAutoScroll = false;
-    // Track in-flight shortcut runs to avoid parallel execution
     this.shortcutRequestId = 0;
-    // Web search toggle (default from env or OFF)
     this.webSearchEnabled = false;
-    // Translate mode: literal (direct) or free (interpretive)
     this.translateMode = 'literal';
     this.pendingTranslateModeAck = null;
-    // Generation state
+    this.imageSize = '1:1';
+    this.imageCount = 1;
     this.isGenerating = false;
     this.cancelRequested = false;
-    // Cache i18n elements for performance
     this.i18nElementsCache = null;
     this.initializeElements();
     this.bindEvents();
     this.updateUILanguage();
     this.applyThemeFromSystem();
     this.applyGlassLevelFromSystem();
-
-    // ウィンドウ不透明度に応じたソリッド化
     this.applyWindowOpacityFromSystem();
-
     this.checkInitialState();
     this.createIconsEnhanced();
     this.initSlashSuggest();
-    // 初期UI同期
     this.updateMonitoringUI();
     this.syncHeader();
 
-    // 初期フォーカス（入力しやすさのため）
     try {
       setTimeout(() => this.messageInput && this.messageInput.focus(), 0);
     } catch {}
 
-    // Load tone from system and subscribe to changes
     try {
       if (window.electronAPI && window.electronAPI.getTone) {
         window.electronAPI.getTone().then((tone) => {
@@ -172,24 +165,15 @@ class IrukaDarkApp {
   updateUILanguage() {
     const lang = getCurrentUILanguage();
     document.documentElement.lang = lang;
-    // Toggle RTL for Arabic (and future RTL locales)
     const rtlLocales = new Set(['ar', 'he', 'fa', 'ur']);
-    if (rtlLocales.has(lang)) {
-      document.documentElement.dir = 'rtl';
-    } else {
-      document.documentElement.dir = 'ltr';
-    }
-    // no header status element anymore
+    document.documentElement.dir = rtlLocales.has(lang) ? 'rtl' : 'ltr';
     this.updateStaticHTMLText();
-    // Refresh send/stop button tooltip in current language
     try {
       this.updateSendButtonIcon();
     } catch {}
   }
 
-  // HTML内の静的テキストを更新するメソッド（要素キャッシュ付き）
   updateStaticHTMLText() {
-    // Build cache on first run
     if (!this.i18nElementsCache) {
       this.i18nElementsCache = {
         textContent: Array.from(document.querySelectorAll('[data-i18n]')),
@@ -198,7 +182,6 @@ class IrukaDarkApp {
       };
     }
 
-    // Update from cache
     this.i18nElementsCache.textContent.forEach((el) => {
       if (el.isConnected) {
         const key = el.dataset.i18n;
@@ -229,7 +212,11 @@ class IrukaDarkApp {
   initializeElements() {
     this.messageInput = document.getElementById('messageInput');
     this.sendBtn = document.getElementById('sendBtn');
+    this.plusBtn = document.getElementById('plusBtn');
+    this.fileInput = document.getElementById('fileInput');
+    this.attachmentArea = document.getElementById('attachmentArea');
     this.chatHistory = document.getElementById('chatHistory');
+    this.attachedFiles = [];
   }
 
   bindEvents() {
@@ -240,7 +227,12 @@ class IrukaDarkApp {
         this.sendMessage();
       }
     });
-    // Right-click anywhere to show the app (menubar) menu as context menu
+    this.plusBtn.addEventListener('click', () => {
+      this.handlePlusButtonClick();
+    });
+    this.fileInput.addEventListener('change', (e) => {
+      this.handleFileSelection(e);
+    });
     window.addEventListener(
       'contextmenu',
       (e) => {
@@ -254,7 +246,6 @@ class IrukaDarkApp {
       },
       { capture: true }
     );
-    // IME考慮: Enterで送信、Shift+Enterで改行、変換中は送信しない
     this.isComposing = false;
     this.messageInput.addEventListener('compositionstart', () => {
       this.isComposing = true;
@@ -264,11 +255,10 @@ class IrukaDarkApp {
     });
     const onEnterToSend = (e) => {
       if (e.key !== 'Enter') return;
-      if (e.shiftKey) return; // 改行
-      if (e.isComposing || this.isComposing || e.keyCode === 229) return; // IME中は無視
+      if (e.shiftKey) return;
+      if (e.isComposing || this.isComposing || e.keyCode === 229) return;
       e.preventDefault();
       e.stopPropagation();
-      // まれに改行が入る環境対策：末尾の改行を落としてから送信
       if (this.messageInput && /\n$/.test(this.messageInput.value)) {
         this.messageInput.value = this.messageInput.value.replace(/\n+$/, '');
       }
@@ -390,7 +380,6 @@ class IrukaDarkApp {
     });
     on('onExplainScreenshot', (payload) => this.handleExplainScreenshot(payload));
     on('onExplainScreenshotDetailed', (payload) => this.handleExplainScreenshotDetailed(payload));
-    // Do not show the accessibility warning in chat
     on('onAccessibilityWarning', () => {
       /* no-op in chat UI */
     });
@@ -399,7 +388,6 @@ class IrukaDarkApp {
         this.showToast(getUIText('failedToRegisterShortcut'), 'error', 3600);
         return;
       }
-      // macOS only: show Option instead of Alt
       const display = String(accel || '').replace(/\bAlt\b/g, 'Option');
       if (accel && accel !== 'Alt+A') {
         this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
@@ -463,7 +451,6 @@ class IrukaDarkApp {
       }
     });
 
-    // Update notifications (notification-only)
     on('onUpdateAvailable', (p) => {
       try {
         const v = p && p.version ? p.version : '';
@@ -489,12 +476,11 @@ class IrukaDarkApp {
     if (!window.electronAPI) {
       this.addMessage('system', getUIText('apiUnavailable'));
     }
-    // 初期言語の同期を非同期で実行
     this.initializeLanguage();
-    // Web検索設定の読み込み
     this.loadWebSearchSetting();
-    // 翻訳モードの読み込み
     this.loadTranslateMode();
+    this.loadImageSize();
+    this.loadImageCount();
   }
 
   async loadWebSearchSetting() {
@@ -520,6 +506,32 @@ class IrukaDarkApp {
       console.error('Failed to load translate mode:', error);
       this.translateMode = 'literal';
       this.pendingTranslateModeAck = null;
+    }
+  }
+
+  async loadImageSize() {
+    try {
+      if (window.electronAPI && window.electronAPI.getImageSize) {
+        const size = await window.electronAPI.getImageSize();
+        const validSizes = ['auto', '1:1', '9:16', '16:9', '3:4', '4:3'];
+        this.imageSize = validSizes.includes(size) ? size : '1:1';
+      }
+    } catch (error) {
+      console.error('Failed to load image size:', error);
+      this.imageSize = '1:1';
+    }
+  }
+
+  async loadImageCount() {
+    try {
+      if (window.electronAPI && window.electronAPI.getImageCount) {
+        const count = await window.electronAPI.getImageCount();
+        const validCounts = [1, 2, 3, 4];
+        this.imageCount = validCounts.includes(count) ? count : 1;
+      }
+    } catch (error) {
+      console.error('Failed to load image count:', error);
+      this.imageCount = 1;
     }
   }
 
@@ -563,6 +575,75 @@ class IrukaDarkApp {
     }
   }
 
+  getImageSizeLabel(size = this.imageSize) {
+    if (size === 'auto') {
+      return getUIText('imageSizeNameAuto') || 'Auto';
+    }
+    return size;
+  }
+
+  async persistImageSize(size) {
+    try {
+      if (window.electronAPI && window.electronAPI.saveImageSize) {
+        await window.electronAPI.saveImageSize(size);
+      }
+    } catch (error) {
+      console.error('Failed to save image size:', error);
+    }
+  }
+
+  async setImageSize(size) {
+    const validSizes = ['auto', '1:1', '9:16', '16:9', '3:4', '4:3'];
+    const normalized = validSizes.includes(size) ? size : '1:1';
+    if (this.imageSize === normalized) {
+      const already = getUIText('imageSizeAlready', this.getImageSizeLabel());
+      if (already) this.addMessage('system', already);
+      return;
+    }
+    this.imageSize = normalized;
+    const updated = getUIText('imageSizeUpdated', this.getImageSizeLabel());
+    if (updated) this.addMessage('system', updated);
+    await this.persistImageSize(normalized);
+  }
+
+  showImageSizeStatus() {
+    const message = getUIText('imageSizeStatus', this.getImageSizeLabel());
+    if (message) {
+      this.addMessage('system', message);
+    }
+  }
+
+  async persistImageCount(count) {
+    try {
+      if (window.electronAPI && window.electronAPI.saveImageCount) {
+        await window.electronAPI.saveImageCount(count);
+      }
+    } catch (error) {
+      console.error('Failed to save image count:', error);
+    }
+  }
+
+  async setImageCount(count) {
+    const validCounts = [1, 2, 3, 4];
+    const normalized = validCounts.includes(count) ? count : 1;
+    if (this.imageCount === normalized) {
+      const already = getUIText('imageCountAlready', normalized);
+      if (already) this.addMessage('system', already);
+      return;
+    }
+    this.imageCount = normalized;
+    const updated = getUIText('imageCountUpdated', normalized);
+    if (updated) this.addMessage('system', updated);
+    await this.persistImageCount(normalized);
+  }
+
+  showImageCountStatus() {
+    const message = getUIText('imageCountStatus', this.imageCount);
+    if (message) {
+      this.addMessage('system', message);
+    }
+  }
+
   async initializeLanguage() {
     try {
       if (window.electronAPI && window.electronAPI.getUILanguage) {
@@ -588,7 +669,6 @@ class IrukaDarkApp {
 
   applyGlassLevel(level) {
     const root = document.documentElement;
-    // マッピング: high=より透ける, medium=標準, low=より不透過
     let light = 0.2,
       dark1 = 0.9,
       dark2 = 0.9,
@@ -630,20 +710,13 @@ class IrukaDarkApp {
     else html.classList.remove('solid-window');
   }
 
-  /**
-   * クリップボードのテキストを解説する（画像は送付しないテキスト専用モード）
-   */
   async handleExplainClipboard(text) {
-    // Cancel any previous shortcut run and mark a new token
     await this.cancelActiveShortcut();
     const token = ++this.shortcutRequestId;
     const content = (text || '').trim();
     if (!content) return;
-    // 詳細（Option+Shift+S/A）と同じ挙動: 自動スクロールを一時停止
     this.disableAutoScroll = true;
-    // システムメッセージ（?アイコン）として、AIに送るテキストをそのまま表示
     this.addMessage('system-question', content);
-    // ステータス更新はヘッダーのみ同期
     this.syncHeader();
     this.showTypingIndicator();
 
@@ -663,13 +736,11 @@ class IrukaDarkApp {
         return;
       }
       this.addMessage('ai', response);
-      // If the window was hidden, unhide it non-activating so user sees the result
       try {
         window.electronAPI &&
           window.electronAPI.ensureVisible &&
           window.electronAPI.ensureVisible(false);
       } catch {}
-      // ステータス表示はヘッダーのみ同期
       this.syncHeader();
     } catch (e) {
       if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
@@ -679,20 +750,15 @@ class IrukaDarkApp {
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
       this.syncHeader();
     } finally {
-      // 自動スクロールを元に戻す
       this.disableAutoScroll = false;
     }
   }
 
-  /**
-   * クリップボードのテキストを「詳しくわかりやすく」説明する
-   */
   async handleExplainClipboardDetailed(text) {
     await this.cancelActiveShortcut();
     const token = ++this.shortcutRequestId;
     const content = (text || '').trim();
     if (!content) return;
-    // Suppress auto-scroll for detailed explain flow
     this.disableAutoScroll = true;
     this.addMessage('system-question', content);
     this.syncHeader();
@@ -714,7 +780,6 @@ class IrukaDarkApp {
         return;
       }
       this.addMessage('ai', response);
-      // Ensure the window is visible (do not steal focus)
       try {
         window.electronAPI &&
           window.electronAPI.ensureVisible &&
@@ -729,7 +794,6 @@ class IrukaDarkApp {
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
       this.syncHeader();
     } finally {
-      // Re-enable auto-scroll after the detailed flow completes
       this.disableAutoScroll = false;
     }
   }
@@ -894,15 +958,11 @@ class IrukaDarkApp {
     }
   }
 
-  /**
-   * 選択テキストの純粋な翻訳（出力のみ、説明なし）
-   */
   async handleTranslateClipboard(text) {
     await this.cancelActiveShortcut();
     const token = ++this.shortcutRequestId;
     const content = (text || '').trim();
     if (!content) return;
-    // 翻訳中は自動スクロールを抑制
     this.disableAutoScroll = true;
     this.addMessage('system-question', getUIText('selectionTranslation'));
     this.syncHeader();
@@ -918,7 +978,6 @@ class IrukaDarkApp {
         return;
       }
       this.addMessage('ai', response);
-      // 表示のみ（フォーカスは奪わない）
       try {
         window.electronAPI &&
           window.electronAPI.ensureVisible &&
@@ -937,9 +996,6 @@ class IrukaDarkApp {
     }
   }
 
-  /**
-   * 選択テキストの発音表記への変換
-   */
   async handlePronounceClipboard(text) {
     await this.cancelActiveShortcut();
     const token = ++this.shortcutRequestId;
@@ -1083,8 +1139,7 @@ class IrukaDarkApp {
       const token = ++this.shortcutRequestId;
       const data = payload && payload.data ? String(payload.data) : '';
       const mime = payload && payload.mimeType ? String(payload.mimeType) : 'image/png';
-      if (!data) return; // キャンセル等
-      // 詳細版（Option+Shift+S）と同じスクロール挙動に合わせるため一時的に自動スクロールを抑制
+      if (!data) return;
       this.disableAutoScroll = true;
       this.addMessage('system-question', getUIText('selectionExplanation'));
       this.syncHeader();
@@ -1114,14 +1169,10 @@ class IrukaDarkApp {
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
       this.syncHeader();
     } finally {
-      // 詳細版同様、処理完了後に自動スクロールを元に戻す
       this.disableAutoScroll = false;
     }
   }
 
-  /**
-   * スクリーンショット画像の内容を「詳しく」解説する
-   */
   async handleExplainScreenshotDetailed(payload) {
     try {
       await this.cancelActiveShortcut();
@@ -1129,7 +1180,6 @@ class IrukaDarkApp {
       const data = payload && payload.data ? String(payload.data) : '';
       const mime = payload && payload.mimeType ? String(payload.mimeType) : 'image/png';
       if (!data) return;
-      // Detailed flow mirrors text detailed: suppress autoscroll
       this.disableAutoScroll = true;
       this.addMessage('system-question', getUIText('selectionExplanation'));
       this.syncHeader();
@@ -1163,13 +1213,11 @@ class IrukaDarkApp {
     }
   }
 
-  // Cancel any in-flight shortcut generation on the main process
   async cancelActiveShortcut() {
     try {
       if (window?.electronAPI?.cancelAI) {
         await window.electronAPI.cancelAI();
       }
-      // Ensure previous typing indicator is cleared to avoid duplicates
       this.hideTypingIndicator();
     } catch {}
   }
@@ -1193,49 +1241,63 @@ class IrukaDarkApp {
     const message = this.messageInput.value.trim();
     if (!message) return;
 
+    const attachments = [...this.attachedFiles];
+
     this.messageInput.value = '';
-    // 高さをリセット（自動サイズ）
     this.autosizeMessageInput(true);
-    // 入力IMEの状態が安定するよう送信後に再フォーカス
+    this.clearAttachments();
     this.messageInput.focus();
-    // Slash commands
+
     if (message.startsWith('/')) {
       await this.handleSlashCommand(message);
-      // 高さをリセット（自動サイズ）
       this.autosizeMessageInput(true);
       this.messageInput.focus();
       return;
     }
 
-    this.addMessage('user', message);
+    const imageCommandMatch = message.match(/^@image\s+(.+)$/i);
+    if (imageCommandMatch) {
+      const imagePrompt = imageCommandMatch[1].trim();
+      await this.handleImageGeneration(imagePrompt, attachments);
+      this.autosizeMessageInput(true);
+      this.messageInput.focus();
+      return;
+    }
+
+    this.addMessage('user', message, attachments);
     this.syncHeader();
-    // Identity questions: answer directly with branded, short, unique line
     if (this.maybeRespondIdentity(message)) {
       this.messageInput?.focus();
       return;
     }
-    // Default to thinking indicator only
-    // 詳細ショートカットと同じUI挙動に統一: 生成中は自動スクロールを抑制
     this.disableAutoScroll = true;
     this.showTypingIndicator();
 
     try {
       const historyText = this.buildHistoryContext();
-      const response = await this.geminiService.generateResponse(
-        message,
-        historyText,
-        this.webSearchEnabled
-      );
+      let response;
+
+      if (attachments && attachments.length > 0) {
+        response = await this.geminiService.generateResponseWithAttachments(
+          message,
+          historyText,
+          attachments,
+          this.webSearchEnabled
+        );
+      } else {
+        response = await this.geminiService.generateResponse(
+          message,
+          historyText,
+          this.webSearchEnabled
+        );
+      }
 
       this.hideTypingIndicator();
       if (this.cancelRequested) {
         return;
       }
       this.addMessage('ai', response);
-      // 入力へフォーカスを戻す（連投が快適に）
       this.messageInput?.focus();
-
-      // ステータス更新はヘッダーのみ同期
       this.syncHeader();
     } catch (error) {
       this.hideTypingIndicator();
@@ -1246,12 +1308,10 @@ class IrukaDarkApp {
       this.syncHeader();
       this.messageInput?.focus();
     } finally {
-      // 自動スクロールの設定を元に戻す
       this.disableAutoScroll = false;
     }
   }
 
-  // Return true if handled as identity question
   maybeRespondIdentity(text) {
     try {
       const t = (text || '').trim();
@@ -1264,7 +1324,6 @@ class IrukaDarkApp {
       const matched = isJa ? jaRe.test(t) : enRe.test(t);
       if (!matched) return false;
       const reply = this.pickIdentityResponse(isJa ? 'ja' : 'en');
-      // 詳細ショートカットと同じUI挙動: 出力時は自動スクロール抑制
       const prev = this.disableAutoScroll;
       this.disableAutoScroll = true;
       try {
@@ -1322,8 +1381,10 @@ class IrukaDarkApp {
     if (lower === '/clear') {
       try {
         this.chatHistoryData = [];
-        // DOMクリア
         if (this.chatHistory) this.chatHistory.innerHTML = '';
+        if (this.geminiService) {
+          this.geminiService.lastGeneratedImage = null;
+        }
       } catch (e) {
         this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
       }
@@ -1332,7 +1393,6 @@ class IrukaDarkApp {
 
     if (lower === '/compact') {
       try {
-        // 詳細ショートカットと同じUI挙動
         this.disableAutoScroll = true;
         const historyText = this.buildHistoryContext(8000, 30);
         this.showTypingIndicator();
@@ -1344,9 +1404,7 @@ class IrukaDarkApp {
         if (this.cancelRequested) {
           return;
         }
-        // 履歴を要約のみで置き換え（コンパクト化）
         this.chatHistoryData = [{ role: 'assistant', content: summary }];
-        // 表示上はAIメッセージとして要約を追加
         this.addMessage('ai', summary);
         this.addMessage('system', getUIText('historyCompacted'));
       } catch (e) {
@@ -1363,7 +1421,6 @@ class IrukaDarkApp {
 
     if (lower === '/next') {
       try {
-        // 詳細ショートカットと同じUI挙動
         this.disableAutoScroll = true;
         const lastAI = [...(this.chatHistoryData || [])]
           .reverse()
@@ -1465,7 +1522,45 @@ class IrukaDarkApp {
       return;
     }
 
-    // /web commands: on|off|status (legacy alias: /websearch)
+    if (lower.startsWith('/image ') || lower === '/image') {
+      const parts = cmd
+        .split(/\s+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const subCmd = (parts[1] || '').toLowerCase();
+
+      if (subCmd === 'status') {
+        this.showImageSizeStatus();
+        this.showImageCountStatus();
+        return;
+      }
+
+      if (subCmd === 'size') {
+        const sizeValue = (parts[2] || '').toLowerCase();
+        const validSizes = ['auto', '1:1', '9:16', '16:9', '3:4', '4:3'];
+        if (validSizes.includes(sizeValue)) {
+          await this.setImageSize(sizeValue);
+          return;
+        }
+        this.addMessage('system', getUIText('imageSizeHelp'));
+        return;
+      }
+
+      if (subCmd === 'count') {
+        const countValue = parseInt(parts[2], 10);
+        const validCounts = [1, 2, 3, 4];
+        if (validCounts.includes(countValue)) {
+          await this.setImageCount(countValue);
+          return;
+        }
+        this.addMessage('system', getUIText('imageCountHelp'));
+        return;
+      }
+
+      this.addMessage('system', getUIText('imageCommandHelp'));
+      return;
+    }
+
     if (lower.startsWith('/websearch') || lower.startsWith('/web ') || lower === '/web') {
       const parts = cmd
         .split(/\s+/)
@@ -1474,7 +1569,6 @@ class IrukaDarkApp {
       const act = (parts[1] || '').toLowerCase();
       if (act === 'on') {
         this.webSearchEnabled = true;
-        // Persist setting via main process
         if (window.electronAPI && window.electronAPI.saveWebSearchSetting) {
           window.electronAPI.saveWebSearchSetting(true);
         }
@@ -1483,7 +1577,6 @@ class IrukaDarkApp {
       }
       if (act === 'off') {
         this.webSearchEnabled = false;
-        // Persist setting via main process
         if (window.electronAPI && window.electronAPI.saveWebSearchSetting) {
           window.electronAPI.saveWebSearchSetting(false);
         }
@@ -1535,6 +1628,249 @@ class IrukaDarkApp {
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
     } finally {
       this.disableAutoScroll = false;
+    }
+  }
+
+  async handleImageGeneration(prompt, attachments = []) {
+    try {
+      this.disableAutoScroll = false;
+      this.addMessage('user', `@image ${prompt}`, attachments);
+      this.showTypingIndicator();
+
+      const aspectRatio = this.imageSize === 'auto' ? '1:1' : this.imageSize;
+      const count = this.imageCount || 1;
+
+      const referenceFile = this.getFirstReferenceFile(attachments);
+      const generatePromises = Array(count)
+        .fill(null)
+        .map(() => this.generateSingleImage(prompt, aspectRatio, referenceFile));
+
+      const results = await Promise.all(generatePromises);
+      this.hideTypingIndicator();
+
+      if (!this.cancelRequested) {
+        results.forEach((result) => {
+          if (result?.imageBase64) {
+            this.addImageMessage(result.imageBase64, result.mimeType, prompt);
+          }
+        });
+      }
+    } catch (error) {
+      this.hideTypingIndicator();
+      if (!this.cancelRequested && !/CANCELLED|Abort/i.test(String(error?.message || ''))) {
+        this.addMessage('system', `${getUIText('errorOccurred')}: ${error?.message || 'Unknown'}`);
+      }
+    }
+  }
+
+  getFirstReferenceFile(attachments) {
+    if (!attachments?.length) return null;
+    return (
+      attachments.find((f) => f.type.startsWith('image/')) ||
+      attachments.find((f) => f.type === 'application/pdf') ||
+      null
+    );
+  }
+
+  async generateSingleImage(prompt, aspectRatio, referenceFile) {
+    if (referenceFile) {
+      return this.geminiService.generateImageFromTextWithReference(
+        prompt,
+        aspectRatio,
+        referenceFile
+      );
+    }
+    return this.geminiService.generateImageFromText(prompt, aspectRatio);
+  }
+
+  addImageMessage(imageBase64, mimeType, altText = '') {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message ai-message';
+
+    const img = document.createElement('img');
+    img.src = `data:${mimeType};base64,${imageBase64}`;
+    img.alt = altText;
+    img.className = 'generated-image';
+    img.style.cursor = 'pointer';
+
+    // クリックで拡大表示（オプション）
+    img.addEventListener('click', () => {
+      const overlay = document.createElement('div');
+      overlay.style.position = 'fixed';
+      overlay.style.top = '0';
+      overlay.style.left = '0';
+      overlay.style.width = '100%';
+      overlay.style.height = '100%';
+      overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+      overlay.style.display = 'flex';
+      overlay.style.alignItems = 'center';
+      overlay.style.justifyContent = 'center';
+      overlay.style.zIndex = '10000';
+      overlay.style.cursor = 'pointer';
+
+      // Image container
+      const imageContainer = document.createElement('div');
+      imageContainer.style.position = 'relative';
+      imageContainer.style.maxWidth = '90%';
+      imageContainer.style.maxHeight = '90%';
+
+      const enlargedImg = document.createElement('img');
+      enlargedImg.src = img.src;
+      enlargedImg.style.maxWidth = '100%';
+      enlargedImg.style.maxHeight = '90vh';
+      enlargedImg.style.objectFit = 'contain';
+      enlargedImg.style.display = 'block';
+
+      // Download button
+      const downloadBtn = document.createElement('button');
+      downloadBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+      `;
+      downloadBtn.style.position = 'absolute';
+      downloadBtn.style.top = '10px';
+      downloadBtn.style.right = '10px';
+      downloadBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+      downloadBtn.style.border = 'none';
+      downloadBtn.style.borderRadius = '50%';
+      downloadBtn.style.width = '40px';
+      downloadBtn.style.height = '40px';
+      downloadBtn.style.cursor = 'pointer';
+      downloadBtn.style.display = 'flex';
+      downloadBtn.style.alignItems = 'center';
+      downloadBtn.style.justifyContent = 'center';
+      downloadBtn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)';
+      downloadBtn.style.transition = 'all 0.2s ease';
+      downloadBtn.style.zIndex = '10001';
+      downloadBtn.style.color = '#1f2937';
+
+      downloadBtn.addEventListener('mouseenter', () => {
+        downloadBtn.style.backgroundColor = 'rgba(255, 255, 255, 1)';
+        downloadBtn.style.transform = 'scale(1.1)';
+      });
+
+      downloadBtn.addEventListener('mouseleave', () => {
+        downloadBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+        downloadBtn.style.transform = 'scale(1)';
+      });
+
+      downloadBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.downloadImage(imageBase64, mimeType, altText);
+      });
+
+      imageContainer.appendChild(enlargedImg);
+      imageContainer.appendChild(downloadBtn);
+      overlay.appendChild(imageContainer);
+
+      // Close overlay when clicking anywhere except download button
+      overlay.addEventListener('click', () => {
+        document.body.removeChild(overlay);
+      });
+
+      document.body.appendChild(overlay);
+    });
+
+    messageDiv.appendChild(img);
+
+    this.chatHistory.appendChild(messageDiv);
+
+    // Scroll to bottom to show the new image
+    if (!this.disableAutoScroll) {
+      this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+    }
+  }
+
+  downloadImage(imageBase64, mimeType, description) {
+    try {
+      // Convert base64 to blob
+      const byteString = atob(imageBase64);
+      const arrayBuffer = new ArrayBuffer(byteString.length);
+      const uint8Array = new Uint8Array(arrayBuffer);
+
+      for (let i = 0; i < byteString.length; i++) {
+        uint8Array[i] = byteString.charCodeAt(i);
+      }
+
+      const blob = new Blob([arrayBuffer], { type: mimeType });
+
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+
+      // Generate filename from English words in description
+      const fileName = this.generateImageFileName(description);
+
+      const extension = mimeType === 'image/jpeg' ? 'jpg' : 'png';
+      link.download = `irukadark_${fileName}.${extension}`;
+      link.href = url;
+
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download image:', error);
+      this.addMessage('system', `${getUIText('errorOccurred')}: Failed to download image`);
+    }
+  }
+
+  generateImageFileName(description) {
+    try {
+      // Extract English words from description
+      const text = String(description || 'image').toLowerCase();
+
+      // Remove common articles, prepositions, and conjunctions
+      const stopWords = new Set([
+        'a',
+        'an',
+        'the',
+        'and',
+        'or',
+        'but',
+        'in',
+        'on',
+        'at',
+        'to',
+        'for',
+        'of',
+        'with',
+        'by',
+        'from',
+        'as',
+        'is',
+        'are',
+        'was',
+        'were',
+        'be',
+        'been',
+        'being',
+      ]);
+
+      // Extract words (alphanumeric only)
+      const matches = text.match(/[a-z0-9]+/g);
+
+      if (!matches || matches.length === 0) {
+        return 'image';
+      }
+
+      const words = matches.filter((word) => word.length > 0 && !stopWords.has(word)).slice(0, 5); // Limit to 5 words
+
+      if (words.length === 0) {
+        return 'image';
+      }
+
+      // Join with underscore
+      return words.join('_').substring(0, 50);
+    } catch (error) {
+      console.error('Failed to generate filename:', error);
+      return 'image';
     }
   }
 
@@ -1599,6 +1935,14 @@ class IrukaDarkApp {
         label: '/web',
         descKey: 'slashDescriptions.web',
         children: SLASH_WEB_TARGETS,
+        childSeparator: ' ',
+      },
+      {
+        key: '/image',
+        match: '/image',
+        label: '/image',
+        descKey: 'slashDescriptions.image',
+        children: SLASH_IMAGE_TARGETS,
         childSeparator: ' ',
       },
     ];
@@ -1725,6 +2069,28 @@ class IrukaDarkApp {
     }
     if (normalized === '/web' && (raw.endsWith(' ') || lower.endsWith(' '))) {
       return SLASH_WEB_TARGETS;
+    }
+    if (normalized.startsWith('/image size')) {
+      const wantsChildren =
+        normalized === '/image size' && (raw.endsWith(' ') || lower.endsWith(' '));
+      if (wantsChildren) {
+        return SLASH_IMAGE_SIZE_TARGETS;
+      }
+      return SLASH_IMAGE_SIZE_TARGETS.filter((c) => c.match.startsWith(normalized));
+    }
+    if (normalized.startsWith('/image count')) {
+      const wantsChildren =
+        normalized === '/image count' && (raw.endsWith(' ') || lower.endsWith(' '));
+      if (wantsChildren) {
+        return SLASH_IMAGE_COUNT_TARGETS;
+      }
+      return SLASH_IMAGE_COUNT_TARGETS.filter((c) => c.match.startsWith(normalized));
+    }
+    if (normalized.startsWith('/image ')) {
+      return SLASH_IMAGE_TARGETS.filter((c) => c.match.startsWith(normalized));
+    }
+    if (normalized === '/image' && (raw.endsWith(' ') || lower.endsWith(' '))) {
+      return SLASH_IMAGE_TARGETS;
     }
     return this.slashCommands.filter((c) => c.match.startsWith(normalized));
   }
@@ -1882,6 +2248,71 @@ class IrukaDarkApp {
     } catch {}
   }
 
+  handlePlusButtonClick() {
+    this.fileInput.click();
+  }
+
+  handleFileSelection(event) {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    this.attachedFiles.push(...files);
+    this.updateAttachmentDisplay();
+    this.fileInput.value = '';
+  }
+
+  updateAttachmentDisplay() {
+    const hasFiles = this.attachedFiles.length > 0;
+    this.attachmentArea.classList.toggle('hidden', !hasFiles);
+
+    if (!hasFiles) {
+      this.attachmentArea.innerHTML = '';
+      return;
+    }
+
+    this.attachmentArea.innerHTML = '';
+    this.attachedFiles.forEach((file, index) => {
+      this.attachmentArea.appendChild(this.createAttachmentItem(file, index));
+    });
+  }
+
+  createAttachmentItem(file, index) {
+    const item = document.createElement('div');
+    item.className = 'attachment-item';
+
+    if (file.type.startsWith('image/')) {
+      const img = document.createElement('img');
+      const reader = new FileReader();
+      reader.onload = (e) => (img.src = e.target.result);
+      reader.readAsDataURL(file);
+      item.appendChild(img);
+    } else {
+      const ext = file.name.split('.').pop().substring(0, 3).toUpperCase();
+      const fileIcon = document.createElement('div');
+      fileIcon.className = 'attachment-item-file';
+      fileIcon.textContent = ext;
+      item.appendChild(fileIcon);
+    }
+
+    const removeBtn = document.createElement('div');
+    removeBtn.className = 'attachment-remove';
+    removeBtn.textContent = '×';
+    removeBtn.onclick = () => this.removeAttachment(index);
+    item.appendChild(removeBtn);
+
+    return item;
+  }
+
+  removeAttachment(index) {
+    this.attachedFiles.splice(index, 1);
+    this.updateAttachmentDisplay();
+  }
+
+  clearAttachments() {
+    this.attachedFiles = [];
+    this.updateAttachmentDisplay();
+  }
+
   cancelGeneration() {
     try {
       this.cancelRequested = true;
@@ -1928,17 +2359,20 @@ class IrukaDarkApp {
     this.setGenerating(false);
   }
 
-  addMessage(type, content) {
+  addMessage(type, content, attachments = []) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message-${type} message-enter`;
 
     if (type === 'user') {
-      const safe = this.escapeHtml(content).replace(/\n/g, '<br>');
+      const processedContent = this.processUserContent(content);
+      const attachmentsHtml = this.generateAttachmentsPreview(attachments);
+
       this.chatHistoryData.push({ role: 'user', content });
       messageDiv.innerHTML = `
         <div class="message-user-container">
           <div class="message-user-content">
-            ${safe}
+            ${attachmentsHtml}
+            ${processedContent}
           </div>
         </div>
       `;
@@ -2156,6 +2590,39 @@ class IrukaDarkApp {
     return div.innerHTML;
   }
 
+  processUserContent(content) {
+    return this.escapeHtml(content)
+      .replace(/\n/g, '<br>')
+      .replace(/^@image\s+/i, '<span class="command-badge">@image</span> ');
+  }
+
+  generateAttachmentsPreview(attachments) {
+    if (!attachments?.length) return '';
+
+    const previewItems = attachments
+      .map((file) => {
+        if (file.type.startsWith('image/')) {
+          const itemId = `preview-${Date.now()}-${Math.random()}`;
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = document.getElementById(itemId);
+            if (img) img.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+          return `<div class="message-attachment-item">
+            <img id="${itemId}" class="message-attachment-img" src="" alt="${this.escapeHtml(file.name)}" />
+          </div>`;
+        }
+        const ext = file.name.split('.').pop().substring(0, 3).toUpperCase();
+        return `<div class="message-attachment-item">
+          <div class="message-attachment-file">${this.escapeHtml(ext)}</div>
+        </div>`;
+      })
+      .join('');
+
+    return `<div class="message-attachments">${previewItems}</div>`;
+  }
+
   // Parse trailing inline sources block like "出典:" or "Sources:" (localized) and extract links
   parseInlineSourcesFromText(text) {
     try {
@@ -2236,6 +2703,7 @@ class IrukaDarkApp {
 class GeminiService {
   constructor() {
     this.model = 'gemini-2.5-flash-lite';
+    this.lastGeneratedImage = null; // Store last generated image for reference
     this.initializeModel();
   }
 
@@ -2310,6 +2778,85 @@ class GeminiService {
       return { text: getUIText('apiUnavailable'), sources: [] };
     } catch (error) {
       return { text: `${getUIText('apiError')} ${error?.message || 'Unknown error'}`, sources: [] };
+    }
+  }
+
+  async generateImageFromText(prompt, aspectRatio = '1:1') {
+    try {
+      if (window.electronAPI && window.electronAPI.generateImageFromText) {
+        const options = {
+          aspectRatio,
+        };
+
+        // Include previous image as reference if available
+        if (this.lastGeneratedImage) {
+          options.referenceImage = this.lastGeneratedImage.imageBase64;
+          options.referenceMimeType = this.lastGeneratedImage.mimeType;
+        }
+
+        const result = await window.electronAPI.generateImageFromText(prompt, options);
+
+        if (result && result.error) {
+          throw new Error(result.error);
+        }
+
+        if (result && result.imageBase64) {
+          // Save the generated image for future reference
+          this.lastGeneratedImage = {
+            imageBase64: result.imageBase64,
+            mimeType: result.mimeType || 'image/png',
+          };
+
+          return {
+            imageBase64: result.imageBase64,
+            mimeType: result.mimeType || 'image/png',
+          };
+        }
+
+        throw new Error(getUIText('unexpectedResponse'));
+      }
+      throw new Error(getUIText('apiUnavailable'));
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async generateImageFromTextWithReference(prompt, aspectRatio = '1:1', referenceFile) {
+    try {
+      if (window.electronAPI && window.electronAPI.generateImageFromText) {
+        // ファイルをbase64に変換
+        const base64 = await this.fileToBase64(referenceFile);
+
+        const options = {
+          aspectRatio,
+          referenceImage: base64,
+          referenceMimeType: referenceFile.type,
+        };
+
+        const result = await window.electronAPI.generateImageFromText(prompt, options);
+
+        if (result && result.error) {
+          throw new Error(result.error);
+        }
+
+        if (result && result.imageBase64) {
+          // Save the generated image for future reference
+          this.lastGeneratedImage = {
+            imageBase64: result.imageBase64,
+            mimeType: result.mimeType || 'image/png',
+          };
+
+          return {
+            imageBase64: result.imageBase64,
+            mimeType: result.mimeType || 'image/png',
+          };
+        }
+
+        throw new Error(getUIText('unexpectedResponse'));
+      }
+      throw new Error(getUIText('apiUnavailable'));
+    } catch (error) {
+      throw error;
     }
   }
 
@@ -2491,6 +3038,100 @@ class GeminiService {
   async generateResponse(userMessage, historyText = '', useWebSearch = false) {
     const prompt = this.buildTextOnlyPrompt(userMessage, historyText);
     return this.requestText(prompt, useWebSearch, 'chat');
+  }
+
+  async generateResponseWithAttachments(
+    userMessage,
+    historyText = '',
+    attachments = [],
+    useWebSearch = false
+  ) {
+    let prompt = this.buildTextOnlyPrompt(userMessage, historyText);
+
+    // ファイルを種類ごとに分類
+    const imageFiles = attachments.filter((file) => file.type.startsWith('image/'));
+    const textBasedExtensions = [
+      '.txt',
+      '.md',
+      '.csv',
+      '.json',
+      '.xml',
+      '.html',
+      '.css',
+      '.js',
+      '.ts',
+      '.py',
+      '.java',
+      '.cpp',
+      '.c',
+      '.h',
+      '.jsx',
+      '.tsx',
+      '.sh',
+      '.yaml',
+      '.yml',
+    ];
+    const textFiles = attachments.filter(
+      (file) =>
+        file.type.startsWith('text/') ||
+        file.type === 'application/json' ||
+        file.type === 'application/xml' ||
+        textBasedExtensions.some((ext) => file.name.toLowerCase().endsWith(ext))
+    );
+    const pdfFiles = attachments.filter((file) => file.type === 'application/pdf');
+
+    // テキストファイルの内容をプロンプトに追加
+    if (textFiles.length > 0) {
+      const textContents = await Promise.all(
+        textFiles.map(async (file) => {
+          const content = await this.readTextFile(file);
+          return `\n\n[Attached file: ${file.name}]\n${content}\n[End of ${file.name}]`;
+        })
+      );
+      prompt = prompt + textContents.join('');
+    }
+
+    // PDFファイルがある場合
+    if (pdfFiles.length > 0) {
+      const firstPdf = pdfFiles[0];
+      const base64 = await this.fileToBase64(firstPdf);
+      // PDFも画像と同じくrequestWithImageで送信（mainプロセス側で処理）
+      return this.requestWithImage(prompt, base64, 'application/pdf', useWebSearch, 'chat');
+    }
+
+    // 画像ファイルがある場合
+    if (imageFiles.length > 0) {
+      const firstImage = imageFiles[0];
+      const base64 = await this.fileToBase64(firstImage);
+      return this.requestWithImage(prompt, base64, firstImage.type, useWebSearch, 'chat');
+    }
+
+    // ファイルがテキストのみの場合、または添付ファイルがない場合
+    return this.requestText(prompt, useWebSearch, 'chat');
+  }
+
+  async readTextFile(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        resolve(reader.result);
+      };
+      reader.onerror = reject;
+      reader.readAsText(file);
+    });
+  }
+
+  async fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        // data:image/png;base64,... の形式から base64部分のみを取得
+        const base64 = reader.result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   }
 
   /** 純粋な翻訳（UI言語に翻訳、説明なし・訳文のみ） */

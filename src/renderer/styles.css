@@ -690,6 +690,48 @@ button:disabled {
   opacity: 0.5;
 }
 
+/* Plus button styles */
+#plusBtn {
+  background: transparent !important;
+  color: #6b7280 !important;
+  border: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 9999px !important;
+  width: 1.75rem; /* 28px */
+  height: 1.75rem; /* 28px */
+  min-height: 1.75rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  cursor: pointer;
+  align-self: flex-end !important;
+  margin-bottom: 0.5rem; /* 8px */
+  margin-left: -0.5rem; /* -8px */
+  flex-shrink: 0;
+}
+
+.theme-dark #plusBtn {
+  color: #9ca3af !important;
+}
+
+#plusBtn svg,
+.plus-icon {
+  position: static;
+  width: 12px;
+  height: 12px;
+}
+
+#plusBtn:hover {
+  color: #374151 !important;
+}
+
+.theme-dark #plusBtn:hover {
+  color: #d1d5db !important;
+}
+
 /* Send button explicit styles for consistency */
 #sendBtn {
   position: absolute !important;
@@ -1090,4 +1132,174 @@ html[dir='rtl'] .slash-suggest {
   border-radius: 0.5rem;
   background-color: rgba(255, 255, 255, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Generated image styling */
+.generated-image {
+  max-width: 100px;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin: 0.5rem 0;
+  display: block;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.generated-image:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.theme-dark .generated-image {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.theme-dark .generated-image:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Command badge styling */
+.command-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  margin-right: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--primary), var(--primary-2));
+  border-radius: 12px;
+  vertical-align: baseline;
+  line-height: 1.4;
+}
+
+.theme-dark .command-badge {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--primary), var(--primary-2));
+  box-shadow: 0 2px 8px rgba(255, 77, 109, 0.3);
+}
+
+/* Attachment area styles */
+.attachment-area {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+
+.attachment-area.hidden {
+  display: none;
+}
+
+.attachment-item {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.theme-dark .attachment-item {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.attachment-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.attachment-item-file {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.theme-dark .attachment-item-file {
+  color: #9ca3af;
+}
+
+.attachment-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: white;
+  border: 2px solid white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: bold;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 10;
+}
+
+.theme-dark .attachment-remove {
+  border-color: rgba(255, 255, 255, 0.9);
+}
+
+.attachment-item:hover .attachment-remove {
+  opacity: 1;
+}
+
+/* Message attachment previews (in chat history) */
+.message-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.message-attachment-item {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.theme-dark .message-attachment-item {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.message-attachment-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.message-attachment-file {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.theme-dark .message-attachment-file {
+  color: #9ca3af;
 }

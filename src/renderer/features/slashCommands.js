@@ -144,6 +144,107 @@
     },
   ];
 
+  const SLASH_IMAGE_SIZE_TARGETS = [
+    {
+      key: '/image size auto',
+      match: '/image size auto',
+      label: '/image size auto',
+      descKey: 'slashDescriptions.imageSizeAuto',
+      size: 'auto',
+    },
+    {
+      key: '/image size 1:1',
+      match: '/image size 1:1',
+      label: '/image size 1:1',
+      descKey: 'slashDescriptions.imageSize1_1',
+      size: '1:1',
+    },
+    {
+      key: '/image size 9:16',
+      match: '/image size 9:16',
+      label: '/image size 9:16',
+      descKey: 'slashDescriptions.imageSize9_16',
+      size: '9:16',
+    },
+    {
+      key: '/image size 16:9',
+      match: '/image size 16:9',
+      label: '/image size 16:9',
+      descKey: 'slashDescriptions.imageSize16_9',
+      size: '16:9',
+    },
+    {
+      key: '/image size 3:4',
+      match: '/image size 3:4',
+      label: '/image size 3:4',
+      descKey: 'slashDescriptions.imageSize3_4',
+      size: '3:4',
+    },
+    {
+      key: '/image size 4:3',
+      match: '/image size 4:3',
+      label: '/image size 4:3',
+      descKey: 'slashDescriptions.imageSize4_3',
+      size: '4:3',
+    },
+  ];
+
+  const SLASH_IMAGE_COUNT_TARGETS = [
+    {
+      key: '/image count 1',
+      match: '/image count 1',
+      label: '/image count 1',
+      descKey: 'slashDescriptions.imageCount1',
+      count: 1,
+    },
+    {
+      key: '/image count 2',
+      match: '/image count 2',
+      label: '/image count 2',
+      descKey: 'slashDescriptions.imageCount2',
+      count: 2,
+    },
+    {
+      key: '/image count 3',
+      match: '/image count 3',
+      label: '/image count 3',
+      descKey: 'slashDescriptions.imageCount3',
+      count: 3,
+    },
+    {
+      key: '/image count 4',
+      match: '/image count 4',
+      label: '/image count 4',
+      descKey: 'slashDescriptions.imageCount4',
+      count: 4,
+    },
+  ];
+
+  const SLASH_IMAGE_TARGETS = [
+    {
+      key: '/image status',
+      match: '/image status',
+      label: '/image status',
+      descKey: 'slashDescriptions.imageStatus',
+    },
+    {
+      key: '/image size',
+      match: '/image size',
+      label: '/image size',
+      descKey: 'slashDescriptions.imageSize',
+      children: SLASH_IMAGE_SIZE_TARGETS,
+      childSeparator: ' ',
+    },
+    {
+      key: '/image count',
+      match: '/image count',
+      label: '/image count',
+      descKey: 'slashDescriptions.imageCount',
+      children: SLASH_IMAGE_COUNT_TARGETS,
+      childSeparator: ' ',
+    },
+  ];
+
   function getLangMeta(code) {
     const lang = String(code || 'en');
     const name = LANG_NAMES[lang] || 'English';
@@ -180,6 +281,9 @@
     SLASH_TRANSLATE_TARGETS,
     SLASH_TRANSLATE_LOOKUP,
     SLASH_WEB_TARGETS,
+    SLASH_IMAGE_TARGETS,
+    SLASH_IMAGE_SIZE_TARGETS,
+    SLASH_IMAGE_COUNT_TARGETS,
     getLangMeta,
     normalizeTranslateCode,
     getLanguageDisplayName,
