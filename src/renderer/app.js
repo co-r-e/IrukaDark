@@ -161,17 +161,6 @@ class IrukaDarkApp {
         });
       }
     } catch {}
-
-    // Windows版統合UI初期化
-    try {
-      if (window.electronAPI && window.electronAPI.onPlatformInfo) {
-        window.electronAPI.onPlatformInfo((info) => {
-          if (info && info.integratedMode) {
-            this.initializeIntegratedPopup();
-          }
-        });
-      }
-    } catch {}
   }
   updateUILanguage() {
     const lang = getCurrentUILanguage();
@@ -3776,24 +3765,6 @@ IrukaDarkApp.prototype.autosizeMessageInput = function (reset = false) {
     const next = Math.min(Math.max(el.scrollHeight, min), max);
     el.style.height = `${next}px`;
   } catch (e) {}
-};
-
-// Windows版統合popup初期化
-IrukaDarkApp.prototype.initializeIntegratedPopup = function () {
-  try {
-    const popup = document.getElementById('integratedPopup');
-    if (!popup) return;
-
-    // 統合popupを表示
-    popup.style.display = 'flex';
-    document.body.classList.add('windows-integrated');
-
-    // ドラッグ処理は既にCSSの-webkit-app-region: dragで実装済み
-    // クリックでウィンドウの表示/非表示を切り替える機能は不要
-    // （Windows版では常に表示）
-  } catch (e) {
-    console.error('Failed to initialize integrated popup:', e);
-  }
 };
 
 // アプリケーション初期化

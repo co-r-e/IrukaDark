@@ -11,10 +11,8 @@ class WindowManager {
     this.popupDownBounds = null;
     this.mainInitiallyShown = false;
     // Store initial window sizes to prevent growth on Windows
-    this.isWindows = process.platform === 'win32';
     this.mainWindowWidth = 260;
-    // Windows版は統合UIのため高さを拡張 (280 + 84)
-    this.mainWindowHeight = this.isWindows ? 364 : 280;
+    this.mainWindowHeight = 280;
     this.isRepositioning = false;
     // Store fixed offset between popup and main window to prevent distance drift on Windows
     this.mainPopupOffsetX = null;
@@ -28,9 +26,9 @@ class WindowManager {
 
     const baseOpts = {
       width: 260,
-      height: this.mainWindowHeight, // Windows版は364px、それ以外は280px
+      height: 280,
       minWidth: 260,
-      minHeight: this.isWindows ? 224 : 140, // Windows版は統合UIのためminも調整 (140 + 84)
+      minHeight: 140,
       alwaysOnTop: true,
       frame: false,
       transparent: true,
@@ -56,7 +54,7 @@ class WindowManager {
     setMainWindow(mainWindow);
 
     try {
-      mainWindow.setMinimumSize(260, this.isWindows ? 224 : 140);
+      mainWindow.setMinimumSize(260, 140);
     } catch {}
 
     // Update stored size when user manually resizes the window
@@ -90,15 +88,7 @@ class WindowManager {
 
     mainWindow.webContents.once('did-finish-load', () => {
       try {
-        // Windows版は統合UIのためpopupWindowは作成しない
-        if (!this.isWindows) {
-          this.createPopupWindow();
-        }
-        // プラットフォーム情報をレンダラーに送信
-        mainWindow.webContents.send('platform-info', {
-          isWindows: this.isWindows,
-          integratedMode: this.isWindows,
-        });
+        this.createPopupWindow();
       } catch {}
     });
 
@@ -109,11 +99,6 @@ class WindowManager {
   }
 
   createPopupWindow() {
-    // Windows版は統合UIのためpopupWindowを作成しない
-    if (this.isWindows) {
-      return null;
-    }
-
     const existing = getPopupWindow();
     if (existing && !existing.isDestroyed()) {
       existing.focus();

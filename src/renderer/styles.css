@@ -1055,7 +1055,7 @@ html[dir='rtl'] .toast-container {
   left: 0.25rem; /* 4px */
   right: 0.75rem; /* wider than before; still leaves a margin */
   bottom: 2.75rem; /* sit above input */
-  background: rgba(255, 255, 255, 0.85);
+  background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 10px;
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
@@ -1068,7 +1068,7 @@ html[dir='rtl'] .slash-suggest {
   right: 0.25rem;
 }
 .theme-dark .slash-suggest {
-  background: linear-gradient(145deg, rgba(26, 20, 70, 0.88), rgba(11, 16, 33, 0.88));
+  background: linear-gradient(145deg, #1a1446, #0b1021);
   border-color: rgba(255, 255, 255, 0.12);
 }
 .slash-suggest-list {
@@ -1309,66 +1309,4 @@ html[dir='rtl'] .slash-suggest {
 
 .theme-dark .message-attachment-file {
   color: #9ca3af;
-}
-
-/* ==========================================
-   Windows版統合popup用スタイル
-   ========================================== */
-
-.integrated-popup {
-  height: 84px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  flex-shrink: 0;
-}
-
-/* ライトモード用 */
-html:not(.theme-dark) .integrated-popup {
-  background: rgba(0, 0, 0, 0.03);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.popup-drag-area {
-  width: 84px;
-  height: 84px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: move;
-  -webkit-app-region: drag;
-  position: relative;
-}
-
-.popup-logo {
-  width: 84px;
-  height: 84px;
-  pointer-events: none;
-  user-select: none;
-}
-
-.fallback-popup-logo {
-  width: 84px;
-  height: 84px;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  border-radius: 20px;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
-  pointer-events: none;
-  user-select: none;
-}
-
-.fallback-popup-logo svg {
-  color: white;
-}
-
-/* Windows版統合モード時のapp高さ調整 */
-body.windows-integrated #app {
-  height: calc(100vh - 84px);
 }

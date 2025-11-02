@@ -21,39 +21,6 @@
     <script src="./features/slashCommands.js"></script>
   </head>
   <body class="glass-effect rounded-2xl shadow-2xl overflow-hidden">
-    <!-- Windows版統合popup領域（デフォルトは非表示） -->
-    <div id="integratedPopup" class="integrated-popup" style="display: none">
-      <div class="popup-drag-area">
-        <img
-          id="integratedLogoImg"
-          src="assets/icons/irukadark_logo.svg"
-          alt="IrukaDark Logo"
-          class="popup-logo"
-          onerror="this.style.display='none'; document.getElementById('integratedFallbackLogo').style.display='flex';"
-        />
-        <div id="integratedFallbackLogo" class="fallback-popup-logo">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="42"
-            height="42"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M12 8V4H8" />
-            <rect width="16" height="12" x="4" y="8" rx="2" />
-            <path d="M2 14h2" />
-            <path d="M20 14h2" />
-            <path d="M15 13v2" />
-            <path d="M9 13v2" />
-          </svg>
-        </div>
-      </div>
-    </div>
-
     <div id="app" class="h-screen flex flex-col">
       <div
         class="flex items-center justify-end px-3 py-1 border-b border-white/15 backdrop-blur-sm bg-white/5 drag-region"
