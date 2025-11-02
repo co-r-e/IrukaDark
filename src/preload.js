@@ -76,4 +76,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('popup:set-position', { x: Number(x) || 0, y: Number(y) || 0 }),
   // Unhide the main window; pass true to also focus
   ensureVisible: (focus = false) => ipcRenderer.invoke('ui:ensure-visible', { focus }),
+  // Platform info (for Windows integrated UI)
+  onPlatformInfo: (cb) => ipcRenderer.on('platform-info', (_e, info) => cb(info)),
 });

@@ -1310,3 +1310,65 @@ html[dir='rtl'] .slash-suggest {
 .theme-dark .message-attachment-file {
   color: #9ca3af;
 }
+
+/* ==========================================
+   Windows版統合popup用スタイル
+   ========================================== */
+
+.integrated-popup {
+  height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  flex-shrink: 0;
+}
+
+/* ライトモード用 */
+html:not(.theme-dark) .integrated-popup {
+  background: rgba(0, 0, 0, 0.03);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.popup-drag-area {
+  width: 84px;
+  height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: move;
+  -webkit-app-region: drag;
+  position: relative;
+}
+
+.popup-logo {
+  width: 84px;
+  height: 84px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.fallback-popup-logo {
+  width: 84px;
+  height: 84px;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  border-radius: 20px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+  pointer-events: none;
+  user-select: none;
+}
+
+.fallback-popup-logo svg {
+  color: white;
+}
+
+/* Windows版統合モード時のapp高さ調整 */
+body.windows-integrated #app {
+  height: calc(100vh - 84px);
+}
