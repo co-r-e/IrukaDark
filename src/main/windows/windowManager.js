@@ -377,15 +377,23 @@ class WindowManager {
         targetY = Math.min(Math.max(targetY, wa.y), wa.y + wa.height - mainHeight);
       }
 
-      // Use setBounds with fixed size to prevent window growth on Windows
-      this.isRepositioning = true;
-      mainWindow.setBounds({
-        x: Math.round(targetX),
-        y: Math.round(targetY),
-        width: mainWidth,
-        height: mainHeight,
-      });
-      this.isRepositioning = false;
+      // Only reposition if the position actually changed to prevent drift
+      const currentBounds = mainWindow.getBounds();
+      if (
+        Math.round(currentBounds.x) !== Math.round(targetX) ||
+        Math.round(currentBounds.y) !== Math.round(targetY)
+      ) {
+        // Use setBounds with fixed size to prevent window growth on Windows
+        this.isRepositioning = true;
+        mainWindow.setBounds({
+          x: Math.round(targetX),
+          y: Math.round(targetY),
+          width: mainWidth,
+          height: mainHeight,
+        });
+        this.isRepositioning = false;
+      }
+
       if (!this.mainInitiallyShown && this.initialShowMain) {
         mainWindow.show();
         this.mainInitiallyShown = true;
