@@ -65,6 +65,26 @@ class WindowManager {
         // Ignore resize events during programmatic repositioning
         if (this.isRepositioning) return;
         const [width, height] = mainWindow.getSize();
+
+        // On Windows, enforce minimum size to prevent growth issues
+        if (process.platform === 'win32') {
+          const minWidth = isWindows ? 300 : 260;
+          const minHeight = isWindows ? 200 : 140;
+          if (width < minWidth || height < minHeight) {
+            const newWidth = Math.max(width, minWidth);
+            const newHeight = Math.max(height, minHeight);
+            this.isRepositioning = true;
+            mainWindow.setBounds({
+              x: mainWindow.getBounds().x,
+              y: mainWindow.getBounds().y,
+              width: newWidth,
+              height: newHeight,
+            });
+            this.isRepositioning = false;
+            return;
+          }
+        }
+
         this.mainWindowWidth = width;
         this.mainWindowHeight = height;
         // Reset offset when size changes so it's recalculated with new size
@@ -380,7 +400,14 @@ class WindowManager {
         if (!mainWindow || mainWindow.isDestroyed()) return false;
         const x = Math.round(Number(pos?.x) || 0);
         const y = Math.round(Number(pos?.y) || 0);
-        mainWindow.setPosition(x, y);
+        // Use setBounds to prevent window growth on Windows
+        const [currentWidth, currentHeight] = mainWindow.getSize();
+        mainWindow.setBounds({
+          x,
+          y,
+          width: currentWidth,
+          height: currentHeight,
+        });
         return true;
       }
 
@@ -419,7 +446,18 @@ class WindowManager {
       const marginBottom = 12;
       const posX = Math.round(wa.x + wa.width - w - marginRight);
       const posY = Math.round(wa.y + wa.height - h - marginBottom);
-      mainWindow.setPosition(posX, posY);
+
+      // On Windows, use setBounds to maintain window size
+      if (process.platform === 'win32') {
+        mainWindow.setBounds({
+          x: posX,
+          y: posY,
+          width: w,
+          height: h,
+        });
+      } else {
+        mainWindow.setPosition(posX, posY);
+      }
     } catch {}
   }
 
