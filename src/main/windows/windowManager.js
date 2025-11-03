@@ -419,11 +419,21 @@ class WindowManager {
           const expectedX = Math.round(targetX);
           const expectedY = Math.round(targetY);
 
-          // If there's a significant discrepancy (1+ pixels), correct it once
+          // If there's a significant discrepancy (1+ pixels), correct it immediately
           if (actualBounds.x !== expectedX || actualBounds.y !== expectedY) {
             // Calculate the actual offset and store it for future use
             this.mainPopupOffsetX = actualBounds.x - popupBounds.x;
             this.mainPopupOffsetY = actualBounds.y - popupBounds.y;
+
+            // Also immediately correct the position to match expected
+            this.isRepositioning = true;
+            mainWindow.setBounds({
+              x: expectedX,
+              y: expectedY,
+              width: mainWidth,
+              height: mainHeight,
+            });
+            this.isRepositioning = false;
           }
         } catch (e) {
           // Silently fail to avoid breaking existing functionality
