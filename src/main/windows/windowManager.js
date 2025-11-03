@@ -154,7 +154,6 @@ class WindowManager {
     this.applyPinAllSpaces(this.readPinAllSpacesPref());
 
     popupWindow.loadFile(path.join(__dirname, '../../renderer/popup.html'));
-    this.applySavedOpacity(popupWindow);
     mainWindow.setPosition(Math.round(mainX), Math.round(mainY));
 
     popupWindow.on('closed', () => {
@@ -218,20 +217,11 @@ class WindowManager {
 
   setOpacityForWindows(opacity) {
     const mainWindow = getMainWindow();
-    const popupWindow = getPopupWindow();
     try {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.setOpacity(opacity);
         try {
           mainWindow.webContents.send('window-opacity-changed', opacity);
-        } catch {}
-      }
-    } catch {}
-    try {
-      if (popupWindow && !popupWindow.isDestroyed()) {
-        popupWindow.setOpacity(opacity);
-        try {
-          popupWindow.webContents.send('window-opacity-changed', opacity);
         } catch {}
       }
     } catch {}
@@ -310,6 +300,8 @@ class WindowManager {
   }
 
   applySavedOpacity(win) {
+    if (!win || win.isDestroyed?.()) return;
+    if (win === getPopupWindow()) return;
     const savedOpacity = parseFloat(this.getPref('WINDOW_OPACITY') || '1');
     if (!Number.isNaN(savedOpacity)) {
       try {
