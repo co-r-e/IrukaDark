@@ -76,6 +76,4 @@ function preflightPermissionsOnce({ loadPrefs, savePrefs, bringAppToFront }) {
 
 module.exports = {
   preflightPermissionsOnce,
-  preflightAccessibility,
-  preflightScreenRecording,
 };

@@ -1796,30 +1796,6 @@ class IrukaDarkApp {
     document.body.appendChild(overlay);
   }
 
-  addImageMessage(imageBase64, mimeType, altText = '') {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = 'message ai-message';
-
-    const img = document.createElement('img');
-    img.src = `data:${mimeType};base64,${imageBase64}`;
-    img.alt = altText;
-    img.className = 'generated-image';
-    img.style.cursor = 'pointer';
-
-    // クリックで拡大表示（オプション）
-    img.addEventListener('click', () => {
-      this.showImageOverlay(imageBase64, mimeType, altText, img);
-    });
-
-    messageDiv.appendChild(img);
-    this.chatHistory.appendChild(messageDiv);
-
-    // Scroll to bottom to show the new image
-    if (!this.disableAutoScroll) {
-      this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
-    }
-  }
-
   downloadImage(imageBase64, mimeType, description) {
     try {
       // Convert base64 to blob

@@ -300,5 +300,4 @@ function normalizeBridgePayload(payload) {
 
 module.exports = {
   fetchSelectedText,
-  resolveExecutablePath,
 };
