@@ -11,8 +11,8 @@ class WindowManager {
     this.popupDownBounds = null;
     this.mainInitiallyShown = false;
     // Store initial window sizes to prevent growth on Windows
-    this.mainWindowWidth = 260;
-    this.mainWindowHeight = 280;
+    this.mainWindowWidth = process.platform === 'win32' ? 300 : 260;
+    this.mainWindowHeight = process.platform === 'win32' ? 400 : 280;
     this.isRepositioning = false;
     // Store fixed offset between popup and main window to prevent distance drift on Windows
     this.mainPopupOffsetX = null;
@@ -24,11 +24,13 @@ class WindowManager {
       return getMainWindow();
     }
 
+    // Different dimensions for Windows integrated layout
+    const isWindows = process.platform === 'win32';
     const baseOpts = {
-      width: 260,
-      height: 280,
-      minWidth: 260,
-      minHeight: 140,
+      width: isWindows ? 300 : 260,
+      height: isWindows ? 400 : 280,
+      minWidth: isWindows ? 300 : 260,
+      minHeight: isWindows ? 200 : 140,
       alwaysOnTop: true,
       frame: false,
       transparent: true,
@@ -54,7 +56,7 @@ class WindowManager {
     setMainWindow(mainWindow);
 
     try {
-      mainWindow.setMinimumSize(260, 140);
+      mainWindow.setMinimumSize(isWindows ? 300 : 260, isWindows ? 200 : 140);
     } catch {}
 
     // Update stored size when user manually resizes the window
@@ -76,7 +78,9 @@ class WindowManager {
     this.applySavedOpacity(mainWindow);
     this.positionMainWindow(mainWindow);
 
-    mainWindow.loadFile(path.join(__dirname, '../../renderer/index.html'));
+    // Load Windows-specific integrated layout or standard layout
+    const htmlFile = isWindows ? 'index-windows.html' : 'index.html';
+    mainWindow.loadFile(path.join(__dirname, '../../renderer', htmlFile));
     try {
       mainWindow.once('ready-to-show', () => {
         if (this.initialShowMain) {
@@ -88,7 +92,10 @@ class WindowManager {
 
     mainWindow.webContents.once('did-finish-load', () => {
       try {
-        this.createPopupWindow();
+        // On Windows, don't create popup window - use integrated layout
+        if (process.platform !== 'win32') {
+          this.createPopupWindow();
+        }
       } catch {}
     });
 
@@ -182,11 +189,19 @@ class WindowManager {
   }
 
   hasPopupWindow() {
+    // On Windows, popup window is integrated into main window
+    if (process.platform === 'win32') {
+      return false;
+    }
     const popupWindow = getPopupWindow();
     return !!(popupWindow && !popupWindow.isDestroyed());
   }
 
   togglePopupWindow() {
+    // On Windows, popup is integrated - do nothing
+    if (process.platform === 'win32') {
+      return;
+    }
     const popupWindow = getPopupWindow();
     if (popupWindow && !popupWindow.isDestroyed()) {
       popupWindow.close();
@@ -206,14 +221,17 @@ class WindowManager {
         }
       }
     } catch {}
-    try {
-      if (popupWindow && !popupWindow.isDestroyed()) {
-        popupWindow.setAlwaysOnTop(true, enabled ? 'screen-saver' : 'floating');
-        if (process.platform === 'darwin') {
-          popupWindow.setVisibleOnAllWorkspaces(!!enabled, { visibleOnFullScreen: !!enabled });
+    // Only apply to popup window on non-Windows platforms
+    if (process.platform !== 'win32') {
+      try {
+        if (popupWindow && !popupWindow.isDestroyed()) {
+          popupWindow.setAlwaysOnTop(true, enabled ? 'screen-saver' : 'floating');
+          if (process.platform === 'darwin') {
+            popupWindow.setVisibleOnAllWorkspaces(!!enabled, { visibleOnFullScreen: !!enabled });
+          }
         }
-      }
-    } catch {}
+      } catch {}
+    }
   }
 
   setOpacityForWindows(opacity) {
@@ -227,19 +245,68 @@ class WindowManager {
         } catch {}
       }
     } catch {}
-    try {
-      if (popupWindow && !popupWindow.isDestroyed()) {
-        popupWindow.setOpacity(opacity);
-        try {
-          popupWindow.webContents.send('window-opacity-changed', opacity);
-        } catch {}
-      }
-    } catch {}
+    // Only apply to popup window on non-Windows platforms
+    if (process.platform !== 'win32') {
+      try {
+        if (popupWindow && !popupWindow.isDestroyed()) {
+          popupWindow.setOpacity(opacity);
+          try {
+            popupWindow.webContents.send('window-opacity-changed', opacity);
+          } catch {}
+        }
+      } catch {}
+    }
   }
 
   handlePopupPointer(phase) {
     try {
       const p = String(phase || '').toLowerCase();
+      // On Windows, handle integrated window dragging
+      if (process.platform === 'win32') {
+        const mainWindow = getMainWindow();
+        if (!mainWindow || mainWindow.isDestroyed()) return false;
+
+        if (p === 'down') {
+          this.popupPointerDown = true;
+          this.popupMovedSinceDown = false;
+          try {
+            this.popupDownBounds = mainWindow.getBounds();
+          } catch {
+            this.popupDownBounds = null;
+          }
+          return true;
+        }
+        if (p === 'up') {
+          const wasDown = this.popupPointerDown;
+          this.popupPointerDown = false;
+          let moved = !!this.popupMovedSinceDown;
+          this.popupMovedSinceDown = false;
+          try {
+            if (this.popupDownBounds) {
+              const cur = mainWindow.getBounds();
+              if (cur && typeof cur.x === 'number' && typeof cur.y === 'number') {
+                const same = cur.x === this.popupDownBounds.x && cur.y === this.popupDownBounds.y;
+                moved = moved || !same ? moved : false;
+              }
+            }
+          } catch {}
+          this.popupDownBounds = null;
+          if (wasDown && !moved) {
+            try {
+              if (mainWindow.isVisible()) {
+                mainWindow.hide();
+              } else {
+                mainWindow.show();
+                mainWindow.focus();
+              }
+            } catch {}
+          }
+          return true;
+        }
+        return false;
+      }
+
+      // Original popup window logic for non-Windows platforms
       const popupWindow = getPopupWindow();
       if (!popupWindow || popupWindow.isDestroyed()) return false;
       if (p === 'down') {
@@ -288,6 +355,15 @@ class WindowManager {
 
   getPopupBounds() {
     try {
+      // On Windows, return main window bounds since popup is integrated
+      if (process.platform === 'win32') {
+        const mainWindow = getMainWindow();
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          return mainWindow.getBounds();
+        }
+        return null;
+      }
+
       const popupWindow = getPopupWindow();
       if (popupWindow && !popupWindow.isDestroyed()) {
         return popupWindow.getBounds();
@@ -298,6 +374,16 @@ class WindowManager {
 
   setPopupPosition(pos) {
     try {
+      // On Windows, set main window position since popup is integrated
+      if (process.platform === 'win32') {
+        const mainWindow = getMainWindow();
+        if (!mainWindow || mainWindow.isDestroyed()) return false;
+        const x = Math.round(Number(pos?.x) || 0);
+        const y = Math.round(Number(pos?.y) || 0);
+        mainWindow.setPosition(x, y);
+        return true;
+      }
+
       const popupWindow = getPopupWindow();
       if (!popupWindow || popupWindow.isDestroyed()) return false;
       const x = Math.round(Number(pos?.x) || 0);

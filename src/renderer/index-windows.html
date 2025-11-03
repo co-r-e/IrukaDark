@@ -1,0 +1,284 @@
+<!--
+  IrukaDark — (c) 2025 CORe Inc.
+  License: MIT. See https://github.com/co-r-e/IrukaDark/blob/HEAD/LICENSE
+  Windows Integrated Layout with icon at bottom and chat at top
+-->
+<!doctype html>
+<html lang="" class="theme-dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IrukaDark</title>
+    <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg" />
+    <link rel="apple-touch-icon" href="assets/icons/favicon.svg" />
+    <link href="./styles.css" rel="stylesheet" />
+    <script src="./vendor/lucide-lite.js"></script>
+    <script src="./i18n/base.js"></script>
+    <script src="./i18n/lang/en.js"></script>
+    <script src="./i18n/lang/ja.js"></script>
+    <script src="./vendor/marked-lite.js"></script>
+    <script src="./vendor/purify-lite.js"></script>
+    <script src="./state/uiState.js"></script>
+    <script src="./features/slashCommands.js"></script>
+    <style>
+      /* Windows-specific integrated layout styles */
+      .windows-integrated-layout {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .chat-section {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      .icon-section {
+        height: 100px;
+        min-height: 100px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-top: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(8px);
+        position: relative;
+      }
+
+      .logo-container {
+        width: 84px;
+        height: 84px;
+        position: relative;
+        cursor: move;
+        -webkit-app-region: no-drag;
+        background: rgba(0, 0, 0, 0.001);
+        pointer-events: auto;
+      }
+
+      .logo {
+        width: 84px;
+        height: 84px;
+      }
+
+      .fallback-logo {
+        width: 84px;
+        height: 84px;
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        border-radius: 20px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+      }
+
+      .fallback-logo svg {
+        width: 42px;
+        height: 42px;
+        color: white;
+      }
+
+      /* Ensure chat history takes available space */
+      .chat-history-flex {
+        flex: 1;
+        overflow-y: auto;
+      }
+
+      /* Compact input area for Windows */
+      .input-area-compact {
+        padding: 8px 12px 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(8px);
+      }
+    </style>
+  </head>
+  <body class="glass-effect rounded-2xl shadow-2xl overflow-hidden">
+    <div id="app" class="windows-integrated-layout">
+      <!-- Chat Section (Top) -->
+      <div class="chat-section">
+        <div
+          class="flex items-center justify-end px-3 py-1 border-b border-white/15 backdrop-blur-sm bg-white/5 drag-region"
+        ></div>
+
+        <div id="chatHistory" class="chat-history-flex px-3 py-3"></div>
+
+        <div id="inputArea" class="input-area-compact">
+          <div id="attachmentArea" class="attachment-area hidden"></div>
+          <input
+            type="file"
+            id="fileInput"
+            multiple
+            accept="image/*,application/pdf,text/plain,text/markdown,.txt,.md,.csv,.json,.xml,.html,.css,.js,.py,.java,.cpp,.c,.h"
+            style="display: none"
+          />
+          <div class="flex gap-0 items-end">
+            <button
+              id="plusBtn"
+              class="plus-btn w-6 h-6 rounded-full transition-all duration-200 hover:scale-105 inline-flex items-center justify-center shadow-lg flex-shrink-0"
+              data-i18n-title="addAttachment"
+            >
+              <svg
+                class="plus-icon no-gradient"
+                xmlns="http://www.w3.org/2000/svg"
+                width="10"
+                height="10"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+            <div id="inputWrapper" class="flex-1 relative">
+              <textarea
+                id="messageInput"
+                rows="1"
+                placeholder=""
+                data-i18n-placeholder="placeholder"
+                class="w-full min-h-8 px-3 pr-8 py-2 pb-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-lg text-xs placeholder:text-gray-500 focus:outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm resize-none overflow-y-auto"
+              ></textarea>
+              <button
+                id="sendBtn"
+                class="absolute right-2 bottom-2 w-8 h-8 rounded-full transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 inline-flex items-center justify-center shadow-lg"
+                data-i18n-title="send"
+              >
+                <svg
+                  class="w-3 h-3 no-gradient"
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M22 2L11 13"></path>
+                  <path d="M22 2L15 22L11 13L2 9L22 2Z"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Icon Section (Bottom) -->
+      <div class="icon-section" id="iconSection">
+        <div class="logo-container" id="logoContainer">
+          <img
+            id="logoImg"
+            src="assets/icons/irukadark_logo.svg"
+            alt="IrukaDark Logo"
+            class="logo"
+            onerror="this.style.display='none'; document.getElementById('fallbackLogo').style.display='flex';"
+          />
+          <div id="fallbackLogo" class="fallback-logo">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="60"
+              height="60"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M12 8V4H8" />
+              <rect width="16" height="12" x="4" y="8" rx="2" />
+              <path d="M2 14h2" />
+              <path d="M20 14h2" />
+              <path d="M15 13v2" />
+              <path d="M9 13v2" />
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="toast" class="toast-container"></div>
+
+    <script>
+      // Windows integrated drag functionality
+      (function () {
+        try {
+          const api = window.electronAPI || {};
+          const sendPhase = (p) => {
+            try {
+              api.notifyPopupPointer && api.notifyPopupPointer(p);
+            } catch {}
+          };
+          const getBounds = async () => {
+            try {
+              return await api.getPopupBounds();
+            } catch {
+              return null;
+            }
+          };
+          const setPos = async (x, y) => {
+            try {
+              await api.setPopupPosition(x, y);
+            } catch {}
+          };
+
+          const downEv = 'onpointerdown' in window ? 'pointerdown' : 'mousedown';
+          const moveEv = 'onpointermove' in window ? 'pointermove' : 'mousemove';
+          const upEv = 'onpointerup' in window ? 'pointerup' : 'mouseup';
+
+          let dragging = false;
+          let startScreenX = 0,
+            startScreenY = 0;
+          let startBounds = null;
+          let moved = false;
+
+          const onDown = async (e) => {
+            try {
+              e.preventDefault();
+            } catch {}
+            startBounds = await getBounds();
+            if (!startBounds) return;
+            dragging = true;
+            moved = false;
+            startScreenX = e.screenX;
+            startScreenY = e.screenY;
+            try {
+              if (e.pointerId != null && e.target?.setPointerCapture) {
+                e.target.setPointerCapture(e.pointerId);
+              }
+            } catch {}
+            sendPhase('down');
+          };
+          const onMove = async (e) => {
+            if (!dragging || !startBounds) return;
+            const dx = e.screenX - startScreenX;
+            const dy = e.screenY - startScreenY;
+            if (Math.abs(dx) + Math.abs(dy) > 0) moved = true;
+            await setPos(startBounds.x + dx, startBounds.y + dy);
+          };
+          const onUp = async (e) => {
+            if (!dragging) return;
+            dragging = false;
+            sendPhase('up');
+          };
+
+          const logoContainer = document.getElementById('logoContainer');
+          if (logoContainer) {
+            logoContainer.addEventListener(downEv, onDown, { capture: true });
+            logoContainer.addEventListener(moveEv, onMove, { capture: true });
+            logoContainer.addEventListener(upEv, onUp, { capture: true });
+          }
+        } catch {}
+      })();
+    </script>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
