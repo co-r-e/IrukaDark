@@ -14,6 +14,7 @@ class WindowManager {
     this.mainWindowWidth = 260;
     this.mainWindowHeight = 280;
     this.isRepositioning = false;
+    this.isCorrectingSize = false;
     // Store fixed offset between popup and main window to prevent distance drift on Windows
     this.mainPopupOffsetX = null;
     this.mainPopupOffsetY = null;
@@ -63,6 +64,29 @@ class WindowManager {
         // Ignore resize events during programmatic repositioning
         if (this.isRepositioning) return;
         const [width, height] = mainWindow.getSize();
+
+        // Additional safety check: prevent unexpected size growth on Windows
+        if (process.platform === 'win32' && !this.isCorrectingSize) {
+          const expectedWidth = this.mainWindowWidth;
+          const expectedHeight = this.mainWindowHeight;
+
+          // If size changed unexpectedly (not by user), restore correct size
+          if (width !== expectedWidth || height !== expectedHeight) {
+            // Only consider it a bug if the change is significant (>5px)
+            if (Math.abs(width - expectedWidth) > 5 || Math.abs(height - expectedHeight) > 5) {
+              this.isCorrectingSize = true;
+              mainWindow.setBounds({
+                x: mainWindow.getBounds().x,
+                y: mainWindow.getBounds().y,
+                width: expectedWidth,
+                height: expectedHeight,
+              });
+              this.isCorrectingSize = false;
+              return; // Don't update stored size for bug corrections
+            }
+          }
+        }
+
         this.mainWindowWidth = width;
         this.mainWindowHeight = height;
         // Reset offset when size changes so it's recalculated with new size
@@ -377,23 +401,34 @@ class WindowManager {
         targetY = Math.min(Math.max(targetY, wa.y), wa.y + wa.height - mainHeight);
       }
 
-      // Only reposition if the position actually changed to prevent drift
-      const currentBounds = mainWindow.getBounds();
-      if (
-        Math.round(currentBounds.x) !== Math.round(targetX) ||
-        Math.round(currentBounds.y) !== Math.round(targetY)
-      ) {
-        // Use setBounds with fixed size to prevent window growth on Windows
-        this.isRepositioning = true;
-        mainWindow.setBounds({
-          x: Math.round(targetX),
-          y: Math.round(targetY),
-          width: mainWidth,
-          height: mainHeight,
-        });
-        this.isRepositioning = false;
-      }
+      // Use setBounds with fixed size to prevent window growth on Windows
+      this.isRepositioning = true;
+      mainWindow.setBounds({
+        x: Math.round(targetX),
+        y: Math.round(targetY),
+        width: mainWidth,
+        height: mainHeight,
+      });
+      this.isRepositioning = false;
 
+      // Windows-specific position correction to prevent drift
+      if (process.platform === 'win32') {
+        try {
+          // Check actual position after setBounds (Windows may adjust it)
+          const actualBounds = mainWindow.getBounds();
+          const expectedX = Math.round(targetX);
+          const expectedY = Math.round(targetY);
+
+          // If there's a significant discrepancy (1+ pixels), correct it once
+          if (actualBounds.x !== expectedX || actualBounds.y !== expectedY) {
+            // Calculate the actual offset and store it for future use
+            this.mainPopupOffsetX = actualBounds.x - popupBounds.x;
+            this.mainPopupOffsetY = actualBounds.y - popupBounds.y;
+          }
+        } catch (e) {
+          // Silently fail to avoid breaking existing functionality
+        }
+      }
       if (!this.mainInitiallyShown && this.initialShowMain) {
         mainWindow.show();
         this.mainInitiallyShown = true;
