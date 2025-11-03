@@ -306,6 +306,9 @@ class IrukaDarkApp {
       this.autosizeMessageInput();
       this.maybeShowSlashSuggest();
     });
+    this.messageInput.addEventListener('paste', (e) => {
+      this.handlePaste(e);
+    });
     this.autosizeMessageInput();
     const on = (name, cb) => {
       try {
@@ -1923,12 +1926,12 @@ class IrukaDarkApp {
         label: '/next',
         descKey: 'slashDescriptions.next',
       },
-      // 3) /table third
+      // 3) /clear third
       {
-        key: '/table',
-        match: '/table',
-        label: '/table',
-        descKey: 'slashDescriptions.table',
+        key: '/clear',
+        match: '/clear',
+        label: '/clear',
+        descKey: 'slashDescriptions.clear',
       },
 
       // Others
@@ -1951,10 +1954,10 @@ class IrukaDarkApp {
         childMatchBase: '/translate',
       },
       {
-        key: '/clear',
-        match: '/clear',
-        label: '/clear',
-        descKey: 'slashDescriptions.clear',
+        key: '/table',
+        match: '/table',
+        label: '/table',
+        descKey: 'slashDescriptions.table',
       },
       {
         key: '/compact',
@@ -2344,6 +2347,27 @@ class IrukaDarkApp {
   clearAttachments() {
     this.attachedFiles = [];
     this.updateAttachmentDisplay();
+  }
+
+  handlePaste(event) {
+    const clipboardData = event.clipboardData || window.clipboardData;
+    if (!clipboardData) return;
+
+    const items = Array.from(clipboardData.items);
+    const imageItems = items.filter((item) => item.type.startsWith('image/'));
+
+    if (imageItems.length > 0) {
+      event.preventDefault();
+
+      imageItems.forEach((item) => {
+        const file = item.getAsFile();
+        if (file) {
+          this.attachedFiles.push(file);
+        }
+      });
+
+      this.updateAttachmentDisplay();
+    }
   }
 
   cancelGeneration() {
