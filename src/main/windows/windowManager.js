@@ -10,13 +10,12 @@ class WindowManager {
     this.popupMovedSinceDown = false;
     this.popupDownBounds = null;
     this.mainInitiallyShown = false;
-    // Store initial window sizes to prevent growth on Windows
     this.mainWindowWidth = 260;
     this.mainWindowHeight = 280;
     this.isRepositioning = false;
-    // Store fixed offset between popup and main window to prevent distance drift on Windows
     this.mainPopupOffsetX = null;
     this.mainPopupOffsetY = null;
+    this.clipboardWindows = []; // Track clipboard windows
   }
 
   createMainWindow() {
@@ -39,7 +38,7 @@ class WindowManager {
       show: false,
       icon: path.resolve(__dirname, '../../renderer/assets/icons/icon.png'),
       opacity: 1.0,
-      roundedCorners: true, // Enable rounded corners on Windows 11
+      roundedCorners: true,
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
@@ -68,6 +67,28 @@ class WindowManager {
         // Reset offset when size changes so it's recalculated with new size
         this.mainPopupOffsetX = null;
         this.mainPopupOffsetY = null;
+        // Update clipboard windows position
+        this.updateClipboardWindowsPosition();
+      } catch {}
+    });
+
+    // Update clipboard windows position when main window moves
+    mainWindow.on('move', () => {
+      try {
+        this.updateClipboardWindowsPosition();
+      } catch {}
+    });
+
+    // Hide/show clipboard windows when main window is hidden/shown
+    mainWindow.on('hide', () => {
+      try {
+        this.hideClipboardWindows();
+      } catch {}
+    });
+
+    mainWindow.on('show', () => {
+      try {
+        this.showClipboardWindows();
       } catch {}
     });
 
@@ -225,6 +246,16 @@ class WindowManager {
         } catch {}
       }
     } catch {}
+
+    // Apply opacity to clipboard windows
+    this.clipboardWindows.forEach((win) => {
+      if (win && !win.isDestroyed()) {
+        try {
+          win.setOpacity(opacity);
+          win.webContents.send('window-opacity-changed', opacity);
+        } catch {}
+      }
+    });
   }
 
   handlePopupPointer(phase) {
@@ -369,7 +400,6 @@ class WindowManager {
         targetY = Math.min(Math.max(targetY, wa.y), wa.y + wa.height - mainHeight);
       }
 
-      // Use setBounds with fixed size to prevent window growth on Windows
       this.isRepositioning = true;
       mainWindow.setBounds({
         x: Math.round(targetX),
@@ -414,6 +444,129 @@ class WindowManager {
         }
       });
     } catch {}
+  }
+
+  updateClipboardWindowsPosition() {
+    const mainWindow = getMainWindow();
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+
+    try {
+      const mainBounds = mainWindow.getBounds();
+      const gap = 8;
+
+      // Update position for all clipboard windows
+      this.clipboardWindows = this.clipboardWindows.filter((win) => {
+        if (win && !win.isDestroyed()) {
+          try {
+            const clipboardBounds = win.getBounds();
+            const x = mainBounds.x - clipboardBounds.width - gap;
+            // Align to bottom of main window
+            const y = mainBounds.y + mainBounds.height - clipboardBounds.height;
+            win.setPosition(x, y);
+            return true;
+          } catch {
+            return false;
+          }
+        }
+        return false;
+      });
+    } catch (err) {
+      console.error('Error updating clipboard windows position:', err);
+    }
+  }
+
+  hideClipboardWindows() {
+    this.clipboardWindows.forEach((win) => {
+      if (win && !win.isDestroyed()) {
+        try {
+          win.hide();
+        } catch {}
+      }
+    });
+  }
+
+  showClipboardWindows() {
+    this.clipboardWindows.forEach((win) => {
+      if (win && !win.isDestroyed()) {
+        try {
+          win.show();
+        } catch {}
+      }
+    });
+  }
+
+  createClipboardWindow() {
+    const clipboardWindow = new BrowserWindow({
+      width: 260,
+      height: 280,
+      minWidth: 260,
+      minHeight: 280,
+      alwaysOnTop: true,
+      frame: false,
+      transparent: true,
+      useContentSize: true,
+      backgroundColor: '#00000000',
+      focusable: true,
+      resizable: true,
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: path.join(__dirname, '../../preload.js'),
+        enableRemoteModule: false,
+        webSecurity: true,
+        devTools: false,
+      },
+    });
+
+    this.wireExternalLinkHandling(clipboardWindow);
+    this.applySavedOpacity(clipboardWindow);
+
+    const pinAllSpaces = this.readPinAllSpacesPref();
+    try {
+      clipboardWindow.setAlwaysOnTop(true, pinAllSpaces ? 'screen-saver' : 'floating');
+      if (process.platform === 'darwin') {
+        clipboardWindow.setVisibleOnAllWorkspaces(!!pinAllSpaces, {
+          visibleOnFullScreen: !!pinAllSpaces,
+        });
+      }
+    } catch {}
+
+    clipboardWindow.loadFile(path.join(__dirname, '../../renderer/clipboard.html'));
+
+    clipboardWindow.once('ready-to-show', () => {
+      // Position clipboard window to the left of main window
+      const mainWindow = getMainWindow();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        try {
+          const mainBounds = mainWindow.getBounds();
+          const clipboardBounds = clipboardWindow.getBounds();
+          const gap = 8; // Gap between windows
+
+          // Position to the left of main window, aligned to bottom
+          const x = mainBounds.x - clipboardBounds.width - gap;
+          const y = mainBounds.y + mainBounds.height - clipboardBounds.height;
+
+          clipboardWindow.setPosition(x, y);
+        } catch (err) {
+          console.error('Error positioning clipboard window:', err);
+          clipboardWindow.center();
+        }
+      } else {
+        clipboardWindow.center();
+      }
+      clipboardWindow.show();
+    });
+
+    clipboardWindow.on('closed', () => {
+      // Remove from tracking array
+      this.clipboardWindows = this.clipboardWindows.filter((win) => win !== clipboardWindow);
+    });
+
+    // Add to tracking array
+    this.clipboardWindows.push(clipboardWindow);
+
+    return clipboardWindow;
   }
 }
 

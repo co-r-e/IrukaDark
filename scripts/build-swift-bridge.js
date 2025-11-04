@@ -7,11 +7,6 @@ const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-if (process.platform !== 'darwin') {
-  console.log('Skipping Swift bridge build: supported only on macOS.');
-  process.exit(0);
-}
-
 const packageDir = path.resolve(__dirname, '../native/macos/IrukaAutomation');
 const distDir = path.join(packageDir, 'dist');
 const buildDir = path.join(packageDir, '.build');

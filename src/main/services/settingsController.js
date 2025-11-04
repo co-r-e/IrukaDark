@@ -1,4 +1,5 @@
 const { getMainWindow, getPopupWindow } = require('../context');
+const { BrowserWindow } = require('electron');
 
 class SettingsController {
   constructor({ windowManager, menuRefresher, setPref, getPref }) {
@@ -78,6 +79,24 @@ class SettingsController {
       if (popupWindow && !popupWindow.isDestroyed()) {
         popupWindow.webContents.send(channel, payload);
       }
+    } catch {}
+
+    // Broadcast to all windows (including clipboard windows)
+    try {
+      const allWindows = BrowserWindow.getAllWindows();
+      allWindows.forEach((win) => {
+        try {
+          if (
+            win &&
+            !win.isDestroyed() &&
+            win.webContents &&
+            win !== mainWindow &&
+            win !== popupWindow
+          ) {
+            win.webContents.send(channel, payload);
+          }
+        } catch {}
+      });
     } catch {}
   }
 }

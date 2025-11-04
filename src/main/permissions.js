@@ -17,7 +17,6 @@ function preflightAccessibility() {
 }
 
 function preflightAutomationHelper() {
-  if (process.platform !== 'darwin') return;
   try {
     const resources = process.resourcesPath || path.resolve(__dirname, '../../..');
     const helper = path.join(resources, 'mac-automation', 'IrukaAutomation');
@@ -49,7 +48,6 @@ function preflightScreenRecording() {
 }
 
 function preflightPermissionsOnce({ loadPrefs, savePrefs, bringAppToFront }) {
-  if (process.platform !== 'darwin') return;
   const prefs = loadPrefs();
   if (prefs && prefs.PERMISSIONS_PREFLIGHT_DONE) return;
   try {

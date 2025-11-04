@@ -76,4 +76,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('popup:set-position', { x: Number(x) || 0, y: Number(y) || 0 }),
   // Unhide the main window; pass true to also focus
   ensureVisible: (focus = false) => ipcRenderer.invoke('ui:ensure-visible', { focus }),
+  // Clipboard history
+  getClipboardHistory: () => ipcRenderer.invoke('clipboard:get-history'),
+  clearClipboardHistory: () => ipcRenderer.invoke('clipboard:clear-history'),
+  copyToClipboard: (text) => ipcRenderer.invoke('clipboard:copy', text),
+  deleteClipboardItem: (id) => ipcRenderer.invoke('clipboard:delete-item', id),
+  openClipboardWindow: () => ipcRenderer.invoke('clipboard:open-window'),
+  onClipboardHistoryUpdated: (cb) =>
+    ipcRenderer.on('clipboard:history-updated', (_e, history) => cb(history)),
+  getTheme: () => ipcRenderer.invoke('get-ui-theme'),
+  showClipboardContextMenu: () => ipcRenderer.invoke('clipboard:show-context-menu'),
+  // Snippet data persistence
+  getSnippetData: () => ipcRenderer.invoke('snippet:get-data'),
+  saveSnippetData: (data) => ipcRenderer.invoke('snippet:save-data', data),
 });

@@ -241,10 +241,6 @@ function spawnBridge(
 }
 
 async function fetchSelectedText({ timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
-  if (process.platform !== 'darwin') {
-    return { status: 'unsupported', text: '' };
-  }
-
   try {
     const first = await spawnBridge('selected-text', { timeoutMs, promptAccessibility: false });
     const result = normalizeBridgePayload(first.payload);

@@ -1598,6 +1598,19 @@ class IrukaDarkApp {
       return;
     }
 
+    if (lower === '/clipboard') {
+      try {
+        if (window.electronAPI && window.electronAPI.openClipboardWindow) {
+          await window.electronAPI.openClipboardWindow();
+        } else {
+          this.addMessage('system', 'Clipboard history feature is not available.');
+        }
+      } catch (e) {
+        this.addMessage('system', `Error opening clipboard window: ${e?.message || 'Unknown'}`);
+      }
+      return;
+    }
+
     this.addMessage('system', getUIText('availableCommands'));
   }
 
@@ -1908,6 +1921,13 @@ class IrukaDarkApp {
         match: '/clear',
         label: '/clear',
         descKey: 'slashDescriptions.clear',
+      },
+      // 4) /clipboard
+      {
+        key: '/clipboard',
+        match: '/clipboard',
+        label: '/clipboard',
+        descKey: 'slashDescriptions.clipboard',
       },
 
       // Others

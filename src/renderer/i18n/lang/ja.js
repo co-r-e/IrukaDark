@@ -64,6 +64,7 @@
       translateFree: '意訳（意図重視）モードに切り替え',
       translateStatus: '現在の翻訳モードを表示',
       clear: '履歴をクリア',
+      clipboard: 'クリップボード履歴を開く',
       compact: '履歴を要約して圧縮',
       web: 'Web検索の設定',
       webOn: 'Web検索を有効化',

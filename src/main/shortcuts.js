@@ -40,10 +40,6 @@ function resolveClipboardTimeout() {
 }
 
 async function tryCopySelectedText() {
-  if (process.platform !== 'darwin') {
-    return '';
-  }
-
   const timeoutMs = resolveClipboardTimeout();
   const response = await fetchSelectedText({ timeoutMs });
 
@@ -63,10 +59,6 @@ async function tryCopySelectedText() {
 }
 
 async function captureInteractiveArea() {
-  if (process.platform !== 'darwin') {
-    return { data: '', mimeType: '' };
-  }
-
   try {
     const tmpDir = app.getPath('temp');
     const file = path.join(tmpDir, `irukadark_capture_${Date.now()}.png`);

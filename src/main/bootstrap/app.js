@@ -903,6 +903,101 @@ function bootstrapApp() {
     });
   }
 
+  function setupClipboardHandlers() {
+    const { getClipboardHistoryService } = require('../services/clipboardHistory');
+    const clipboardService = getClipboardHistoryService();
+
+    // Start monitoring clipboard on app start
+    clipboardService.startMonitoring();
+
+    // Listen for history updates and notify all clipboard windows
+    clipboardService.on('history-updated', (history) => {
+      try {
+        const allWindows = BrowserWindow.getAllWindows();
+        allWindows.forEach((win) => {
+          try {
+            if (!win.isDestroyed() && win.webContents) {
+              const url = win.webContents.getURL();
+              if (url && url.includes('clipboard.html')) {
+                win.webContents.send('clipboard:history-updated', history);
+              }
+            }
+          } catch (err) {
+            // Ignore errors for individual windows
+          }
+        });
+      } catch (err) {
+        console.error('Error notifying clipboard windows:', err);
+      }
+    });
+
+    ipcMain.handle('clipboard:get-history', () => {
+      return clipboardService.getHistory();
+    });
+
+    ipcMain.handle('clipboard:clear-history', () => {
+      clipboardService.clearHistory();
+      return true;
+    });
+
+    ipcMain.handle('clipboard:copy', (_e, item) => {
+      return clipboardService.copyToClipboard(item);
+    });
+
+    ipcMain.handle('clipboard:delete-item', (_e, id) => {
+      clipboardService.deleteItem(id);
+      return true;
+    });
+
+    ipcMain.handle('clipboard:open-window', () => {
+      try {
+        windowManager.createClipboardWindow();
+        return true;
+      } catch (err) {
+        console.error('Error opening clipboard window:', err);
+        return false;
+      }
+    });
+
+    ipcMain.handle('clipboard:show-context-menu', (event) => {
+      const menu = Menu.buildFromTemplate([
+        {
+          label: 'Clear All',
+          click: () => {
+            clipboardService.clearHistory();
+          },
+        },
+      ]);
+      menu.popup(BrowserWindow.fromWebContents(event.sender));
+    });
+
+    // Snippet data persistence
+    const snippetDataPath = path.join(app.getPath('userData'), 'snippets.json');
+
+    ipcMain.handle('snippet:get-data', () => {
+      try {
+        if (fs.existsSync(snippetDataPath)) {
+          const data = fs.readFileSync(snippetDataPath, 'utf8');
+          return JSON.parse(data);
+        }
+        return null;
+      } catch (err) {
+        console.error('Error loading snippet data:', err);
+        return null;
+      }
+    });
+
+    ipcMain.handle('snippet:save-data', (_e, data) => {
+      try {
+        fs.writeFileSync(snippetDataPath, JSON.stringify(data, null, 2), 'utf8');
+        return true;
+      } catch (err) {
+        console.error('Error saving snippet data:', err);
+        return false;
+      }
+    });
+  }
+
   function setupAiHandlers() {
     ipcMain.handle('cancel-ai', (_e, payload = {}) => {
       const { fromShortcut } = payload || {};
@@ -1294,6 +1389,7 @@ function bootstrapApp() {
     setupCaptureHandlers();
     setupUiHandlers();
     setupUrlContentHandlers();
+    setupClipboardHandlers();
     setupAiHandlers();
     setupRendererSync();
     try {
@@ -1338,9 +1434,7 @@ function bootstrapApp() {
   });
 
   app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-      app.quit();
-    }
+    // macOS apps typically stay open until explicitly quit
   });
 
   app.on('before-quit', () => {
