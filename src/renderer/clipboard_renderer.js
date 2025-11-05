@@ -18,8 +18,6 @@ class ClipboardHistoryUI {
     this.nextSnippetId = 1;
     this.currentMenuFolderId = null; // Track which folder's menu is open
     this.currentMenuSnippetId = null; // Track which snippet's menu is open
-    this.draggedItem = null; // Track what's being dragged
-    this.draggedType = null; // 'folder' or 'snippet'
 
     // Search-related elements
     this.searchResultsMenu = document.getElementById('searchResultsMenu');
@@ -378,61 +376,6 @@ class ClipboardHistoryUI {
       folderEl.classList.add('expanded');
     }
     folderEl.dataset.id = folder.id;
-    folderEl.draggable = true;
-
-    // Drag events
-    folderEl.addEventListener('dragstart', (e) => {
-      this.draggedItem = folder;
-      this.draggedType = 'folder';
-      e.dataTransfer.effectAllowed = 'move';
-      folderEl.style.opacity = '0.5';
-    });
-
-    folderEl.addEventListener('dragend', (e) => {
-      folderEl.style.opacity = '1';
-      this.draggedItem = null;
-      this.draggedType = null;
-      document.querySelectorAll('.drag-over').forEach((el) => el.classList.remove('drag-over'));
-    });
-
-    // Drop zone events
-    folderEl.addEventListener('dragover', (e) => {
-      if (!this.draggedItem) return;
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-
-      if (this.draggedType === 'folder' && this.draggedItem.id === folder.id) {
-        return;
-      }
-
-      folderEl.classList.add('drag-over');
-    });
-
-    folderEl.addEventListener('dragleave', (e) => {
-      folderEl.classList.remove('drag-over');
-    });
-
-    folderEl.addEventListener('drop', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      folderEl.classList.remove('drag-over');
-
-      if (!this.draggedItem) return;
-
-      if (this.draggedType === 'folder') {
-        if (this.draggedItem.id !== folder.id) {
-          this.draggedItem.parentId = folder.id;
-          folder.expanded = true;
-          this.saveSnippets();
-          this.renderSnippets();
-        }
-      } else if (this.draggedType === 'snippet') {
-        this.draggedItem.folderId = folder.id;
-        folder.expanded = true;
-        this.saveSnippets();
-        this.renderSnippets();
-      }
-    });
 
     const iconDiv = document.createElement('div');
     iconDiv.className = 'snippet-folder-icon';
@@ -604,25 +547,6 @@ class ClipboardHistoryUI {
       snippetEl.classList.add('editing');
     }
     snippetEl.dataset.id = snippet.id;
-
-    // Only make draggable when not editing
-    if (!snippet.editing) {
-      snippetEl.draggable = true;
-
-      snippetEl.addEventListener('dragstart', (e) => {
-        this.draggedItem = snippet;
-        this.draggedType = 'snippet';
-        e.dataTransfer.effectAllowed = 'move';
-        snippetEl.style.opacity = '0.5';
-      });
-
-      snippetEl.addEventListener('dragend', (e) => {
-        snippetEl.style.opacity = '1';
-        this.draggedItem = null;
-        this.draggedType = null;
-        document.querySelectorAll('.drag-over').forEach((el) => el.classList.remove('drag-over'));
-      });
-    }
 
     if (snippet.editing) {
       // Editing mode
