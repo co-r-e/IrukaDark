@@ -74,29 +74,24 @@ class ClipboardHistoryUI {
 
     const t = this.i18n.clipboard;
 
-    // Update tab labels
-    if (this.historyTab) {
-      this.historyTab.textContent = t.tabHistory;
-    }
-    if (this.snippetTab) {
-      this.snippetTab.textContent = t.tabSnippet;
-    }
-
-    // Update search placeholders
-    if (this.historySearchInput) {
-      this.historySearchInput.placeholder = t.searchHistory;
-    }
-    if (this.snippetSearchInput) {
-      this.snippetSearchInput.placeholder = t.searchSnippets;
-    }
-
-    // Update data-i18n elements (empty state messages)
+    // Update data-i18n elements (tab labels, empty state messages)
     document.querySelectorAll('[data-i18n]').forEach((el) => {
       const key = el.dataset.i18n;
       if (key.startsWith('clipboard.')) {
         const subKey = key.replace('clipboard.', '');
         if (t[subKey]) {
           el.textContent = t[subKey];
+        }
+      }
+    });
+
+    // Update data-i18n-placeholder elements (search inputs)
+    document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+      const key = el.dataset.i18nPlaceholder;
+      if (key.startsWith('clipboard.')) {
+        const subKey = key.replace('clipboard.', '');
+        if (t[subKey] && el.placeholder !== undefined) {
+          el.placeholder = t[subKey];
         }
       }
     });
