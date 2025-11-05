@@ -1424,6 +1424,180 @@ class ClipboardHistoryUI {
   }
 }
 
+// MemoUI class for managing memo functionality
+class MemoUI {
+  constructor() {
+    this.memoTextarea = document.getElementById('memoTextarea');
+    this.memoExportBtn = document.getElementById('memoExportBtn');
+    this.memoResetBtn = document.getElementById('memoResetBtn');
+    this.storageKey = 'irukadark_memo_content';
+
+    // i18n
+    this.currentLang = 'en';
+    this.i18n = null;
+
+    this.initI18n();
+    this.bindEvents();
+    this.loadMemoContent();
+  }
+
+  async initI18n() {
+    try {
+      // Get current language from main process
+      if (window.electronAPI && window.electronAPI.getUILanguage) {
+        this.currentLang = await window.electronAPI.getUILanguage();
+      }
+
+      // Get i18n data
+      if (window.IRUKADARK_I18N && window.IRUKADARK_I18N[this.currentLang]) {
+        this.i18n = window.IRUKADARK_I18N[this.currentLang];
+      } else {
+        // Fallback to English
+        this.i18n = window.IRUKADARK_I18N['en'] || {};
+      }
+    } catch (err) {
+      console.error('Error initializing i18n:', err);
+      this.i18n = window.IRUKADARK_I18N['en'] || {};
+    }
+  }
+
+  bindEvents() {
+    // Auto-save memo content as user types
+    if (this.memoTextarea) {
+      this.memoTextarea.addEventListener('input', () => {
+        this.saveMemoContent();
+      });
+    }
+
+    // Copy button event
+    if (this.memoExportBtn) {
+      this.memoExportBtn.addEventListener('click', async () => {
+        await this.copyMemoContent();
+      });
+    }
+
+    // Reset button event
+    if (this.memoResetBtn) {
+      this.memoResetBtn.addEventListener('click', () => {
+        this.resetMemoContent();
+      });
+    }
+  }
+
+  loadMemoContent() {
+    try {
+      const savedContent = localStorage.getItem(this.storageKey);
+      if (savedContent && this.memoTextarea) {
+        this.memoTextarea.value = savedContent;
+      }
+    } catch (err) {
+      console.error('Error loading memo content:', err);
+    }
+  }
+
+  saveMemoContent() {
+    try {
+      if (this.memoTextarea) {
+        localStorage.setItem(this.storageKey, this.memoTextarea.value);
+      }
+    } catch (err) {
+      console.error('Error saving memo content:', err);
+    }
+  }
+
+  async copyMemoContent() {
+    try {
+      if (!this.memoTextarea) {
+        console.error('Memo textarea not found');
+        return;
+      }
+
+      const content = this.memoTextarea.value;
+      if (!content.trim()) {
+        console.log('No content to copy');
+        return;
+      }
+
+      // Use electronAPI if available, otherwise fallback to navigator.clipboard
+      if (window.electronAPI && window.electronAPI.copyToClipboard) {
+        await window.electronAPI.copyToClipboard({ type: 'text', text: content });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(content);
+      } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = content;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+
+      console.log('Memo content copied to clipboard');
+
+      // Show visual feedback by temporarily changing the button icon
+      if (this.memoExportBtn) {
+        const originalIcon = this.memoExportBtn.innerHTML;
+        const checkIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+        this.memoExportBtn.innerHTML = checkIconSvg;
+
+        setTimeout(() => {
+          this.memoExportBtn.innerHTML = originalIcon;
+        }, 1500);
+      }
+
+      // Show visual feedback on the memo textarea (green background like history tab)
+      if (this.memoTextarea) {
+        this.memoTextarea.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
+        this.memoTextarea.style.transition = 'background-color 0.2s ease';
+
+        setTimeout(() => {
+          this.memoTextarea.style.backgroundColor = '';
+        }, 500);
+      }
+    } catch (err) {
+      console.error('Error copying memo content:', err);
+    }
+  }
+
+  resetMemoContent() {
+    try {
+      if (!this.memoTextarea) {
+        console.error('Memo textarea not found');
+        return;
+      }
+
+      // Clear the textarea
+      this.memoTextarea.value = '';
+
+      // Clear the stored content
+      localStorage.removeItem(this.storageKey);
+
+      console.log('Memo content reset');
+
+      // Show visual feedback by briefly animating the reset button
+      if (this.memoResetBtn) {
+        this.memoResetBtn.style.transform = 'rotate(360deg)';
+        this.memoResetBtn.style.transition = 'transform 0.3s ease';
+
+        setTimeout(() => {
+          this.memoResetBtn.style.transform = 'rotate(0deg)';
+        }, 300);
+      }
+    } catch (err) {
+      console.error('Error resetting memo content:', err);
+    }
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.MemoUI = MemoUI;
+}
+
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {

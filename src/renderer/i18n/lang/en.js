@@ -87,6 +87,7 @@
       tabChat: 'Chat',
       tabHistory: 'History',
       tabSnippet: 'Snippet',
+      tabMemo: 'Memo',
       searchHistory: 'Search history...',
       searchSnippets: 'Search snippets...',
       addFolder: 'Add Folder',
@@ -106,6 +107,9 @@
       hoursAgo: (hours) => `${hours}h ago`,
       minutesAgo: (minutes) => `${minutes}m ago`,
       justNow: 'Just now',
+      memoPlaceholder: 'Write your notes here...',
+      copyMemo: 'Copy',
+      resetMemo: 'Reset',
     },
   });
 })();

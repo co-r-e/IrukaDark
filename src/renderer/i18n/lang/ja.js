@@ -89,6 +89,7 @@
       tabChat: 'チャット',
       tabHistory: '履歴',
       tabSnippet: 'スニペット',
+      tabMemo: 'メモ',
       searchHistory: '履歴を検索...',
       searchSnippets: 'スニペットを検索...',
       addFolder: 'フォルダーを追加',
@@ -108,6 +109,9 @@
       hoursAgo: (hours) => `${hours}時間前`,
       minutesAgo: (minutes) => `${minutes}分前`,
       justNow: 'たった今',
+      memoPlaceholder: 'ここにメモを入力...',
+      copyMemo: 'コピー',
+      resetMemo: 'リセット',
     },
   });
 })();

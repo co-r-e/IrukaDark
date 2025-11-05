@@ -708,6 +708,77 @@
         padding-top: 0;
         padding-bottom: 0;
       }
+
+      /* Memo styles */
+      .memo-textarea {
+        width: 100%;
+        height: 100%;
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 13px;
+        line-height: 1.5;
+        resize: none;
+        outline: none;
+        font-family: inherit;
+        background: rgba(255, 255, 255, 0.05);
+        border: none;
+        color: #e5e7eb;
+      }
+
+      html:not(.theme-dark) .memo-textarea {
+        background: rgba(0, 0, 0, 0.03);
+        color: #111827;
+      }
+
+      .memo-textarea::placeholder {
+        color: #6b7280;
+      }
+
+      html:not(.theme-dark) .memo-textarea::placeholder {
+        color: #9ca3af;
+      }
+
+      .memo-textarea:focus {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      html:not(.theme-dark) .memo-textarea:focus {
+        background: rgba(0, 0, 0, 0.05);
+      }
+
+      .memo-export-btn {
+        appearance: none;
+        border: none;
+        background: transparent;
+        color: #e5e7eb;
+        padding: 6px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+      }
+
+      html:not(.theme-dark) .memo-export-btn {
+        background: transparent;
+        color: #111827;
+      }
+
+      .memo-export-btn:hover {
+        background: rgba(255, 255, 255, 0.12);
+      }
+
+      html:not(.theme-dark) .memo-export-btn:hover {
+        background: rgba(0, 0, 0, 0.08);
+      }
+
+      .memo-export-btn svg {
+        display: block;
+        flex-shrink: 0;
+      }
     </style>
   </head>
   <body class="glass-effect rounded-2xl shadow-2xl overflow-hidden">
@@ -738,6 +809,9 @@
           >
             Snippet
           </button>
+          <button id="memoTab" class="titlebar-tab" data-tab="memo" data-i18n="clipboard.tabMemo">
+            Memo
+          </button>
         </div>
         <div class="titlebar-buttons"></div>
       </div>
@@ -758,6 +832,16 @@
           <div class="empty-state-icon">✂️</div>
           <div data-i18n="clipboard.noSnippetsYet">No snippets yet</div>
         </div>
+      </div>
+
+      <!-- Memo -->
+      <div id="memoContainer" class="clipboard-list" style="display: none; padding: 8px">
+        <textarea
+          id="memoTextarea"
+          class="memo-textarea"
+          placeholder="Write your notes here..."
+          data-i18n-placeholder="clipboard.memoPlaceholder"
+        ></textarea>
       </div>
 
       <!-- Context Menu -->
@@ -821,6 +905,56 @@
             data-i18n-placeholder="clipboard.searchSnippets"
           />
           <button id="snippetClearSearch" class="clear-search-btn" style="display: none">×</button>
+        </div>
+      </div>
+
+      <!-- Memo Footer -->
+      <div id="memoFooter" class="tab-footer" style="display: none">
+        <div style="display: flex; justify-content: flex-end; width: 100%; gap: 8px">
+          <button
+            id="memoResetBtn"
+            class="memo-export-btn"
+            title="Reset"
+            data-i18n-title="clipboard.resetMemo"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+              <path d="M8 16H3v5" />
+            </svg>
+          </button>
+          <button
+            id="memoExportBtn"
+            class="memo-export-btn"
+            title="Copy"
+            data-i18n-title="clipboard.copyMemo"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+              <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -902,28 +1036,35 @@
         const chatTab = document.getElementById('chatTab');
         const historyTab = document.getElementById('historyTab');
         const snippetTab = document.getElementById('snippetTab');
+        const memoTab = document.getElementById('memoTab');
 
         const chatHistory = document.getElementById('chatHistory');
         const clipboardList = document.getElementById('clipboardList');
         const snippetList = document.getElementById('snippetList');
+        const memoContainer = document.getElementById('memoContainer');
         const historyFooter = document.getElementById('historyFooter');
         const snippetFooter = document.getElementById('snippetFooter');
+        const memoFooter = document.getElementById('memoFooter');
         const inputArea = document.getElementById('inputArea');
 
         let clipboardUI = null;
+        let memoUI = null;
 
         function switchTab(tabName) {
           // Remove active class from all tabs
           chatTab.classList.remove('active');
           historyTab.classList.remove('active');
           snippetTab.classList.remove('active');
+          memoTab.classList.remove('active');
 
           // Hide all views
           chatHistory.style.display = 'none';
           clipboardList.style.display = 'none';
           snippetList.style.display = 'none';
+          memoContainer.style.display = 'none';
           historyFooter.style.display = 'none';
           snippetFooter.style.display = 'none';
+          memoFooter.style.display = 'none';
 
           // Show/hide input area based on tab
           if (tabName === 'chat') {
@@ -955,6 +1096,15 @@
               }
               clipboardUI.currentTab = 'snippet';
               clipboardUI.switchTab('snippet');
+            } else if (tabName === 'memo') {
+              memoTab.classList.add('active');
+              memoContainer.style.display = 'block';
+              memoFooter.style.display = 'flex';
+
+              // Initialize memo UI if not already done
+              if (!memoUI) {
+                memoUI = new MemoUI();
+              }
             }
           }
         }
@@ -962,6 +1112,10 @@
         chatTab.addEventListener('click', () => switchTab('chat'));
         historyTab.addEventListener('click', () => switchTab('history'));
         snippetTab.addEventListener('click', () => switchTab('snippet'));
+        memoTab.addEventListener('click', () => switchTab('memo'));
+
+        // Expose switchTab globally so it can be called from app.js
+        window.switchToTab = switchTab;
       })();
     </script>
     <script src="./app.js"></script>

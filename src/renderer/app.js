@@ -736,6 +736,8 @@ class IrukaDarkApp {
 
   async handleExplainClipboard(text) {
     await this.cancelActiveShortcut();
+    // Switch to chat tab when shortcut is triggered
+    if (window.switchToTab) window.switchToTab('chat');
     const token = ++this.shortcutRequestId;
     const content = (text || '').trim();
     if (!content) return;
@@ -780,6 +782,8 @@ class IrukaDarkApp {
 
   async handleExplainClipboardDetailed(text) {
     await this.cancelActiveShortcut();
+    // Switch to chat tab when shortcut is triggered
+    if (window.switchToTab) window.switchToTab('chat');
     const token = ++this.shortcutRequestId;
     const content = (text || '').trim();
     if (!content) return;
@@ -856,6 +860,8 @@ class IrukaDarkApp {
 
   async handleSummarizeUrlContext(url) {
     await this.cancelActiveShortcut();
+    // Switch to chat tab when shortcut is triggered
+    if (window.switchToTab) window.switchToTab('chat');
     const token = ++this.shortcutRequestId;
     const targetUrl = this.normalizeUrlForShortcut(url);
     if (!targetUrl) return;
@@ -900,6 +906,8 @@ class IrukaDarkApp {
 
   async handleSummarizeUrlContextDetailed(url) {
     await this.cancelActiveShortcut();
+    // Switch to chat tab when shortcut is triggered
+    if (window.switchToTab) window.switchToTab('chat');
     const token = ++this.shortcutRequestId;
     const targetUrl = this.normalizeUrlForShortcut(url);
     if (!targetUrl) return;
@@ -944,6 +952,8 @@ class IrukaDarkApp {
 
   async handleSnsPostFromUrl(url) {
     await this.cancelActiveShortcut();
+    // Switch to chat tab when shortcut is triggered
+    if (window.switchToTab) window.switchToTab('chat');
     const token = ++this.shortcutRequestId;
     const targetUrl = this.normalizeUrlForShortcut(url);
     if (!targetUrl) return;
@@ -984,6 +994,8 @@ class IrukaDarkApp {
 
   async handleTranslateClipboard(text) {
     await this.cancelActiveShortcut();
+    // Switch to chat tab when shortcut is triggered
+    if (window.switchToTab) window.switchToTab('chat');
     const token = ++this.shortcutRequestId;
     const content = (text || '').trim();
     if (!content) return;
@@ -1022,6 +1034,8 @@ class IrukaDarkApp {
 
   async handlePronounceClipboard(text) {
     await this.cancelActiveShortcut();
+    // Switch to chat tab when shortcut is triggered
+    if (window.switchToTab) window.switchToTab('chat');
     const token = ++this.shortcutRequestId;
     const content = (text || '').trim();
     if (!content) return;
@@ -1063,6 +1077,8 @@ class IrukaDarkApp {
    */
   async handleEmpathizeClipboard(text) {
     await this.cancelActiveShortcut();
+    // Switch to chat tab when shortcut is triggered
+    if (window.switchToTab) window.switchToTab('chat');
     const token = ++this.shortcutRequestId;
     const content = (text || '').trim();
     if (!content) return;
@@ -1111,6 +1127,8 @@ class IrukaDarkApp {
    */
   async handleReplyClipboard(text) {
     await this.cancelActiveShortcut();
+    // Switch to chat tab when shortcut is triggered
+    if (window.switchToTab) window.switchToTab('chat');
     const token = ++this.shortcutRequestId;
     const content = (text || '').trim();
     if (!content) return;
@@ -1160,6 +1178,8 @@ class IrukaDarkApp {
   async handleExplainScreenshot(payload) {
     try {
       await this.cancelActiveShortcut();
+      // Switch to chat tab when shortcut is triggered
+      if (window.switchToTab) window.switchToTab('chat');
       const token = ++this.shortcutRequestId;
       const data = payload && payload.data ? String(payload.data) : '';
       const mime = payload && payload.mimeType ? String(payload.mimeType) : 'image/png';
@@ -1200,6 +1220,8 @@ class IrukaDarkApp {
   async handleExplainScreenshotDetailed(payload) {
     try {
       await this.cancelActiveShortcut();
+      // Switch to chat tab when shortcut is triggered
+      if (window.switchToTab) window.switchToTab('chat');
       const token = ++this.shortcutRequestId;
       const data = payload && payload.data ? String(payload.data) : '';
       const mime = payload && payload.mimeType ? String(payload.mimeType) : 'image/png';
