@@ -387,7 +387,6 @@ class IrukaDarkApp {
     on('onExplainClipboardDetailed', (text) => this.handleExplainClipboardDetailed(text));
     on('onTranslateClipboard', (text) => this.handleTranslateClipboard(text));
     on('onPronounceClipboard', (text) => this.handlePronounceClipboard(text));
-    on('onEmpathizeClipboard', (text) => this.handleEmpathizeClipboard(text));
     on('onReplyClipboard', (text) => this.handleReplyClipboard(text));
     on('onSummarizeUrlContext', (url) => this.handleSummarizeUrlContext(url));
     on('onSummarizeUrlContextDetailed', (url) => this.handleSummarizeUrlContextDetailed(url));
@@ -435,14 +434,6 @@ class IrukaDarkApp {
       if (!accel) return;
       const display = String(accel || '').replace(/\bAlt\b/g, 'Option');
       if (accel && accel !== 'Alt+Q') {
-        this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
-      }
-    });
-    on('onShortcutEmpathyRegistered', (accel) => {
-      if (!accel) return;
-      const display = String(accel || '').replace(/\bAlt\b/g, 'Option');
-      const defaultCombos = new Set(['Alt+Command+Z', 'Command+Alt+Z']);
-      if (!defaultCombos.has(accel)) {
         this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
       }
     });
@@ -1046,56 +1037,6 @@ class IrukaDarkApp {
 
     try {
       const response = await this.geminiService.generatePronunciation(content);
-      if (token !== this.shortcutRequestId) {
-        return;
-      }
-      this.hideTypingIndicator();
-      if (this.cancelRequested) {
-        return;
-      }
-      this.addMessage('ai', response);
-      try {
-        window.electronAPI &&
-          window.electronAPI.ensureVisible &&
-          window.electronAPI.ensureVisible(false);
-      } catch {}
-      this.syncHeader();
-    } catch (e) {
-      if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
-        return;
-      }
-      this.hideTypingIndicator();
-      this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
-      this.syncHeader();
-    } finally {
-      this.disableAutoScroll = false;
-    }
-  }
-
-  /**
-   * 選択テキストに寄り添う共感コメントを生成
-   */
-  async handleEmpathizeClipboard(text) {
-    await this.cancelActiveShortcut();
-    // Switch to chat tab when shortcut is triggered
-    if (window.switchToTab) window.switchToTab('chat');
-    const token = ++this.shortcutRequestId;
-    const content = (text || '').trim();
-    if (!content) return;
-    this.disableAutoScroll = true;
-    const label = getUIText('selectionEmpathy');
-    const questionLabel =
-      label && label !== 'selectionEmpathy'
-        ? label
-        : getCurrentUILanguage() === 'ja'
-          ? '選択範囲への共感コメント'
-          : 'Empathy reply for selection';
-    this.addMessage('system-question', questionLabel);
-    this.syncHeader();
-    this.showTypingIndicator();
-
-    try {
-      const response = await this.geminiService.generateEmpathyReply(content);
       if (token !== this.shortcutRequestId) {
         return;
       }

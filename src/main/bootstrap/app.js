@@ -10,6 +10,7 @@ const {
   globalShortcut,
   BrowserWindow,
   shell,
+  screen,
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -34,7 +35,7 @@ const {
   sdkGenerateText,
   sdkGenerateImage,
 } = require('../ai');
-const { getMainWindow, setMainWindow, setPopupWindow } = require('../context');
+const { getMainWindow, setMainWindow, setPopupWindow, getPopupWindow } = require('../context');
 const { setupAutoUpdates, manualCheckForUpdates } = require('../updates');
 
 const isDev = process.env.NODE_ENV === 'development';
@@ -410,38 +411,6 @@ function bootstrapApp() {
       }
     };
 
-    const registerEmpathyShortcut = (accel) => {
-      try {
-        const ok = globalShortcut.register(accel, () => {
-          logShortcutEvent('shortcut.trigger', { accel, kind: 'empathy' });
-          (async () => {
-            try {
-              const mainWindow = getMainWindow();
-              if (!mainWindow || mainWindow.isDestroyed()) return;
-
-              const text = await tryCopySelectedText();
-              if (!mainWindow || mainWindow.isDestroyed()) return;
-
-              // Bring window to front (especially when clipboard window is active)
-              bringMainWindowToFront(mainWindow);
-
-              if (text) {
-                mainWindow.webContents.send('empathize-clipboard', text);
-              } else {
-                mainWindow.webContents.send('explain-clipboard-error', '');
-              }
-            } catch (e) {
-              if (isDev) console.warn('Empathy shortcut failed:', e?.message);
-            }
-          })();
-        });
-        return ok;
-      } catch (e) {
-        logShortcutEvent('shortcut.register.error', { accel, error: e?.message || '' });
-        return false;
-      }
-    };
-
     const registerReplyShortcut = (accel) => {
       try {
         const ok = globalShortcut.register(accel, () => {
@@ -584,16 +553,7 @@ function bootstrapApp() {
       } catch {}
     }
 
-    const empathyCandidates = ['Alt+Command+Z', 'Command+Alt+Z'];
-    let empathyUsed = '';
-    for (const c of empathyCandidates) {
-      if (registerEmpathyShortcut(c)) {
-        empathyUsed = c;
-        break;
-      }
-    }
-
-    const replyCandidates = ['Alt+Z'];
+    const replyCandidates = ['Alt+T'];
     let replyUsed = '';
     for (const c of replyCandidates) {
       if (registerReplyShortcut(c)) {
@@ -684,6 +644,42 @@ function bootstrapApp() {
       } catch {}
     }
 
+    // Move popup window to cursor position shortcut
+    const moveToCursorCandidates = ['Alt+Z'];
+    for (const c of moveToCursorCandidates) {
+      try {
+        const ok = globalShortcut.register(c, () => {
+          logShortcutEvent('shortcut.trigger', { accel: c, kind: 'move_to_cursor' });
+          try {
+            const popupWindow = getPopupWindow();
+            if (!popupWindow || popupWindow.isDestroyed()) return;
+
+            // Get cursor position
+            const cursorPoint = screen.getCursorScreenPoint();
+
+            // Get window size
+            const [width, height] = popupWindow.getSize();
+
+            // Calculate position so window center is at cursor
+            const x = Math.round(cursorPoint.x - width / 2);
+            const y = Math.round(cursorPoint.y - height / 2);
+
+            // Move popup window to cursor position
+            popupWindow.setPosition(x, y);
+
+            // Bring popup window to front
+            if (!popupWindow.isVisible()) {
+              popupWindow.show();
+            }
+            popupWindow.focus();
+          } catch (e) {
+            if (isDev) console.warn('Move popup to cursor failed:', e?.message);
+          }
+        });
+        if (ok) break;
+      } catch {}
+    }
+
     try {
       const mainWindow = getMainWindow();
       if (mainWindow && !mainWindow.isDestroyed()) {
@@ -691,7 +687,6 @@ function bootstrapApp() {
         mainWindow.webContents.send('shortcut-detailed-registered', detailedUsed);
         mainWindow.webContents.send('shortcut-translate-registered', translateUsed);
         mainWindow.webContents.send('shortcut-pronounce-registered', pronounceUsed);
-        mainWindow.webContents.send('shortcut-empathy-registered', empathyUsed);
         mainWindow.webContents.send('shortcut-reply-registered', replyUsed);
         mainWindow.webContents.send('shortcut-url-summary-registered', urlSummaryUsed);
         mainWindow.webContents.send('shortcut-url-detailed-registered', urlDetailedUsed);
@@ -702,7 +697,6 @@ function bootstrapApp() {
         detailedUsed,
         translateUsed,
         pronounceUsed,
-        empathyUsed,
         replyUsed,
         urlSummaryUsed,
         urlDetailedUsed,
