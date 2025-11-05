@@ -15,7 +15,6 @@ class WindowManager {
     this.isRepositioning = false;
     this.mainPopupOffsetX = null;
     this.mainPopupOffsetY = null;
-    this.clipboardWindows = []; // Track clipboard windows
     this.savedOpacity = 1.0; // Store the user-configured opacity
   }
 
@@ -68,28 +67,6 @@ class WindowManager {
         // Reset offset when size changes so it's recalculated with new size
         this.mainPopupOffsetX = null;
         this.mainPopupOffsetY = null;
-        // Update clipboard windows position
-        this.updateClipboardWindowsPosition();
-      } catch {}
-    });
-
-    // Update clipboard windows position when main window moves
-    mainWindow.on('move', () => {
-      try {
-        this.updateClipboardWindowsPosition();
-      } catch {}
-    });
-
-    // Hide/show clipboard windows when main window is hidden/shown
-    mainWindow.on('hide', () => {
-      try {
-        this.hideClipboardWindows();
-      } catch {}
-    });
-
-    mainWindow.on('show', () => {
-      try {
-        this.showClipboardWindows();
       } catch {}
     });
 
@@ -98,25 +75,12 @@ class WindowManager {
       try {
         // Restore original opacity when focused
         mainWindow.setOpacity(this.savedOpacity);
-        // Set clipboard windows to background opacity
-        this.clipboardWindows.forEach((win) => {
-          if (win && !win.isDestroyed() && !win.isFocused()) {
-            win.setOpacity(0.5);
-          }
-        });
       } catch {}
     });
 
     mainWindow.on('blur', () => {
       try {
-        // Check if any clipboard window is focused
-        const anyClipboardFocused = this.clipboardWindows.some(
-          (win) => win && !win.isDestroyed() && win.isFocused()
-        );
-        // Set to background opacity only if a clipboard window is focused
-        if (anyClipboardFocused) {
-          mainWindow.setOpacity(0.5);
-        }
+        // No special handling needed
       } catch {}
     });
 
@@ -278,19 +242,6 @@ class WindowManager {
         } catch {}
       }
     } catch {}
-
-    // Apply opacity to clipboard windows
-    this.clipboardWindows.forEach((win) => {
-      if (win && !win.isDestroyed()) {
-        try {
-          // Only apply if window is focused, otherwise keep background opacity
-          if (win.isFocused()) {
-            win.setOpacity(opacity);
-          }
-          win.webContents.send('window-opacity-changed', opacity);
-        } catch {}
-      }
-    });
   }
 
   handlePopupPointer(phase) {
@@ -480,171 +431,6 @@ class WindowManager {
         }
       });
     } catch {}
-  }
-
-  updateClipboardWindowsPosition() {
-    const mainWindow = getMainWindow();
-    if (!mainWindow || mainWindow.isDestroyed()) return;
-
-    try {
-      const mainBounds = mainWindow.getBounds();
-      const overlap = 20;
-
-      // Update position for all clipboard windows
-      this.clipboardWindows = this.clipboardWindows.filter((win) => {
-        if (win && !win.isDestroyed()) {
-          try {
-            const clipboardBounds = win.getBounds();
-            const x = mainBounds.x + mainBounds.width - clipboardBounds.width - overlap;
-            const y = mainBounds.y + mainBounds.height - clipboardBounds.height - overlap;
-            win.setPosition(x, y);
-            return true;
-          } catch {
-            return false;
-          }
-        }
-        return false;
-      });
-    } catch (err) {
-      console.error('Error updating clipboard windows position:', err);
-    }
-  }
-
-  hideClipboardWindows() {
-    this.clipboardWindows.forEach((win) => {
-      if (win && !win.isDestroyed()) {
-        try {
-          win.hide();
-        } catch {}
-      }
-    });
-  }
-
-  showClipboardWindows() {
-    this.clipboardWindows.forEach((win) => {
-      if (win && !win.isDestroyed()) {
-        try {
-          // Use showInactive to show window without bringing it to front
-          win.showInactive();
-        } catch {}
-      }
-    });
-
-    // Focus main window to keep clipboard windows in background
-    const mainWindow = getMainWindow();
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      try {
-        mainWindow.focus();
-      } catch {}
-    }
-  }
-
-  createClipboardWindow() {
-    const clipboardWindow = new BrowserWindow({
-      width: 260,
-      height: 280,
-      minWidth: 260,
-      minHeight: 280,
-      alwaysOnTop: true,
-      frame: false,
-      transparent: true,
-      useContentSize: true,
-      backgroundColor: '#00000000',
-      focusable: true,
-      resizable: true,
-      show: false,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-        preload: path.join(__dirname, '../../preload.js'),
-        enableRemoteModule: false,
-        webSecurity: true,
-        devTools: false,
-      },
-    });
-
-    this.wireExternalLinkHandling(clipboardWindow);
-    this.applySavedOpacity(clipboardWindow);
-
-    const pinAllSpaces = this.readPinAllSpacesPref();
-    try {
-      clipboardWindow.setAlwaysOnTop(true, pinAllSpaces ? 'screen-saver' : 'floating');
-      if (process.platform === 'darwin') {
-        clipboardWindow.setVisibleOnAllWorkspaces(!!pinAllSpaces, {
-          visibleOnFullScreen: !!pinAllSpaces,
-        });
-      }
-    } catch {}
-
-    clipboardWindow.loadFile(path.join(__dirname, '../../renderer/clipboard.html'));
-
-    clipboardWindow.once('ready-to-show', () => {
-      // Position clipboard window to the bottom-right of main window with overlap
-      const mainWindow = getMainWindow();
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        try {
-          const mainBounds = mainWindow.getBounds();
-          const clipboardBounds = clipboardWindow.getBounds();
-          const overlap = 20; // Overlap in pixels
-
-          // Position to the right bottom of main window with overlap (appearing on top-left)
-          const x = mainBounds.x + mainBounds.width - clipboardBounds.width - overlap;
-          const y = mainBounds.y + mainBounds.height - clipboardBounds.height - overlap;
-
-          clipboardWindow.setPosition(x, y);
-        } catch (err) {
-          console.error('Error positioning clipboard window:', err);
-          clipboardWindow.center();
-        }
-      } else {
-        clipboardWindow.center();
-      }
-      clipboardWindow.show();
-    });
-
-    clipboardWindow.on('closed', () => {
-      // Remove from tracking array
-      this.clipboardWindows = this.clipboardWindows.filter((win) => win !== clipboardWindow);
-    });
-
-    // Handle focus/blur for opacity management
-    clipboardWindow.on('focus', () => {
-      try {
-        // Restore original opacity when focused
-        clipboardWindow.setOpacity(this.savedOpacity);
-        // Set main window to background opacity
-        const mainWindow = getMainWindow();
-        if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isFocused()) {
-          mainWindow.setOpacity(0.5);
-        }
-        // Set other clipboard windows to background opacity
-        this.clipboardWindows.forEach((win) => {
-          if (win && !win.isDestroyed() && win !== clipboardWindow && !win.isFocused()) {
-            win.setOpacity(0.5);
-          }
-        });
-      } catch {}
-    });
-
-    clipboardWindow.on('blur', () => {
-      try {
-        // Check if main window or any other clipboard window is focused
-        const mainWindow = getMainWindow();
-        const mainFocused = mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused();
-        const anyOtherClipboardFocused = this.clipboardWindows.some(
-          (win) => win && !win.isDestroyed() && win !== clipboardWindow && win.isFocused()
-        );
-        // Set to background opacity only if another window is focused
-        if (mainFocused || anyOtherClipboardFocused) {
-          clipboardWindow.setOpacity(0.5);
-        }
-      } catch {}
-    });
-
-    // Add to tracking array
-    this.clipboardWindows.push(clipboardWindow);
-
-    return clipboardWindow;
   }
 }
 

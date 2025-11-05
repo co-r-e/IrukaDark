@@ -35,25 +35,86 @@ class ClipboardHistoryUI {
     this.snippetSearchResults = [];
     this.clipboardHistory = []; // Store history data for search
 
+    // i18n
+    this.currentLang = 'en';
+    this.i18n = null;
+
+    this.initI18n();
     this.bindEvents();
     this.applyTheme();
     this.loadHistory();
     this.loadSnippets();
-    this.loadClipboardState();
+  }
+
+  async initI18n() {
+    try {
+      // Get current language from main process
+      if (window.electronAPI && window.electronAPI.getUILanguage) {
+        this.currentLang = await window.electronAPI.getUILanguage();
+      }
+
+      // Get i18n data
+      if (window.IRUKADARK_I18N && window.IRUKADARK_I18N[this.currentLang]) {
+        this.i18n = window.IRUKADARK_I18N[this.currentLang];
+      } else {
+        // Fallback to English
+        this.i18n = window.IRUKADARK_I18N['en'] || {};
+      }
+
+      // Apply translations to static elements
+      this.applyTranslations();
+    } catch (err) {
+      console.error('Error initializing i18n:', err);
+      this.i18n = window.IRUKADARK_I18N['en'] || {};
+    }
+  }
+
+  applyTranslations() {
+    if (!this.i18n || !this.i18n.clipboard) return;
+
+    const t = this.i18n.clipboard;
+
+    // Update tab labels
+    if (this.historyTab) {
+      this.historyTab.textContent = t.tabHistory;
+    }
+    if (this.snippetTab) {
+      this.snippetTab.textContent = t.tabSnippet;
+    }
+
+    // Update search placeholders
+    if (this.historySearchInput) {
+      this.historySearchInput.placeholder = t.searchHistory;
+    }
+    if (this.snippetSearchInput) {
+      this.snippetSearchInput.placeholder = t.searchSnippets;
+    }
+
+    // Update data-i18n elements (empty state messages)
+    document.querySelectorAll('[data-i18n]').forEach((el) => {
+      const key = el.dataset.i18n;
+      if (key.startsWith('clipboard.')) {
+        const subKey = key.replace('clipboard.', '');
+        if (t[subKey]) {
+          el.textContent = t[subKey];
+        }
+      }
+    });
+  }
+
+  t(key) {
+    if (!this.i18n || !this.i18n.clipboard) {
+      return key;
+    }
+    return this.i18n.clipboard[key] || key;
   }
 
   bindEvents() {
     if (this.closeBtn) {
       this.closeBtn.addEventListener('click', () => {
-        this.saveClipboardState();
         window.close();
       });
     }
-
-    // Save state before window closes
-    window.addEventListener('beforeunload', () => {
-      this.saveClipboardState();
-    });
 
     // Tab switching
     if (this.historyTab) {
@@ -188,9 +249,6 @@ class ClipboardHistoryUI {
       // Hide search results menu when switching tabs
       this.hideSearchResults();
     }
-
-    // Save state when switching tabs
-    this.saveClipboardState();
   }
 
   async loadHistory() {
@@ -300,7 +358,7 @@ class ClipboardHistoryUI {
       const copyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
       const checkIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
       copyBtn.innerHTML = copyIconSvg;
-      copyBtn.title = 'Copy';
+      copyBtn.title = this.t('copy');
 
       const changeCopyIconToCheck = () => {
         copyBtn.innerHTML = checkIconSvg;
@@ -320,7 +378,7 @@ class ClipboardHistoryUI {
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'clipboard-item-btn delete';
       deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`;
-      deleteBtn.title = 'Delete';
+      deleteBtn.title = this.t('delete');
       deleteBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         await this.deleteItem(item.id);
@@ -357,7 +415,7 @@ class ClipboardHistoryUI {
     this.clipboardList.innerHTML = `
       <div class="empty-state">
         <div class="empty-state-icon">📋</div>
-        <div>No clipboard history yet</div>
+        <div>${this.t('noHistoryYet')}</div>
       </div>
     `;
   }
@@ -477,7 +535,7 @@ class ClipboardHistoryUI {
     // Add "Add Folder" button at root level
     const addBtn = document.createElement('button');
     addBtn.className = 'add-folder-btn';
-    addBtn.innerHTML = `${plusIconSvg}<span>Add Folder</span>`;
+    addBtn.innerHTML = `${plusIconSvg}<span>${this.t('addFolder')}</span>`;
     addBtn.addEventListener('click', (e) => {
       e.stopPropagation(); // Prevent any parent event
       this.addNewFolder();
@@ -519,7 +577,7 @@ class ClipboardHistoryUI {
   finishEditingFolder(folderId, newName) {
     const folder = this.snippetFolders.find((f) => f.id === folderId);
     if (folder) {
-      folder.name = newName.trim() || 'Untitled Folder';
+      folder.name = newName.trim() || this.t('untitledFolder');
       folder.editing = false;
       this.saveSnippets();
       this.renderSnippets();
@@ -553,12 +611,12 @@ class ClipboardHistoryUI {
       const nameInput = document.createElement('input');
       nameInput.type = 'text';
       nameInput.className = 'snippet-item-name-input';
-      nameInput.placeholder = 'Snippet name';
+      nameInput.placeholder = this.t('snippetNamePlaceholder');
       nameInput.value = snippet.name;
 
       const contentInput = document.createElement('textarea');
       contentInput.className = 'snippet-item-content-input';
-      contentInput.placeholder = 'Snippet content';
+      contentInput.placeholder = this.t('snippetContentPlaceholder');
       contentInput.value = snippet.content;
 
       let blurTimeout = null;
@@ -652,13 +710,14 @@ class ClipboardHistoryUI {
       snippetEl.appendChild(iconDiv);
       snippetEl.appendChild(moreBtn);
 
-      // Click on content wrapper to copy
-      contentWrapper.addEventListener('click', (e) => {
+      // Click on entire snippet element to copy (except more button)
+      snippetEl.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent parent folder from toggling
-        this.copySnippet(snippet, iconDiv, moreBtn);
+        this.copySnippet(snippet, iconDiv, moreBtn, snippetEl);
       });
 
-      contentWrapper.addEventListener('dblclick', (e) => {
+      // Double-click to edit
+      snippetEl.addEventListener('dblclick', (e) => {
         e.stopPropagation();
         this.startEditingSnippet(snippet.id);
       });
@@ -719,7 +778,7 @@ class ClipboardHistoryUI {
   finishEditingSnippet(snippetId, name, content) {
     const snippet = this.snippets.find((s) => s.id === snippetId);
     if (snippet) {
-      snippet.name = name.trim() || 'Untitled Snippet';
+      snippet.name = name.trim() || this.t('untitledSnippet');
       snippet.content = content;
       snippet.editing = false;
       this.saveSnippets();
@@ -741,7 +800,7 @@ class ClipboardHistoryUI {
     }
   }
 
-  copySnippet(snippet, iconDiv, moreBtn) {
+  copySnippet(snippet, iconDiv, moreBtn, snippetEl) {
     if (window.electronAPI && window.electronAPI.copyToClipboard) {
       window.electronAPI.copyToClipboard({ type: 'text', text: snippet.content });
       console.log('Copied snippet:', snippet.name);
@@ -761,6 +820,14 @@ class ClipboardHistoryUI {
             iconDiv.innerHTML = '';
           }, 200);
         }, 1500);
+      }
+
+      // Show visual feedback on the snippet element
+      if (snippetEl) {
+        snippetEl.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
+        setTimeout(() => {
+          snippetEl.style.backgroundColor = '';
+        }, 500);
       }
     }
   }
@@ -822,10 +889,15 @@ class ClipboardHistoryUI {
     header.appendChild(closeBtn);
     this.contextMenu.appendChild(header);
 
+    // Icon SVGs (Lucide style)
+    const plusIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>`;
+    const editIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`;
+    const trashIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`;
+
     // Add Folder option
     const addFolderItem = document.createElement('div');
     addFolderItem.className = 'context-menu-item';
-    addFolderItem.textContent = 'Add Folder';
+    addFolderItem.innerHTML = `${plusIconSvg}<span>${this.t('addFolder')}</span>`;
     addFolderItem.addEventListener('click', () => {
       this.addNewSubfolder(folderId);
       this.hideContextMenu();
@@ -835,7 +907,7 @@ class ClipboardHistoryUI {
     // Add Snippet option
     const addSnippetItem = document.createElement('div');
     addSnippetItem.className = 'context-menu-item';
-    addSnippetItem.textContent = 'Add Snippet';
+    addSnippetItem.innerHTML = `${plusIconSvg}<span>${this.t('addSnippet')}</span>`;
     addSnippetItem.addEventListener('click', () => {
       this.addNewSnippet(folderId);
       this.hideContextMenu();
@@ -845,7 +917,7 @@ class ClipboardHistoryUI {
     // Edit option
     const editItem = document.createElement('div');
     editItem.className = 'context-menu-item';
-    editItem.textContent = 'Edit';
+    editItem.innerHTML = `${editIconSvg}<span>${this.t('edit')}</span>`;
     editItem.addEventListener('click', () => {
       this.startEditingFolder(folderId);
       this.hideContextMenu();
@@ -855,7 +927,7 @@ class ClipboardHistoryUI {
     // Delete option
     const deleteItem = document.createElement('div');
     deleteItem.className = 'context-menu-item delete';
-    deleteItem.textContent = 'Delete';
+    deleteItem.innerHTML = `${trashIconSvg}<span>${this.t('delete')}</span>`;
     deleteItem.addEventListener('click', () => {
       this.deleteFolder(folderId);
       this.hideContextMenu();
@@ -897,10 +969,14 @@ class ClipboardHistoryUI {
     header.appendChild(closeBtn);
     this.contextMenu.appendChild(header);
 
+    // Icon SVGs (Lucide style)
+    const editIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`;
+    const trashIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`;
+
     // Edit option
     const editItem = document.createElement('div');
     editItem.className = 'context-menu-item';
-    editItem.textContent = 'Edit';
+    editItem.innerHTML = `${editIconSvg}<span>${this.t('edit')}</span>`;
     editItem.addEventListener('click', () => {
       this.startEditingSnippet(snippetId);
       this.hideContextMenu();
@@ -910,7 +986,7 @@ class ClipboardHistoryUI {
     // Delete option
     const deleteItem = document.createElement('div');
     deleteItem.className = 'context-menu-item delete';
-    deleteItem.textContent = 'Delete';
+    deleteItem.innerHTML = `${trashIconSvg}<span>${this.t('delete')}</span>`;
     deleteItem.addEventListener('click', () => {
       this.deleteSnippet(snippetId);
       this.hideContextMenu();
@@ -931,25 +1007,9 @@ class ClipboardHistoryUI {
       this.showFolderMenu(id);
       return;
     } else if (type === 'snippet') {
-      // Edit option
-      const editItem = document.createElement('div');
-      editItem.className = 'context-menu-item';
-      editItem.textContent = 'Edit';
-      editItem.addEventListener('click', () => {
-        this.startEditingSnippet(id);
-        this.hideContextMenu();
-      });
-      this.contextMenu.appendChild(editItem);
-
-      // Delete option
-      const deleteItem = document.createElement('div');
-      deleteItem.className = 'context-menu-item delete';
-      deleteItem.textContent = 'Delete';
-      deleteItem.addEventListener('click', () => {
-        this.deleteSnippet(id);
-        this.hideContextMenu();
-      });
-      this.contextMenu.appendChild(deleteItem);
+      // Use the new snippet menu
+      this.showSnippetMenu(id);
+      return;
     }
 
     // Show menu in center (position is set by CSS)
@@ -1016,7 +1076,7 @@ class ClipboardHistoryUI {
   }
 
   async clearAll() {
-    if (confirm('Clear all clipboard history?')) {
+    if (confirm(this.t('confirmClearHistory'))) {
       try {
         await window.electronAPI.clearClipboardHistory();
         // History will be updated via real-time event
@@ -1040,13 +1100,13 @@ class ClipboardHistoryUI {
     const days = Math.floor(hours / 24);
 
     if (days > 0) {
-      return `${days}d ago`;
+      return this.i18n.clipboard.daysAgo(days);
     } else if (hours > 0) {
-      return `${hours}h ago`;
+      return this.i18n.clipboard.hoursAgo(hours);
     } else if (minutes > 0) {
-      return `${minutes}m ago`;
+      return this.i18n.clipboard.minutesAgo(minutes);
     } else {
-      return 'Just now';
+      return this.t('justNow');
     }
   }
 
@@ -1088,7 +1148,6 @@ class ClipboardHistoryUI {
     if (!query) {
       this.historySearchResults = [];
       this.hideSearchResults();
-      this.saveClipboardState();
       return;
     }
 
@@ -1099,7 +1158,6 @@ class ClipboardHistoryUI {
     });
 
     this.renderSearchResults('history');
-    this.saveClipboardState();
   }
 
   performSnippetSearch() {
@@ -1108,7 +1166,6 @@ class ClipboardHistoryUI {
     if (!query) {
       this.snippetSearchResults = [];
       this.hideSearchResults();
-      this.saveClipboardState();
       return;
     }
 
@@ -1133,7 +1190,6 @@ class ClipboardHistoryUI {
     this.snippetSearchResults = [...folderResults, ...snippetResults];
 
     this.renderSearchResults('snippet');
-    this.saveClipboardState();
   }
 
   renderSearchResults(tabType) {
@@ -1144,7 +1200,7 @@ class ClipboardHistoryUI {
       tabType === 'history' ? this.historySearchQuery.trim() : this.snippetSearchQuery.trim();
 
     if (results.length === 0) {
-      this.searchResultsMenu.innerHTML = '<div class="search-no-results">No results found</div>';
+      this.searchResultsMenu.innerHTML = `<div class="search-no-results">${this.t('noResults')}</div>`;
       this.searchResultsMenu.style.display = 'block';
       return;
     }
@@ -1369,65 +1425,6 @@ class ClipboardHistoryUI {
       if (this.snippetClearSearch) {
         this.snippetClearSearch.style.display = this.snippetSearchQuery ? 'block' : 'none';
       }
-    }
-  }
-
-  // ========================================
-  // State Persistence
-  // ========================================
-
-  async loadClipboardState() {
-    try {
-      if (!window.electronAPI || !window.electronAPI.getClipboardState) {
-        return;
-      }
-
-      const state = await window.electronAPI.getClipboardState();
-      if (state) {
-        // Restore tab selection
-        if (state.currentTab && state.currentTab !== this.currentTab) {
-          this.switchTab(state.currentTab);
-        }
-
-        // Restore search queries
-        if (state.historySearchQuery) {
-          this.historySearchQuery = state.historySearchQuery;
-          if (this.historySearchInput) {
-            this.historySearchInput.value = state.historySearchQuery;
-            this.performHistorySearch();
-            this.updateClearButtonVisibility('history');
-          }
-        }
-
-        if (state.snippetSearchQuery) {
-          this.snippetSearchQuery = state.snippetSearchQuery;
-          if (this.snippetSearchInput) {
-            this.snippetSearchInput.value = state.snippetSearchQuery;
-            this.performSnippetSearch();
-            this.updateClearButtonVisibility('snippet');
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Error loading clipboard state:', err);
-    }
-  }
-
-  async saveClipboardState() {
-    try {
-      if (!window.electronAPI || !window.electronAPI.saveClipboardState) {
-        return;
-      }
-
-      const state = {
-        currentTab: this.currentTab,
-        historySearchQuery: this.historySearchQuery,
-        snippetSearchQuery: this.snippetSearchQuery,
-      };
-
-      await window.electronAPI.saveClipboardState(state);
-    } catch (err) {
-      console.error('Error saving clipboard state:', err);
     }
   }
 }

@@ -9,6 +9,12 @@
     />
     <title>Clipboard History</title>
     <link href="./styles.css" rel="stylesheet" />
+    <script src="./i18n/base.js"></script>
+    <script src="./i18n/lang/en.js"></script>
+    <script src="./i18n/lang/ja.js"></script>
+    <script src="./i18n/lang/zh-Hans.js"></script>
+    <script src="./i18n/lang/zh-Hant.js"></script>
+    <script src="./i18n/lang/ko.js"></script>
     <style>
       body {
         margin: 0;
@@ -53,7 +59,7 @@
 
       .titlebar-tabs {
         display: flex;
-        gap: 4px;
+        gap: 0;
         -webkit-app-region: no-drag;
       }
 
@@ -62,7 +68,7 @@
         border: none;
         background: transparent;
         color: #9ca3af;
-        font-size: 11px;
+        font-size: 10px;
         padding: 3px 10px;
         cursor: pointer;
         border-radius: 4px;
@@ -71,22 +77,18 @@
       }
 
       .titlebar-tab:hover {
-        background: rgba(255, 255, 255, 0.05);
         color: #e5e7eb;
       }
 
       html:not(.theme-dark) .titlebar-tab:hover {
-        background: rgba(0, 0, 0, 0.03);
         color: #374151;
       }
 
       .titlebar-tab.active {
-        background: rgba(255, 255, 255, 0.1);
         color: #e5e7eb;
       }
 
       html:not(.theme-dark) .titlebar-tab.active {
-        background: rgba(0, 0, 0, 0.05);
         color: #0b1220;
       }
 
@@ -257,7 +259,7 @@
         background: transparent;
         border: none;
         border-radius: 8px;
-        padding: 8px 10px;
+        padding: 6px 10px;
         margin-bottom: 0;
         cursor: pointer;
         transition: all 0.15s ease;
@@ -302,7 +304,7 @@
 
       .snippet-folder-name {
         color: #e5e7eb;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 500;
         flex: 1;
         overflow: hidden;
@@ -342,20 +344,32 @@
       }
 
       .snippet-folder-name-input {
-        background: transparent;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        border-radius: 4px;
-        padding: 2px 4px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        padding: 4px 6px;
         color: #e5e7eb;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 500;
         outline: none;
         flex: 1;
+        transition: all 0.15s ease;
+      }
+
+      .snippet-folder-name-input:focus {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.3);
       }
 
       html:not(.theme-dark) .snippet-folder-name-input {
-        border-color: rgba(0, 0, 0, 0.3);
+        background: rgba(0, 0, 0, 0.03);
+        border-color: rgba(0, 0, 0, 0.15);
         color: #374151;
+      }
+
+      html:not(.theme-dark) .snippet-folder-name-input:focus {
+        background: rgba(0, 0, 0, 0.05);
+        border-color: rgba(0, 0, 0, 0.2);
       }
 
       .add-folder-btn,
@@ -397,7 +411,7 @@
         background: transparent;
         border: none;
         border-radius: 8px;
-        padding: 6px 8px;
+        padding: 4px 8px;
         margin-bottom: 0;
         cursor: pointer;
         transition: all 0.15s ease;
@@ -409,7 +423,14 @@
       .snippet-item.editing {
         flex-direction: column;
         align-items: stretch;
+        gap: 8px;
         cursor: default;
+        background: rgba(255, 255, 255, 0.03);
+        padding: 8px;
+      }
+
+      html:not(.theme-dark) .snippet-item.editing {
+        background: rgba(0, 0, 0, 0.02);
       }
 
       html:not(.theme-dark) .snippet-item {
@@ -496,26 +517,41 @@
 
       .snippet-item-name-input,
       .snippet-item-content-input {
-        background: transparent;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        border-radius: 4px;
-        padding: 2px 4px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        padding: 6px 8px;
         color: #e5e7eb;
         font-size: 11px;
         outline: none;
         width: 100%;
+        transition: all 0.15s ease;
+      }
+
+      .snippet-item-name-input:focus,
+      .snippet-item-content-input:focus {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.3);
       }
 
       .snippet-item-content-input {
         min-height: 60px;
         resize: vertical;
         font-family: inherit;
+        line-height: 1.4;
       }
 
       html:not(.theme-dark) .snippet-item-name-input,
       html:not(.theme-dark) .snippet-item-content-input {
-        border-color: rgba(0, 0, 0, 0.3);
+        background: rgba(0, 0, 0, 0.03);
+        border-color: rgba(0, 0, 0, 0.15);
         color: #374151;
+      }
+
+      html:not(.theme-dark) .snippet-item-name-input:focus,
+      html:not(.theme-dark) .snippet-item-content-input:focus {
+        background: rgba(0, 0, 0, 0.05);
+        border-color: rgba(0, 0, 0, 0.2);
       }
 
       .context-menu {
@@ -524,8 +560,8 @@
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 8px;
         padding: 0;
-        min-width: 140px;
-        max-width: 200px;
+        min-width: 180px;
+        max-width: 240px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         z-index: 10000;
         display: none;
@@ -605,6 +641,18 @@
         cursor: pointer;
         border-radius: 4px;
         transition: background 0.15s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .context-menu-item svg {
+        flex-shrink: 0;
+        display: block;
+      }
+
+      .context-menu-item span {
+        flex: 1;
       }
 
       html:not(.theme-dark) .context-menu-item {
@@ -690,7 +738,7 @@
 
       /* Search Footer Styles */
       .tab-footer {
-        padding: 6px 12px;
+        padding: 6px 8px;
         border-top: none;
         background: transparent;
       }

@@ -888,24 +888,15 @@ function bootstrapApp() {
     // Start monitoring clipboard on app start
     clipboardService.startMonitoring();
 
-    // Listen for history updates and notify all clipboard windows
+    // Listen for history updates and notify main window
     clipboardService.on('history-updated', (history) => {
       try {
-        const allWindows = BrowserWindow.getAllWindows();
-        allWindows.forEach((win) => {
-          try {
-            if (!win.isDestroyed() && win.webContents) {
-              const url = win.webContents.getURL();
-              if (url && url.includes('clipboard.html')) {
-                win.webContents.send('clipboard:history-updated', history);
-              }
-            }
-          } catch (err) {
-            // Ignore errors for individual windows
-          }
-        });
+        const mainWindow = getMainWindow();
+        if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
+          mainWindow.webContents.send('clipboard:history-updated', history);
+        }
       } catch (err) {
-        console.error('Error notifying clipboard windows:', err);
+        console.error('Error notifying main window:', err);
       }
     });
 
@@ -925,36 +916,6 @@ function bootstrapApp() {
     ipcMain.handle('clipboard:delete-item', (_e, id) => {
       clipboardService.deleteItem(id);
       return true;
-    });
-
-    ipcMain.handle('clipboard:open-window', () => {
-      try {
-        windowManager.createClipboardWindow();
-        return true;
-      } catch (err) {
-        console.error('Error opening clipboard window:', err);
-        return false;
-      }
-    });
-
-    ipcMain.handle('clipboard:hide-windows', () => {
-      try {
-        windowManager.hideClipboardWindows();
-        return true;
-      } catch (err) {
-        console.error('Error hiding clipboard windows:', err);
-        return false;
-      }
-    });
-
-    ipcMain.handle('clipboard:show-windows', () => {
-      try {
-        windowManager.showClipboardWindows();
-        return true;
-      } catch (err) {
-        console.error('Error showing clipboard windows:', err);
-        return false;
-      }
     });
 
     ipcMain.handle('clipboard:show-context-menu', (event) => {
@@ -991,32 +952,6 @@ function bootstrapApp() {
         return true;
       } catch (err) {
         console.error('Error saving snippet data:', err);
-        return false;
-      }
-    });
-
-    // Clipboard window state persistence
-    const clipboardStatePath = path.join(app.getPath('userData'), 'clipboard-state.json');
-
-    ipcMain.handle('clipboard:get-state', () => {
-      try {
-        if (fs.existsSync(clipboardStatePath)) {
-          const data = fs.readFileSync(clipboardStatePath, 'utf8');
-          return JSON.parse(data);
-        }
-        return null;
-      } catch (err) {
-        console.error('Error loading clipboard state:', err);
-        return null;
-      }
-    });
-
-    ipcMain.handle('clipboard:save-state', (_e, state) => {
-      try {
-        fs.writeFileSync(clipboardStatePath, JSON.stringify(state, null, 2), 'utf8');
-        return true;
-      } catch (err) {
-        console.error('Error saving clipboard state:', err);
         return false;
       }
     });

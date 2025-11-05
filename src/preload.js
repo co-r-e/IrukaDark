@@ -81,9 +81,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   clearClipboardHistory: () => ipcRenderer.invoke('clipboard:clear-history'),
   copyToClipboard: (text) => ipcRenderer.invoke('clipboard:copy', text),
   deleteClipboardItem: (id) => ipcRenderer.invoke('clipboard:delete-item', id),
-  openClipboardWindow: () => ipcRenderer.invoke('clipboard:open-window'),
-  hideClipboardWindows: () => ipcRenderer.invoke('clipboard:hide-windows'),
-  showClipboardWindows: () => ipcRenderer.invoke('clipboard:show-windows'),
   onClipboardHistoryUpdated: (cb) =>
     ipcRenderer.on('clipboard:history-updated', (_e, history) => cb(history)),
   getTheme: () => ipcRenderer.invoke('get-ui-theme'),
@@ -91,7 +88,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Snippet data persistence
   getSnippetData: () => ipcRenderer.invoke('snippet:get-data'),
   saveSnippetData: (data) => ipcRenderer.invoke('snippet:save-data', data),
-  // Clipboard window state persistence
-  getClipboardState: () => ipcRenderer.invoke('clipboard:get-state'),
-  saveClipboardState: (state) => ipcRenderer.invoke('clipboard:save-state', state),
 });
