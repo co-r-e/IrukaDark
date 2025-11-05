@@ -311,6 +311,29 @@ function bootstrapApp() {
 
   const responseCache = new ResponseCache();
 
+  function bringMainWindowToFront(mainWindow) {
+    if (!mainWindow || mainWindow.isDestroyed()) return false;
+    try {
+      // Reset alwaysOnTop to bring window to front of other alwaysOnTop windows
+      const pinAllSpaces = windowManager.readPinAllSpacesPref();
+      mainWindow.setAlwaysOnTop(false);
+      mainWindow.setAlwaysOnTop(true, pinAllSpaces ? 'screen-saver' : 'floating');
+
+      if (!mainWindow.isVisible()) {
+        try {
+          showWindowNonActivating(mainWindow);
+        } catch {
+          mainWindow.show();
+        }
+      }
+      mainWindow.focus();
+      return true;
+    } catch (err) {
+      if (isDev) console.warn('Failed to bring main window to front:', err?.message);
+      return false;
+    }
+  }
+
   function registerGlobalShortcuts() {
     const registerShortcut = (accel, detailed = false) => {
       try {
@@ -328,14 +351,8 @@ function bootstrapApp() {
 
               if (!mainWindow || mainWindow.isDestroyed()) return;
 
-              // Show window immediately for fastest response
-              if (!mainWindow.isVisible()) {
-                try {
-                  showWindowNonActivating(mainWindow);
-                } catch {
-                  mainWindow.show();
-                }
-              }
+              // Bring window to front (especially when clipboard window is active)
+              bringMainWindowToFront(mainWindow);
 
               if (text) {
                 mainWindow.webContents.send(
@@ -369,14 +386,8 @@ function bootstrapApp() {
               const text = await tryCopySelectedText();
               if (!mainWindow || mainWindow.isDestroyed()) return;
 
-              // Show window immediately for fastest response
-              if (!mainWindow.isVisible()) {
-                try {
-                  showWindowNonActivating(mainWindow);
-                } catch {
-                  mainWindow.show();
-                }
-              }
+              // Bring window to front (especially when clipboard window is active)
+              bringMainWindowToFront(mainWindow);
 
               const url = extractFirstValidUrl(text);
               if (url) {
@@ -411,14 +422,8 @@ function bootstrapApp() {
               const text = await tryCopySelectedText();
               if (!mainWindow || mainWindow.isDestroyed()) return;
 
-              // Show window immediately for fastest response
-              if (!mainWindow.isVisible()) {
-                try {
-                  showWindowNonActivating(mainWindow);
-                } catch {
-                  mainWindow.show();
-                }
-              }
+              // Bring window to front (especially when clipboard window is active)
+              bringMainWindowToFront(mainWindow);
 
               if (text) {
                 mainWindow.webContents.send('empathize-clipboard', text);
@@ -449,13 +454,8 @@ function bootstrapApp() {
               const text = await tryCopySelectedText();
               if (!mainWindow || mainWindow.isDestroyed()) return;
 
-              if (!mainWindow.isVisible()) {
-                try {
-                  showWindowNonActivating(mainWindow);
-                } catch {
-                  mainWindow.show();
-                }
-              }
+              // Bring window to front (especially when clipboard window is active)
+              bringMainWindowToFront(mainWindow);
 
               if (text) {
                 mainWindow.webContents.send('reply-clipboard-variations', text);
@@ -485,14 +485,8 @@ function bootstrapApp() {
               const text = await tryCopySelectedText();
               if (!mainWindow || mainWindow.isDestroyed()) return;
 
-              // Show window immediately for fastest response
-              if (!mainWindow.isVisible()) {
-                try {
-                  showWindowNonActivating(mainWindow);
-                } catch {
-                  mainWindow.show();
-                }
-              }
+              // Bring window to front (especially when clipboard window is active)
+              bringMainWindowToFront(mainWindow);
 
               const url = extractFirstValidUrl(text);
               if (url) {
@@ -570,14 +564,8 @@ function bootstrapApp() {
               const text = await tryCopySelectedText();
               if (!mainWindow || mainWindow.isDestroyed()) return;
 
-              // Show window immediately for fastest response
-              if (!mainWindow.isVisible()) {
-                try {
-                  showWindowNonActivating(mainWindow);
-                } catch {
-                  mainWindow.show();
-                }
-              }
+              // Bring window to front (especially when clipboard window is active)
+              bringMainWindowToFront(mainWindow);
 
               if (text) {
                 mainWindow.webContents.send('translate-clipboard', text);
@@ -628,14 +616,8 @@ function bootstrapApp() {
               const text = await tryCopySelectedText();
               if (!mainWindow || mainWindow.isDestroyed()) return;
 
-              // Show window immediately for fastest response
-              if (!mainWindow.isVisible()) {
-                try {
-                  showWindowNonActivating(mainWindow);
-                } catch {
-                  mainWindow.show();
-                }
-              }
+              // Bring window to front (especially when clipboard window is active)
+              bringMainWindowToFront(mainWindow);
 
               if (text) {
                 mainWindow.webContents.send('pronounce-clipboard', text);
@@ -665,10 +647,8 @@ function bootstrapApp() {
               if (!data) return;
               const mainWindow = getMainWindow();
               if (mainWindow && !mainWindow.isDestroyed()) {
-                if (!mainWindow.isVisible()) mainWindow.show();
-                try {
-                  mainWindow.focus();
-                } catch {}
+                // Bring window to front (especially when clipboard window is active)
+                bringMainWindowToFront(mainWindow);
                 mainWindow.webContents.send('explain-screenshot', { data, mimeType });
               }
             } catch (e) {
@@ -691,10 +671,8 @@ function bootstrapApp() {
               if (!data) return;
               const mainWindow = getMainWindow();
               if (mainWindow && !mainWindow.isDestroyed()) {
-                if (!mainWindow.isVisible()) mainWindow.show();
-                try {
-                  mainWindow.focus();
-                } catch {}
+                // Bring window to front (especially when clipboard window is active)
+                bringMainWindowToFront(mainWindow);
                 mainWindow.webContents.send('explain-screenshot-detailed', { data, mimeType });
               }
             } catch (e) {

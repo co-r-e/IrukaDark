@@ -16,6 +16,7 @@ class WindowManager {
     this.mainPopupOffsetX = null;
     this.mainPopupOffsetY = null;
     this.clipboardWindows = []; // Track clipboard windows
+    this.savedOpacity = 1.0; // Store the user-configured opacity
   }
 
   createMainWindow() {
@@ -89,6 +90,33 @@ class WindowManager {
     mainWindow.on('show', () => {
       try {
         this.showClipboardWindows();
+      } catch {}
+    });
+
+    // Handle focus/blur for opacity management
+    mainWindow.on('focus', () => {
+      try {
+        // Restore original opacity when focused
+        mainWindow.setOpacity(this.savedOpacity);
+        // Set clipboard windows to background opacity
+        this.clipboardWindows.forEach((win) => {
+          if (win && !win.isDestroyed() && !win.isFocused()) {
+            win.setOpacity(0.5);
+          }
+        });
+      } catch {}
+    });
+
+    mainWindow.on('blur', () => {
+      try {
+        // Check if any clipboard window is focused
+        const anyClipboardFocused = this.clipboardWindows.some(
+          (win) => win && !win.isDestroyed() && win.isFocused()
+        );
+        // Set to background opacity only if a clipboard window is focused
+        if (anyClipboardFocused) {
+          mainWindow.setOpacity(0.5);
+        }
       } catch {}
     });
 
@@ -237,10 +265,14 @@ class WindowManager {
   }
 
   setOpacityForWindows(opacity) {
+    this.savedOpacity = opacity; // Update saved opacity
     const mainWindow = getMainWindow();
     try {
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.setOpacity(opacity);
+        // Only apply if window is focused, otherwise keep background opacity
+        if (mainWindow.isFocused()) {
+          mainWindow.setOpacity(opacity);
+        }
         try {
           mainWindow.webContents.send('window-opacity-changed', opacity);
         } catch {}
@@ -251,7 +283,10 @@ class WindowManager {
     this.clipboardWindows.forEach((win) => {
       if (win && !win.isDestroyed()) {
         try {
-          win.setOpacity(opacity);
+          // Only apply if window is focused, otherwise keep background opacity
+          if (win.isFocused()) {
+            win.setOpacity(opacity);
+          }
           win.webContents.send('window-opacity-changed', opacity);
         } catch {}
       }
@@ -335,6 +370,7 @@ class WindowManager {
     if (win === getPopupWindow()) return;
     const savedOpacity = parseFloat(this.getPref('WINDOW_OPACITY') || '1');
     if (!Number.isNaN(savedOpacity)) {
+      this.savedOpacity = savedOpacity; // Store the opacity value
       try {
         win.setOpacity(savedOpacity);
       } catch {}
@@ -569,6 +605,40 @@ class WindowManager {
     clipboardWindow.on('closed', () => {
       // Remove from tracking array
       this.clipboardWindows = this.clipboardWindows.filter((win) => win !== clipboardWindow);
+    });
+
+    // Handle focus/blur for opacity management
+    clipboardWindow.on('focus', () => {
+      try {
+        // Restore original opacity when focused
+        clipboardWindow.setOpacity(this.savedOpacity);
+        // Set main window to background opacity
+        const mainWindow = getMainWindow();
+        if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isFocused()) {
+          mainWindow.setOpacity(0.5);
+        }
+        // Set other clipboard windows to background opacity
+        this.clipboardWindows.forEach((win) => {
+          if (win && !win.isDestroyed() && win !== clipboardWindow && !win.isFocused()) {
+            win.setOpacity(0.5);
+          }
+        });
+      } catch {}
+    });
+
+    clipboardWindow.on('blur', () => {
+      try {
+        // Check if main window or any other clipboard window is focused
+        const mainWindow = getMainWindow();
+        const mainFocused = mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused();
+        const anyOtherClipboardFocused = this.clipboardWindows.some(
+          (win) => win && !win.isDestroyed() && win !== clipboardWindow && win.isFocused()
+        );
+        // Set to background opacity only if another window is focused
+        if (mainFocused || anyOtherClipboardFocused) {
+          clipboardWindow.setOpacity(0.5);
+        }
+      } catch {}
     });
 
     // Add to tracking array
