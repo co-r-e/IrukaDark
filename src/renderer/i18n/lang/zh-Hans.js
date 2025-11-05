@@ -60,6 +60,7 @@
       translateFree: '切换到意译模式',
       translateStatus: '显示当前翻译模式',
       clear: '清除聊天记录',
+      clipboard: '剪贴板和代码片段',
       compact: '总结并压缩历史记录',
       web: '网页搜索控制',
       webOn: '开启网页搜索',

@@ -60,6 +60,7 @@
       translateFree: '切換到意譯模式',
       translateStatus: '顯示目前的翻譯模式',
       clear: '清除聊天記錄',
+      clipboard: '剪貼簿和程式碼片段',
       compact: '摘要並壓縮歷史',
       web: '網路搜尋控制',
       webOn: '啟用網路搜尋',

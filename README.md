@@ -179,3 +179,7 @@ Initial Layout
 - `/what do you mean?`: Clarify the last AI output in simpler terms
 - `/translate`: Open a submenu with language-specific commands that mirror every UI locale (e.g. `/translate_JA`, `/translate_fr`) to translate the latest AI reply.
 - `/web`: Submenu with `/web on`, `/web off`, `/web status`
+
+## License
+
+IrukaDark is licensed under the GNU Affero General Public License v3.0. See `LICENSE` for the full text and obligations when conveying the application or operating it over a network.

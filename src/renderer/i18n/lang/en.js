@@ -62,7 +62,7 @@
       translateFree: 'Switch to free, intent-aware translation',
       translateStatus: 'Show translation mode status',
       clear: 'Clear chat history',
-      clipboard: 'Open clipboard history',
+      clipboard: 'Clipboard & snippets',
       compact: 'Summarize and compact history',
       web: 'Web search controls',
       webOn: 'Enable web search',

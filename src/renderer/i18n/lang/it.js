@@ -61,6 +61,7 @@
       translateFree: 'Passa alla modalità libera',
       translateStatus: 'Mostra la modalità di traduzione attuale',
       clear: 'Svuotare la cronologia della chat',
+      clipboard: 'Appunti e snippet',
       compact: 'Riassumere e compattare la cronologia',
       web: 'Controlli della ricerca web',
       webOn: 'Abilitare la ricerca web',

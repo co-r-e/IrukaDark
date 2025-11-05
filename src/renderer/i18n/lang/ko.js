@@ -61,6 +61,7 @@
       translateFree: '의역 모드로 전환',
       translateStatus: '현재 번역 모드 보기',
       clear: '채팅 기록 지우기',
+      clipboard: '클립보드 및 스니펫',
       compact: '기록을 요약하고 압축',
       web: '웹 검색 제어',
       webOn: '웹 검색 켜기',

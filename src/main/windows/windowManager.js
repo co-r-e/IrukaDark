@@ -452,16 +452,15 @@ class WindowManager {
 
     try {
       const mainBounds = mainWindow.getBounds();
-      const gap = 8;
+      const overlap = 20;
 
       // Update position for all clipboard windows
       this.clipboardWindows = this.clipboardWindows.filter((win) => {
         if (win && !win.isDestroyed()) {
           try {
             const clipboardBounds = win.getBounds();
-            const x = mainBounds.x - clipboardBounds.width - gap;
-            // Align to bottom of main window
-            const y = mainBounds.y + mainBounds.height - clipboardBounds.height;
+            const x = mainBounds.x + mainBounds.width - clipboardBounds.width - overlap;
+            const y = mainBounds.y + mainBounds.height - clipboardBounds.height - overlap;
             win.setPosition(x, y);
             return true;
           } catch {
@@ -489,10 +488,19 @@ class WindowManager {
     this.clipboardWindows.forEach((win) => {
       if (win && !win.isDestroyed()) {
         try {
-          win.show();
+          // Use showInactive to show window without bringing it to front
+          win.showInactive();
         } catch {}
       }
     });
+
+    // Focus main window to keep clipboard windows in background
+    const mainWindow = getMainWindow();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      try {
+        mainWindow.focus();
+      } catch {}
+    }
   }
 
   createClipboardWindow() {
@@ -535,17 +543,17 @@ class WindowManager {
     clipboardWindow.loadFile(path.join(__dirname, '../../renderer/clipboard.html'));
 
     clipboardWindow.once('ready-to-show', () => {
-      // Position clipboard window to the left of main window
+      // Position clipboard window to the bottom-right of main window with overlap
       const mainWindow = getMainWindow();
       if (mainWindow && !mainWindow.isDestroyed()) {
         try {
           const mainBounds = mainWindow.getBounds();
           const clipboardBounds = clipboardWindow.getBounds();
-          const gap = 8; // Gap between windows
+          const overlap = 20; // Overlap in pixels
 
-          // Position to the left of main window, aligned to bottom
-          const x = mainBounds.x - clipboardBounds.width - gap;
-          const y = mainBounds.y + mainBounds.height - clipboardBounds.height;
+          // Position to the right bottom of main window with overlap (appearing on top-left)
+          const x = mainBounds.x + mainBounds.width - clipboardBounds.width - overlap;
+          const y = mainBounds.y + mainBounds.height - clipboardBounds.height - overlap;
 
           clipboardWindow.setPosition(x, y);
         } catch (err) {

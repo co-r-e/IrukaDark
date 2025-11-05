@@ -61,6 +61,7 @@
       translateFree: 'Serbest/anlam odaklı moda geç',
       translateStatus: 'Geçerli çeviri modunu göster',
       clear: 'Sohbet geçmişini temizle',
+      clipboard: 'Pano ve kod parçaları',
       compact: 'Geçmişi özetle ve sıkıştır',
       web: 'Web araması denetimleri',
       webOn: 'Web aramasını aç',

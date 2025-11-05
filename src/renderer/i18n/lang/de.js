@@ -62,6 +62,7 @@
       translateFree: 'Auf sinngemäße Übersetzung umschalten',
       translateStatus: 'Aktuellen Übersetzungsmodus anzeigen',
       clear: 'Chatverlauf löschen',
+      clipboard: 'Zwischenablage & Snippets',
       compact: 'Verlauf zusammenfassen und komprimieren',
       web: 'Websuche steuern',
       webOn: 'Websuche aktivieren',

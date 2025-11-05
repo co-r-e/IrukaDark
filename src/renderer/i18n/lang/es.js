@@ -62,6 +62,7 @@
       translateFree: 'Cambiar al modo interpretativo',
       translateStatus: 'Mostrar el modo de traducción actual',
       clear: 'Borrar el historial del chat',
+      clipboard: 'Portapapeles y fragmentos',
       compact: 'Resumir y compactar el historial',
       web: 'Controles de búsqueda web',
       webOn: 'Activar la búsqueda web',

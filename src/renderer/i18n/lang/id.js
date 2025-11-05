@@ -61,6 +61,7 @@
       translateFree: 'Beralih ke mode bebas',
       translateStatus: 'Tampilkan mode terjemahan saat ini',
       clear: 'Hapus riwayat chat',
+      clipboard: 'Clipboard dan snippet',
       compact: 'Ringkas dan padatkan riwayat',
       web: 'Kontrol pencarian web',
       webOn: 'Aktifkan pencarian web',

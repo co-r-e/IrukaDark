@@ -61,6 +61,7 @@
       translateFree: 'Chuyển sang chế độ dịch ý',
       translateStatus: 'Hiển thị chế độ dịch hiện tại',
       clear: 'Xóa lịch sử trò chuyện',
+      clipboard: 'Khay nhớ tạm & đoạn mã',
       compact: 'Tóm tắt và cô đọng lịch sử',
       web: 'Điều khiển tìm kiếm web',
       webOn: 'Bật tìm kiếm web',

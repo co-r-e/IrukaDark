@@ -1,6 +1,6 @@
 /*!
  * IrukaDark — (c) 2025 CORe Inc.
- * License: MIT. See https://github.com/co-r-e/IrukaDark/blob/HEAD/LICENSE
+ * License: AGPL-3.0-only. See https://github.com/co-r-e/IrukaDark/blob/HEAD/LICENSE
  */
 const I18N_STRINGS = (typeof window !== 'undefined' && window.IRUKADARK_I18N) || {};
 const STATE = (typeof window !== 'undefined' && window.IRUKADARK_STATE) || {
@@ -232,6 +232,27 @@ class IrukaDarkApp {
     });
     this.fileInput.addEventListener('change', (e) => {
       this.handleFileSelection(e);
+    });
+    // Focus input when clicking on empty chat area
+    this.chatHistory.addEventListener('click', (e) => {
+      // Don't focus if clicking on interactive elements
+      const target = e.target;
+      if (
+        target.tagName === 'A' ||
+        target.tagName === 'BUTTON' ||
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.closest('a') ||
+        target.closest('button') ||
+        target.closest('input') ||
+        target.closest('textarea')
+      ) {
+        return;
+      }
+      // Focus the message input
+      if (this.messageInput) {
+        this.messageInput.focus();
+      }
     });
     window.addEventListener(
       'contextmenu',
@@ -2280,8 +2301,43 @@ class IrukaDarkApp {
     } catch {}
   }
 
-  handlePlusButtonClick() {
+  async handlePlusButtonClick() {
+    // Hide clipboard windows before opening file dialog
+    try {
+      if (window.electronAPI && window.electronAPI.hideClipboardWindows) {
+        await window.electronAPI.hideClipboardWindows();
+      }
+    } catch (err) {
+      console.error('Error hiding clipboard windows:', err);
+    }
+
     this.fileInput.click();
+
+    // Set up one-time listeners to show clipboard windows again
+    const showClipboardWindows = async () => {
+      try {
+        if (window.electronAPI && window.electronAPI.showClipboardWindows) {
+          await window.electronAPI.showClipboardWindows();
+        }
+        // Focus back to this window to keep clipboard windows in background
+        window.focus();
+      } catch (err) {
+        console.error('Error showing clipboard windows:', err);
+      }
+      cleanup();
+    };
+
+    const cleanup = () => {
+      this.fileInput.removeEventListener('change', showClipboardWindows);
+      window.removeEventListener('focus', showClipboardWindows);
+    };
+
+    // Show windows when file is selected or dialog is cancelled (focus returns)
+    this.fileInput.addEventListener('change', showClipboardWindows, { once: true });
+    // Delay to ensure focus event fires after dialog closes
+    setTimeout(() => {
+      window.addEventListener('focus', showClipboardWindows, { once: true });
+    }, 100);
   }
 
   handleFileSelection(event) {

@@ -1,6 +1,6 @@
 /*!
  * IrukaDark — (c) 2025 CORe Inc.
- * License: MIT. See https://github.com/co-r-e/IrukaDark/blob/HEAD/LICENSE
+ * License: AGPL-3.0-only. See https://github.com/co-r-e/IrukaDark/blob/HEAD/LICENSE
  */
 
 class ClipboardHistoryUI {
@@ -41,14 +41,21 @@ class ClipboardHistoryUI {
     this.applyTheme();
     this.loadHistory();
     this.loadSnippets();
+    this.loadClipboardState();
   }
 
   bindEvents() {
     if (this.closeBtn) {
       this.closeBtn.addEventListener('click', () => {
+        this.saveClipboardState();
         window.close();
       });
     }
+
+    // Save state before window closes
+    window.addEventListener('beforeunload', () => {
+      this.saveClipboardState();
+    });
 
     // Tab switching
     if (this.historyTab) {
@@ -183,6 +190,9 @@ class ClipboardHistoryUI {
       // Hide search results menu when switching tabs
       this.hideSearchResults();
     }
+
+    // Save state when switching tabs
+    this.saveClipboardState();
   }
 
   async loadHistory() {
@@ -240,6 +250,10 @@ class ClipboardHistoryUI {
       console.error('Error saving snippets:', err);
     }
   }
+
+  // ========================================
+  // Clipboard History Rendering
+  // ========================================
 
   renderHistory(items) {
     if (!this.clipboardList) return;
@@ -349,6 +363,10 @@ class ClipboardHistoryUI {
       </div>
     `;
   }
+
+  // ========================================
+  // Snippet Folder & Item Rendering
+  // ========================================
 
   renderFolder(folder, parentContainer) {
     const folderIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>`;
@@ -823,6 +841,10 @@ class ClipboardHistoryUI {
     }
   }
 
+  // ========================================
+  // Context Menu (Folder & Snippet Actions)
+  // ========================================
+
   toggleFolderMenu(folderId) {
     // If the same folder's menu is already open, close it
     if (this.currentMenuFolderId === folderId && this.contextMenu.style.display === 'block') {
@@ -1041,6 +1063,10 @@ class ClipboardHistoryUI {
     }
   }
 
+  // ========================================
+  // Clipboard Operations
+  // ========================================
+
   async copyItem(item) {
     try {
       if (window.electronAPI && window.electronAPI.copyToClipboard) {
@@ -1075,6 +1101,10 @@ class ClipboardHistoryUI {
       }
     }
   }
+
+  // ========================================
+  // Utility Functions
+  // ========================================
 
   formatTime(timestamp) {
     const now = Date.now();
@@ -1124,13 +1154,17 @@ class ClipboardHistoryUI {
     }, 2000);
   }
 
-  // Search functionality
+  // ========================================
+  // Search Functionality
+  // ========================================
+
   performHistorySearch() {
     const query = this.historySearchQuery.trim().toLowerCase();
 
     if (!query) {
       this.historySearchResults = [];
       this.hideSearchResults();
+      this.saveClipboardState();
       return;
     }
 
@@ -1141,6 +1175,7 @@ class ClipboardHistoryUI {
     });
 
     this.renderSearchResults('history');
+    this.saveClipboardState();
   }
 
   performSnippetSearch() {
@@ -1149,6 +1184,7 @@ class ClipboardHistoryUI {
     if (!query) {
       this.snippetSearchResults = [];
       this.hideSearchResults();
+      this.saveClipboardState();
       return;
     }
 
@@ -1173,6 +1209,7 @@ class ClipboardHistoryUI {
     this.snippetSearchResults = [...folderResults, ...snippetResults];
 
     this.renderSearchResults('snippet');
+    this.saveClipboardState();
   }
 
   renderSearchResults(tabType) {
@@ -1408,6 +1445,65 @@ class ClipboardHistoryUI {
       if (this.snippetClearSearch) {
         this.snippetClearSearch.style.display = this.snippetSearchQuery ? 'block' : 'none';
       }
+    }
+  }
+
+  // ========================================
+  // State Persistence
+  // ========================================
+
+  async loadClipboardState() {
+    try {
+      if (!window.electronAPI || !window.electronAPI.getClipboardState) {
+        return;
+      }
+
+      const state = await window.electronAPI.getClipboardState();
+      if (state) {
+        // Restore tab selection
+        if (state.currentTab && state.currentTab !== this.currentTab) {
+          this.switchTab(state.currentTab);
+        }
+
+        // Restore search queries
+        if (state.historySearchQuery) {
+          this.historySearchQuery = state.historySearchQuery;
+          if (this.historySearchInput) {
+            this.historySearchInput.value = state.historySearchQuery;
+            this.performHistorySearch();
+            this.updateClearButtonVisibility('history');
+          }
+        }
+
+        if (state.snippetSearchQuery) {
+          this.snippetSearchQuery = state.snippetSearchQuery;
+          if (this.snippetSearchInput) {
+            this.snippetSearchInput.value = state.snippetSearchQuery;
+            this.performSnippetSearch();
+            this.updateClearButtonVisibility('snippet');
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error loading clipboard state:', err);
+    }
+  }
+
+  async saveClipboardState() {
+    try {
+      if (!window.electronAPI || !window.electronAPI.saveClipboardState) {
+        return;
+      }
+
+      const state = {
+        currentTab: this.currentTab,
+        historySearchQuery: this.historySearchQuery,
+        snippetSearchQuery: this.snippetSearchQuery,
+      };
+
+      await window.electronAPI.saveClipboardState(state);
+    } catch (err) {
+      console.error('Error saving clipboard state:', err);
     }
   }
 }

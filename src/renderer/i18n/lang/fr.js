@@ -63,6 +63,7 @@
       translateFree: 'Passer en mode libre',
       translateStatus: 'Afficher le mode de traduction actuel',
       clear: 'Effacer l’historique du chat',
+      clipboard: 'Presse-papiers et extraits',
       compact: 'Résumer et compacter l’historique',
       web: 'Commandes de recherche Web',
       webOn: 'Activer la recherche Web',
