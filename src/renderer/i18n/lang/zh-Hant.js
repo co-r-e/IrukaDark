@@ -12,6 +12,7 @@
     placeholder: '向 IrukaDark 發問…',
     send: '傳送',
     stop: '停止',
+    addAttachment: '新增附件',
     canceled: '已取消。',
     historyCompacted: '已彙整並壓縮聊天記錄。',
     availableCommands:
@@ -83,8 +84,9 @@
     slashTranslateIntoLanguage: (name) => `翻譯成${name}`,
     clipboard: {
       tabChat: '聊天',
-      tabHistory: '歷史',
+      tabHistory: 'Clipboard',
       tabSnippet: '程式碼片段',
+      tabMemo: '備忘錄',
       searchHistory: '搜尋歷史...',
       searchSnippets: '搜尋程式碼片段...',
       addFolder: '新增資料夾',
@@ -104,6 +106,9 @@
       hoursAgo: (hours) => `${hours}小時前`,
       minutesAgo: (minutes) => `${minutes}分鐘前`,
       justNow: '剛剛',
+      memoPlaceholder: '在此寫下您的筆記...',
+      copyMemo: '複製',
+      resetMemo: '重設',
     },
   });
 })();

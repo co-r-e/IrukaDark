@@ -12,6 +12,7 @@
     placeholder: 'IrukaDark에 질문하세요…',
     send: '보내기',
     stop: '중지',
+    addAttachment: '첨부 파일 추가',
     canceled: '취소되었습니다.',
     historyCompacted: '기록을 요약하여 압축했습니다.',
     availableCommands:
@@ -84,8 +85,9 @@
     slashTranslateIntoLanguage: (name) => `${name}로 번역`,
     clipboard: {
       tabChat: '채팅',
-      tabHistory: '기록',
+      tabHistory: 'Clipboard',
       tabSnippet: '스니펫',
+      tabMemo: '메모',
       searchHistory: '기록 검색...',
       searchSnippets: '스니펫 검색...',
       addFolder: '폴더 추가',
@@ -105,6 +107,9 @@
       hoursAgo: (hours) => `${hours}시간 전`,
       minutesAgo: (minutes) => `${minutes}분 전`,
       justNow: '방금',
+      memoPlaceholder: '여기에 메모를 작성하세요...',
+      copyMemo: '복사',
+      resetMemo: '초기화',
     },
   });
 })();

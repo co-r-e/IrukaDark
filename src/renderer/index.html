@@ -1114,6 +1114,58 @@
         snippetTab.addEventListener('click', () => switchTab('snippet'));
         memoTab.addEventListener('click', () => switchTab('memo'));
 
+        // Keyboard navigation for tabs
+        const tabs = ['chat', 'history', 'snippet', 'memo'];
+
+        function getCurrentTabIndex() {
+          if (chatTab.classList.contains('active')) return 0;
+          if (historyTab.classList.contains('active')) return 1;
+          if (snippetTab.classList.contains('active')) return 2;
+          if (memoTab.classList.contains('active')) return 3;
+          return 0; // Default to chat
+        }
+
+        function scrollTabIntoView(tabName) {
+          const tabElement =
+            tabName === 'chat'
+              ? chatTab
+              : tabName === 'history'
+                ? historyTab
+                : tabName === 'snippet'
+                  ? snippetTab
+                  : memoTab;
+
+          if (tabElement) {
+            tabElement.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+          }
+        }
+
+        window.addEventListener('keydown', (e) => {
+          // Check if the target is an input, textarea, or contenteditable element
+          const target = e.target;
+          const isEditable =
+            target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+
+          // Only handle Tab key for tab navigation
+          if (e.key === 'Tab') {
+            const currentIndex = getCurrentTabIndex();
+            let nextIndex;
+
+            if (e.shiftKey) {
+              // Shift + Tab: Move to previous tab
+              nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+            } else {
+              // Tab: Move to next tab
+              nextIndex = (currentIndex + 1) % tabs.length;
+            }
+
+            const nextTab = tabs[nextIndex];
+            e.preventDefault();
+            switchTab(nextTab);
+            scrollTabIntoView(nextTab);
+          }
+        });
+
         // Expose switchTab globally so it can be called from app.js
         window.switchToTab = switchTab;
       })();

@@ -12,6 +12,7 @@
     placeholder: '向 IrukaDark 提问…',
     send: '发送',
     stop: '停止',
+    addAttachment: '添加附件',
     canceled: '已取消。',
     historyCompacted: '已汇总并压缩聊天记录。',
     availableCommands:
@@ -83,8 +84,9 @@
     slashTranslateIntoLanguage: (name) => `翻译成${name}`,
     clipboard: {
       tabChat: '聊天',
-      tabHistory: '历史',
+      tabHistory: 'Clipboard',
       tabSnippet: '代码片段',
+      tabMemo: '备忘录',
       searchHistory: '搜索历史...',
       searchSnippets: '搜索代码片段...',
       addFolder: '添加文件夹',
@@ -104,6 +106,9 @@
       hoursAgo: (hours) => `${hours}小时前`,
       minutesAgo: (minutes) => `${minutes}分钟前`,
       justNow: '刚刚',
+      memoPlaceholder: '在此写下您的笔记...',
+      copyMemo: '复制',
+      resetMemo: '重置',
     },
   });
 })();

@@ -87,7 +87,7 @@
     slashTranslateIntoLanguage: (name) => `${name}に翻訳`,
     clipboard: {
       tabChat: 'チャット',
-      tabHistory: '履歴',
+      tabHistory: 'クリップボード',
       tabSnippet: 'スニペット',
       tabMemo: 'メモ',
       searchHistory: '履歴を検索...',

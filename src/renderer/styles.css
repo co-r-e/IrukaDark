@@ -368,6 +368,15 @@ html:not(.theme-dark) .titlebar-title {
   display: flex;
   gap: 0;
   -webkit-app-region: no-drag;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-wrap: nowrap;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.titlebar-tabs::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 .titlebar-tab {
@@ -376,11 +385,13 @@ html:not(.theme-dark) .titlebar-title {
   background: transparent;
   color: #9ca3af;
   font-size: 10px;
-  padding: 3px 10px;
+  padding: 3px 6px;
   cursor: pointer;
   border-radius: 4px;
   transition: all 0.15s ease;
   font-weight: 500;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .titlebar-tab:hover {

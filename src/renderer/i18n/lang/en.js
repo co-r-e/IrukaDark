@@ -85,7 +85,7 @@
     slashTranslateIntoLanguage: (name) => `Translate into ${name}`,
     clipboard: {
       tabChat: 'Chat',
-      tabHistory: 'History',
+      tabHistory: 'Clipboard',
       tabSnippet: 'Snippet',
       tabMemo: 'Memo',
       searchHistory: 'Search history...',
