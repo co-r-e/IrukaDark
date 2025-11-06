@@ -8,7 +8,7 @@ const SYSTEM_COMMANDS = {
   sleep: {
     id: 'sleep',
     name: 'Sleep',
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"/><path d="M10 2v20"/><path d="M6 8l-4 4 4 4"/><path d="M18 8l4 4-4 4"/></svg>',
+    icon: '🌙',
     keywords: ['sleep', 'スリープ', '睡眠'],
     execute: () => {
       return new Promise((resolve, reject) => {
@@ -22,7 +22,7 @@ const SYSTEM_COMMANDS = {
   lock: {
     id: 'lock',
     name: 'Lock Screen',
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+    icon: '🔒',
     keywords: ['lock', 'ロック', '锁定', '鎖定'],
     execute: () => {
       return new Promise((resolve, reject) => {
@@ -39,7 +39,7 @@ const SYSTEM_COMMANDS = {
   restart: {
     id: 'restart',
     name: 'Restart',
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>',
+    icon: '🔄',
     keywords: ['restart', 'reboot', '再起動', '重启', '重新啟動'],
     execute: () => {
       return new Promise((resolve, reject) => {
@@ -53,7 +53,7 @@ const SYSTEM_COMMANDS = {
   shutdown: {
     id: 'shutdown',
     name: 'Shutdown',
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10"/><path d="M18.4 14.2a9 9 0 1 1-2.05-9.65"/></svg>',
+    icon: '⚡',
     keywords: ['shutdown', 'シャットダウン', '关机', '關機'],
     execute: () => {
       return new Promise((resolve, reject) => {
@@ -67,7 +67,7 @@ const SYSTEM_COMMANDS = {
   'volume-up': {
     id: 'volume-up',
     name: 'Volume Up',
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>',
+    icon: '🔊',
     keywords: ['volume up', '音量上げる', '音量增大', '增加音量'],
     execute: () => {
       return new Promise((resolve, reject) => {
@@ -84,7 +84,7 @@ const SYSTEM_COMMANDS = {
   'volume-down': {
     id: 'volume-down',
     name: 'Volume Down',
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/></svg>',
+    icon: '🔉',
     keywords: ['volume down', '音量下げる', '音量减小', '降低音量'],
     execute: () => {
       return new Promise((resolve, reject) => {
@@ -101,7 +101,7 @@ const SYSTEM_COMMANDS = {
   mute: {
     id: 'mute',
     name: 'Mute',
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="22" y1="9" x2="16" y2="15"/></svg>',
+    icon: '🔇',
     keywords: ['mute', 'ミュート', '静音'],
     execute: () => {
       return new Promise((resolve, reject) => {
@@ -115,7 +115,7 @@ const SYSTEM_COMMANDS = {
   unmute: {
     id: 'unmute',
     name: 'Unmute',
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>',
+    icon: '🔊',
     keywords: ['unmute', 'ミュート解除', '取消静音'],
     execute: () => {
       return new Promise((resolve, reject) => {
@@ -129,7 +129,7 @@ const SYSTEM_COMMANDS = {
   'empty-trash': {
     id: 'empty-trash',
     name: 'Empty Trash',
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>',
+    icon: '🗑️',
     keywords: ['empty trash', 'ゴミ箱を空にする', '清空废纸篓', '清空垃圾桶'],
     execute: () => {
       return new Promise((resolve, reject) => {

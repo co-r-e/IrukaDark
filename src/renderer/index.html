@@ -87,7 +87,7 @@
         background: rgba(255, 255, 255, 0.05);
         color: #e5e7eb;
         font-size: 11px;
-        padding: 5px 28px 5px 32px;
+        padding: 5px 10px 5px 32px;
         border-radius: 6px;
         outline: none;
         transition: all 0.15s ease;
@@ -905,6 +905,234 @@
       html:not(.theme-dark) .launcher-no-results {
         color: #6b7280;
       }
+
+      /* Filter styles */
+      .filter-btn {
+        appearance: none;
+        border: none;
+        background: transparent;
+        color: #9ca3af;
+        font-size: 11px;
+        padding: 5px 8px;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all 0.15s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .filter-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #e5e7eb;
+      }
+
+      html:not(.theme-dark) .filter-btn:hover {
+        background: rgba(0, 0, 0, 0.05);
+        color: #374151;
+      }
+
+      .filter-btn.active {
+        background: linear-gradient(135deg, var(--primary), var(--primary-2));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .filter-btn.active svg {
+        stroke: url(#filterPinkGradient);
+      }
+
+      .filter-btn svg {
+        display: block;
+      }
+
+      .filter-menu {
+        position: absolute;
+        bottom: 40px;
+        right: 8px;
+        background: rgba(26, 20, 70, 0.98);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        padding: 4px;
+        box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+        z-index: 1000;
+        display: none;
+        min-width: 140px;
+      }
+
+      html:not(.theme-dark) .filter-menu {
+        background: rgba(255, 255, 255, 0.98);
+        border-color: rgba(0, 0, 0, 0.12);
+      }
+
+      .filter-menu-item {
+        padding: 8px 10px;
+        color: #e5e7eb;
+        font-size: 11px;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background 0.15s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        user-select: none;
+      }
+
+      html:not(.theme-dark) .filter-menu-item {
+        color: #374151;
+      }
+
+      .filter-menu-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      html:not(.theme-dark) .filter-menu-item:hover {
+        background: rgba(0, 0, 0, 0.05);
+      }
+
+      .filter-checkbox {
+        width: 14px;
+        height: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        flex-shrink: 0;
+        transition: all 0.15s ease;
+      }
+
+      html:not(.theme-dark) .filter-checkbox {
+        border-color: rgba(0, 0, 0, 0.3);
+      }
+
+      .filter-menu-item.active .filter-checkbox {
+        background: #ff4d6d;
+        border-color: #ff4d6d;
+      }
+
+      .filter-checkbox svg {
+        display: block;
+        color: white;
+        width: 10px;
+        height: 10px;
+      }
+
+      /* Confirmation Dialog */
+      .confirmation-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10001;
+        backdrop-filter: blur(4px);
+      }
+
+      .confirmation-dialog {
+        background: rgba(26, 20, 70, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        padding: 0;
+        min-width: 180px;
+        max-width: 240px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+      }
+
+      html:not(.theme-dark) .confirmation-dialog {
+        background: rgba(255, 255, 255, 0.95);
+        border-color: rgba(0, 0, 0, 0.12);
+      }
+
+      .confirmation-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: #e5e7eb;
+        padding: 8px 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.05);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      html:not(.theme-dark) .confirmation-title {
+        color: #111827;
+        background: rgba(0, 0, 0, 0.03);
+        border-bottom-color: rgba(0, 0, 0, 0.08);
+      }
+
+      .confirmation-message {
+        font-size: 11px;
+        color: #9ca3af;
+        padding: 12px;
+        line-height: 1.5;
+      }
+
+      html:not(.theme-dark) .confirmation-message {
+        color: #6b7280;
+      }
+
+      .confirmation-buttons {
+        display: flex;
+        gap: 6px;
+        padding: 8px 12px;
+        justify-content: flex-end;
+        background: rgba(255, 255, 255, 0.03);
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      html:not(.theme-dark) .confirmation-buttons {
+        background: rgba(0, 0, 0, 0.02);
+        border-top-color: rgba(0, 0, 0, 0.08);
+      }
+
+      .confirmation-btn {
+        appearance: none;
+        border: none;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        flex: 1;
+      }
+
+      .confirmation-btn-cancel {
+        background: rgba(255, 255, 255, 0.08);
+        color: #e5e7eb;
+      }
+
+      html:not(.theme-dark) .confirmation-btn-cancel {
+        background: rgba(0, 0, 0, 0.05);
+        color: #374151;
+      }
+
+      .confirmation-btn-cancel:hover {
+        background: rgba(255, 255, 255, 0.12);
+      }
+
+      html:not(.theme-dark) .confirmation-btn-cancel:hover {
+        background: rgba(0, 0, 0, 0.08);
+      }
+
+      .confirmation-btn-confirm {
+        background: linear-gradient(135deg, var(--primary), var(--primary-2));
+        color: white;
+      }
+
+      .confirmation-btn-confirm:hover {
+        opacity: 0.9;
+      }
     </style>
   </head>
   <body class="glass-effect rounded-2xl shadow-2xl overflow-hidden">
@@ -988,6 +1216,27 @@
 
       <!-- Search Results Mini Menu -->
       <div id="searchResultsMenu" class="search-results-menu" style="display: none"></div>
+
+      <!-- Confirmation Dialog -->
+      <div id="confirmationOverlay" class="confirmation-overlay">
+        <div class="confirmation-dialog">
+          <div class="confirmation-title">
+            <span id="confirmationIcon">⚠️</span>
+            <span id="confirmationTitleText">Confirm Action</span>
+          </div>
+          <div class="confirmation-message" id="confirmationMessage">
+            Are you sure you want to proceed?
+          </div>
+          <div class="confirmation-buttons">
+            <button class="confirmation-btn confirmation-btn-cancel" id="confirmationCancel">
+              Cancel
+            </button>
+            <button class="confirmation-btn confirmation-btn-confirm" id="confirmationConfirm">
+              Confirm
+            </button>
+          </div>
+        </div>
+      </div>
 
       <!-- History Footer -->
       <div id="historyFooter" class="tab-footer" style="display: none">
@@ -1099,29 +1348,103 @@
 
       <!-- Launcher Footer -->
       <div id="launcherFooter" class="tab-footer" style="display: none">
-        <div class="search-container">
-          <svg
-            class="search-icon"
-            xmlns="http://www.w3.org/2000/svg"
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <path d="m21 21-4.3-4.3" />
-          </svg>
-          <input
-            type="text"
-            id="launcherSearchInput"
-            class="search-input"
-            placeholder="Search apps, files..."
-            data-i18n-placeholder="launcher.searchPlaceholder"
-          />
+        <div style="display: flex; gap: 8px; align-items: center">
+          <div class="search-container" style="flex: 1">
+            <svg
+              class="search-icon"
+              xmlns="http://www.w3.org/2000/svg"
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            <input
+              type="text"
+              id="launcherSearchInput"
+              class="search-input"
+              placeholder="Search apps, files..."
+              data-i18n-placeholder="launcher.searchPlaceholder"
+            />
+          </div>
+          <button id="launcherFilterBtn" class="filter-btn" title="Filter">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <defs>
+                <linearGradient id="filterPinkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color: #ff4d6d; stop-opacity: 1" />
+                  <stop offset="100%" style="stop-color: #d946ef; stop-opacity: 1" />
+                </linearGradient>
+              </defs>
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+            </svg>
+          </button>
+        </div>
+        <!-- Filter Menu -->
+        <div id="launcherFilterMenu" class="filter-menu">
+          <div class="filter-menu-item active" data-filter="application">
+            <div class="filter-checkbox">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <span>App</span>
+          </div>
+          <div class="filter-menu-item active" data-filter="file">
+            <div class="filter-checkbox">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <span>File</span>
+          </div>
+          <div class="filter-menu-item active" data-filter="system-command">
+            <div class="filter-checkbox">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <span>System</span>
+          </div>
         </div>
       </div>
 
