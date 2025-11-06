@@ -213,6 +213,11 @@ class LauncherUI {
       return `<img src="${icon}" alt="App icon" class="launcher-app-icon" loading="lazy" />`;
     }
 
+    // If it's an SVG string (for files and system commands), render directly
+    if (icon.startsWith('<svg')) {
+      return `<span class="launcher-svg-icon">${icon}</span>`;
+    }
+
     // Otherwise, render as emoji/text
     return this.escapeHtml(icon);
   }
