@@ -316,6 +316,52 @@ class WindowManager {
     }
   }
 
+  resetPopupToInitialPosition() {
+    try {
+      const popupWindow = getPopupWindow();
+      const mainWindow = getMainWindow();
+      if (!popupWindow || popupWindow.isDestroyed() || !mainWindow || mainWindow.isDestroyed()) {
+        return false;
+      }
+
+      const popupWidth = 84;
+      const popupHeight = 84;
+      const primary = screen.getPrimaryDisplay();
+      const wa =
+        primary && primary.workArea ? primary.workArea : { x: 0, y: 0, width: 1200, height: 800 };
+
+      // Position main window at bottom right
+      const marginRight = 16;
+      const marginBottom = 12;
+      const mainX = Math.round(wa.x + wa.width - this.mainWindowWidth - marginRight);
+      const mainY = Math.round(wa.y + wa.height - this.mainWindowHeight - marginBottom);
+
+      // Position popup centered below main window
+      const popupX = Math.round(mainX + (this.mainWindowWidth - popupWidth) / 2);
+      const popupY = Math.round(mainY + this.mainWindowHeight - 10);
+
+      // Move popup window to initial position
+      popupWindow.setPosition(popupX, popupY);
+
+      // Move main window to initial position
+      mainWindow.setPosition(mainX, mainY);
+
+      // Reset offset so it's recalculated
+      this.mainPopupOffsetX = null;
+      this.mainPopupOffsetY = null;
+
+      // Bring popup window to front
+      if (!popupWindow.isVisible()) {
+        popupWindow.show();
+      }
+      popupWindow.focus();
+
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   applySavedOpacity(win) {
     if (!win || win.isDestroyed?.()) return;
     if (win === getPopupWindow()) return;

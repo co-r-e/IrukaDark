@@ -688,6 +688,22 @@ function bootstrapApp() {
       } catch {}
     }
 
+    // Reset popup to initial position shortcut
+    const resetToInitialCandidates = ['Alt+Shift+Z'];
+    for (const c of resetToInitialCandidates) {
+      try {
+        const ok = globalShortcut.register(c, () => {
+          logShortcutEvent('shortcut.trigger', { accel: c, kind: 'reset_to_initial' });
+          try {
+            windowManager.resetPopupToInitialPosition();
+          } catch (e) {
+            if (isDev) console.warn('Reset popup to initial position failed:', e?.message);
+          }
+        });
+        if (ok) break;
+      } catch {}
+    }
+
     try {
       const mainWindow = getMainWindow();
       if (mainWindow && !mainWindow.isDestroyed()) {
