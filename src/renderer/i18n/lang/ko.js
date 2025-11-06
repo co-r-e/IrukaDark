@@ -111,6 +111,9 @@
       memoPlaceholder: '여기에 메모를 작성하세요...',
       copyMemo: '복사',
       resetMemo: '초기화',
+      resetMemoConfirmTitle: '메모 초기화',
+      resetMemoConfirmMessage:
+        '메모 내용이 삭제됩니다. 이 작업은 취소할 수 없습니다. 계속하시겠습니까?',
     },
     launcher: {
       searchPlaceholder: '앱, 파일 검색...',

@@ -111,6 +111,9 @@
       memoPlaceholder: 'Write your notes here...',
       copyMemo: 'Copy',
       resetMemo: 'Reset',
+      resetMemoConfirmTitle: 'Reset Memo',
+      resetMemoConfirmMessage:
+        'All memo content will be deleted. This action cannot be undone. Continue?',
     },
     launcher: {
       searchPlaceholder: 'Type to search apps, files...',

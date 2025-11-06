@@ -110,6 +110,8 @@
       memoPlaceholder: '在此写下您的笔记...',
       copyMemo: '复制',
       resetMemo: '重置',
+      resetMemoConfirmTitle: '重置备忘录',
+      resetMemoConfirmMessage: '备忘录内容将被删除。此操作无法撤销。是否继续？',
     },
     launcher: {
       searchPlaceholder: '搜索应用、文件...',

@@ -895,6 +895,58 @@
         color: #9ca3af;
       }
 
+      .launcher-favorite-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: none;
+        cursor: pointer;
+        padding: 4px;
+        margin: 0;
+        color: #6b7280;
+        transition: color 0.15s;
+        flex-shrink: 0;
+      }
+
+      .launcher-favorite-btn:hover {
+        color: #9ca3af;
+      }
+
+      .launcher-favorite-btn.active {
+        color: #fbbf24;
+      }
+
+      .launcher-favorite-btn.active:hover {
+        color: #f59e0b;
+      }
+
+      .launcher-favorite-btn svg {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+      }
+
+      .launcher-favorite-btn.active svg {
+        fill: currentColor;
+      }
+
+      html:not(.theme-dark) .launcher-favorite-btn {
+        color: #9ca3af;
+      }
+
+      html:not(.theme-dark) .launcher-favorite-btn:hover {
+        color: #6b7280;
+      }
+
+      html:not(.theme-dark) .launcher-favorite-btn.active {
+        color: #f59e0b;
+      }
+
+      html:not(.theme-dark) .launcher-favorite-btn.active:hover {
+        color: #d97706;
+      }
+
       .launcher-no-results {
         text-align: center;
         padding: 48px 16px;

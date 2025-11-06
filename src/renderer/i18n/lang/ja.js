@@ -113,6 +113,8 @@
       memoPlaceholder: 'ここにメモを入力...',
       copyMemo: 'コピー',
       resetMemo: 'リセット',
+      resetMemoConfirmTitle: 'メモをリセット',
+      resetMemoConfirmMessage: 'メモの内容が削除されます。この操作は元に戻せません。続けますか？',
     },
     launcher: {
       searchPlaceholder: 'アプリ、ファイルを検索...',

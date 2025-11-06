@@ -114,6 +114,9 @@
       memoPlaceholder: 'Écrivez vos notes ici...',
       copyMemo: 'Copier',
       resetMemo: 'Réinitialiser',
+      resetMemoConfirmTitle: 'Réinitialiser le mémo',
+      resetMemoConfirmMessage:
+        'Le contenu du mémo sera supprimé. Cette action ne peut pas être annulée. Continuer?',
     },
     launcher: {
       searchPlaceholder: 'Rechercher apps, fichiers...',

@@ -113,6 +113,9 @@
       memoPlaceholder: 'Escribe tus notas aquí...',
       copyMemo: 'Copiar',
       resetMemo: 'Restablecer',
+      resetMemoConfirmTitle: 'Restablecer Memo',
+      resetMemoConfirmMessage:
+        'El contenido del memo será eliminado. Esta acción no se puede deshacer. ¿Continuar?',
     },
     launcher: {
       searchPlaceholder: 'Buscar apps, archivos...',

@@ -1478,8 +1478,8 @@ class MemoUI {
 
     // Reset button event
     if (this.memoResetBtn) {
-      this.memoResetBtn.addEventListener('click', () => {
-        this.resetMemoContent();
+      this.memoResetBtn.addEventListener('click', async () => {
+        await this.resetMemoContent();
       });
     }
   }
@@ -1564,12 +1564,81 @@ class MemoUI {
     }
   }
 
-  resetMemoContent() {
+  showConfirmation() {
+    return new Promise((resolve) => {
+      const overlay = document.getElementById('confirmationOverlay');
+      const icon = document.getElementById('confirmationIcon');
+      const titleText = document.getElementById('confirmationTitleText');
+      const message = document.getElementById('confirmationMessage');
+      const confirmBtn = document.getElementById('confirmationConfirm');
+      const cancelBtn = document.getElementById('confirmationCancel');
+
+      // Get i18n messages
+      const title =
+        this.i18n && this.i18n.clipboard && this.i18n.clipboard.resetMemoConfirmTitle
+          ? this.i18n.clipboard.resetMemoConfirmTitle
+          : 'Reset Memo';
+      const messageText =
+        this.i18n && this.i18n.clipboard && this.i18n.clipboard.resetMemoConfirmMessage
+          ? this.i18n.clipboard.resetMemoConfirmMessage
+          : 'All memo content will be deleted. This action cannot be undone. Continue?';
+
+      icon.textContent = '📝';
+      titleText.textContent = title;
+      message.textContent = messageText;
+
+      // Show overlay
+      overlay.style.display = 'flex';
+
+      // Handle confirmation
+      const handleConfirm = () => {
+        cleanup();
+        resolve(true);
+      };
+
+      const handleCancel = () => {
+        cleanup();
+        resolve(false);
+      };
+
+      const handleOverlayClick = (e) => {
+        if (e.target === overlay) {
+          handleCancel();
+        }
+      };
+
+      const handleEscape = (e) => {
+        if (e.key === 'Escape') {
+          handleCancel();
+        }
+      };
+
+      const cleanup = () => {
+        overlay.style.display = 'none';
+        confirmBtn.removeEventListener('click', handleConfirm);
+        cancelBtn.removeEventListener('click', handleCancel);
+        overlay.removeEventListener('click', handleOverlayClick);
+        document.removeEventListener('keydown', handleEscape);
+      };
+
+      // Add event listeners
+      confirmBtn.addEventListener('click', handleConfirm);
+      cancelBtn.addEventListener('click', handleCancel);
+      overlay.addEventListener('click', handleOverlayClick);
+      document.addEventListener('keydown', handleEscape);
+    });
+  }
+
+  async resetMemoContent() {
     try {
       if (!this.memoTextarea) {
         console.error('Memo textarea not found');
         return;
       }
+
+      // Show confirmation dialog
+      const confirmed = await this.showConfirmation();
+      if (!confirmed) return;
 
       // Clear the textarea
       this.memoTextarea.value = '';

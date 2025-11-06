@@ -110,6 +110,8 @@
       memoPlaceholder: '在此寫下您的筆記...',
       copyMemo: '複製',
       resetMemo: '重設',
+      resetMemoConfirmTitle: '重設備忘錄',
+      resetMemoConfirmMessage: '備忘錄內容將被刪除。此操作無法撤銷。是否繼續？',
     },
     launcher: {
       searchPlaceholder: '搜尋應用程式、檔案...',
