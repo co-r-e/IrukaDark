@@ -1288,10 +1288,10 @@ function bootstrapApp() {
           maxOutputTokens: 2048,
         };
 
-        // Check if reference image is provided
-        const referenceImage = payload?.referenceImage;
-        const referenceMimeType = payload?.referenceMimeType;
-        const hasReferenceImage = referenceImage && referenceMimeType;
+        // Check if reference images are provided (support multiple)
+        const referenceImages = payload?.referenceImages;
+        const hasReferenceImages =
+          referenceImages && Array.isArray(referenceImages) && referenceImages.length > 0;
 
         const modelName = 'gemini-2.5-flash-image';
         const errorLog = [];
@@ -1310,14 +1310,13 @@ function bootstrapApp() {
             try {
               let result;
 
-              if (hasReferenceImage) {
-                // Use reference image-based generation
+              if (hasReferenceImages) {
+                // Use reference images-based generation (multiple images supported)
                 result = await restGenerateImageFromTextWithReference(
                   key,
                   modelName,
                   prompt,
-                  referenceImage,
-                  referenceMimeType,
+                  referenceImages,
                   generationConfig,
                   {
                     aspectRatio,

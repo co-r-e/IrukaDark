@@ -1627,10 +1627,10 @@ class IrukaDarkApp {
       const aspectRatio = this.imageSize === 'auto' ? '1:1' : this.imageSize;
       const count = this.imageCount || 1;
 
-      const referenceFile = this.getFirstReferenceFile(attachments);
+      const referenceFiles = this.getAllReferenceFiles(attachments);
       const generatePromises = Array(count)
         .fill(null)
-        .map(() => this.generateSingleImage(prompt, aspectRatio, referenceFile));
+        .map(() => this.generateSingleImage(prompt, aspectRatio, referenceFiles));
 
       const results = await Promise.all(generatePromises);
       this.hideTypingIndicator();
@@ -1649,21 +1649,18 @@ class IrukaDarkApp {
     }
   }
 
-  getFirstReferenceFile(attachments) {
-    if (!attachments?.length) return null;
-    return (
-      attachments.find((f) => f.type.startsWith('image/')) ||
-      attachments.find((f) => f.type === 'application/pdf') ||
-      null
-    );
+  getAllReferenceFiles(attachments) {
+    if (!attachments?.length) return [];
+    // 画像生成では画像ファイルのみを参照として使用
+    return attachments.filter((f) => f.type.startsWith('image/'));
   }
 
-  async generateSingleImage(prompt, aspectRatio, referenceFile) {
-    if (referenceFile) {
+  async generateSingleImage(prompt, aspectRatio, referenceFiles) {
+    if (referenceFiles && referenceFiles.length > 0) {
       return this.geminiService.generateImageFromTextWithReference(
         prompt,
         aspectRatio,
-        referenceFile
+        referenceFiles
       );
     }
     return this.geminiService.generateImageFromText(prompt, aspectRatio);
@@ -2873,17 +2870,33 @@ class GeminiService {
     }
   }
 
-  async generateImageFromTextWithReference(prompt, aspectRatio = '1:1', referenceFile) {
+  async generateImageFromTextWithReference(prompt, aspectRatio = '1:1', referenceFiles) {
     try {
       if (window.electronAPI && window.electronAPI.generateImageFromText) {
-        // ファイルをbase64に変換
-        const base64 = await this.fileToBase64(referenceFile);
+        console.log('[DEBUG] Reference files count:', referenceFiles.length);
+
+        // 複数のファイルをbase64に変換
+        const referenceImages = await Promise.all(
+          referenceFiles.map(async (file) => {
+            console.log('[DEBUG] Converting file to base64:', file.name, file.type);
+            return {
+              base64: await this.fileToBase64(file),
+              mimeType: file.type,
+            };
+          })
+        );
+
+        console.log('[DEBUG] Reference images prepared:', referenceImages.length);
 
         const options = {
           aspectRatio,
-          referenceImage: base64,
-          referenceMimeType: referenceFile.type,
+          referenceImages,
         };
+
+        console.log('[DEBUG] Sending image generation request with options:', {
+          aspectRatio,
+          referenceImagesCount: referenceImages.length,
+        });
 
         const result = await window.electronAPI.generateImageFromText(prompt, options);
 

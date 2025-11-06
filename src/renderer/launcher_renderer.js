@@ -13,6 +13,7 @@ class LauncherUI {
     this.results = [];
     this.allResults = []; // Store unfiltered results
     this.searchTimeout = null;
+    this.searchId = 0; // Track search requests to prevent race conditions
     this.activeFilters = new Set(['application', 'file', 'system-command']); // All active by default
     this.init();
   }
@@ -77,10 +78,13 @@ class LauncherUI {
     // Debounce search
     this.searchTimeout = setTimeout(async () => {
       await this.performSearch(query);
-    }, 300);
+    }, 150);
   }
 
   async performSearch(query) {
+    // Increment search ID to track this search request
+    const currentSearchId = ++this.searchId;
+
     try {
       // Search all sources in parallel
       const [apps, files, systemCmds] = await Promise.all([
@@ -88,6 +92,11 @@ class LauncherUI {
         window.electronAPI.launcher.searchFiles(query),
         window.electronAPI.launcher.searchSystemCommands(query),
       ]);
+
+      // Only render if this is still the latest search
+      if (currentSearchId !== this.searchId) {
+        return; // Ignore outdated search results
+      }
 
       // Combine and sort results
       const allResults = [
@@ -98,6 +107,10 @@ class LauncherUI {
 
       this.renderResults(allResults);
     } catch (err) {
+      // Only show error if this is still the latest search
+      if (currentSearchId !== this.searchId) {
+        return;
+      }
       console.error('Search error:', err);
       this.renderError();
     }
@@ -298,6 +311,7 @@ class LauncherUI {
 
   clearResults() {
     this.results = [];
+    this.allResults = [];
     this.selectedIndex = 0;
     this.resultsContainer.innerHTML = '';
   }

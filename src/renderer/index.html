@@ -1163,9 +1163,6 @@
           >
             Snippet
           </button>
-          <button id="memoTab" class="titlebar-tab" data-tab="memo" data-i18n="clipboard.tabMemo">
-            Memo
-          </button>
           <button
             id="launcherTab"
             class="titlebar-tab"
@@ -1173,6 +1170,9 @@
             data-i18n="clipboard.tabLauncher"
           >
             Launcher
+          </button>
+          <button id="memoTab" class="titlebar-tab" data-tab="memo" data-i18n="clipboard.tabMemo">
+            Memo
           </button>
         </div>
         <div class="titlebar-buttons"></div>
@@ -1527,8 +1527,8 @@
         const chatTab = document.getElementById('chatTab');
         const historyTab = document.getElementById('historyTab');
         const snippetTab = document.getElementById('snippetTab');
-        const memoTab = document.getElementById('memoTab');
         const launcherTab = document.getElementById('launcherTab');
+        const memoTab = document.getElementById('memoTab');
 
         const chatHistory = document.getElementById('chatHistory');
         const clipboardList = document.getElementById('clipboardList');
@@ -1550,8 +1550,8 @@
           chatTab.classList.remove('active');
           historyTab.classList.remove('active');
           snippetTab.classList.remove('active');
-          memoTab.classList.remove('active');
           launcherTab.classList.remove('active');
+          memoTab.classList.remove('active');
 
           // Hide all views
           chatHistory.style.display = 'none';
@@ -1594,15 +1594,6 @@
               }
               clipboardUI.currentTab = 'snippet';
               clipboardUI.switchTab('snippet');
-            } else if (tabName === 'memo') {
-              memoTab.classList.add('active');
-              memoContainer.style.display = 'block';
-              memoFooter.style.display = 'flex';
-
-              // Initialize memo UI if not already done
-              if (!memoUI) {
-                memoUI = new MemoUI();
-              }
             } else if (tabName === 'launcher') {
               launcherTab.classList.add('active');
               launcherContainer.style.display = 'block';
@@ -1616,6 +1607,15 @@
                 const searchInput = document.getElementById('launcherSearchInput');
                 if (searchInput) searchInput.focus();
               }
+            } else if (tabName === 'memo') {
+              memoTab.classList.add('active');
+              memoContainer.style.display = 'block';
+              memoFooter.style.display = 'flex';
+
+              // Initialize memo UI if not already done
+              if (!memoUI) {
+                memoUI = new MemoUI();
+              }
             }
           }
         }
@@ -1623,18 +1623,18 @@
         chatTab.addEventListener('click', () => switchTab('chat'));
         historyTab.addEventListener('click', () => switchTab('history'));
         snippetTab.addEventListener('click', () => switchTab('snippet'));
-        memoTab.addEventListener('click', () => switchTab('memo'));
         launcherTab.addEventListener('click', () => switchTab('launcher'));
+        memoTab.addEventListener('click', () => switchTab('memo'));
 
         // Keyboard navigation for tabs
-        const tabs = ['chat', 'history', 'snippet', 'memo', 'launcher'];
+        const tabs = ['chat', 'history', 'snippet', 'launcher', 'memo'];
 
         function getCurrentTabIndex() {
           if (chatTab.classList.contains('active')) return 0;
           if (historyTab.classList.contains('active')) return 1;
           if (snippetTab.classList.contains('active')) return 2;
-          if (memoTab.classList.contains('active')) return 3;
-          if (launcherTab.classList.contains('active')) return 4;
+          if (launcherTab.classList.contains('active')) return 3;
+          if (memoTab.classList.contains('active')) return 4;
           return 0; // Default to chat
         }
 
@@ -1646,9 +1646,9 @@
                 ? historyTab
                 : tabName === 'snippet'
                   ? snippetTab
-                  : tabName === 'memo'
-                    ? memoTab
-                    : launcherTab;
+                  : tabName === 'launcher'
+                    ? launcherTab
+                    : memoTab;
 
           if (tabElement) {
             tabElement.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });

@@ -631,8 +631,7 @@ async function restGenerateImageFromTextWithReference(
   apiKey,
   modelBare,
   prompt,
-  referenceImageBase64,
-  referenceMimeType,
+  referenceImages,
   generationConfig,
   { aspectRatio = '1:1', signal } = {}
 ) {
@@ -644,17 +643,23 @@ async function restGenerateImageFromTextWithReference(
     responseModalities: ['IMAGE'],
   };
 
-  // Build parts array with reference image and prompt
+  // Build parts array with reference images and prompt
   const parts = [{ text: String(prompt || '') }];
 
-  // Add reference image if provided
-  if (referenceImageBase64 && referenceMimeType) {
-    parts.push({
-      inlineData: {
-        data: String(referenceImageBase64),
-        mimeType: String(referenceMimeType),
-      },
-    });
+  // Add reference images if provided (support multiple images)
+  if (referenceImages && Array.isArray(referenceImages)) {
+    console.log('[DEBUG] Number of reference images:', referenceImages.length);
+    for (const refImage of referenceImages) {
+      if (refImage.base64 && refImage.mimeType) {
+        console.log('[DEBUG] Adding reference image with mimeType:', refImage.mimeType);
+        parts.push({
+          inlineData: {
+            data: String(refImage.base64),
+            mimeType: String(refImage.mimeType),
+          },
+        });
+      }
+    }
   }
 
   const body = {
@@ -667,7 +672,18 @@ async function restGenerateImageFromTextWithReference(
     body.generationConfig.imageConfig = { aspectRatio };
   }
 
-  console.log('[DEBUG] Image generation with reference request');
+  console.log('[DEBUG] Image generation with reference request, parts count:', parts.length);
+  console.log(
+    '[DEBUG] Request body structure:',
+    JSON.stringify(
+      {
+        partsCount: parts.length,
+        generationConfig: body.generationConfig,
+      },
+      null,
+      2
+    )
+  );
 
   const res = await fetch(url, {
     method: 'POST',
@@ -682,6 +698,7 @@ async function restGenerateImageFromTextWithReference(
   const data = await res.json();
 
   console.log('[DEBUG] Image generation with reference API response received');
+  console.log('[DEBUG] Response structure:', JSON.stringify(data, null, 2));
 
   // Extract image data from response
   const candidates = data?.candidates || [];
@@ -690,17 +707,23 @@ async function restGenerateImageFromTextWithReference(
     throw new Error('No candidates in API response.');
   }
 
+  console.log('[DEBUG] Number of candidates:', candidates.length);
+
   for (const candidate of candidates) {
     const parts = candidate?.content?.parts || [];
+    console.log('[DEBUG] Candidate parts count:', parts.length);
+    console.log('[DEBUG] Parts structure:', JSON.stringify(parts, null, 2));
 
     for (const part of parts) {
       if (part.inline_data && part.inline_data.data) {
+        console.log('[DEBUG] Found image in inline_data (snake_case)');
         return {
           imageData: part.inline_data.data,
           mimeType: part.inline_data.mimeType || 'image/png',
         };
       }
       if (part.inlineData && part.inlineData.data) {
+        console.log('[DEBUG] Found image in inlineData (camelCase)');
         return {
           imageData: part.inlineData.data,
           mimeType: part.inlineData.mimeType || 'image/png',
@@ -711,10 +734,15 @@ async function restGenerateImageFromTextWithReference(
 
   // Check for safety or other finish reasons
   const finishReason = candidates[0]?.finishReason || candidates[0]?.finish_reason || '';
+  console.log('[DEBUG] Finish reason:', finishReason);
   if (String(finishReason).toUpperCase().includes('SAFETY')) {
     throw new Error('The API blocked the image generation for safety reasons.');
   }
 
+  console.error(
+    '[DEBUG] No image data found in response. Full response:',
+    JSON.stringify(data, null, 2)
+  );
   throw new Error('No image data found in API response.');
 }
 
