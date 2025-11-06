@@ -89,6 +89,7 @@
       tabHistory: 'Clipboard',
       tabSnippet: 'Snippet',
       tabMemo: 'Not',
+      tabLauncher: 'Başlatıcı',
       searchHistory: 'Geçmişte ara...',
       searchSnippets: "Snippet'lerde ara...",
       addFolder: 'Klasör Ekle',
@@ -111,6 +112,10 @@
       memoPlaceholder: 'Notlarınızı buraya yazın...',
       copyMemo: 'Kopyala',
       resetMemo: 'Sıfırla',
+    },
+    launcher: {
+      searchPlaceholder: 'Uygulama, dosya ara...',
+      noResults: 'Sonuç bulunamadı',
     },
   });
 })();

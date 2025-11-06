@@ -37,6 +37,9 @@ const {
 } = require('../ai');
 const { getMainWindow, setMainWindow, setPopupWindow, getPopupWindow } = require('../context');
 const { setupAutoUpdates, manualCheckForUpdates } = require('../updates');
+const { AppScanner } = require('../services/appScanner');
+const { FileSearchService } = require('../services/fileSearch');
+const { SystemCommandsService } = require('../services/systemCommands');
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -98,6 +101,11 @@ function bootstrapApp() {
     setPref,
     getPref,
   });
+
+  // Initialize launcher services
+  const appScanner = new AppScanner();
+  const fileSearch = new FileSearchService();
+  const systemCommands = new SystemCommandsService();
 
   function getCurrentLanguage() {
     try {
@@ -951,6 +959,75 @@ function bootstrapApp() {
     });
   }
 
+  function setupLauncherHandlers() {
+    // Application search
+    ipcMain.handle('launcher:search-apps', async (_e, query) => {
+      try {
+        return appScanner.searchApps(query);
+      } catch (err) {
+        console.error('App search error:', err);
+        return [];
+      }
+    });
+
+    // Launch application
+    ipcMain.handle('launcher:launch-app', async (_e, appPath) => {
+      try {
+        const { exec } = require('child_process');
+        exec(`open -a "${appPath}"`, (error) => {
+          if (error) {
+            console.error('Error launching app:', error);
+          }
+        });
+        return { success: true };
+      } catch (err) {
+        console.error('Launch app error:', err);
+        return { success: false, error: err.message };
+      }
+    });
+
+    // File search
+    ipcMain.handle('launcher:search-files', async (_e, query) => {
+      try {
+        return await fileSearch.searchFiles(query);
+      } catch (err) {
+        console.error('File search error:', err);
+        return [];
+      }
+    });
+
+    // Open file
+    ipcMain.handle('launcher:open-file', async (_e, filePath) => {
+      try {
+        await shell.openPath(filePath);
+        return { success: true };
+      } catch (err) {
+        console.error('Open file error:', err);
+        return { success: false, error: err.message };
+      }
+    });
+
+    // System commands search
+    ipcMain.handle('launcher:search-system-commands', async (_e, query) => {
+      try {
+        return systemCommands.searchCommands(query);
+      } catch (err) {
+        console.error('System command search error:', err);
+        return [];
+      }
+    });
+
+    // Execute system command
+    ipcMain.handle('launcher:execute-system-command', async (_e, commandId) => {
+      try {
+        return await systemCommands.executeCommand(commandId);
+      } catch (err) {
+        console.error('Execute system command error:', err);
+        return { success: false, error: err.message };
+      }
+    });
+  }
+
   function setupAiHandlers() {
     ipcMain.handle('cancel-ai', (_e, payload = {}) => {
       const { fromShortcut } = payload || {};
@@ -1343,8 +1420,14 @@ function bootstrapApp() {
     setupUiHandlers();
     setupUrlContentHandlers();
     setupClipboardHandlers();
+    setupLauncherHandlers();
     setupAiHandlers();
     setupRendererSync();
+
+    // Initialize app scanner in background
+    appScanner.scanApplications().catch((err) => {
+      console.error('Error scanning applications:', err);
+    });
     try {
       setupAutoUpdates();
     } catch {}

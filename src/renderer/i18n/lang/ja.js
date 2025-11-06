@@ -90,6 +90,7 @@
       tabHistory: 'クリップボード',
       tabSnippet: 'スニペット',
       tabMemo: 'メモ',
+      tabLauncher: 'ランチャー',
       searchHistory: '履歴を検索...',
       searchSnippets: 'スニペットを検索...',
       addFolder: 'フォルダーを追加',
@@ -112,6 +113,10 @@
       memoPlaceholder: 'ここにメモを入力...',
       copyMemo: 'コピー',
       resetMemo: 'リセット',
+    },
+    launcher: {
+      searchPlaceholder: 'アプリ、ファイルを検索...',
+      noResults: '結果が見つかりません',
     },
   });
 })();

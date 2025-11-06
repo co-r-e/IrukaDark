@@ -89,6 +89,7 @@
       tabHistory: 'Clipboard',
       tabSnippet: 'Snippet',
       tabMemo: 'Nota',
+      tabLauncher: 'Lançador',
       searchHistory: 'Pesquisar histórico...',
       searchSnippets: 'Pesquisar snippets...',
       addFolder: 'Adicionar pasta',
@@ -111,6 +112,10 @@
       memoPlaceholder: 'Escreva suas notas aqui...',
       copyMemo: 'Copiar',
       resetMemo: 'Redefinir',
+    },
+    launcher: {
+      searchPlaceholder: 'Buscar apps, arquivos...',
+      noResults: 'Nenhum resultado encontrado',
     },
   });
 })();

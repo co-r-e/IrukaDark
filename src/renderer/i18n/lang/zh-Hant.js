@@ -87,6 +87,7 @@
       tabHistory: 'Clipboard',
       tabSnippet: '程式碼片段',
       tabMemo: '備忘錄',
+      tabLauncher: '啟動器',
       searchHistory: '搜尋歷史...',
       searchSnippets: '搜尋程式碼片段...',
       addFolder: '新增資料夾',
@@ -109,6 +110,10 @@
       memoPlaceholder: '在此寫下您的筆記...',
       copyMemo: '複製',
       resetMemo: '重設',
+    },
+    launcher: {
+      searchPlaceholder: '搜尋應用程式、檔案...',
+      noResults: '找不到結果',
     },
   });
 })();

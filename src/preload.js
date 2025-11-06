@@ -85,4 +85,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Snippet data persistence
   getSnippetData: () => ipcRenderer.invoke('snippet:get-data'),
   saveSnippetData: (data) => ipcRenderer.invoke('snippet:save-data', data),
+  // Launcher
+  launcher: {
+    searchApps: (query) => ipcRenderer.invoke('launcher:search-apps', query),
+    launchApp: (appPath) => ipcRenderer.invoke('launcher:launch-app', appPath),
+    searchFiles: (query) => ipcRenderer.invoke('launcher:search-files', query),
+    openFile: (filePath) => ipcRenderer.invoke('launcher:open-file', filePath),
+    searchSystemCommands: (query) => ipcRenderer.invoke('launcher:search-system-commands', query),
+    executeSystemCommand: (commandId) =>
+      ipcRenderer.invoke('launcher:execute-system-command', commandId),
+  },
 });

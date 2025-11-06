@@ -88,6 +88,7 @@
       tabHistory: 'Clipboard',
       tabSnippet: 'Snippet',
       tabMemo: 'Memo',
+      tabLauncher: 'Launcher',
       searchHistory: 'Search history...',
       searchSnippets: 'Search snippets...',
       addFolder: 'Add Folder',
@@ -110,6 +111,10 @@
       memoPlaceholder: 'Write your notes here...',
       copyMemo: 'Copy',
       resetMemo: 'Reset',
+    },
+    launcher: {
+      searchPlaceholder: 'Type to search apps, files...',
+      noResults: 'No results found',
     },
   });
 })();

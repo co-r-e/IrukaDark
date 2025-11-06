@@ -89,6 +89,7 @@
       tabHistory: 'Clipboard',
       tabSnippet: 'Snippet',
       tabMemo: 'Catatan',
+      tabLauncher: 'Peluncur',
       searchHistory: 'Cari riwayat...',
       searchSnippets: 'Cari snippet...',
       addFolder: 'Tambah Folder',
@@ -111,6 +112,10 @@
       memoPlaceholder: 'Tulis catatan Anda di sini...',
       copyMemo: 'Salin',
       resetMemo: 'Atur Ulang',
+    },
+    launcher: {
+      searchPlaceholder: 'Cari aplikasi, file...',
+      noResults: 'Tidak ada hasil ditemukan',
     },
   });
 })();

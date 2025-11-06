@@ -779,6 +779,103 @@
         display: block;
         flex-shrink: 0;
       }
+
+      /* Launcher styles */
+      .launcher-results {
+        padding: 8px;
+        max-height: calc(100vh - 60px);
+        overflow-y: auto;
+      }
+
+      .launcher-result-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.15s;
+        margin-bottom: 1px;
+      }
+
+      .launcher-result-item:hover,
+      .launcher-result-item.selected {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      html:not(.theme-dark) .launcher-result-item:hover,
+      html:not(.theme-dark) .launcher-result-item.selected {
+        background: rgba(0, 0, 0, 0.05);
+      }
+
+      .launcher-result-icon {
+        font-size: 16px;
+        flex-shrink: 0;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .launcher-result-content {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .launcher-result-title {
+        font-size: 11px;
+        font-weight: 500;
+        color: #e5e7eb;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        line-height: 1.3;
+      }
+
+      html:not(.theme-dark) .launcher-result-title {
+        color: #111827;
+      }
+
+      .launcher-result-subtitle {
+        font-size: 9px;
+        color: #9ca3af;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin-top: 1px;
+        line-height: 1.2;
+      }
+
+      html:not(.theme-dark) .launcher-result-subtitle {
+        color: #6b7280;
+      }
+
+      .launcher-result-type {
+        font-size: 8px;
+        color: #6b7280;
+        text-transform: uppercase;
+        flex-shrink: 0;
+        padding: 2px 4px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 3px;
+      }
+
+      html:not(.theme-dark) .launcher-result-type {
+        background: rgba(0, 0, 0, 0.05);
+        color: #9ca3af;
+      }
+
+      .launcher-no-results {
+        text-align: center;
+        padding: 48px 16px;
+        color: #9ca3af;
+        font-size: 14px;
+      }
+
+      html:not(.theme-dark) .launcher-no-results {
+        color: #6b7280;
+      }
     </style>
   </head>
   <body class="glass-effect rounded-2xl shadow-2xl overflow-hidden">
@@ -812,6 +909,14 @@
           <button id="memoTab" class="titlebar-tab" data-tab="memo" data-i18n="clipboard.tabMemo">
             Memo
           </button>
+          <button
+            id="launcherTab"
+            class="titlebar-tab"
+            data-tab="launcher"
+            data-i18n="clipboard.tabLauncher"
+          >
+            Launcher
+          </button>
         </div>
         <div class="titlebar-buttons"></div>
       </div>
@@ -842,6 +947,11 @@
           placeholder="Write your notes here..."
           data-i18n-placeholder="clipboard.memoPlaceholder"
         ></textarea>
+      </div>
+
+      <!-- Launcher -->
+      <div id="launcherContainer" class="clipboard-list" style="display: none; padding: 8px">
+        <div id="launcherResults" class="launcher-results"></div>
       </div>
 
       <!-- Context Menu -->
@@ -958,6 +1068,34 @@
         </div>
       </div>
 
+      <!-- Launcher Footer -->
+      <div id="launcherFooter" class="tab-footer" style="display: none">
+        <div class="search-container">
+          <svg
+            class="search-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            type="text"
+            id="launcherSearchInput"
+            class="search-input"
+            placeholder="Search apps, files..."
+            data-i18n-placeholder="launcher.searchPlaceholder"
+          />
+        </div>
+      </div>
+
       <div
         id="inputArea"
         class="px-3 pt-4 pb-6 border-t border-white/15 bg-white/5 backdrop-blur-sm"
@@ -1030,6 +1168,7 @@
     <div id="toast" class="toast-container"></div>
 
     <script src="./clipboard_renderer.js"></script>
+    <script src="./launcher_renderer.js"></script>
     <script>
       // Tab switching logic
       (function () {
@@ -1037,18 +1176,22 @@
         const historyTab = document.getElementById('historyTab');
         const snippetTab = document.getElementById('snippetTab');
         const memoTab = document.getElementById('memoTab');
+        const launcherTab = document.getElementById('launcherTab');
 
         const chatHistory = document.getElementById('chatHistory');
         const clipboardList = document.getElementById('clipboardList');
         const snippetList = document.getElementById('snippetList');
         const memoContainer = document.getElementById('memoContainer');
+        const launcherContainer = document.getElementById('launcherContainer');
         const historyFooter = document.getElementById('historyFooter');
         const snippetFooter = document.getElementById('snippetFooter');
         const memoFooter = document.getElementById('memoFooter');
+        const launcherFooter = document.getElementById('launcherFooter');
         const inputArea = document.getElementById('inputArea');
 
         let clipboardUI = null;
         let memoUI = null;
+        let launcherUI = null;
 
         function switchTab(tabName) {
           // Remove active class from all tabs
@@ -1056,15 +1199,18 @@
           historyTab.classList.remove('active');
           snippetTab.classList.remove('active');
           memoTab.classList.remove('active');
+          launcherTab.classList.remove('active');
 
           // Hide all views
           chatHistory.style.display = 'none';
           clipboardList.style.display = 'none';
           snippetList.style.display = 'none';
           memoContainer.style.display = 'none';
+          launcherContainer.style.display = 'none';
           historyFooter.style.display = 'none';
           snippetFooter.style.display = 'none';
           memoFooter.style.display = 'none';
+          launcherFooter.style.display = 'none';
 
           // Show/hide input area based on tab
           if (tabName === 'chat') {
@@ -1105,6 +1251,19 @@
               if (!memoUI) {
                 memoUI = new MemoUI();
               }
+            } else if (tabName === 'launcher') {
+              launcherTab.classList.add('active');
+              launcherContainer.style.display = 'block';
+              launcherFooter.style.display = 'flex';
+
+              // Initialize launcher UI if not already done
+              if (!launcherUI) {
+                launcherUI = new LauncherUI();
+              } else {
+                // Focus search input when switching to launcher tab
+                const searchInput = document.getElementById('launcherSearchInput');
+                if (searchInput) searchInput.focus();
+              }
             }
           }
         }
@@ -1113,15 +1272,17 @@
         historyTab.addEventListener('click', () => switchTab('history'));
         snippetTab.addEventListener('click', () => switchTab('snippet'));
         memoTab.addEventListener('click', () => switchTab('memo'));
+        launcherTab.addEventListener('click', () => switchTab('launcher'));
 
         // Keyboard navigation for tabs
-        const tabs = ['chat', 'history', 'snippet', 'memo'];
+        const tabs = ['chat', 'history', 'snippet', 'memo', 'launcher'];
 
         function getCurrentTabIndex() {
           if (chatTab.classList.contains('active')) return 0;
           if (historyTab.classList.contains('active')) return 1;
           if (snippetTab.classList.contains('active')) return 2;
           if (memoTab.classList.contains('active')) return 3;
+          if (launcherTab.classList.contains('active')) return 4;
           return 0; // Default to chat
         }
 
@@ -1133,7 +1294,9 @@
                 ? historyTab
                 : tabName === 'snippet'
                   ? snippetTab
-                  : memoTab;
+                  : tabName === 'memo'
+                    ? memoTab
+                    : launcherTab;
 
           if (tabElement) {
             tabElement.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });

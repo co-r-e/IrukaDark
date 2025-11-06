@@ -87,6 +87,7 @@
       tabHistory: 'Clipboard',
       tabSnippet: '代码片段',
       tabMemo: '备忘录',
+      tabLauncher: '启动器',
       searchHistory: '搜索历史...',
       searchSnippets: '搜索代码片段...',
       addFolder: '添加文件夹',
@@ -109,6 +110,10 @@
       memoPlaceholder: '在此写下您的笔记...',
       copyMemo: '复制',
       resetMemo: '重置',
+    },
+    launcher: {
+      searchPlaceholder: '搜索应用、文件...',
+      noResults: '未找到结果',
     },
   });
 })();

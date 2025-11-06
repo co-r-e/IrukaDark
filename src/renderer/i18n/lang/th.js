@@ -89,6 +89,7 @@
       tabHistory: 'Clipboard',
       tabSnippet: 'Snippet',
       tabMemo: 'บันทึก',
+      tabLauncher: 'ตัวเปิด',
       searchHistory: 'ค้นหาประวัติ...',
       searchSnippets: 'ค้นหา snippet...',
       addFolder: 'เพิ่มโฟลเดอร์',
@@ -111,6 +112,10 @@
       memoPlaceholder: 'เขียนบันทึกของคุณที่นี่...',
       copyMemo: 'คัดลอก',
       resetMemo: 'รีเซ็ต',
+    },
+    launcher: {
+      searchPlaceholder: 'ค้นหาแอป, ไฟล์...',
+      noResults: 'ไม่พบผลลัพธ์',
     },
   });
 })();

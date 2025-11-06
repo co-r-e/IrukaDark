@@ -90,6 +90,7 @@
       tabHistory: 'Clipboard',
       tabSnippet: 'Сниппет',
       tabMemo: 'Заметка',
+      tabLauncher: 'Запуск',
       searchHistory: 'Поиск в истории...',
       searchSnippets: 'Поиск сниппетов...',
       addFolder: 'Добавить папку',
@@ -112,6 +113,10 @@
       memoPlaceholder: 'Напишите здесь свои заметки...',
       copyMemo: 'Копировать',
       resetMemo: 'Сбросить',
+    },
+    launcher: {
+      searchPlaceholder: 'Поиск приложений, файлов...',
+      noResults: 'Ничего не найдено',
     },
   });
 })();

@@ -89,6 +89,7 @@
       tabHistory: 'Clipboard',
       tabSnippet: 'Snippet',
       tabMemo: 'Ghi chú',
+      tabLauncher: 'Trình khởi chạy',
       searchHistory: 'Tìm kiếm lịch sử...',
       searchSnippets: 'Tìm snippet...',
       addFolder: 'Thêm Thư mục',
@@ -111,6 +112,10 @@
       memoPlaceholder: 'Viết ghi chú của bạn ở đây...',
       copyMemo: 'Sao chép',
       resetMemo: 'Đặt lại',
+    },
+    launcher: {
+      searchPlaceholder: 'Tìm ứng dụng, tệp...',
+      noResults: 'Không tìm thấy kết quả',
     },
   });
 })();

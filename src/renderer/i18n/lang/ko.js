@@ -88,6 +88,7 @@
       tabHistory: 'Clipboard',
       tabSnippet: '스니펫',
       tabMemo: '메모',
+      tabLauncher: '런처',
       searchHistory: '기록 검색...',
       searchSnippets: '스니펫 검색...',
       addFolder: '폴더 추가',
@@ -110,6 +111,10 @@
       memoPlaceholder: '여기에 메모를 작성하세요...',
       copyMemo: '복사',
       resetMemo: '초기화',
+    },
+    launcher: {
+      searchPlaceholder: '앱, 파일 검색...',
+      noResults: '결과를 찾을 수 없습니다',
     },
   });
 })();
