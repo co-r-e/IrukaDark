@@ -811,11 +811,25 @@
       .launcher-result-icon {
         font-size: 16px;
         flex-shrink: 0;
-        width: 20px;
-        height: 20px;
+        width: 24px;
+        height: 24px;
         display: flex;
         align-items: center;
         justify-content: center;
+      }
+
+      .launcher-app-icon {
+        width: 24px;
+        height: 24px;
+        object-fit: contain;
+        border-radius: 4px;
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+        image-rendering: pixelated;
+      }
+
+      .launcher-app-icon[src*='data:image'] {
+        image-rendering: auto;
       }
 
       .launcher-result-content {

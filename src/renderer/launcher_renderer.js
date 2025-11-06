@@ -83,7 +83,7 @@ class LauncherUI {
       .map(
         (result, index) => `
       <div class="launcher-result-item ${index === 0 ? 'selected' : ''}" data-index="${index}">
-        <span class="launcher-result-icon">${this.escapeHtml(result.icon || '📄')}</span>
+        <span class="launcher-result-icon">${this.renderIcon(result.icon, result.type)}</span>
         <div class="launcher-result-content">
           <div class="launcher-result-title">${this.escapeHtml(result.name || result.title)}</div>
           ${result.path ? `<div class="launcher-result-subtitle">${this.escapeHtml(result.path)}</div>` : ''}
@@ -201,6 +201,20 @@ class LauncherUI {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  renderIcon(icon, type) {
+    if (!icon) {
+      return this.escapeHtml('📄');
+    }
+
+    // If it's a base64 data URL (for app icons), render as img
+    if (icon.startsWith('data:image/')) {
+      return `<img src="${icon}" alt="App icon" class="launcher-app-icon" loading="lazy" />`;
+    }
+
+    // Otherwise, render as emoji/text
+    return this.escapeHtml(icon);
   }
 }
 
