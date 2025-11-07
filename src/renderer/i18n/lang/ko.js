@@ -118,6 +118,7 @@
     launcher: {
       searchPlaceholder: '앱, 파일 검색...',
       noResults: '결과를 찾을 수 없습니다',
+      noFavorites: '즐겨찾기가 없습니다. 별표를 클릭하여 항목을 추가하세요.',
     },
   });
 })();

@@ -120,6 +120,7 @@
     launcher: {
       searchPlaceholder: 'Buscar apps, archivos...',
       noResults: 'No se encontraron resultados',
+      noFavorites: 'No hay favoritos aún. Marca elementos con estrellas para agregarlos aquí.',
     },
   });
 })();

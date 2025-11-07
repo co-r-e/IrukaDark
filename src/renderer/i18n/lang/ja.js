@@ -119,6 +119,7 @@
     launcher: {
       searchPlaceholder: 'アプリ、ファイルを検索...',
       noResults: '結果が見つかりません',
+      noFavorites: 'お気に入りはまだありません。アイテムに星をつけて追加してください。',
     },
   });
 })();

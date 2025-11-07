@@ -116,6 +116,7 @@
     launcher: {
       searchPlaceholder: '搜索应用、文件...',
       noResults: '未找到结果',
+      noFavorites: '还没有收藏。点击星标添加项目。',
     },
   });
 })();

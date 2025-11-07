@@ -118,6 +118,7 @@
     launcher: {
       searchPlaceholder: 'Type to search apps, files...',
       noResults: 'No results found',
+      noFavorites: 'No favorites yet. Star items to add them here.',
     },
   });
 })();

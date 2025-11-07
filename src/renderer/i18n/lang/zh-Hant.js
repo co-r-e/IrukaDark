@@ -116,6 +116,7 @@
     launcher: {
       searchPlaceholder: '搜尋應用程式、檔案...',
       noResults: '找不到結果',
+      noFavorites: '還沒有收藏。點擊星標新增項目。',
     },
   });
 })();
