@@ -348,38 +348,6 @@ class ClipboardHistoryUI {
       const actionsEl = document.createElement('div');
       actionsEl.className = 'clipboard-item-actions';
 
-      // Insert button (above copy button)
-      const insertBtn = document.createElement('button');
-      insertBtn.className = 'clipboard-item-btn insert';
-      const insertIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/><path d="M5 21h14"/></svg>`;
-      const insertCheckIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-      insertBtn.innerHTML = insertIconSvg;
-      insertBtn.title = this.t('insert') || 'Insert';
-
-      const changeInsertIconToCheck = () => {
-        insertBtn.innerHTML = insertCheckIconSvg;
-        setTimeout(() => {
-          insertBtn.innerHTML = insertIconSvg;
-        }, 1500);
-      };
-
-      insertBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        // Insert functionality - paste at cursor position
-        if (window.electronAPI && window.electronAPI.insertText) {
-          const success = await window.electronAPI.insertText(item.text || item.content);
-          if (success) {
-            changeInsertIconToCheck();
-          }
-        } else {
-          // Fallback: copy to clipboard
-          const success = await this.copyItem(item);
-          if (success) {
-            changeInsertIconToCheck();
-          }
-        }
-      });
-
       const copyBtn = document.createElement('button');
       copyBtn.className = 'clipboard-item-btn copy';
       const copyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
@@ -402,7 +370,6 @@ class ClipboardHistoryUI {
         }
       });
 
-      actionsEl.appendChild(insertBtn);
       actionsEl.appendChild(copyBtn);
 
       itemEl.appendChild(contentEl);
