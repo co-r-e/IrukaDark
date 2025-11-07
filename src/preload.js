@@ -20,6 +20,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('ai:generate-with-image', { prompt, imageBase64, mimeType, ...options }),
   generateImageFromText: (prompt, options = {}) =>
     ipcRenderer.invoke('ai:generate-image-from-text', { prompt, ...options }),
+  generateVideoFromText: (prompt, options = {}) =>
+    ipcRenderer.invoke('ai:generate-video-from-text', { prompt, ...options }),
   // Cancel current in-flight AI request (shortcut-only)
   cancelAI: () => ipcRenderer.invoke('cancel-ai'),
   onLanguageChanged: (cb) => ipcRenderer.on('language-changed', (_e, lang) => cb(lang)),
@@ -66,6 +68,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getImageSize: () => ipcRenderer.invoke('get-image-size'),
   saveImageCount: (count) => ipcRenderer.invoke('save-image-count', count),
   getImageCount: () => ipcRenderer.invoke('get-image-count'),
+  saveVideoAspectRatio: (ratio) => ipcRenderer.invoke('save-video-aspect-ratio', ratio),
+  getVideoAspectRatio: () => ipcRenderer.invoke('get-video-aspect-ratio'),
+  saveVideoDuration: (duration) => ipcRenderer.invoke('save-video-duration', duration),
+  getVideoDuration: () => ipcRenderer.invoke('get-video-duration'),
+  saveVideoCount: (count) => ipcRenderer.invoke('save-video-count', count),
+  getVideoCount: () => ipcRenderer.invoke('get-video-count'),
+  saveVideoResolution: (resolution) => ipcRenderer.invoke('save-video-resolution', resolution),
+  getVideoResolution: () => ipcRenderer.invoke('get-video-resolution'),
   // Popup interactions
   notifyPopupPointer: (phase) => ipcRenderer.invoke('popup:pointer', String(phase || '')),
   getPopupBounds: () => ipcRenderer.invoke('popup:get-bounds'),

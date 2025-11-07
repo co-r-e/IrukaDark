@@ -15,6 +15,12 @@ const SLASHES = (typeof window !== 'undefined' && window.IRUKADARK_SLASHES) || {
   SLASH_WEB_TARGETS: [],
   SLASH_IMAGE_TARGETS: [],
   SLASH_IMAGE_SIZE_TARGETS: [],
+  SLASH_IMAGE_COUNT_TARGETS: [],
+  SLASH_VIDEO_TARGETS: [],
+  SLASH_VIDEO_SIZE_TARGETS: [],
+  SLASH_VIDEO_QUALITY_TARGETS: [],
+  SLASH_VIDEO_DURATION_TARGETS: [],
+  SLASH_VIDEO_COUNT_TARGETS: [],
   getLangMeta: (code) => ({ code, name: code, rtl: false }),
   normalizeTranslateCode: () => null,
   getLanguageDisplayName: (code) => code,
@@ -40,6 +46,11 @@ const SLASH_WEB_TARGETS = SLASHES.SLASH_WEB_TARGETS || [];
 const SLASH_IMAGE_TARGETS = SLASHES.SLASH_IMAGE_TARGETS || [];
 const SLASH_IMAGE_SIZE_TARGETS = SLASHES.SLASH_IMAGE_SIZE_TARGETS || [];
 const SLASH_IMAGE_COUNT_TARGETS = SLASHES.SLASH_IMAGE_COUNT_TARGETS || [];
+const SLASH_VIDEO_TARGETS = SLASHES.SLASH_VIDEO_TARGETS || [];
+const SLASH_VIDEO_SIZE_TARGETS = SLASHES.SLASH_VIDEO_SIZE_TARGETS || [];
+const SLASH_VIDEO_QUALITY_TARGETS = SLASHES.SLASH_VIDEO_QUALITY_TARGETS || [];
+const SLASH_VIDEO_DURATION_TARGETS = SLASHES.SLASH_VIDEO_DURATION_TARGETS || [];
+const SLASH_VIDEO_COUNT_TARGETS = SLASHES.SLASH_VIDEO_COUNT_TARGETS || [];
 
 function getLangMeta(code) {
   if (SLASHES && typeof SLASHES.getLangMeta === 'function') {
@@ -130,6 +141,10 @@ class IrukaDarkApp {
     this.pendingTranslateModeAck = null;
     this.imageSize = '1:1';
     this.imageCount = 1;
+    this.videoAspectRatio = '16:9';
+    this.videoDuration = 4;
+    this.videoCount = 1;
+    this.videoResolution = '720p';
     this.isGenerating = false;
     this.cancelRequested = false;
     this.i18nElementsCache = null;
@@ -496,6 +511,10 @@ class IrukaDarkApp {
     this.loadTranslateMode();
     this.loadImageSize();
     this.loadImageCount();
+    this.loadVideoAspectRatio();
+    this.loadVideoDuration();
+    this.loadVideoCount();
+    this.loadVideoResolution();
   }
 
   async loadWebSearchSetting() {
@@ -547,6 +566,58 @@ class IrukaDarkApp {
     } catch (error) {
       console.error('Failed to load image count:', error);
       this.imageCount = 1;
+    }
+  }
+
+  async loadVideoAspectRatio() {
+    try {
+      if (window.electronAPI && window.electronAPI.getVideoAspectRatio) {
+        const ratio = await window.electronAPI.getVideoAspectRatio();
+        const validRatios = ['16:9', '9:16'];
+        this.videoAspectRatio = validRatios.includes(ratio) ? ratio : '16:9';
+      }
+    } catch (error) {
+      console.error('Failed to load video aspect ratio:', error);
+      this.videoAspectRatio = '16:9';
+    }
+  }
+
+  async loadVideoDuration() {
+    try {
+      if (window.electronAPI && window.electronAPI.getVideoDuration) {
+        const duration = await window.electronAPI.getVideoDuration();
+        const validDurations = [4, 5, 6, 7, 8];
+        this.videoDuration = validDurations.includes(duration) ? duration : 4;
+      }
+    } catch (error) {
+      console.error('Failed to load video duration:', error);
+      this.videoDuration = 4;
+    }
+  }
+
+  async loadVideoCount() {
+    try {
+      if (window.electronAPI && window.electronAPI.getVideoCount) {
+        const count = await window.electronAPI.getVideoCount();
+        const validCounts = [1, 2, 3, 4];
+        this.videoCount = validCounts.includes(count) ? count : 1;
+      }
+    } catch (error) {
+      console.error('Failed to load video count:', error);
+      this.videoCount = 1;
+    }
+  }
+
+  async loadVideoResolution() {
+    try {
+      if (window.electronAPI && window.electronAPI.getVideoResolution) {
+        const resolution = await window.electronAPI.getVideoResolution();
+        const validResolutions = ['720p', '1080p'];
+        this.videoResolution = validResolutions.includes(resolution) ? resolution : '720p';
+      }
+    } catch (error) {
+      console.error('Failed to load video resolution:', error);
+      this.videoResolution = '720p';
     }
   }
 
@@ -657,6 +728,113 @@ class IrukaDarkApp {
     if (message) {
       this.addMessage('system', message);
     }
+  }
+
+  async persistVideoAspectRatio(ratio) {
+    try {
+      if (window.electronAPI && window.electronAPI.saveVideoAspectRatio) {
+        await window.electronAPI.saveVideoAspectRatio(ratio);
+      }
+    } catch (error) {
+      console.error('Failed to save video aspect ratio:', error);
+    }
+  }
+
+  async setVideoAspectRatio(ratio) {
+    const validRatios = ['16:9', '9:16'];
+    const normalized = validRatios.includes(ratio) ? ratio : '16:9';
+    if (this.videoAspectRatio === normalized) {
+      const already = getUIText('videoAspectRatioAlready', normalized);
+      if (already) this.addMessage('system', already);
+      return;
+    }
+    this.videoAspectRatio = normalized;
+    const updated = getUIText('videoAspectRatioUpdated', normalized);
+    if (updated) this.addMessage('system', updated);
+    await this.persistVideoAspectRatio(normalized);
+  }
+
+  async persistVideoResolution(resolution) {
+    try {
+      if (window.electronAPI && window.electronAPI.saveVideoResolution) {
+        await window.electronAPI.saveVideoResolution(resolution);
+      }
+    } catch (error) {
+      console.error('Failed to save video resolution:', error);
+    }
+  }
+
+  async setVideoResolution(resolution) {
+    const validResolutions = ['720p', '1080p'];
+    const normalized = validResolutions.includes(resolution) ? resolution : '720p';
+    if (this.videoResolution === normalized) {
+      const already = getUIText('videoResolutionAlready', normalized);
+      if (already) this.addMessage('system', already);
+      return;
+    }
+    this.videoResolution = normalized;
+    const updated = getUIText('videoResolutionUpdated', normalized);
+    if (updated) this.addMessage('system', updated);
+    await this.persistVideoResolution(normalized);
+  }
+
+  showVideoStatus() {
+    const size = getUIText('videoAspectRatioStatus', this.videoAspectRatio);
+    const quality = getUIText('videoResolutionStatus', this.videoResolution);
+    const duration = getUIText('videoDurationStatus', this.videoDuration);
+    const count = getUIText('videoCountStatus', this.videoCount);
+    if (size) this.addMessage('system', size);
+    if (quality) this.addMessage('system', quality);
+    if (duration) this.addMessage('system', duration);
+    if (count) this.addMessage('system', count);
+  }
+
+  async persistVideoDuration(duration) {
+    try {
+      if (window.electronAPI && window.electronAPI.saveVideoDuration) {
+        await window.electronAPI.saveVideoDuration(duration);
+      }
+    } catch (error) {
+      console.error('Failed to save video duration:', error);
+    }
+  }
+
+  async setVideoDuration(duration) {
+    const validDurations = [4, 5, 6, 7, 8];
+    const normalized = validDurations.includes(duration) ? duration : 4;
+    if (this.videoDuration === normalized) {
+      const already = getUIText('videoDurationAlready', normalized);
+      if (already) this.addMessage('system', already);
+      return;
+    }
+    this.videoDuration = normalized;
+    const updated = getUIText('videoDurationUpdated', normalized);
+    if (updated) this.addMessage('system', updated);
+    await this.persistVideoDuration(normalized);
+  }
+
+  async persistVideoCount(count) {
+    try {
+      if (window.electronAPI && window.electronAPI.saveVideoCount) {
+        await window.electronAPI.saveVideoCount(count);
+      }
+    } catch (error) {
+      console.error('Failed to save video count:', error);
+    }
+  }
+
+  async setVideoCount(count) {
+    const validCounts = [1, 2, 3, 4];
+    const normalized = validCounts.includes(count) ? count : 1;
+    if (this.videoCount === normalized) {
+      const already = getUIText('videoCountAlready', normalized);
+      if (already) this.addMessage('system', already);
+      return;
+    }
+    this.videoCount = normalized;
+    const updated = getUIText('videoCountUpdated', normalized);
+    if (updated) this.addMessage('system', updated);
+    await this.persistVideoCount(normalized);
   }
 
   async initializeLanguage() {
@@ -1251,6 +1429,15 @@ class IrukaDarkApp {
       return;
     }
 
+    const videoCommandMatch = message.match(/^@video\s+(.+)$/i);
+    if (videoCommandMatch) {
+      const videoPrompt = videoCommandMatch[1].trim();
+      await this.handleVideoGeneration(videoPrompt, attachments);
+      this.autosizeMessageInput(true);
+      this.messageInput.focus();
+      return;
+    }
+
     this.addMessage('user', message, attachments);
     this.syncHeader();
     if (this.maybeRespondIdentity(message)) {
@@ -1548,6 +1735,64 @@ class IrukaDarkApp {
       return;
     }
 
+    if (lower.startsWith('/video ') || lower === '/video') {
+      const parts = cmd
+        .split(/\s+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const subCmd = (parts[1] || '').toLowerCase();
+
+      if (subCmd === 'status') {
+        this.showVideoStatus();
+        return;
+      }
+
+      if (subCmd === 'size') {
+        const sizeValue = (parts[2] || '').toLowerCase();
+        const validRatios = ['16:9', '9:16'];
+        if (validRatios.includes(sizeValue)) {
+          await this.setVideoAspectRatio(sizeValue);
+          return;
+        }
+        this.addMessage('system', getUIText('videoSizeHelp'));
+        return;
+      }
+
+      if (subCmd === 'quality') {
+        const qualityValue = (parts[2] || '').toLowerCase();
+        const validResolutions = ['720p', '1080p'];
+        if (validResolutions.includes(qualityValue)) {
+          await this.setVideoResolution(qualityValue);
+          return;
+        }
+        this.addMessage('system', getUIText('videoQualityHelp'));
+        return;
+      }
+
+      if (subCmd === 'duration') {
+        const durationValue = parseInt(parts[2], 10);
+        if (!isNaN(durationValue) && durationValue >= 4 && durationValue <= 8) {
+          await this.setVideoDuration(durationValue);
+          return;
+        }
+        this.addMessage('system', getUIText('videoDurationHelp'));
+        return;
+      }
+
+      if (subCmd === 'count') {
+        const countValue = parseInt(parts[2], 10);
+        if (!isNaN(countValue) && countValue >= 1 && countValue <= 4) {
+          await this.setVideoCount(countValue);
+          return;
+        }
+        this.addMessage('system', getUIText('videoCountHelp'));
+        return;
+      }
+
+      this.addMessage('system', getUIText('videoCommandHelp'));
+      return;
+    }
+
     if (lower.startsWith('/websearch') || lower.startsWith('/web ') || lower === '/web') {
       const parts = cmd
         .split(/\s+/)
@@ -1664,6 +1909,83 @@ class IrukaDarkApp {
       );
     }
     return this.geminiService.generateImageFromText(prompt, aspectRatio);
+  }
+
+  async handleVideoGeneration(prompt, attachments = []) {
+    try {
+      this.disableAutoScroll = false;
+      this.addMessage('user', `@video ${prompt}`, attachments);
+      this.showTypingIndicator(getUIText('videoGenerating') || 'Generating video...');
+
+      const aspectRatio = this.videoAspectRatio || '16:9';
+      const durationSeconds = this.videoDuration || 8;
+      const resolution = this.videoResolution || '720p';
+      const count = this.videoCount || 1;
+
+      // Get reference image if provided
+      const referenceFiles = this.getAllReferenceFiles(attachments);
+      const referenceImage = referenceFiles.length > 0 ? referenceFiles[0] : null;
+
+      const generatePromises = Array(count)
+        .fill(null)
+        .map(() =>
+          this.generateSingleVideo(prompt, aspectRatio, durationSeconds, resolution, referenceImage)
+        );
+
+      const results = await Promise.all(generatePromises);
+      this.hideTypingIndicator();
+
+      if (!this.cancelRequested) {
+        const validResults = results.filter((result) => result?.videoBase64);
+        if (validResults.length > 0) {
+          this.addVideosMessage(validResults, prompt);
+        }
+      }
+    } catch (error) {
+      this.hideTypingIndicator();
+      if (!this.cancelRequested && !/CANCELLED|Abort/i.test(String(error?.message || ''))) {
+        this.addMessage('system', `${getUIText('errorOccurred')}: ${error?.message || 'Unknown'}`);
+      }
+    }
+  }
+
+  async generateSingleVideo(prompt, aspectRatio, durationSeconds, resolution, referenceImage) {
+    return this.geminiService.generateVideoFromText(
+      prompt,
+      aspectRatio,
+      durationSeconds,
+      resolution,
+      referenceImage
+    );
+  }
+
+  addVideosMessage(results, altText = '') {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message ai-message';
+
+    const videosContainer = document.createElement('div');
+    videosContainer.className = 'videos-container';
+
+    results.forEach(({ videoBase64, mimeType }) => {
+      const video = document.createElement('video');
+      video.src = `data:${mimeType};base64,${videoBase64}`;
+      video.controls = true;
+      video.setAttribute('controlsList', 'nofullscreen');
+      video.className = 'generated-video';
+      video.style.maxWidth = '100%';
+      video.style.borderRadius = '8px';
+      video.style.marginBottom = '8px';
+
+      videosContainer.appendChild(video);
+    });
+
+    messageDiv.appendChild(videosContainer);
+    this.chatHistory.appendChild(messageDiv);
+
+    // Scroll to bottom to show the new videos
+    if (!this.disableAutoScroll) {
+      this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+    }
   }
 
   addImagesMessage(results, altText = '') {
@@ -1938,6 +2260,14 @@ class IrukaDarkApp {
         children: SLASH_IMAGE_TARGETS,
         childSeparator: ' ',
       },
+      {
+        key: '/video',
+        match: '/video',
+        label: '/video',
+        descKey: 'slashDescriptions.video',
+        children: SLASH_VIDEO_TARGETS,
+        childSeparator: ' ',
+      },
     ];
     this.slashCommands = this.slashCommands.map((cmd) => ({
       ...cmd,
@@ -2084,6 +2414,44 @@ class IrukaDarkApp {
     }
     if (normalized === '/image' && (raw.endsWith(' ') || lower.endsWith(' '))) {
       return SLASH_IMAGE_TARGETS;
+    }
+    if (normalized.startsWith('/video size')) {
+      const wantsChildren =
+        normalized === '/video size' && (raw.endsWith(' ') || lower.endsWith(' '));
+      if (wantsChildren) {
+        return SLASH_VIDEO_SIZE_TARGETS;
+      }
+      return SLASH_VIDEO_SIZE_TARGETS.filter((c) => c.match.startsWith(normalized));
+    }
+    if (normalized.startsWith('/video quality')) {
+      const wantsChildren =
+        normalized === '/video quality' && (raw.endsWith(' ') || lower.endsWith(' '));
+      if (wantsChildren) {
+        return SLASH_VIDEO_QUALITY_TARGETS;
+      }
+      return SLASH_VIDEO_QUALITY_TARGETS.filter((c) => c.match.startsWith(normalized));
+    }
+    if (normalized.startsWith('/video duration')) {
+      const wantsChildren =
+        normalized === '/video duration' && (raw.endsWith(' ') || lower.endsWith(' '));
+      if (wantsChildren) {
+        return SLASH_VIDEO_DURATION_TARGETS;
+      }
+      return SLASH_VIDEO_DURATION_TARGETS.filter((c) => c.match.startsWith(normalized));
+    }
+    if (normalized.startsWith('/video count')) {
+      const wantsChildren =
+        normalized === '/video count' && (raw.endsWith(' ') || lower.endsWith(' '));
+      if (wantsChildren) {
+        return SLASH_VIDEO_COUNT_TARGETS;
+      }
+      return SLASH_VIDEO_COUNT_TARGETS.filter((c) => c.match.startsWith(normalized));
+    }
+    if (normalized.startsWith('/video ')) {
+      return SLASH_VIDEO_TARGETS.filter((c) => c.match.startsWith(normalized));
+    }
+    if (normalized === '/video' && (raw.endsWith(' ') || lower.endsWith(' '))) {
+      return SLASH_VIDEO_TARGETS;
     }
     return this.slashCommands.filter((c) => c.match.startsWith(normalized));
   }
@@ -2642,7 +3010,8 @@ class IrukaDarkApp {
   processUserContent(content) {
     return this.escapeHtml(content)
       .replace(/\n/g, '<br>')
-      .replace(/^@image\s+/i, '<span class="command-badge">@image</span> ');
+      .replace(/^@image\s+/i, '<span class="command-badge">@image</span> ')
+      .replace(/^@video\s+/i, '<span class="command-badge">@video</span> ');
   }
 
   generateAttachmentsPreview(attachments) {
@@ -2914,6 +3283,52 @@ class GeminiService {
           return {
             imageBase64: result.imageBase64,
             mimeType: result.mimeType || 'image/png',
+          };
+        }
+
+        throw new Error(getUIText('unexpectedResponse'));
+      }
+      throw new Error(getUIText('apiUnavailable'));
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async generateVideoFromText(
+    prompt,
+    aspectRatio = '16:9',
+    durationSeconds = 8,
+    resolution = '720p',
+    referenceImage = null
+  ) {
+    try {
+      if (window.electronAPI && window.electronAPI.generateVideoFromText) {
+        const options = {
+          aspectRatio,
+          durationSeconds,
+          resolution,
+        };
+
+        // Add reference image if provided (Image-to-Video)
+        if (referenceImage) {
+          console.log('[DEBUG] Converting reference image to base64 for video generation');
+          const base64 = await this.fileToBase64(referenceImage);
+          options.referenceImage = {
+            base64,
+            mimeType: referenceImage.type,
+          };
+        }
+
+        const result = await window.electronAPI.generateVideoFromText(prompt, options);
+
+        if (result && result.error) {
+          throw new Error(result.error);
+        }
+
+        if (result && result.videoBase64) {
+          return {
+            videoBase64: result.videoBase64,
+            mimeType: result.mimeType || 'video/mp4',
           };
         }
 

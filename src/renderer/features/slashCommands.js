@@ -245,6 +245,150 @@
     },
   ];
 
+  const SLASH_VIDEO_SIZE_TARGETS = [
+    {
+      key: '/video size 16:9',
+      match: '/video size 16:9',
+      label: '/video size 16:9',
+      descKey: 'slashDescriptions.videoSize16_9',
+      ratio: '16:9',
+    },
+    {
+      key: '/video size 9:16',
+      match: '/video size 9:16',
+      label: '/video size 9:16',
+      descKey: 'slashDescriptions.videoSize9_16',
+      ratio: '9:16',
+    },
+  ];
+
+  const SLASH_VIDEO_QUALITY_TARGETS = [
+    {
+      key: '/video quality 720p',
+      match: '/video quality 720p',
+      label: '/video quality 720p',
+      descKey: 'slashDescriptions.videoQuality720p',
+      resolution: '720p',
+    },
+    {
+      key: '/video quality 1080p',
+      match: '/video quality 1080p',
+      label: '/video quality 1080p',
+      descKey: 'slashDescriptions.videoQuality1080p',
+      resolution: '1080p',
+    },
+  ];
+
+  const SLASH_VIDEO_DURATION_TARGETS = [
+    {
+      key: '/video duration 4',
+      match: '/video duration 4',
+      label: '/video duration 4',
+      descKey: 'slashDescriptions.videoDuration4',
+      duration: 4,
+    },
+    {
+      key: '/video duration 5',
+      match: '/video duration 5',
+      label: '/video duration 5',
+      descKey: 'slashDescriptions.videoDuration5',
+      duration: 5,
+    },
+    {
+      key: '/video duration 6',
+      match: '/video duration 6',
+      label: '/video duration 6',
+      descKey: 'slashDescriptions.videoDuration6',
+      duration: 6,
+    },
+    {
+      key: '/video duration 7',
+      match: '/video duration 7',
+      label: '/video duration 7',
+      descKey: 'slashDescriptions.videoDuration7',
+      duration: 7,
+    },
+    {
+      key: '/video duration 8',
+      match: '/video duration 8',
+      label: '/video duration 8',
+      descKey: 'slashDescriptions.videoDuration8',
+      duration: 8,
+    },
+  ];
+
+  const SLASH_VIDEO_COUNT_TARGETS = [
+    {
+      key: '/video count 1',
+      match: '/video count 1',
+      label: '/video count 1',
+      descKey: 'slashDescriptions.videoCount1',
+      count: 1,
+    },
+    {
+      key: '/video count 2',
+      match: '/video count 2',
+      label: '/video count 2',
+      descKey: 'slashDescriptions.videoCount2',
+      count: 2,
+    },
+    {
+      key: '/video count 3',
+      match: '/video count 3',
+      label: '/video count 3',
+      descKey: 'slashDescriptions.videoCount3',
+      count: 3,
+    },
+    {
+      key: '/video count 4',
+      match: '/video count 4',
+      label: '/video count 4',
+      descKey: 'slashDescriptions.videoCount4',
+      count: 4,
+    },
+  ];
+
+  const SLASH_VIDEO_TARGETS = [
+    {
+      key: '/video status',
+      match: '/video status',
+      label: '/video status',
+      descKey: 'slashDescriptions.videoStatus',
+    },
+    {
+      key: '/video size',
+      match: '/video size',
+      label: '/video size',
+      descKey: 'slashDescriptions.videoSize',
+      children: SLASH_VIDEO_SIZE_TARGETS,
+      childSeparator: ' ',
+    },
+    {
+      key: '/video quality',
+      match: '/video quality',
+      label: '/video quality',
+      descKey: 'slashDescriptions.videoQuality',
+      children: SLASH_VIDEO_QUALITY_TARGETS,
+      childSeparator: ' ',
+    },
+    {
+      key: '/video duration',
+      match: '/video duration',
+      label: '/video duration',
+      descKey: 'slashDescriptions.videoDuration',
+      children: SLASH_VIDEO_DURATION_TARGETS,
+      childSeparator: ' ',
+    },
+    {
+      key: '/video count',
+      match: '/video count',
+      label: '/video count',
+      descKey: 'slashDescriptions.videoCount',
+      children: SLASH_VIDEO_COUNT_TARGETS,
+      childSeparator: ' ',
+    },
+  ];
+
   function getLangMeta(code) {
     const lang = String(code || 'en');
     const name = LANG_NAMES[lang] || 'English';
@@ -284,6 +428,11 @@
     SLASH_IMAGE_TARGETS,
     SLASH_IMAGE_SIZE_TARGETS,
     SLASH_IMAGE_COUNT_TARGETS,
+    SLASH_VIDEO_TARGETS,
+    SLASH_VIDEO_SIZE_TARGETS,
+    SLASH_VIDEO_QUALITY_TARGETS,
+    SLASH_VIDEO_DURATION_TARGETS,
+    SLASH_VIDEO_COUNT_TARGETS,
     getLangMeta,
     normalizeTranslateCode,
     getLanguageDisplayName,

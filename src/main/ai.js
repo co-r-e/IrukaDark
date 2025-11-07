@@ -746,6 +746,168 @@ async function restGenerateImageFromTextWithReference(
   throw new Error('No image data found in API response.');
 }
 
+async function restGenerateVideoFromText(
+  apiKey,
+  modelBare,
+  prompt,
+  generationConfig,
+  {
+    aspectRatio = '16:9',
+    durationSeconds = 8,
+    resolution = '720p',
+    referenceImage = null,
+    signal,
+  } = {}
+) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelBare}:predictLongRunning`;
+
+  // Build instance with prompt and optional reference image
+  const instance = { prompt: String(prompt || '') };
+
+  // Add reference image if provided (Image-to-Video)
+  if (referenceImage && referenceImage.base64 && referenceImage.mimeType) {
+    console.log('[DEBUG] Adding reference image for Image-to-Video');
+    instance.image = {
+      bytesBase64Encoded: referenceImage.base64,
+      mimeType: referenceImage.mimeType,
+    };
+  }
+
+  const body = {
+    instances: [instance],
+    parameters: {
+      aspectRatio: String(aspectRatio),
+      durationSeconds: Number(durationSeconds),
+      resolution: String(resolution),
+      ...generationConfig,
+    },
+  };
+
+  console.log(
+    '[DEBUG] Video generation request with',
+    referenceImage ? 'reference image' : 'text only',
+    '- Resolution:',
+    resolution
+  );
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': String(apiKey || '').trim() },
+    body: JSON.stringify(body),
+    signal: signal || undefined,
+  });
+
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`API Error: ${res.status} - ${t}`);
+  }
+
+  const data = await res.json();
+  console.log('[DEBUG] Video generation initial response:', JSON.stringify(data, null, 2));
+
+  // Extract operation name from response
+  const operationName = data?.name;
+  if (!operationName) {
+    throw new Error('No operation name in response.');
+  }
+
+  // Poll for completion
+  return pollVideoOperation(apiKey, operationName, signal);
+}
+
+async function pollVideoOperation(apiKey, operationName, signal, maxWaitMs = 600000) {
+  const baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+  const pollUrl = `${baseUrl}/${operationName}`;
+  const pollIntervalMs = 10000; // 10 seconds
+  const startTime = Date.now();
+
+  console.log('[DEBUG] Starting operation polling:', operationName);
+
+  while (true) {
+    // Check timeout
+    if (Date.now() - startTime > maxWaitMs) {
+      throw new Error('Video generation timed out after 10 minutes.');
+    }
+
+    // Check if cancelled
+    if (signal?.aborted) {
+      throw new Error('Video generation was cancelled.');
+    }
+
+    // Wait before polling
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+
+    // Poll operation status
+    const res = await fetch(pollUrl, {
+      method: 'GET',
+      headers: { 'x-goog-api-key': String(apiKey || '').trim() },
+      signal: signal || undefined,
+    });
+
+    if (!res.ok) {
+      const t = await res.text();
+      throw new Error(`Polling Error: ${res.status} - ${t}`);
+    }
+
+    const data = await res.json();
+    console.log('[DEBUG] Poll response:', JSON.stringify(data, null, 2));
+
+    // Check if done
+    if (data?.done === true) {
+      // Extract video URI from response
+      const videoUri = data?.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri;
+      if (!videoUri) {
+        throw new Error('No video URI in completed response.');
+      }
+
+      console.log('[DEBUG] Video generation completed:', videoUri);
+
+      // Download video data
+      return downloadVideoFromUri(videoUri, signal, apiKey);
+    }
+
+    // Check for errors
+    if (data?.error) {
+      const errorMsg = data.error?.message || JSON.stringify(data.error);
+      throw new Error(`Video generation failed: ${errorMsg}`);
+    }
+
+    // Continue polling
+    console.log('[DEBUG] Operation not done yet, continuing to poll...');
+  }
+}
+
+async function downloadVideoFromUri(uri, signal, apiKey) {
+  console.log('[DEBUG] Downloading video from URI:', uri);
+
+  // Try with API key in header
+  const headers = {};
+  if (apiKey) {
+    headers['x-goog-api-key'] = String(apiKey).trim();
+  }
+
+  const res = await fetch(uri, {
+    signal: signal || undefined,
+    headers: Object.keys(headers).length > 0 ? headers : undefined,
+  });
+
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`Download Error: ${res.status} - ${t}`);
+  }
+
+  // Get video as buffer
+  const buffer = await res.arrayBuffer();
+  const base64 = Buffer.from(buffer).toString('base64');
+
+  console.log('[DEBUG] Video downloaded, size:', buffer.byteLength, 'bytes');
+
+  return {
+    videoData: base64,
+    mimeType: res.headers.get('content-type') || 'video/mp4',
+  };
+}
+
 module.exports = {
   getGenAIClientForKey,
   extractTextFromSDKResult,
@@ -758,4 +920,7 @@ module.exports = {
   restGenerateImageFromTextWithReference,
   sdkGenerateText,
   sdkGenerateImage,
+  restGenerateVideoFromText,
+  pollVideoOperation,
+  downloadVideoFromUri,
 };

@@ -34,6 +34,7 @@ const {
   restGenerateImageFromTextWithReference,
   sdkGenerateText,
   sdkGenerateImage,
+  restGenerateVideoFromText,
 } = require('../ai');
 const { getMainWindow, setMainWindow, setPopupWindow, getPopupWindow } = require('../context');
 const { setupAutoUpdates, manualCheckForUpdates } = require('../updates');
@@ -875,6 +876,58 @@ function bootstrapApp() {
       return validCounts.includes(raw) ? raw : 1;
     });
 
+    ipcMain.handle('save-video-aspect-ratio', (_e, ratio) => {
+      const validRatios = ['16:9', '9:16'];
+      const normalized = validRatios.includes(ratio) ? ratio : '16:9';
+      setPref('VIDEO_ASPECT_RATIO', normalized);
+      return normalized;
+    });
+
+    ipcMain.handle('get-video-aspect-ratio', () => {
+      const raw = getPref('VIDEO_ASPECT_RATIO') || '16:9';
+      const validRatios = ['16:9', '9:16'];
+      return validRatios.includes(raw) ? raw : '16:9';
+    });
+
+    ipcMain.handle('save-video-duration', (_e, duration) => {
+      const validDurations = [4, 5, 6, 7, 8];
+      const normalized = validDurations.includes(duration) ? duration : 8;
+      setPref('VIDEO_DURATION', normalized);
+      return normalized;
+    });
+
+    ipcMain.handle('get-video-duration', () => {
+      const raw = parseInt(getPref('VIDEO_DURATION') || '8', 10);
+      const validDurations = [4, 5, 6, 7, 8];
+      return validDurations.includes(raw) ? raw : 8;
+    });
+
+    ipcMain.handle('save-video-count', (_e, count) => {
+      const validCounts = [1, 2, 3, 4];
+      const normalized = validCounts.includes(count) ? count : 1;
+      setPref('VIDEO_COUNT', normalized);
+      return normalized;
+    });
+
+    ipcMain.handle('get-video-count', () => {
+      const raw = parseInt(getPref('VIDEO_COUNT') || '1', 10);
+      const validCounts = [1, 2, 3, 4];
+      return validCounts.includes(raw) ? raw : 1;
+    });
+
+    ipcMain.handle('save-video-resolution', (_e, resolution) => {
+      const validResolutions = ['720p', '1080p'];
+      const normalized = validResolutions.includes(resolution) ? resolution : '720p';
+      setPref('VIDEO_RESOLUTION', normalized);
+      return normalized;
+    });
+
+    ipcMain.handle('get-video-resolution', () => {
+      const raw = getPref('VIDEO_RESOLUTION') || '720p';
+      const validResolutions = ['720p', '1080p'];
+      return validResolutions.includes(raw) ? raw : '720p';
+    });
+
     ipcMain.handle('get-window-opacity', () => {
       const v = parseFloat(getPref('WINDOW_OPACITY') || '1');
       return Number.isFinite(v) ? v : 1;
@@ -1383,6 +1436,99 @@ function bootstrapApp() {
       } catch (err) {
         return {
           error: `Image generation error: ${err?.message || 'Unknown error'}`,
+        };
+      }
+    });
+
+    ipcMain.handle('ai:generate-video-from-text', async (_e, payload) => {
+      try {
+        const keys = resolveApiKeys();
+        if (!keys.length) {
+          return { error: 'API key is not set. Please set GEMINI_API_KEY.' };
+        }
+
+        const prompt = String(payload?.prompt ?? '');
+        if (!prompt) {
+          return { error: 'Prompt is required.' };
+        }
+
+        const aspectRatio = String(payload?.aspectRatio || '16:9');
+        const durationSeconds = Number(payload?.durationSeconds || 4);
+        const resolution = String(payload?.resolution || '720p');
+        const generationConfig = payload?.generationConfig || {};
+        const referenceImage = payload?.referenceImage || null;
+        const modelName = 'veo-3.1-fast-generate-preview';
+        const errorLog = [];
+
+        // Create AbortController for cancellation and timeout
+        const controller = new AbortController();
+        const timeoutMs = 600000; // 10 minutes for video generation
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+        // Set as current AI controller for cancel functionality
+        currentAIController = controller;
+        currentAIKind = 'chat';
+
+        try {
+          for (const key of keys) {
+            try {
+              const options = {
+                aspectRatio,
+                durationSeconds,
+                resolution,
+                signal: controller.signal,
+              };
+
+              // Add reference image if provided
+              if (referenceImage) {
+                options.referenceImage = referenceImage;
+              }
+
+              const result = await restGenerateVideoFromText(
+                key,
+                modelName,
+                prompt,
+                generationConfig,
+                options
+              );
+
+              if (result && result.videoData) {
+                clearTimeout(timeoutId);
+                return {
+                  videoBase64: result.videoData,
+                  mimeType: result.mimeType || 'video/mp4',
+                };
+              }
+            } catch (err) {
+              const msg = String(err?.message || 'Unknown error');
+              errorLog.push(`Key ${key.substring(0, 8)}...: ${msg}`);
+
+              if (/API_KEY_INVALID|API key not valid/i.test(msg)) {
+                continue;
+              }
+
+              // If aborted, return error immediately
+              if (err.name === 'AbortError') {
+                clearTimeout(timeoutId);
+                return { error: 'Video generation was cancelled or timed out.' };
+              }
+
+              throw err;
+            }
+          }
+
+          clearTimeout(timeoutId);
+          return {
+            error: `Video generation failed: ${errorLog.join('; ')}`,
+          };
+        } finally {
+          clearTimeout(timeoutId);
+          currentAIController = null;
+          currentAIKind = null;
+        }
+      } catch (err) {
+        return {
+          error: `Video generation error: ${err?.message || 'Unknown error'}`,
         };
       }
     });
