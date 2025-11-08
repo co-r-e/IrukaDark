@@ -42,7 +42,6 @@
     noPreviousAI: 'Không có tin nhắn AI trước đó để tiếp tục.',
     selectionExplanation: 'Giải thích vùng chọn',
     selectionTranslation: 'Dịch vùng chọn',
-    selectionPronunciation: 'Phát âm vùng chọn',
     selectionEmpathy: 'Phản hồi đồng cảm cho vùng chọn',
     selectionReplies: 'Các phương án trả lời cho vùng chọn',
     urlContextSummary: (url) => `Yêu cầu tóm tắt URL đã chọn:\n${url}`,

@@ -42,7 +42,6 @@
     noPreviousAI: '没有可续写的上一条 AI 消息。',
     selectionExplanation: '选区解读',
     selectionTranslation: '翻译选区',
-    selectionPronunciation: '标注选区读音',
     selectionEmpathy: '针对选中文本的共感回复',
     selectionReplies: '选中文本的回复方案',
     urlContextSummary: (url) => `请求对所选 URL 进行概览：\n${url}`,

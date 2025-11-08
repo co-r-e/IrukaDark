@@ -42,7 +42,6 @@
     noPreviousAI: 'Tidak ada pesan AI sebelumnya untuk dilanjutkan.',
     selectionExplanation: 'Penjelasan pilihan',
     selectionTranslation: 'Terjemahkan pilihan',
-    selectionPronunciation: 'Ucapkan pilihan',
     selectionEmpathy: 'Balasan empati untuk pilihan',
     selectionReplies: 'Variasi balasan untuk pilihan',
     urlContextSummary: (url) => `Ringkasan URL yang dipilih:\n${url}`,

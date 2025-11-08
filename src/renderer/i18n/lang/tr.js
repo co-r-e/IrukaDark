@@ -42,7 +42,6 @@
     noPreviousAI: 'Devam edilecek önceki bir yapay zekâ mesajı yok.',
     selectionExplanation: 'Seçim açıklaması',
     selectionTranslation: 'Seçimi çevir',
-    selectionPronunciation: 'Seçimi telaffuz et',
     selectionEmpathy: 'Seçim için empatik yanıt',
     selectionReplies: 'Seçim için yanıt seçenekleri',
     urlContextSummary: (url) => `Seçilen URL için özet isteği:\n${url}`,

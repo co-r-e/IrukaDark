@@ -42,7 +42,6 @@
     noPreviousAI: '沒有可延續的上一則 AI 訊息。',
     selectionExplanation: '選取範圍解說',
     selectionTranslation: '翻譯選取範圍',
-    selectionPronunciation: '標註選取範圍讀音',
     selectionEmpathy: '對選取文字的共感回覆',
     selectionReplies: '選取文字的回覆方案',
     urlContextSummary: (url) => `請求取得所選 URL 的概要：\n${url}`,

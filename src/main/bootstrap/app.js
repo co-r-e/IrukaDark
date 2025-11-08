@@ -501,7 +501,7 @@ function bootstrapApp() {
       }
     }
 
-    const urlSummaryCandidates = ['Alt+1'];
+    const urlSummaryCandidates = ['Alt+Q'];
     let urlSummaryUsed = '';
     for (const c of urlSummaryCandidates) {
       if (registerUrlShortcut(c, false)) {
@@ -510,7 +510,7 @@ function bootstrapApp() {
       }
     }
 
-    const urlDetailedCandidates = ['Alt+Shift+1'];
+    const urlDetailedCandidates = ['Alt+Shift+Q'];
     let urlDetailedUsed = '';
     for (const c of urlDetailedCandidates) {
       if (registerUrlShortcut(c, true)) {
@@ -569,40 +569,6 @@ function bootstrapApp() {
         replyUsed = c;
         break;
       }
-    }
-
-    const pronounceCandidates = ['Alt+Q'];
-    let pronounceUsed = '';
-    for (const c of pronounceCandidates) {
-      try {
-        const ok = globalShortcut.register(c, () => {
-          logShortcutEvent('shortcut.trigger', { accel: c, kind: 'pronounce' });
-          (async () => {
-            try {
-              const mainWindow = getMainWindow();
-              if (!mainWindow || mainWindow.isDestroyed()) return;
-
-              const text = await tryCopySelectedText();
-              if (!mainWindow || mainWindow.isDestroyed()) return;
-
-              // Bring window to front
-              bringMainWindowToFront(mainWindow);
-
-              if (text) {
-                mainWindow.webContents.send('pronounce-clipboard', text);
-              } else {
-                mainWindow.webContents.send('explain-clipboard-error', '');
-              }
-            } catch (e) {
-              if (isDev) console.warn('Clipboard pronunciation failed:', e?.message);
-            }
-          })();
-        });
-        if (ok) {
-          pronounceUsed = c;
-          break;
-        }
-      } catch {}
     }
 
     const screenshotCandidates = ['Alt+S'];
@@ -711,7 +677,6 @@ function bootstrapApp() {
         mainWindow.webContents.send('shortcut-registered', baseUsed);
         mainWindow.webContents.send('shortcut-detailed-registered', detailedUsed);
         mainWindow.webContents.send('shortcut-translate-registered', translateUsed);
-        mainWindow.webContents.send('shortcut-pronounce-registered', pronounceUsed);
         mainWindow.webContents.send('shortcut-reply-registered', replyUsed);
         mainWindow.webContents.send('shortcut-url-summary-registered', urlSummaryUsed);
         mainWindow.webContents.send('shortcut-url-detailed-registered', urlDetailedUsed);
@@ -721,7 +686,6 @@ function bootstrapApp() {
         baseUsed,
         detailedUsed,
         translateUsed,
-        pronounceUsed,
         replyUsed,
         urlSummaryUsed,
         urlDetailedUsed,

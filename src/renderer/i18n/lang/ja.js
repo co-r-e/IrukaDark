@@ -62,7 +62,6 @@
     noPreviousAI: '直前のAIメッセージがありません。',
     selectionExplanation: '選択範囲の解説',
     selectionTranslation: '選択範囲の翻訳',
-    selectionPronunciation: '選択範囲の発音',
     selectionEmpathy: '選択範囲への共感コメント',
     selectionReplies: '選択範囲への返信バリエーション',
     urlContextSummary: (url) => `URLの概要を取得します:\n${url}`,

@@ -131,8 +131,8 @@ Design highlights:
 2. Select text and press the global shortcut
    - Concise: Option+A
    - Detailed: Option+Shift+A
-   - URL summary: Option+1 (fetch + sanitize + quick digest)
-   - URL analysis: Option+Shift+1 (fetch + sanitize + structured deep dive)
+   - URL summary: Option+Q (fetch + sanitize + quick digest)
+   - URL analysis: Option+Shift+Q (fetch + sanitize + structured deep dive)
    - Translate: Option+R (pure translation into the UI language)
    - Screenshot explain: Option+S (interactive area selection)
    - Screenshot explain (detailed): Option+Shift+S
@@ -142,8 +142,8 @@ Design highlights:
 
 ### URL shortcuts
 
-- Summary (`Option+1`): fetches the selected HTTP(S) URL inside the app, strips scripts/styles/markup, trims to ~5k characters, and prompts Gemini to return a four-sentence digest ordered as takeaway → importance → next step.
-- Detailed (`Option+Shift+1`): performs the same fetch/sanitization but requests a structured deep dive (overview, key points, background, risks, recommended actions) tailored to the UI language/tone.
+- Summary (`Option+Q`): fetches the selected HTTP(S) URL inside the app, strips scripts/styles/markup, trims to ~5k characters, and prompts Gemini to return a four-sentence digest ordered as takeaway → importance → next step.
+- Detailed (`Option+Shift+Q`): performs the same fetch/sanitization but requests a structured deep dive (overview, key points, background, risks, recommended actions) tailored to the UI language/tone.
 - Requirements: selection must contain exactly one publicly reachable URL; paywalled or blocked pages may still fail to fetch and will surface an error message with next steps.
 - Tips: reselect the URL and press the shortcut again if you want a different tone or model; shortcuts use the configured Gemini model unless overridden by `WEB_SEARCH_MODEL` when web search is enabled.
 
@@ -166,7 +166,7 @@ Initial Layout
 #### Heads‑up
 
 - On some machines, the auto-copy used by Option+A can be blocked by OS settings, permissions, or other apps. If quick explain fails, use Option+S (area screenshot explain) instead — it works reliably in most cases and is often sufficient.
-- Option+1 / Option+Shift+1 require that the highlighted text is a single HTTP(S) URL. The app fetches the page directly; private, paywalled, or JavaScript‑required sites may fail.
+- Option+Q / Option+Shift+Q require that the highlighted text is a single HTTP(S) URL. The app fetches the page directly; private, paywalled, or JavaScript‑required sites may fail.
 - On macOS, the app first tries to read selected text via Accessibility (AX) without touching the clipboard; only if that fails does it fall back to sending Cmd+C.
 - If the main window is hidden when Option+A succeeds, it automatically reappears non‑activating so you can see the answer (your current app keeps focus).
 

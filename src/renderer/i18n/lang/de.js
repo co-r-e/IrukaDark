@@ -43,7 +43,6 @@
     noPreviousAI: 'Kein vorheriger KI‑Beitrag zum Fortsetzen.',
     selectionExplanation: 'Erläuterung der Auswahl',
     selectionTranslation: 'Auswahl übersetzen',
-    selectionPronunciation: 'Auswahl aussprechen',
     selectionEmpathy: 'Einfühlsame Antwort auf die Auswahl',
     selectionReplies: 'Antwortvarianten für die Auswahl',
     urlContextSummary: (url) => `Kurzfassung der ausgewählten URL:\n${url}`,

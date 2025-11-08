@@ -62,7 +62,6 @@
     noPreviousAI: 'No previous AI message to continue.',
     selectionExplanation: 'Selection Explanation',
     selectionTranslation: 'Translate Selection',
-    selectionPronunciation: 'Pronounce Selection',
     selectionEmpathy: 'Empathy Reply for Selection',
     selectionReplies: 'Reply Variations for Selection',
     urlContextSummary: (url) => `URL summary request:\n${url}`,

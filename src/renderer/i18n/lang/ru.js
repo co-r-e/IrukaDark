@@ -43,7 +43,6 @@
     noPreviousAI: 'Нет предыдущего сообщения ИИ для продолжения.',
     selectionExplanation: 'Пояснение выделения',
     selectionTranslation: 'Перевести выделение',
-    selectionPronunciation: 'Произнести выделение',
     selectionEmpathy: 'Эмпатичный ответ для выделенного текста',
     selectionReplies: 'Варианты ответа для выделенного текста',
     urlContextSummary: (url) => `Запрос краткого обзора выбранного URL:\n${url}`,

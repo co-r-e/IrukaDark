@@ -43,7 +43,6 @@
     noPreviousAI: 'No hay mensaje anterior de IA para continuar.',
     selectionExplanation: 'Explicación de la selección',
     selectionTranslation: 'Traducir selección',
-    selectionPronunciation: 'Pronunciar selección',
     selectionEmpathy: 'Respuesta empática para la selección',
     selectionReplies: 'Variaciones de respuesta para la selección',
     urlContextSummary: (url) => `Resumen del enlace seleccionado:\n${url}`,

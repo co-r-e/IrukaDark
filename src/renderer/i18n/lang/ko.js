@@ -42,7 +42,6 @@
     noPreviousAI: '이어서 진행할 AI 메시지가 없어요.',
     selectionExplanation: '선택 영역 설명',
     selectionTranslation: '선택 영역 번역',
-    selectionPronunciation: '선택 영역 발음',
     selectionEmpathy: '선택한 텍스트 공감 댓글',
     selectionReplies: '선택한 내용에 대한 답변 변형',
     urlContextSummary: (url) => `선택한 URL 요약 요청:\n${url}`,
