@@ -2610,42 +2610,7 @@ class IrukaDarkApp {
   }
 
   async handlePlusButtonClick() {
-    // Hide clipboard windows before opening file dialog
-    try {
-      if (window.electronAPI && window.electronAPI.hideClipboardWindows) {
-        await window.electronAPI.hideClipboardWindows();
-      }
-    } catch (err) {
-      console.error('Error hiding clipboard windows:', err);
-    }
-
     this.fileInput.click();
-
-    // Set up one-time listeners to show clipboard windows again
-    const showClipboardWindows = async () => {
-      try {
-        if (window.electronAPI && window.electronAPI.showClipboardWindows) {
-          await window.electronAPI.showClipboardWindows();
-        }
-        // Focus back to this window to keep clipboard windows in background
-        window.focus();
-      } catch (err) {
-        console.error('Error showing clipboard windows:', err);
-      }
-      cleanup();
-    };
-
-    const cleanup = () => {
-      this.fileInput.removeEventListener('change', showClipboardWindows);
-      window.removeEventListener('focus', showClipboardWindows);
-    };
-
-    // Show windows when file is selected or dialog is cancelled (focus returns)
-    this.fileInput.addEventListener('change', showClipboardWindows, { once: true });
-    // Delay to ensure focus event fires after dialog closes
-    setTimeout(() => {
-      window.addEventListener('focus', showClipboardWindows, { once: true });
-    }, 100);
   }
 
   handleFileSelection(event) {

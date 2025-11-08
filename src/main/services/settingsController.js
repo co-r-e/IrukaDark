@@ -81,7 +81,7 @@ class SettingsController {
       }
     } catch {}
 
-    // Broadcast to all windows (including clipboard windows)
+    // Broadcast to all windows
     try {
       const allWindows = BrowserWindow.getAllWindows();
       allWindows.forEach((win) => {

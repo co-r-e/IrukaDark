@@ -146,7 +146,7 @@ class ClipboardHistoryUI {
     if (window.electronAPI && window.electronAPI.onWindowOpacityChanged) {
       window.electronAPI.onWindowOpacityChanged((opacity) => {
         // Opacity is already applied by the main process
-        console.log('Clipboard window opacity changed:', opacity);
+        console.log('Window opacity changed:', opacity);
       });
     }
 

@@ -361,7 +361,7 @@ function bootstrapApp() {
 
               if (!mainWindow || mainWindow.isDestroyed()) return;
 
-              // Bring window to front (especially when clipboard window is active)
+              // Bring window to front
               bringMainWindowToFront(mainWindow);
 
               if (text) {
@@ -396,7 +396,7 @@ function bootstrapApp() {
               const text = await tryCopySelectedText();
               if (!mainWindow || mainWindow.isDestroyed()) return;
 
-              // Bring window to front (especially when clipboard window is active)
+              // Bring window to front
               bringMainWindowToFront(mainWindow);
 
               const url = extractFirstValidUrl(text);
@@ -432,7 +432,7 @@ function bootstrapApp() {
               const text = await tryCopySelectedText();
               if (!mainWindow || mainWindow.isDestroyed()) return;
 
-              // Bring window to front (especially when clipboard window is active)
+              // Bring window to front
               bringMainWindowToFront(mainWindow);
 
               if (text) {
@@ -463,7 +463,7 @@ function bootstrapApp() {
               const text = await tryCopySelectedText();
               if (!mainWindow || mainWindow.isDestroyed()) return;
 
-              // Bring window to front (especially when clipboard window is active)
+              // Bring window to front
               bringMainWindowToFront(mainWindow);
 
               const url = extractFirstValidUrl(text);
@@ -542,7 +542,7 @@ function bootstrapApp() {
               const text = await tryCopySelectedText();
               if (!mainWindow || mainWindow.isDestroyed()) return;
 
-              // Bring window to front (especially when clipboard window is active)
+              // Bring window to front
               bringMainWindowToFront(mainWindow);
 
               if (text) {
@@ -585,7 +585,7 @@ function bootstrapApp() {
               const text = await tryCopySelectedText();
               if (!mainWindow || mainWindow.isDestroyed()) return;
 
-              // Bring window to front (especially when clipboard window is active)
+              // Bring window to front
               bringMainWindowToFront(mainWindow);
 
               if (text) {
@@ -616,7 +616,7 @@ function bootstrapApp() {
               if (!data) return;
               const mainWindow = getMainWindow();
               if (mainWindow && !mainWindow.isDestroyed()) {
-                // Bring window to front (especially when clipboard window is active)
+                // Bring window to front
                 bringMainWindowToFront(mainWindow);
                 mainWindow.webContents.send('explain-screenshot', { data, mimeType });
               }
@@ -640,7 +640,7 @@ function bootstrapApp() {
               if (!data) return;
               const mainWindow = getMainWindow();
               if (mainWindow && !mainWindow.isDestroyed()) {
-                // Bring window to front (especially when clipboard window is active)
+                // Bring window to front
                 bringMainWindowToFront(mainWindow);
                 mainWindow.webContents.send('explain-screenshot-detailed', { data, mimeType });
               }
