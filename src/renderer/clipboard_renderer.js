@@ -330,11 +330,11 @@ class ClipboardHistoryUI {
       const contentEl = document.createElement('div');
       contentEl.className = 'clipboard-item-content';
 
-      if (item.type === 'image' && item.content) {
+      if (item.type === 'image' && item.imageData) {
         // Display image
         const imgEl = document.createElement('img');
         imgEl.className = 'clipboard-item-image';
-        imgEl.src = item.content;
+        imgEl.src = item.imageData;
         imgEl.alt = 'Clipboard image';
         contentEl.appendChild(imgEl);
       } else {

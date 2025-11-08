@@ -2,10 +2,11 @@
  * IrukaDark — (c) 2025 CORe Inc.
  * License: AGPL-3.0-only. See https://github.com/co-r-e/IrukaDark/blob/HEAD/LICENSE
  */
-const { clipboard, app } = require('electron');
+const { clipboard, app, nativeImage } = require('electron');
 const { EventEmitter } = require('events');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 class ClipboardHistoryService extends EventEmitter {
   constructor(options = {}) {
@@ -13,6 +14,7 @@ class ClipboardHistoryService extends EventEmitter {
     this.maxItems = options.maxItems || 30;
     this.history = [];
     this.lastClipboard = '';
+    this.lastImageHash = '';
     this.monitoringInterval = null;
     this.pollInterval = options.pollInterval || 1000; // Check every second
     this.saveTimeout = null;
@@ -29,10 +31,39 @@ class ClipboardHistoryService extends EventEmitter {
 
     this.monitoringInterval = setInterval(() => {
       try {
+        // Check for both text and image simultaneously
         const currentText = clipboard.readText();
-        if (currentText && currentText !== this.lastClipboard) {
-          this.addToHistory(currentText, 'text');
-          this.lastClipboard = currentText;
+        const currentImage = clipboard.readImage();
+
+        const hasText = currentText && currentText.trim();
+        const hasImage = currentImage && !currentImage.isEmpty();
+
+        if (!hasText && !hasImage) {
+          return; // Nothing in clipboard
+        }
+
+        // Calculate image hash if present
+        let imageDataUrl = null;
+        let imageHash = '';
+        if (hasImage) {
+          imageDataUrl = currentImage.toDataURL();
+          imageHash = crypto.createHash('md5').update(imageDataUrl).digest('hex');
+        }
+
+        // Check if clipboard content has changed
+        const textChanged = hasText && currentText !== this.lastClipboard;
+        const imageChanged = hasImage && imageHash !== this.lastImageHash;
+
+        if (textChanged || imageChanged) {
+          // Add both text and image to history as a single item
+          this.addToHistory({
+            text: hasText ? currentText : null,
+            imageData: hasImage ? imageDataUrl : null,
+          });
+
+          // Update last known state
+          this.lastClipboard = hasText ? currentText : '';
+          this.lastImageHash = hasImage ? imageHash : '';
         }
       } catch (err) {
         console.error('Error reading clipboard:', err);
@@ -42,9 +73,26 @@ class ClipboardHistoryService extends EventEmitter {
     // Initialize with current clipboard content
     try {
       const currentText = clipboard.readText();
-      if (currentText) {
-        this.lastClipboard = currentText;
-        this.addToHistory(currentText, 'text');
+      const currentImage = clipboard.readImage();
+
+      const hasText = currentText && currentText.trim();
+      const hasImage = currentImage && !currentImage.isEmpty();
+
+      if (hasText || hasImage) {
+        let imageDataUrl = null;
+        let imageHash = '';
+        if (hasImage) {
+          imageDataUrl = currentImage.toDataURL();
+          imageHash = crypto.createHash('md5').update(imageDataUrl).digest('hex');
+        }
+
+        this.addToHistory({
+          text: hasText ? currentText : null,
+          imageData: hasImage ? imageDataUrl : null,
+        });
+
+        this.lastClipboard = hasText ? currentText : '';
+        this.lastImageHash = hasImage ? imageHash : '';
       }
     } catch {}
   }
@@ -56,22 +104,78 @@ class ClipboardHistoryService extends EventEmitter {
     }
   }
 
-  addToHistory(content, type = 'text') {
+  addToHistory(content, type = 'auto') {
     if (!content) return;
 
-    const data = String(content || '').trim();
-    if (!data) return;
+    let item;
 
-    // Remove duplicate if exists
-    this.history = this.history.filter((item) => item.text !== data);
+    // Handle new format: { text, imageData }
+    if (typeof content === 'object' && content.constructor === Object) {
+      const { text, imageData } = content;
+
+      if (!text && !imageData) return;
+
+      // Determine type based on what's present
+      let itemType = 'text';
+      if (imageData && text) {
+        itemType = 'mixed';
+      } else if (imageData) {
+        itemType = 'image';
+      }
+
+      // Remove duplicate if exists
+      this.history = this.history.filter((item) => {
+        // Check for exact match
+        if (text && item.text === text && imageData && item.imageData === imageData) {
+          return false; // Remove duplicate with both
+        }
+        if (!imageData && text && item.text === text && !item.imageData) {
+          return false; // Remove duplicate text-only
+        }
+        if (!text && imageData && item.imageData === imageData && !item.text) {
+          return false; // Remove duplicate image-only
+        }
+        return true;
+      });
+
+      item = {
+        type: itemType,
+        text: text || null,
+        imageData: imageData || null,
+        timestamp: Date.now(),
+        id: `clip-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      };
+    } else if (type === 'image') {
+      // Legacy support: content is a data URL string
+      const imageDataUrl = content;
+
+      this.history = this.history.filter((item) => item.imageData !== imageDataUrl || item.text);
+
+      item = {
+        type: 'image',
+        text: null,
+        imageData: imageDataUrl,
+        timestamp: Date.now(),
+        id: `clip-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      };
+    } else {
+      // Legacy support: content is a text string
+      const data = String(content || '').trim();
+      if (!data) return;
+
+      this.history = this.history.filter((item) => item.text !== data || item.imageData);
+
+      item = {
+        type: 'text',
+        text: data,
+        imageData: null,
+        timestamp: Date.now(),
+        id: `clip-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      };
+    }
 
     // Add to beginning
-    this.history.unshift({
-      type: 'text',
-      text: data,
-      timestamp: Date.now(),
-      id: `clip-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-    });
+    this.history.unshift(item);
 
     // Limit history size
     if (this.history.length > this.maxItems) {
@@ -103,9 +207,27 @@ class ClipboardHistoryService extends EventEmitter {
         // Legacy support for text strings
         clipboard.writeText(item);
         this.lastClipboard = item;
-      } else if (item.type === 'text' && item.text) {
+        this.lastImageHash = '';
+      } else if (item.text && item.imageData) {
+        // Both text and image - write both to clipboard
+        const image = nativeImage.createFromDataURL(item.imageData);
+        clipboard.write({
+          text: item.text,
+          image,
+        });
+        this.lastClipboard = item.text;
+        this.lastImageHash = crypto.createHash('md5').update(item.imageData).digest('hex');
+      } else if (item.text) {
+        // Text only
         clipboard.writeText(item.text);
         this.lastClipboard = item.text;
+        this.lastImageHash = '';
+      } else if (item.imageData) {
+        // Image only
+        const image = nativeImage.createFromDataURL(item.imageData);
+        clipboard.writeImage(image);
+        this.lastImageHash = crypto.createHash('md5').update(item.imageData).digest('hex');
+        this.lastClipboard = '';
       }
       return true;
     } catch (err) {
@@ -127,9 +249,12 @@ class ClipboardHistoryService extends EventEmitter {
       if (fs.existsSync(this.historyFilePath)) {
         const data = fs.readFileSync(this.historyFilePath, 'utf8');
         const loaded = JSON.parse(data);
-        // Only load text items (filter out images)
+        // Load items with text and/or image
         this.history = (loaded || [])
-          .filter((item) => item.type === 'text' && item.text)
+          .filter((item) => {
+            // Valid if it has text, image, or both
+            return item.text || item.imageData;
+          })
           .slice(0, this.maxItems);
         console.log(`Loaded ${this.history.length} clipboard items from file`);
       }
@@ -147,9 +272,8 @@ class ClipboardHistoryService extends EventEmitter {
 
     this.saveTimeout = setTimeout(() => {
       try {
-        // Only save text items (filter out images)
-        const textItems = this.history.filter((item) => item.type === 'text' && item.text);
-        const data = JSON.stringify(textItems, null, 2);
+        // Save both text and image items
+        const data = JSON.stringify(this.history, null, 2);
         fs.writeFileSync(this.historyFilePath, data, 'utf8');
       } catch (err) {
         console.error('Error saving clipboard history to file:', err);
