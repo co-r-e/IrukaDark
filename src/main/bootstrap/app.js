@@ -41,6 +41,13 @@ const { setupAutoUpdates, manualCheckForUpdates } = require('../updates');
 const { AppScanner } = require('../services/appScanner');
 const { FileSearchService } = require('../services/fileSearch');
 const { SystemCommandsService } = require('../services/systemCommands');
+const {
+  spawnClipboardPopup,
+  isClipboardPopupActive,
+  closeClipboardPopup,
+  updateClipboardPopup,
+} = require('../services/macAutomationBridge');
+const { getClipboardHistoryService } = require('../services/clipboardHistory');
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -671,6 +678,76 @@ function bootstrapApp() {
       } catch {}
     }
 
+    // Clipboard history popup shortcut (toggle behavior)
+    const clipboardPopupCandidates = ['CommandOrControl+Shift+V'];
+    for (const c of clipboardPopupCandidates) {
+      try {
+        const ok = globalShortcut.register(c, () => {
+          logShortcutEvent('shortcut.trigger', { accel: c, kind: 'clipboard_popup_toggle' });
+          (async () => {
+            try {
+              // Only on macOS
+              if (process.platform !== 'darwin') return;
+
+              // Check if popup is already active
+              if (isClipboardPopupActive()) {
+                // Close the popup
+                closeClipboardPopup();
+                if (isDev) console.log('Clipboard popup closed');
+                return;
+              }
+
+              // Get cursor position
+              const cursorPosition = screen.getCursorScreenPoint();
+
+              // Get clipboard history
+              const clipboardService = getClipboardHistoryService();
+              const history = clipboardService.getHistory();
+
+              if (!history || history.length === 0) {
+                if (isDev) console.log('No clipboard history to show');
+                return;
+              }
+
+              // Get theme and opacity settings
+              const theme = getPref('UI_THEME') || 'dark';
+              const isDarkMode = theme === 'dark';
+              const opacity = parseFloat(getPref('WINDOW_OPACITY') || '1');
+
+              // Spawn clipboard popup
+              const result = await spawnClipboardPopup(history, cursorPosition, {
+                isDarkMode,
+                opacity,
+              });
+
+              // If an item was pasted, track it to prevent re-adding to history
+              if (
+                result &&
+                result.payload &&
+                result.payload.code === 'item_pasted' &&
+                result.payload.text
+              ) {
+                clipboardService.lastProgrammaticText = result.payload.text;
+                clipboardService.lastProgrammaticImageHash = null;
+                clipboardService.programmaticSetTime = Date.now();
+                if (isDev) console.log('Tracked pasted item to prevent re-adding to history');
+              }
+
+              if (isDev) console.log('Clipboard popup opened');
+            } catch (e) {
+              if (isDev) console.warn('Clipboard popup failed:', e?.message);
+            }
+          })();
+        });
+        if (ok) {
+          if (isDev) console.log(`Clipboard popup shortcut registered: ${c}`);
+          break;
+        }
+      } catch (e) {
+        if (isDev) console.warn('Failed to register clipboard popup shortcut:', e?.message);
+      }
+    }
+
     try {
       const mainWindow = getMainWindow();
       if (mainWindow && !mainWindow.isDestroyed()) {
@@ -932,6 +1009,18 @@ function bootstrapApp() {
         }
       } catch (err) {
         console.error('Error notifying main window:', err);
+      }
+
+      // Also update clipboard popup if it's active
+      try {
+        if (isClipboardPopupActive()) {
+          const theme = getPref('UI_THEME') || 'dark';
+          const isDarkMode = theme === 'dark';
+          const opacity = parseFloat(getPref('WINDOW_OPACITY') || '1');
+          updateClipboardPopup(history, { isDarkMode, opacity });
+        }
+      } catch (err) {
+        console.error('Error updating clipboard popup:', err);
       }
     });
 

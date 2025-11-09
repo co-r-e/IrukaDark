@@ -20,6 +20,11 @@ class ClipboardHistoryService extends EventEmitter {
     this.saveTimeout = null;
     this.historyFilePath = path.join(app.getPath('userData'), 'clipboard-history.json');
 
+    // Track programmatically set clipboard content to avoid re-adding to history
+    this.lastProgrammaticText = null;
+    this.lastProgrammaticImageHash = null;
+    this.programmaticSetTime = 0;
+
     // Load history from file on initialization
     this.loadHistoryFromFile();
   }
@@ -50,18 +55,70 @@ class ClipboardHistoryService extends EventEmitter {
           imageHash = crypto.createHash('md5').update(imageDataUrl).digest('hex');
         }
 
+        // Check if this was programmatically set (within last 3 seconds)
+        const timeSinceLastProgrammatic = Date.now() - this.programmaticSetTime;
+        const isProgrammaticChange =
+          timeSinceLastProgrammatic < 3000 &&
+          ((hasText &&
+            this.lastProgrammaticText !== null &&
+            currentText === this.lastProgrammaticText) ||
+            (hasImage &&
+              this.lastProgrammaticImageHash !== null &&
+              imageHash === this.lastProgrammaticImageHash));
+
+        if (isProgrammaticChange) {
+          // Skip adding to history, but update last known state
+          this.lastClipboard = hasText ? currentText : '';
+          this.lastImageHash = hasImage ? imageHash : '';
+          // Clear programmatic tracking after first detection
+          this.lastProgrammaticText = null;
+          this.lastProgrammaticImageHash = null;
+          this.programmaticSetTime = 0;
+          return;
+        }
+
         // Check if clipboard content has changed
         const textChanged = hasText && currentText !== this.lastClipboard;
         const imageChanged = hasImage && imageHash !== this.lastImageHash;
 
         if (textChanged || imageChanged) {
-          // Add both text and image to history as a single item
-          this.addToHistory({
-            text: hasText ? currentText : null,
-            imageData: hasImage ? imageDataUrl : null,
+          // Check if this content already exists in history (to prevent re-adding)
+          const alreadyInHistory = this.history.some((item) => {
+            if (hasText && item.text === currentText) {
+              // If only text changed and it matches an existing item
+              if (!hasImage) return true;
+              // If both text and image, check image too
+              if (hasImage && item.imageData) {
+                const existingImageHash = crypto
+                  .createHash('md5')
+                  .update(item.imageData)
+                  .digest('hex');
+                return existingImageHash === imageHash;
+              }
+            }
+            if (hasImage && !hasText && item.imageData) {
+              const existingImageHash = crypto
+                .createHash('md5')
+                .update(item.imageData)
+                .digest('hex');
+              return existingImageHash === imageHash;
+            }
+            return false;
           });
 
-          // Update last known state
+          if (!alreadyInHistory) {
+            // Add both text and image to history as a single item
+            this.addToHistory(
+              {
+                text: hasText ? currentText : null,
+                imageData: hasImage ? imageDataUrl : null,
+              },
+              'auto',
+              { skipIfDuplicate: true }
+            );
+          }
+
+          // Update last known state regardless
           this.lastClipboard = hasText ? currentText : '';
           this.lastImageHash = hasImage ? imageHash : '';
         }
@@ -104,9 +161,10 @@ class ClipboardHistoryService extends EventEmitter {
     }
   }
 
-  addToHistory(content, type = 'auto') {
+  addToHistory(content, type = 'auto', options = {}) {
     if (!content) return;
 
+    const { skipIfDuplicate = false } = options;
     let item;
 
     // Handle new format: { text, imageData }
@@ -123,20 +181,30 @@ class ClipboardHistoryService extends EventEmitter {
         itemType = 'image';
       }
 
-      // Remove duplicate if exists
-      this.history = this.history.filter((item) => {
+      // Check for duplicates
+      const duplicateIndex = this.history.findIndex((item) => {
         // Check for exact match
         if (text && item.text === text && imageData && item.imageData === imageData) {
-          return false; // Remove duplicate with both
+          return true; // Duplicate with both
         }
         if (!imageData && text && item.text === text && !item.imageData) {
-          return false; // Remove duplicate text-only
+          return true; // Duplicate text-only
         }
         if (!text && imageData && item.imageData === imageData && !item.text) {
-          return false; // Remove duplicate image-only
+          return true; // Duplicate image-only
         }
-        return true;
+        return false;
       });
+
+      if (duplicateIndex !== -1) {
+        if (skipIfDuplicate) {
+          // Skip adding if duplicate exists
+          return;
+        } else {
+          // Remove duplicate (will be re-added at the top)
+          this.history.splice(duplicateIndex, 1);
+        }
+      }
 
       item = {
         type: itemType,
@@ -149,7 +217,17 @@ class ClipboardHistoryService extends EventEmitter {
       // Legacy support: content is a data URL string
       const imageDataUrl = content;
 
-      this.history = this.history.filter((item) => item.imageData !== imageDataUrl || item.text);
+      const duplicateIndex = this.history.findIndex(
+        (item) => item.imageData === imageDataUrl && !item.text
+      );
+
+      if (duplicateIndex !== -1) {
+        if (skipIfDuplicate) {
+          return;
+        } else {
+          this.history.splice(duplicateIndex, 1);
+        }
+      }
 
       item = {
         type: 'image',
@@ -163,7 +241,17 @@ class ClipboardHistoryService extends EventEmitter {
       const data = String(content || '').trim();
       if (!data) return;
 
-      this.history = this.history.filter((item) => item.text !== data || item.imageData);
+      const duplicateIndex = this.history.findIndex(
+        (item) => item.text === data && !item.imageData
+      );
+
+      if (duplicateIndex !== -1) {
+        if (skipIfDuplicate) {
+          return;
+        } else {
+          this.history.splice(duplicateIndex, 1);
+        }
+      }
 
       item = {
         type: 'text',
@@ -208,6 +296,10 @@ class ClipboardHistoryService extends EventEmitter {
         clipboard.writeText(item);
         this.lastClipboard = item;
         this.lastImageHash = '';
+        // Track programmatic change
+        this.lastProgrammaticText = item;
+        this.lastProgrammaticImageHash = null;
+        this.programmaticSetTime = Date.now();
       } else if (item.text && item.imageData) {
         // Both text and image - write both to clipboard
         const image = nativeImage.createFromDataURL(item.imageData);
@@ -216,18 +308,32 @@ class ClipboardHistoryService extends EventEmitter {
           image,
         });
         this.lastClipboard = item.text;
-        this.lastImageHash = crypto.createHash('md5').update(item.imageData).digest('hex');
+        const imageHash = crypto.createHash('md5').update(item.imageData).digest('hex');
+        this.lastImageHash = imageHash;
+        // Track programmatic change
+        this.lastProgrammaticText = item.text;
+        this.lastProgrammaticImageHash = imageHash;
+        this.programmaticSetTime = Date.now();
       } else if (item.text) {
         // Text only
         clipboard.writeText(item.text);
         this.lastClipboard = item.text;
         this.lastImageHash = '';
+        // Track programmatic change
+        this.lastProgrammaticText = item.text;
+        this.lastProgrammaticImageHash = null;
+        this.programmaticSetTime = Date.now();
       } else if (item.imageData) {
         // Image only
         const image = nativeImage.createFromDataURL(item.imageData);
         clipboard.writeImage(image);
-        this.lastImageHash = crypto.createHash('md5').update(item.imageData).digest('hex');
+        const imageHash = crypto.createHash('md5').update(item.imageData).digest('hex');
+        this.lastImageHash = imageHash;
         this.lastClipboard = '';
+        // Track programmatic change
+        this.lastProgrammaticText = null;
+        this.lastProgrammaticImageHash = imageHash;
+        this.programmaticSetTime = Date.now();
       }
       return true;
     } catch (err) {

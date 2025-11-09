@@ -13,6 +13,7 @@ let cachedExecutablePath = null;
 let lastPromptAttempt = 0;
 let didWarnMissing = false;
 let bridgeLogPath = null;
+let clipboardPopupProcess = null;
 
 function resolveLogPath() {
   if (bridgeLogPath !== null) return bridgeLogPath;
@@ -273,6 +274,184 @@ async function fetchSelectedText({ timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
   }
 }
 
+function isClipboardPopupActive() {
+  if (!clipboardPopupProcess) return false;
+
+  // Check if process is still running
+  try {
+    // Sending signal 0 doesn't actually kill the process, just checks if it exists
+    process.kill(clipboardPopupProcess.pid, 0);
+    return true;
+  } catch (e) {
+    clipboardPopupProcess = null;
+    return false;
+  }
+}
+
+function closeClipboardPopup() {
+  if (!clipboardPopupProcess) return false;
+
+  try {
+    logBridgeEvent('closeClipboardPopup.start', {
+      pid: clipboardPopupProcess.pid,
+    });
+
+    clipboardPopupProcess.kill('SIGTERM');
+    clipboardPopupProcess = null;
+
+    logBridgeEvent('closeClipboardPopup.success');
+    return true;
+  } catch (e) {
+    logBridgeEvent('closeClipboardPopup.error', {
+      message: e?.message || '',
+    });
+    clipboardPopupProcess = null;
+    return false;
+  }
+}
+
+function updateClipboardPopup(historyItems, options = {}) {
+  if (!clipboardPopupProcess) return false;
+
+  try {
+    // Filter and prepare items (text and/or image, max 20 items)
+    const items = historyItems
+      .filter((item) => (item.text && typeof item.text === 'string') || item.imageData)
+      .slice(0, 20)
+      .map((item) => ({
+        text: item.text || null,
+        imageData: item.imageData || null,
+        timestamp: item.timestamp || Date.now(),
+      }));
+
+    if (items.length === 0) {
+      return false;
+    }
+
+    const update = {
+      type: 'update',
+      items,
+      isDarkMode: options.isDarkMode || false,
+      opacity: options.opacity || 1.0,
+    };
+
+    const updateJSON = JSON.stringify(update);
+    clipboardPopupProcess.stdin.write(updateJSON + '\n');
+
+    logBridgeEvent('updateClipboardPopup.success', {
+      itemCount: items.length,
+    });
+
+    return true;
+  } catch (e) {
+    logBridgeEvent('updateClipboardPopup.error', {
+      message: e?.message || '',
+    });
+    return false;
+  }
+}
+
+async function spawnClipboardPopup(historyItems, position, options = {}) {
+  return new Promise((resolve, reject) => {
+    const executable = resolveExecutablePath();
+    if (!executable) {
+      logBridgeEvent('spawnClipboardPopup.notFound');
+      reject(new Error('SWIFT_BRIDGE_NOT_AVAILABLE'));
+      return;
+    }
+
+    // Filter and prepare items (text and/or image, max 20 items)
+    const items = historyItems
+      .filter((item) => (item.text && typeof item.text === 'string') || item.imageData)
+      .slice(0, 20)
+      .map((item) => ({
+        text: item.text || null,
+        imageData: item.imageData || null,
+        timestamp: item.timestamp || Date.now(),
+      }));
+
+    if (items.length === 0) {
+      logBridgeEvent('spawnClipboardPopup.noItems');
+      reject(new Error('NO_CLIPBOARD_ITEMS'));
+      return;
+    }
+
+    const input = {
+      items,
+      position: {
+        x: Math.round(position.x),
+        y: Math.round(position.y),
+      },
+      isDarkMode: options.isDarkMode || false,
+      opacity: options.opacity || 1.0,
+    };
+
+    const inputJSON = JSON.stringify(input);
+
+    const child = spawn(executable, ['clipboard-popup'], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      detached: false,
+    });
+
+    // Store the process reference
+    clipboardPopupProcess = child;
+
+    logBridgeEvent('spawnClipboardPopup.start', {
+      itemCount: items.length,
+      position: input.position,
+      childPid: child.pid,
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    child.stdin.write(inputJSON + '\n');
+
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk.toString();
+    });
+
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk.toString();
+    });
+
+    child.once('error', (error) => {
+      logBridgeEvent('spawnClipboardPopup.error', {
+        message: error?.message || '',
+        code: error?.code || '',
+      });
+      clipboardPopupProcess = null;
+      reject(error);
+    });
+
+    child.once('exit', (code, signal) => {
+      const payloadRaw = (stdout || '').trim();
+      let payload = null;
+
+      if (payloadRaw) {
+        try {
+          const lastLine = payloadRaw.split('\n').filter(Boolean).pop() || payloadRaw;
+          payload = JSON.parse(lastLine);
+        } catch (e) {
+          // Ignore JSON parse errors
+        }
+      }
+
+      logBridgeEvent('spawnClipboardPopup.exit', {
+        exitCode: code,
+        signal,
+        payload,
+        stderr: stderr.trim(),
+      });
+
+      clipboardPopupProcess = null;
+
+      // Return payload so caller can handle pasted item
+      resolve({ code, signal, payload, stderr: stderr.trim() });
+    });
+  });
+}
+
 function normalizeBridgePayload(payload) {
   if (!payload || typeof payload !== 'object') {
     return { status: 'error', code: 'invalid_payload', text: '' };
@@ -296,4 +475,8 @@ function normalizeBridgePayload(payload) {
 
 module.exports = {
   fetchSelectedText,
+  spawnClipboardPopup,
+  isClipboardPopupActive,
+  closeClipboardPopup,
+  updateClipboardPopup,
 };
