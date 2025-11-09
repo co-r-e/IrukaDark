@@ -173,9 +173,9 @@ function createAppMenu(ctx) {
             await promptSetEnv('GEMINI_MODEL', {
               title: t.setGeminiModel || menuTranslations.en.setGeminiModel,
               label: 'GEMINI_MODEL',
-              placeholder: 'e.g., gemini-2.5-flash-lite',
+              placeholder: 'e.g., gemini-flash-lite-latest',
               password: false,
-              defaultValue: String(getPref('GEMINI_MODEL') || 'gemini-2.5-flash-lite'),
+              defaultValue: String(getPref('GEMINI_MODEL') || 'gemini-flash-lite-latest'),
             });
           },
         },
@@ -185,9 +185,9 @@ function createAppMenu(ctx) {
             await promptSetEnv('WEB_SEARCH_MODEL', {
               title: t.setWebSearchModel || menuTranslations.en.setWebSearchModel,
               label: 'WEB_SEARCH_MODEL',
-              placeholder: 'e.g., gemini-2.5-flash',
+              placeholder: 'e.g., gemini-flash-latest',
               password: false,
-              defaultValue: String(getPref('WEB_SEARCH_MODEL') || 'gemini-2.5-flash'),
+              defaultValue: String(getPref('WEB_SEARCH_MODEL') || 'gemini-flash-latest'),
             });
           },
         },
@@ -283,9 +283,9 @@ function createAppMenu(ctx) {
                 await promptSetEnv('GEMINI_MODEL', {
                   title: t.setGeminiModel || menuTranslations.en.setGeminiModel,
                   label: 'GEMINI_MODEL',
-                  placeholder: 'e.g., gemini-2.5-flash-lite',
+                  placeholder: 'e.g., gemini-flash-lite-latest',
                   password: false,
-                  defaultValue: String(getPref('GEMINI_MODEL') || 'gemini-2.5-flash-lite'),
+                  defaultValue: String(getPref('GEMINI_MODEL') || 'gemini-flash-lite-latest'),
                 });
               },
             },
@@ -295,9 +295,9 @@ function createAppMenu(ctx) {
                 await promptSetEnv('WEB_SEARCH_MODEL', {
                   title: t.setWebSearchModel || menuTranslations.en.setWebSearchModel,
                   label: 'WEB_SEARCH_MODEL',
-                  placeholder: 'e.g., gemini-2.5-flash',
+                  placeholder: 'e.g., gemini-flash-latest',
                   password: false,
-                  defaultValue: String(getPref('WEB_SEARCH_MODEL') || 'gemini-2.5-flash'),
+                  defaultValue: String(getPref('WEB_SEARCH_MODEL') || 'gemini-flash-latest'),
                 });
               },
             },

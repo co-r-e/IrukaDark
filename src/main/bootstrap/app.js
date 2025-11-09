@@ -932,15 +932,15 @@ function bootstrapApp() {
 
     ipcMain.handle('save-video-duration', (_e, duration) => {
       const validDurations = [4, 5, 6, 7, 8];
-      const normalized = validDurations.includes(duration) ? duration : 8;
+      const normalized = validDurations.includes(duration) ? duration : 4;
       setPref('VIDEO_DURATION', normalized);
       return normalized;
     });
 
     ipcMain.handle('get-video-duration', () => {
-      const raw = parseInt(getPref('VIDEO_DURATION') || '8', 10);
+      const raw = parseInt(getPref('VIDEO_DURATION') || '4', 10);
       const validDurations = [4, 5, 6, 7, 8];
-      return validDurations.includes(raw) ? raw : 8;
+      return validDurations.includes(raw) ? raw : 4;
     });
 
     ipcMain.handle('save-video-count', (_e, count) => {
@@ -1211,7 +1211,7 @@ function bootstrapApp() {
             topP: Math.min(0.95, Number(generationConfig.topP || 0.95)),
           };
         }
-        const searchPreferred = getPref('WEB_SEARCH_MODEL') || 'gemini-2.5-flash';
+        const searchPreferred = getPref('WEB_SEARCH_MODEL') || 'gemini-flash-latest';
         const modelsToTry =
           requestedModel === searchPreferred ? [requestedModel] : [requestedModel, searchPreferred];
 

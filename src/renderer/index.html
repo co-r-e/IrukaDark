@@ -23,7 +23,6 @@
     <script src="./state/uiState.js"></script>
     <script src="./features/slashCommands.js"></script>
     <style>
-      /* Clipboard-related styles */
       .clipboard-list {
         flex: 1;
         overflow-y: auto;
@@ -44,91 +43,6 @@
         font-size: 48px;
         margin-bottom: 12px;
         opacity: 0.5;
-      }
-
-      .tab-footer {
-        padding: 6px 8px;
-        border-top: none;
-        background: transparent;
-      }
-
-      .search-container {
-        position: relative;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .search-icon {
-        position: absolute;
-        left: 10px;
-        color: #9ca3af;
-        pointer-events: none;
-        width: 12px;
-        height: 12px;
-      }
-
-      html:not(.theme-dark) .search-icon {
-        color: #6b7280;
-      }
-
-      .search-input::placeholder {
-        color: #6b7280;
-      }
-
-      html:not(.theme-dark) .search-input::placeholder {
-        color: #9ca3af;
-      }
-
-      .search-input {
-        flex: 1;
-        appearance: none;
-        border: none;
-        background: rgba(255, 255, 255, 0.05);
-        color: #e5e7eb;
-        font-size: 11px;
-        padding: 5px 10px 5px 32px;
-        border-radius: 6px;
-        outline: none;
-        transition: all 0.15s ease;
-      }
-
-      html:not(.theme-dark) .search-input {
-        background: rgba(0, 0, 0, 0.03);
-        color: #374151;
-      }
-
-      .search-input:focus {
-        background: rgba(255, 255, 255, 0.08);
-      }
-
-      html:not(.theme-dark) .search-input:focus {
-        background: rgba(0, 0, 0, 0.05);
-      }
-
-      .clear-search-btn {
-        position: absolute;
-        right: 6px;
-        appearance: none;
-        border: none;
-        background: transparent;
-        color: #9ca3af;
-        font-size: 18px;
-        line-height: 1;
-        padding: 2px 6px;
-        cursor: pointer;
-        border-radius: 4px;
-        transition: all 0.15s ease;
-      }
-
-      .clear-search-btn:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: #e5e7eb;
-      }
-
-      html:not(.theme-dark) .clear-search-btn:hover {
-        background: rgba(0, 0, 0, 0.05);
-        color: #374151;
       }
 
       .context-menu {
@@ -246,106 +160,6 @@
 
       .context-menu-item.delete {
         color: #ff4d6d;
-      }
-
-      .search-results-menu {
-        position: absolute;
-        bottom: 40px;
-        left: 16px;
-        right: 16px;
-        max-height: 200px;
-        overflow-y: auto;
-        background: rgba(26, 20, 70, 0.98);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 8px;
-        padding: 4px;
-        box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
-        z-index: 1000;
-      }
-
-      html:not(.theme-dark) .search-results-menu {
-        background: rgba(255, 255, 255, 0.98);
-        border-color: rgba(0, 0, 0, 0.12);
-      }
-
-      .search-result-item {
-        padding: 8px 12px;
-        margin-bottom: 0;
-        border-radius: 6px;
-        cursor: pointer;
-        transition: all 0.15s ease;
-        display: flex;
-        flex-direction: column;
-        gap: 1px;
-      }
-
-      .search-result-item:hover {
-        background: rgba(255, 255, 255, 0.1);
-      }
-
-      html:not(.theme-dark) .search-result-item:hover {
-        background: rgba(0, 0, 0, 0.05);
-      }
-
-      .search-result-name {
-        color: #e5e7eb;
-        font-size: 12px;
-        font-weight: 500;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      html:not(.theme-dark) .search-result-name {
-        color: #374151;
-      }
-
-      .search-result-path {
-        color: #6b7280;
-        font-size: 10px;
-        line-height: 1.3;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        font-style: italic;
-        margin-top: 0;
-        padding-left: 12px;
-      }
-
-      html:not(.theme-dark) .search-result-path {
-        color: #9ca3af;
-      }
-
-      .search-result-preview {
-        color: #9ca3af;
-        font-size: 11px;
-        line-height: 1.3;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        margin-top: 0;
-        padding-left: 12px;
-      }
-
-      html:not(.theme-dark) .search-result-preview {
-        color: #6b7280;
-      }
-
-      .search-result-highlight {
-        background: rgba(255, 77, 109, 0.3);
-        padding: 1px 2px;
-        border-radius: 2px;
-      }
-
-      .search-no-results {
-        padding: 16px;
-        text-align: center;
-        color: #9ca3af;
-        font-size: 12px;
-      }
-
-      html:not(.theme-dark) .search-no-results {
-        color: #6b7280;
       }
 
       .clipboard-item-wrapper {

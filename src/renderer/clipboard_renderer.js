@@ -3,6 +3,21 @@
  * License: AGPL-3.0-only. See https://github.com/co-r-e/IrukaDark/blob/HEAD/LICENSE
  */
 
+// SVG Icon Constants
+const ICONS = {
+  COPY: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>',
+  CHECK:
+    '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  FOLDER:
+    '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>',
+  FOLDER_OPEN:
+    '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="url(#pinkGradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><defs><linearGradient id="pinkGradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#ff4d6d;stop-opacity:1" /><stop offset="100%" style="stop-color:#d946ef;stop-opacity:1" /></linearGradient></defs><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>',
+  PLUS: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>',
+  EDIT: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>',
+  TRASH:
+    '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>',
+};
+
 class ClipboardHistoryUI {
   constructor() {
     this.clipboardList = document.getElementById('clipboardList');
@@ -142,14 +157,6 @@ class ClipboardHistoryUI {
       });
     }
 
-    // Listen for opacity changes
-    if (window.electronAPI && window.electronAPI.onWindowOpacityChanged) {
-      window.electronAPI.onWindowOpacityChanged((opacity) => {
-        // Opacity is already applied by the main process
-        console.log('Window opacity changed:', opacity);
-      });
-    }
-
     // Listen for real-time clipboard history updates
     if (window.electronAPI && window.electronAPI.onClipboardHistoryUpdated) {
       window.electronAPI.onClipboardHistoryUpdated((history) => {
@@ -204,16 +211,12 @@ class ClipboardHistoryUI {
 
   async applyTheme(theme) {
     try {
-      if (!theme && window.electronAPI && window.electronAPI.getTheme) {
+      if (!theme && window.electronAPI?.getTheme) {
         theme = await window.electronAPI.getTheme();
       }
 
       const html = document.documentElement;
-      if (theme === 'dark') {
-        html.classList.add('theme-dark');
-      } else {
-        html.classList.remove('theme-dark');
-      }
+      html.classList.toggle('theme-dark', theme === 'dark');
     } catch (err) {
       console.error('Error applying theme:', err);
     }
@@ -302,14 +305,9 @@ class ClipboardHistoryUI {
     }
   }
 
-  // ========================================
-  // Clipboard History Rendering
-  // ========================================
-
   renderHistory(items) {
     if (!this.clipboardList) return;
 
-    // Store history data for search
     this.clipboardHistory = items || [];
 
     if (!items || items.length === 0) {
@@ -350,45 +348,31 @@ class ClipboardHistoryUI {
 
       const copyBtn = document.createElement('button');
       copyBtn.className = 'clipboard-item-btn copy';
-      const copyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
-      const checkIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-      copyBtn.innerHTML = copyIconSvg;
       copyBtn.title = this.t('copy');
+      copyBtn.innerHTML = ICONS.COPY;
 
-      const changeCopyIconToCheck = () => {
-        copyBtn.innerHTML = checkIconSvg;
+      const showSuccessFeedback = () => {
+        copyBtn.innerHTML = ICONS.CHECK;
+        wrapperEl.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
         setTimeout(() => {
-          copyBtn.innerHTML = copyIconSvg;
-        }, 1500);
+          copyBtn.innerHTML = ICONS.COPY;
+          wrapperEl.style.backgroundColor = '';
+        }, 500);
       };
 
       copyBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        const success = await this.copyItem(item);
-        if (success) {
-          changeCopyIconToCheck();
-        }
+        if (await this.copyItem(item)) showSuccessFeedback();
+      });
+
+      wrapperEl.addEventListener('click', async () => {
+        if (await this.copyItem(item)) showSuccessFeedback();
       });
 
       actionsEl.appendChild(copyBtn);
-
       itemEl.appendChild(contentEl);
       itemEl.appendChild(actionsEl);
       wrapperEl.appendChild(itemEl);
-
-      // Click on wrapper to copy
-      wrapperEl.addEventListener('click', async () => {
-        const success = await this.copyItem(item);
-        if (success) {
-          // Change copy icon to check
-          changeCopyIconToCheck();
-          // Show visual feedback on the wrapper
-          wrapperEl.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
-          setTimeout(() => {
-            wrapperEl.style.backgroundColor = '';
-          }, 500);
-        }
-      });
 
       this.clipboardList.appendChild(wrapperEl);
     });
@@ -405,24 +389,15 @@ class ClipboardHistoryUI {
     `;
   }
 
-  // ========================================
-  // Snippet Folder & Item Rendering
-  // ========================================
-
   renderFolder(folder, parentContainer) {
-    const folderIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>`;
-    const folderOpenIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="url(#pinkGradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><defs><linearGradient id="pinkGradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#ff4d6d;stop-opacity:1" /><stop offset="100%" style="stop-color:#d946ef;stop-opacity:1" /></linearGradient></defs><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>`;
-
     const folderEl = document.createElement('div');
     folderEl.className = 'snippet-folder';
-    if (folder.expanded) {
-      folderEl.classList.add('expanded');
-    }
+    if (folder.expanded) folderEl.classList.add('expanded');
     folderEl.dataset.id = folder.id;
 
     const iconDiv = document.createElement('div');
     iconDiv.className = 'snippet-folder-icon';
-    iconDiv.innerHTML = folder.expanded ? folderOpenIconSvg : folderIconSvg;
+    iconDiv.innerHTML = folder.expanded ? ICONS.FOLDER_OPEN : ICONS.FOLDER;
 
     const nameDiv = document.createElement('div');
     if (folder.editing) {
@@ -508,21 +483,14 @@ class ClipboardHistoryUI {
 
     this.snippetList.innerHTML = '';
 
-    const plusIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>`;
-
-    // Only render root-level folders
     const rootFolders = this.snippetFolders.filter((f) => !f.parentId);
+    rootFolders.forEach((folder) => this.renderFolder(folder, this.snippetList));
 
-    rootFolders.forEach((folder) => {
-      this.renderFolder(folder, this.snippetList);
-    });
-
-    // Add "Add Folder" button at root level
     const addBtn = document.createElement('button');
     addBtn.className = 'add-folder-btn';
-    addBtn.innerHTML = `${plusIconSvg}<span>${this.t('addFolder')}</span>`;
+    addBtn.innerHTML = `${ICONS.PLUS}<span>${this.t('addFolder')}</span>`;
     addBtn.addEventListener('click', (e) => {
-      e.stopPropagation(); // Prevent any parent event
+      e.stopPropagation();
       this.addNewFolder();
     });
     this.snippetList.appendChild(addBtn);
@@ -786,40 +754,27 @@ class ClipboardHistoryUI {
   }
 
   copySnippet(snippet, iconDiv, moreBtn, snippetEl) {
-    if (window.electronAPI && window.electronAPI.copyToClipboard) {
-      window.electronAPI.copyToClipboard({ type: 'text', text: snippet.content });
-      console.log('Copied snippet:', snippet.name);
+    if (!window.electronAPI?.copyToClipboard) return;
 
-      // Show check icon and hide more button
-      if (iconDiv && moreBtn) {
-        const checkIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-        iconDiv.innerHTML = checkIconSvg;
-        iconDiv.style.opacity = '1';
-        moreBtn.style.opacity = '0';
+    window.electronAPI.copyToClipboard({ type: 'text', text: snippet.content });
 
-        // Hide after 1.5 seconds
-        setTimeout(() => {
-          iconDiv.style.opacity = '0';
-          moreBtn.style.opacity = '1';
-          setTimeout(() => {
-            iconDiv.innerHTML = '';
-          }, 200);
-        }, 1500);
-      }
+    if (iconDiv && moreBtn) {
+      iconDiv.innerHTML = ICONS.CHECK;
+      iconDiv.style.opacity = '1';
+      moreBtn.style.opacity = '0';
 
-      // Show visual feedback on the snippet element
-      if (snippetEl) {
-        snippetEl.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
-        setTimeout(() => {
-          snippetEl.style.backgroundColor = '';
-        }, 500);
-      }
+      setTimeout(() => {
+        iconDiv.style.opacity = '0';
+        moreBtn.style.opacity = '1';
+        setTimeout(() => (iconDiv.innerHTML = ''), 200);
+      }, 1500);
+    }
+
+    if (snippetEl) {
+      snippetEl.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
+      setTimeout(() => (snippetEl.style.backgroundColor = ''), 500);
     }
   }
-
-  // ========================================
-  // Context Menu (Folder & Snippet Actions)
-  // ========================================
 
   toggleFolderMenu(folderId) {
     // If the same folder's menu is already open, close it
@@ -874,45 +829,36 @@ class ClipboardHistoryUI {
     header.appendChild(closeBtn);
     this.contextMenu.appendChild(header);
 
-    // Icon SVGs (Lucide style)
-    const plusIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>`;
-    const editIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`;
-    const trashIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`;
-
-    // Add Folder option
     const addFolderItem = document.createElement('div');
     addFolderItem.className = 'context-menu-item';
-    addFolderItem.innerHTML = `${plusIconSvg}<span>${this.t('addFolder')}</span>`;
+    addFolderItem.innerHTML = `${ICONS.PLUS}<span>${this.t('addFolder')}</span>`;
     addFolderItem.addEventListener('click', () => {
       this.addNewSubfolder(folderId);
       this.hideContextMenu();
     });
     this.contextMenu.appendChild(addFolderItem);
 
-    // Add Snippet option
     const addSnippetItem = document.createElement('div');
     addSnippetItem.className = 'context-menu-item';
-    addSnippetItem.innerHTML = `${plusIconSvg}<span>${this.t('addSnippet')}</span>`;
+    addSnippetItem.innerHTML = `${ICONS.PLUS}<span>${this.t('addSnippet')}</span>`;
     addSnippetItem.addEventListener('click', () => {
       this.addNewSnippet(folderId);
       this.hideContextMenu();
     });
     this.contextMenu.appendChild(addSnippetItem);
 
-    // Edit option
     const editItem = document.createElement('div');
     editItem.className = 'context-menu-item';
-    editItem.innerHTML = `${editIconSvg}<span>${this.t('edit')}</span>`;
+    editItem.innerHTML = `${ICONS.EDIT}<span>${this.t('edit')}</span>`;
     editItem.addEventListener('click', () => {
       this.startEditingFolder(folderId);
       this.hideContextMenu();
     });
     this.contextMenu.appendChild(editItem);
 
-    // Delete option
     const deleteItem = document.createElement('div');
     deleteItem.className = 'context-menu-item delete';
-    deleteItem.innerHTML = `${trashIconSvg}<span>${this.t('delete')}</span>`;
+    deleteItem.innerHTML = `${ICONS.TRASH}<span>${this.t('delete')}</span>`;
     deleteItem.addEventListener('click', () => {
       this.deleteFolder(folderId);
       this.hideContextMenu();
@@ -954,24 +900,18 @@ class ClipboardHistoryUI {
     header.appendChild(closeBtn);
     this.contextMenu.appendChild(header);
 
-    // Icon SVGs (Lucide style)
-    const editIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`;
-    const trashIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`;
-
-    // Edit option
     const editItem = document.createElement('div');
     editItem.className = 'context-menu-item';
-    editItem.innerHTML = `${editIconSvg}<span>${this.t('edit')}</span>`;
+    editItem.innerHTML = `${ICONS.EDIT}<span>${this.t('edit')}</span>`;
     editItem.addEventListener('click', () => {
       this.startEditingSnippet(snippetId);
       this.hideContextMenu();
     });
     this.contextMenu.appendChild(editItem);
 
-    // Delete option
     const deleteItem = document.createElement('div');
     deleteItem.className = 'context-menu-item delete';
-    deleteItem.innerHTML = `${trashIconSvg}<span>${this.t('delete')}</span>`;
+    deleteItem.innerHTML = `${ICONS.TRASH}<span>${this.t('delete')}</span>`;
     deleteItem.addEventListener('click', () => {
       this.deleteSnippet(snippetId);
       this.hideContextMenu();
@@ -1032,17 +972,11 @@ class ClipboardHistoryUI {
     }
   }
 
-  // ========================================
-  // Clipboard Operations
-  // ========================================
-
   async copyItem(item) {
     try {
-      if (window.electronAPI && window.electronAPI.copyToClipboard) {
-        await window.electronAPI.copyToClipboard(item);
-        return true;
-      }
-      return false;
+      if (!window.electronAPI?.copyToClipboard) return false;
+      await window.electronAPI.copyToClipboard(item);
+      return true;
     } catch (err) {
       console.error('Error copying to clipboard:', err);
       return false;
@@ -1051,29 +985,21 @@ class ClipboardHistoryUI {
 
   async deleteItem(id) {
     try {
-      if (window.electronAPI && window.electronAPI.deleteClipboardItem) {
-        await window.electronAPI.deleteClipboardItem(id);
-        // History will be updated via real-time event
-      }
+      if (!window.electronAPI?.deleteClipboardItem) return;
+      await window.electronAPI.deleteClipboardItem(id);
     } catch (err) {
       console.error('Error deleting item:', err);
     }
   }
 
   async clearAll() {
-    if (confirm(this.t('confirmClearHistory'))) {
-      try {
-        await window.electronAPI.clearClipboardHistory();
-        // History will be updated via real-time event
-      } catch (err) {
-        console.error('Error clearing history:', err);
-      }
+    if (!confirm(this.t('confirmClearHistory'))) return;
+    try {
+      await window.electronAPI.clearClipboardHistory();
+    } catch (err) {
+      console.error('Error clearing history:', err);
     }
   }
-
-  // ========================================
-  // Utility Functions
-  // ========================================
 
   formatTime(timestamp) {
     const now = Date.now();
@@ -1122,10 +1048,6 @@ class ClipboardHistoryUI {
       }, 200);
     }, 2000);
   }
-
-  // ========================================
-  // Search Functionality
-  // ========================================
 
   performHistorySearch() {
     const query = this.historySearchQuery.trim().toLowerCase();
@@ -1497,19 +1419,11 @@ class MemoUI {
 
   async copyMemoContent() {
     try {
-      if (!this.memoTextarea) {
-        console.error('Memo textarea not found');
-        return;
-      }
+      if (!this.memoTextarea || !this.memoTextarea.value.trim()) return;
 
       const content = this.memoTextarea.value;
-      if (!content.trim()) {
-        console.log('No content to copy');
-        return;
-      }
 
-      // Use electronAPI if available, otherwise fallback to navigator.clipboard
-      if (window.electronAPI && window.electronAPI.copyToClipboard) {
+      if (window.electronAPI?.copyToClipboard) {
         await window.electronAPI.copyToClipboard({ type: 'text', text: content });
       } else if (navigator.clipboard) {
         await navigator.clipboard.writeText(content);
@@ -1527,27 +1441,15 @@ class MemoUI {
         document.body.removeChild(textArea);
       }
 
-      console.log('Memo content copied to clipboard');
-
-      // Show visual feedback by temporarily changing the button icon
       if (this.memoExportBtn) {
         const originalIcon = this.memoExportBtn.innerHTML;
-        const checkIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-        this.memoExportBtn.innerHTML = checkIconSvg;
-
-        setTimeout(() => {
-          this.memoExportBtn.innerHTML = originalIcon;
-        }, 1500);
+        this.memoExportBtn.innerHTML = ICONS.CHECK;
+        setTimeout(() => (this.memoExportBtn.innerHTML = originalIcon), 1500);
       }
 
-      // Show visual feedback on the memo textarea (green background like history tab)
       if (this.memoTextarea) {
         this.memoTextarea.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
-        this.memoTextarea.style.transition = 'background-color 0.2s ease';
-
-        setTimeout(() => {
-          this.memoTextarea.style.backgroundColor = '';
-        }, 500);
+        setTimeout(() => (this.memoTextarea.style.backgroundColor = ''), 500);
       }
     } catch (err) {
       console.error('Error copying memo content:', err);
@@ -1621,31 +1523,18 @@ class MemoUI {
 
   async resetMemoContent() {
     try {
-      if (!this.memoTextarea) {
-        console.error('Memo textarea not found');
-        return;
-      }
+      if (!this.memoTextarea) return;
 
-      // Show confirmation dialog
       const confirmed = await this.showConfirmation();
       if (!confirmed) return;
 
-      // Clear the textarea
       this.memoTextarea.value = '';
-
-      // Clear the stored content
       localStorage.removeItem(this.storageKey);
 
-      console.log('Memo content reset');
-
-      // Show visual feedback by briefly animating the reset button
       if (this.memoResetBtn) {
         this.memoResetBtn.style.transform = 'rotate(360deg)';
         this.memoResetBtn.style.transition = 'transform 0.3s ease';
-
-        setTimeout(() => {
-          this.memoResetBtn.style.transform = 'rotate(0deg)';
-        }, 300);
+        setTimeout(() => (this.memoResetBtn.style.transform = 'rotate(0deg)'), 300);
       }
     } catch (err) {
       console.error('Error resetting memo content:', err);
