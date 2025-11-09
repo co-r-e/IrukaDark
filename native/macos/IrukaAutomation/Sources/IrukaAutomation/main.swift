@@ -81,6 +81,7 @@ struct ClipboardPopupInput: Decodable {
   let position: Position
   let isDarkMode: Bool
   let opacity: Double
+  let activeTab: String?
 
   struct Position: Decodable {
     let x: Double
@@ -93,6 +94,7 @@ struct ClipboardPopupUpdate: Decodable {
   let items: [ClipboardItem]
   let isDarkMode: Bool
   let opacity: Double
+  let activeTab: String?
 }
 
 // Custom row view with hover effect
@@ -200,16 +202,20 @@ final class HoverableTableRowView: NSTableRowView {
 
 final class ClipboardPopupWindow: NSPanel {
   private var historyItems: [ClipboardItem] = []
+  private var snippetItems: [ClipboardItem] = []
   private var previousApp: NSRunningApplication?
   private var tableView: NSTableView!
   private var scrollView: NSScrollView!
   private var isDarkMode: Bool = false
   private var opacity: Double = 1.0
+  private var activeTab: String = "history"
 
-  init(items: [ClipboardItem], position: NSPoint, isDarkMode: Bool = false, opacity: Double = 1.0) {
+  init(items: [ClipboardItem], position: NSPoint, isDarkMode: Bool = false, opacity: Double = 1.0, activeTab: String = "history") {
     self.historyItems = items
+    self.snippetItems = [] // TODO: Load snippet data from persistence
     self.isDarkMode = isDarkMode
     self.opacity = opacity
+    self.activeTab = activeTab
 
     // Capture previous app before showing window
     if let activeApp = NSWorkspace.shared.frontmostApplication,
@@ -298,8 +304,8 @@ final class ClipboardPopupWindow: NSPanel {
 
     contentView?.addSubview(containerView)
 
-    // Header/Titlebar (22px height)
-    let headerHeight: CGFloat = 22
+    // Header/Titlebar (23px height - increased by 1px)
+    let headerHeight: CGFloat = 23
     let headerView = NSView(frame: NSRect(
       x: 0,
       y: containerView.bounds.height - headerHeight,
@@ -307,27 +313,74 @@ final class ClipboardPopupWindow: NSPanel {
       height: headerHeight
     ))
 
-    // Header title label
-    let titleLabel = NSTextField(frame: NSRect(
-      x: 8,
-      y: 2,
-      width: containerView.bounds.width - 40,  // Leave space for close button
-      height: 16
+    // Tab buttons container
+    let tabsContainer = NSView(frame: NSRect(
+      x: 0,
+      y: 0,
+      width: containerView.bounds.width - 30,  // Leave space for close button
+      height: headerHeight
     ))
-    titleLabel.isEditable = false
-    titleLabel.isBordered = false
-    titleLabel.backgroundColor = .clear
-    titleLabel.stringValue = "Clipboard History"
-    titleLabel.font = .systemFont(ofSize: 10)
 
-    // Apply theme-aware text color - match main window history tab
-    if isDarkMode {
-      titleLabel.textColor = NSColor(red: 0xe5/255.0, green: 0xe7/255.0, blue: 0xeb/255.0, alpha: 1.0)  // #e5e7eb
+    // History tab button (matching main window style)
+    let historyTabButton = NSButton(frame: NSRect(
+      x: 4,
+      y: 3,
+      width: 50,
+      height: 17
+    ))
+    historyTabButton.title = "History"
+    historyTabButton.bezelStyle = .recessed
+    historyTabButton.isBordered = false
+    historyTabButton.wantsLayer = true
+    historyTabButton.layer?.cornerRadius = 4
+    historyTabButton.font = .systemFont(ofSize: 10, weight: .medium)
+    historyTabButton.alignment = .center
+    historyTabButton.target = self
+    historyTabButton.action = #selector(switchToHistoryTab)
+
+    // Apply theme-aware colors based on active state
+    if activeTab == "history" {
+      historyTabButton.contentTintColor = isDarkMode
+        ? NSColor(red: 0xe5/255.0, green: 0xe7/255.0, blue: 0xeb/255.0, alpha: 1.0)  // #e5e7eb
+        : NSColor(red: 0x0b/255.0, green: 0x12/255.0, blue: 0x20/255.0, alpha: 1.0)  // #0b1220
+      historyTabButton.layer?.backgroundColor = NSColor.clear.cgColor
     } else {
-      titleLabel.textColor = NSColor(red: 0x37/255.0, green: 0x41/255.0, blue: 0x51/255.0, alpha: 1.0)  // #374151
+      historyTabButton.contentTintColor = NSColor(red: 0x9c/255.0, green: 0xa3/255.0, blue: 0xaf/255.0, alpha: 1.0)  // #9ca3af
+      historyTabButton.layer?.backgroundColor = NSColor.clear.cgColor
     }
 
-    headerView.addSubview(titleLabel)
+    tabsContainer.addSubview(historyTabButton)
+
+    // Snippet tab button
+    let snippetTabButton = NSButton(frame: NSRect(
+      x: 54,
+      y: 3,
+      width: 50,
+      height: 17
+    ))
+    snippetTabButton.title = "Snippet"
+    snippetTabButton.bezelStyle = .recessed
+    snippetTabButton.isBordered = false
+    snippetTabButton.wantsLayer = true
+    snippetTabButton.layer?.cornerRadius = 4
+    snippetTabButton.font = .systemFont(ofSize: 10, weight: .medium)
+    snippetTabButton.alignment = .center
+    snippetTabButton.target = self
+    snippetTabButton.action = #selector(switchToSnippetTab)
+
+    // Apply theme-aware colors based on active state
+    if activeTab == "snippet" {
+      snippetTabButton.contentTintColor = isDarkMode
+        ? NSColor(red: 0xe5/255.0, green: 0xe7/255.0, blue: 0xeb/255.0, alpha: 1.0)  // #e5e7eb
+        : NSColor(red: 0x0b/255.0, green: 0x12/255.0, blue: 0x20/255.0, alpha: 1.0)  // #0b1220
+      snippetTabButton.layer?.backgroundColor = NSColor.clear.cgColor
+    } else {
+      snippetTabButton.contentTintColor = NSColor(red: 0x9c/255.0, green: 0xa3/255.0, blue: 0xaf/255.0, alpha: 1.0)  // #9ca3af
+      snippetTabButton.layer?.backgroundColor = NSColor.clear.cgColor
+    }
+
+    tabsContainer.addSubview(snippetTabButton)
+    headerView.addSubview(tabsContainer)
 
     // Close button in header (top-right, 11px size)
     let closeButtonSize: CGFloat = 11
@@ -404,6 +457,16 @@ final class ClipboardPopupWindow: NSPanel {
     self.close()
   }
 
+  @objc private func switchToHistoryTab() {
+    activeTab = "history"
+    tableView.reloadData()
+  }
+
+  @objc private func switchToSnippetTab() {
+    activeTab = "snippet"
+    tableView.reloadData()
+  }
+
   func updateHistory(items: [ClipboardItem]) {
     DispatchQueue.main.async { [weak self] in
       guard let self = self else { return }
@@ -413,8 +476,9 @@ final class ClipboardPopupWindow: NSPanel {
   }
 
   private func handleItemClick(index: Int) {
-    guard index >= 0 && index < historyItems.count else { return }
-    let item = historyItems[index]
+    let items = activeTab == "history" ? historyItems : snippetItems
+    guard index >= 0 && index < items.count else { return }
+    let item = items[index]
 
     // Visual feedback
     if let rowView = tableView.rowView(atRow: index, makeIfNecessary: false) {
@@ -488,14 +552,16 @@ final class ClipboardPopupWindow: NSPanel {
 
 extension ClipboardPopupWindow: NSTableViewDataSource {
   func numberOfRows(in tableView: NSTableView) -> Int {
-    return historyItems.count
+    return activeTab == "history" ? historyItems.count : snippetItems.count
   }
 }
 
 extension ClipboardPopupWindow: NSTableViewDelegate {
   func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
     let identifier = NSUserInterfaceItemIdentifier("ClipboardItemCell")
-    let item = historyItems[row]
+    let items = activeTab == "history" ? historyItems : snippetItems
+    guard row >= 0 && row < items.count else { return nil }
+    let item = items[row]
 
     // Clear any existing cell and create fresh
     let cellView = NSTableCellView()
@@ -611,8 +677,9 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
   }
 
   func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
-    guard row >= 0 && row < historyItems.count else { return 46 }
-    let item = historyItems[row]
+    let items = activeTab == "history" ? historyItems : snippetItems
+    guard row >= 0 && row < items.count else { return 46 }
+    let item = items[row]
 
     let topPadding: CGFloat = 3
     let bottomPadding: CGFloat = 3
@@ -1038,7 +1105,8 @@ struct IrukaAutomationCLI {
       items: input.items,
       position: position,
       isDarkMode: input.isDarkMode,
-      opacity: input.opacity
+      opacity: input.opacity,
+      activeTab: input.activeTab ?? "history"
     )
 
     window.makeKeyAndOrderFront(nil)
