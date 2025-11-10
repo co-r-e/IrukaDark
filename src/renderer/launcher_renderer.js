@@ -15,8 +15,32 @@ class LauncherUI {
     this.searchTimeout = null;
     this.searchId = 0; // Track search requests to prevent race conditions
     this.activeFilters = new Set(['application', 'file', 'system-command']); // All active by default
+
+    // PERFORMANCE: Favorites optimization
     this.favorites = this.loadFavorites();
+    this.favoritesSet = new Set(); // O(1) lookup for isFavorite()
+    this.favoritesMap = new Map(); // O(1) lookup for favorite data
+    this.rebuildFavoritesIndex();
+
+    // PERFORMANCE: Search cache (LRU)
+    this.searchCache = new Map();
+    this.searchCacheMaxSize = 50;
+    this.searchCacheKeys = []; // Track insertion order for LRU
+
+    // PERFORMANCE: Rendered items tracking for diff updates
+    this.renderedResultIds = new Set();
+
     this.init();
+  }
+
+  // PERFORMANCE: Build Set and Map from favorites array for O(1) lookup
+  rebuildFavoritesIndex() {
+    this.favoritesSet.clear();
+    this.favoritesMap.clear();
+    this.favorites.forEach((fav) => {
+      this.favoritesSet.add(fav.key);
+      this.favoritesMap.set(fav.key, fav);
+    });
   }
 
   init() {
@@ -59,12 +83,43 @@ class LauncherUI {
       }
     });
 
+    // PERFORMANCE: Event delegation for result items
+    if (this.resultsContainer) {
+      this.resultsContainer.addEventListener('click', (e) => {
+        this.handleResultsClick(e);
+      });
+    }
+
     // Focus search input when launcher tab is opened
     this.searchInput.focus();
 
     // Show favorites if search is empty on init
     if (!this.searchInput.value.trim()) {
       this.showFavorites();
+    }
+  }
+
+  // PERFORMANCE: Event delegation handler for all result item clicks
+  handleResultsClick(e) {
+    // Handle favorite button click
+    const favoriteBtn = e.target.closest('.launcher-favorite-btn');
+    if (favoriteBtn) {
+      e.stopPropagation();
+      const index = parseInt(favoriteBtn.dataset.index);
+      if (this.results[index]) {
+        this.toggleFavorite(this.results[index]);
+      }
+      return;
+    }
+
+    // Handle result item click
+    const resultItem = e.target.closest('.launcher-result-item');
+    if (resultItem) {
+      const index = parseInt(resultItem.dataset.index);
+      if (this.results[index]) {
+        this.executeResult(this.results[index]);
+      }
+      return;
     }
   }
 
@@ -83,15 +138,25 @@ class LauncherUI {
       return;
     }
 
-    // Debounce search
+    // PERFORMANCE: Increased debounce from 150ms to 300ms (reduces search frequency by 50%)
     this.searchTimeout = setTimeout(async () => {
       await this.performSearch(query);
-    }, 150);
+    }, 300);
   }
 
   async performSearch(query) {
     // Increment search ID to track this search request
     const currentSearchId = ++this.searchId;
+
+    // PERFORMANCE: Check cache first (LRU cache)
+    if (this.searchCache.has(query)) {
+      const cachedResults = this.searchCache.get(query);
+      // Move to end for LRU (most recently used)
+      this.searchCache.delete(query);
+      this.searchCache.set(query, cachedResults);
+      this.renderResults(cachedResults);
+      return;
+    }
 
     try {
       // Search all sources in parallel
@@ -113,6 +178,9 @@ class LauncherUI {
         ...files.map((file) => ({ ...file, type: 'file' })),
       ];
 
+      // PERFORMANCE: Cache results (LRU eviction)
+      this.addToSearchCache(query, allResults);
+
       this.renderResults(allResults);
     } catch (err) {
       // Only show error if this is still the latest search
@@ -122,6 +190,16 @@ class LauncherUI {
       console.error('Search error:', err);
       this.renderError();
     }
+  }
+
+  // PERFORMANCE: LRU cache management
+  addToSearchCache(query, results) {
+    // If cache is full, remove oldest entry (FIFO/LRU)
+    if (this.searchCache.size >= this.searchCacheMaxSize) {
+      const firstKey = this.searchCache.keys().next().value;
+      this.searchCache.delete(firstKey);
+    }
+    this.searchCache.set(query, results);
   }
 
   renderResults(results) {
@@ -410,6 +488,7 @@ class LauncherUI {
     }
   }
 
+  // PERFORMANCE: Use RequestAnimationFrame for smooth rendering
   applyFilters() {
     // Filter results based on active filters
     const filteredResults = this.allResults.filter((result) => this.activeFilters.has(result.type));
@@ -417,54 +496,45 @@ class LauncherUI {
     this.results = filteredResults;
     this.selectedIndex = 0;
 
-    if (!filteredResults.length) {
-      this.resultsContainer.innerHTML = `
-        <div class="launcher-no-results" data-i18n="launcher.noResults">No results found</div>
-      `;
-      return;
-    }
+    // Use requestAnimationFrame for smooth rendering
+    requestAnimationFrame(() => {
+      if (!filteredResults.length) {
+        this.resultsContainer.innerHTML = `
+          <div class="launcher-no-results" data-i18n="launcher.noResults">No results found</div>
+        `;
+        return;
+      }
 
-    const html = filteredResults
-      .map((result, index) => {
+      // PERFORMANCE: Use Document Fragment for batch DOM updates
+      const fragment = document.createDocumentFragment();
+      const tempDiv = document.createElement('div');
+
+      filteredResults.forEach((result, index) => {
         const isFavorite = this.isFavorite(result);
-        return `
-      <div class="launcher-result-item ${index === 0 ? 'selected' : ''}" data-index="${index}">
-        <span class="launcher-result-icon">${this.renderIcon(result.icon, result.type)}</span>
-        <div class="launcher-result-content">
-          <div class="launcher-result-title">${this.escapeHtml(result.name || result.title)}</div>
-          ${result.path ? `<div class="launcher-result-subtitle">${this.escapeHtml(result.path)}</div>` : ''}
+        tempDiv.innerHTML = `
+        <div class="launcher-result-item ${index === 0 ? 'selected' : ''}" data-index="${index}">
+          <span class="launcher-result-icon">${this.renderIcon(result.icon, result.type)}</span>
+          <div class="launcher-result-content">
+            <div class="launcher-result-title">${this.escapeHtml(result.name || result.title)}</div>
+            ${result.path ? `<div class="launcher-result-subtitle">${this.escapeHtml(result.path)}</div>` : ''}
+          </div>
+          <span class="launcher-result-type">${this.getTypeLabel(result.type)}</span>
+          <button class="launcher-favorite-btn" data-index="${index}" aria-label="Toggle favorite">
+            <svg class="launcher-star-icon ${isFavorite ? 'favorited' : ''}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+          </button>
         </div>
-        <span class="launcher-result-type">${this.getTypeLabel(result.type)}</span>
-        <button class="launcher-favorite-btn" data-index="${index}" aria-label="Toggle favorite">
-          <svg class="launcher-star-icon ${isFavorite ? 'favorited' : ''}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-          </svg>
-        </button>
-      </div>
-    `;
-      })
-      .join('');
-
-    this.resultsContainer.innerHTML = html;
-
-    // Add click events for items
-    this.resultsContainer.querySelectorAll('.launcher-result-item').forEach((item) => {
-      item.addEventListener('click', (e) => {
-        // Don't execute if clicking on favorite button
-        if (e.target.closest('.launcher-favorite-btn')) return;
-        const index = parseInt(item.dataset.index);
-        this.executeResult(this.results[index]);
+      `;
+        fragment.appendChild(tempDiv.firstElementChild);
       });
+
+      // Single DOM update
+      this.resultsContainer.innerHTML = '';
+      this.resultsContainer.appendChild(fragment);
     });
 
-    // Add click events for favorite buttons
-    this.resultsContainer.querySelectorAll('.launcher-favorite-btn').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const index = parseInt(btn.dataset.index);
-        this.toggleFavorite(this.results[index]);
-      });
-    });
+    // PERFORMANCE: Event listeners removed - handled by event delegation in init()
   }
 
   // Favorite management methods
@@ -491,21 +561,27 @@ class LauncherUI {
     return `${result.type}:${result.path || result.id || result.name}`;
   }
 
+  // PERFORMANCE: O(1) lookup using Set instead of O(n) array search
   isFavorite(result) {
     const key = this.getResultKey(result);
-    return this.favorites.some((fav) => fav.key === key);
+    return this.favoritesSet.has(key);
   }
 
   toggleFavorite(result) {
     const key = this.getResultKey(result);
-    const index = this.favorites.findIndex((fav) => fav.key === key);
 
-    if (index >= 0) {
+    // PERFORMANCE: Use Set for O(1) lookup
+    if (this.favoritesSet.has(key)) {
       // Remove from favorites
-      this.favorites.splice(index, 1);
+      const index = this.favorites.findIndex((fav) => fav.key === key);
+      if (index >= 0) {
+        this.favorites.splice(index, 1);
+      }
+      this.favoritesSet.delete(key);
+      this.favoritesMap.delete(key);
     } else {
       // Add to favorites
-      this.favorites.push({
+      const favorite = {
         key,
         type: result.type,
         name: result.name || result.title,
@@ -513,7 +589,10 @@ class LauncherUI {
         id: result.id,
         icon: result.icon,
         timestamp: Date.now(),
-      });
+      };
+      this.favorites.push(favorite);
+      this.favoritesSet.add(key);
+      this.favoritesMap.set(key, favorite);
     }
 
     this.saveFavorites();
@@ -535,6 +614,7 @@ class LauncherUI {
     }
   }
 
+  // PERFORMANCE: Use RequestAnimationFrame for smooth rendering
   showFavorites() {
     if (!this.favorites.length) {
       this.resultsContainer.innerHTML = '';
@@ -554,45 +634,37 @@ class LauncherUI {
     this.allResults = [...this.results];
     this.selectedIndex = 0;
 
-    const html = this.results
-      .map(
-        (result, index) => `
-      <div class="launcher-result-item ${index === 0 ? 'selected' : ''}" data-index="${index}">
-        <span class="launcher-result-icon">${this.renderIcon(result.icon, result.type)}</span>
-        <div class="launcher-result-content">
-          <div class="launcher-result-title">${this.escapeHtml(result.name)}</div>
-          ${result.path ? `<div class="launcher-result-subtitle">${this.escapeHtml(result.path)}</div>` : ''}
+    // Use requestAnimationFrame for smooth rendering
+    requestAnimationFrame(() => {
+      // PERFORMANCE: Use Document Fragment for batch DOM updates
+      const fragment = document.createDocumentFragment();
+      const tempDiv = document.createElement('div');
+
+      this.results.forEach((result, index) => {
+        tempDiv.innerHTML = `
+        <div class="launcher-result-item ${index === 0 ? 'selected' : ''}" data-index="${index}">
+          <span class="launcher-result-icon">${this.renderIcon(result.icon, result.type)}</span>
+          <div class="launcher-result-content">
+            <div class="launcher-result-title">${this.escapeHtml(result.name)}</div>
+            ${result.path ? `<div class="launcher-result-subtitle">${this.escapeHtml(result.path)}</div>` : ''}
+          </div>
+          <span class="launcher-result-type">${this.getTypeLabel(result.type)}</span>
+          <button class="launcher-favorite-btn" data-index="${index}" aria-label="Remove favorite">
+            <svg class="launcher-star-icon favorited" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+          </button>
         </div>
-        <span class="launcher-result-type">${this.getTypeLabel(result.type)}</span>
-        <button class="launcher-favorite-btn" data-index="${index}" aria-label="Remove favorite">
-          <svg class="launcher-star-icon favorited" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-          </svg>
-        </button>
-      </div>
-    `
-      )
-      .join('');
-
-    this.resultsContainer.innerHTML = html;
-
-    // Add click events for items
-    this.resultsContainer.querySelectorAll('.launcher-result-item').forEach((item) => {
-      item.addEventListener('click', (e) => {
-        if (e.target.closest('.launcher-favorite-btn')) return;
-        const index = parseInt(item.dataset.index);
-        this.executeResult(this.results[index]);
+      `;
+        fragment.appendChild(tempDiv.firstElementChild);
       });
+
+      // Single DOM update
+      this.resultsContainer.innerHTML = '';
+      this.resultsContainer.appendChild(fragment);
     });
 
-    // Add click events for favorite buttons
-    this.resultsContainer.querySelectorAll('.launcher-favorite-btn').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const index = parseInt(btn.dataset.index);
-        this.toggleFavorite(this.results[index]);
-      });
-    });
+    // PERFORMANCE: Event listeners removed - handled by event delegation in init()
   }
 }
 
