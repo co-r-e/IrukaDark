@@ -769,7 +769,7 @@ function bootstrapApp() {
     }
 
     // Clipboard history popup shortcut (toggle behavior)
-    const clipboardPopupCandidates = ['CommandOrControl+Shift+V'];
+    const clipboardPopupCandidates = ['Alt+C'];
     for (const c of clipboardPopupCandidates) {
       try {
         const ok = globalShortcut.register(c, () => {

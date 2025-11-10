@@ -210,6 +210,11 @@ final class ClipboardPopupWindow: NSPanel {
   private var opacity: Double = 1.0
   private var activeTab: String = "history"
 
+  // PERFORMANCE: Caches for optimization
+  private var rowHeightCache: [Int: CGFloat] = [:]
+  private var imageCache: [String: NSImage] = [:]
+  private let imageCacheMaxSize = 50
+
   init(items: [ClipboardItem], position: NSPoint, isDarkMode: Bool = false, opacity: Double = 1.0, activeTab: String = "history") {
     self.historyItems = items
     self.snippetItems = [] // TODO: Load snippet data from persistence
@@ -304,8 +309,8 @@ final class ClipboardPopupWindow: NSPanel {
 
     contentView?.addSubview(containerView)
 
-    // Header/Titlebar (23px height - increased by 1px)
-    let headerHeight: CGFloat = 23
+    // Header/Titlebar (24px height - increased by 1px)
+    let headerHeight: CGFloat = 24
     let headerView = NSView(frame: NSRect(
       x: 0,
       y: containerView.bounds.height - headerHeight,
@@ -323,7 +328,7 @@ final class ClipboardPopupWindow: NSPanel {
 
     // History tab button (matching main window style)
     let historyTabButton = NSButton(frame: NSRect(
-      x: 4,
+      x: 6,  // Increased from 5 to 6 (left margin +2px total)
       y: 3,
       width: 50,
       height: 17
@@ -337,23 +342,23 @@ final class ClipboardPopupWindow: NSPanel {
     historyTabButton.alignment = .center
     historyTabButton.target = self
     historyTabButton.action = #selector(switchToHistoryTab)
+    historyTabButton.tag = 100  // Tag for finding button later
 
     // Apply theme-aware colors based on active state
     if activeTab == "history" {
       historyTabButton.contentTintColor = isDarkMode
         ? NSColor(red: 0xe5/255.0, green: 0xe7/255.0, blue: 0xeb/255.0, alpha: 1.0)  // #e5e7eb
         : NSColor(red: 0x0b/255.0, green: 0x12/255.0, blue: 0x20/255.0, alpha: 1.0)  // #0b1220
-      historyTabButton.layer?.backgroundColor = NSColor.clear.cgColor
     } else {
       historyTabButton.contentTintColor = NSColor(red: 0x9c/255.0, green: 0xa3/255.0, blue: 0xaf/255.0, alpha: 1.0)  // #9ca3af
-      historyTabButton.layer?.backgroundColor = NSColor.clear.cgColor
     }
+    historyTabButton.layer?.backgroundColor = NSColor.clear.cgColor
 
     tabsContainer.addSubview(historyTabButton)
 
     // Snippet tab button
     let snippetTabButton = NSButton(frame: NSRect(
-      x: 54,
+      x: 56,  // Increased from 55 to 56 (follows History tab shift)
       y: 3,
       width: 50,
       height: 17
@@ -367,24 +372,24 @@ final class ClipboardPopupWindow: NSPanel {
     snippetTabButton.alignment = .center
     snippetTabButton.target = self
     snippetTabButton.action = #selector(switchToSnippetTab)
+    snippetTabButton.tag = 101  // Tag for finding button later
 
     // Apply theme-aware colors based on active state
     if activeTab == "snippet" {
       snippetTabButton.contentTintColor = isDarkMode
         ? NSColor(red: 0xe5/255.0, green: 0xe7/255.0, blue: 0xeb/255.0, alpha: 1.0)  // #e5e7eb
         : NSColor(red: 0x0b/255.0, green: 0x12/255.0, blue: 0x20/255.0, alpha: 1.0)  // #0b1220
-      snippetTabButton.layer?.backgroundColor = NSColor.clear.cgColor
     } else {
       snippetTabButton.contentTintColor = NSColor(red: 0x9c/255.0, green: 0xa3/255.0, blue: 0xaf/255.0, alpha: 1.0)  // #9ca3af
-      snippetTabButton.layer?.backgroundColor = NSColor.clear.cgColor
     }
+    snippetTabButton.layer?.backgroundColor = NSColor.clear.cgColor
 
     tabsContainer.addSubview(snippetTabButton)
     headerView.addSubview(tabsContainer)
 
     // Close button in header (top-right, 11px size)
     let closeButtonSize: CGFloat = 11
-    let closeButtonMargin: CGFloat = 6
+    let closeButtonMargin: CGFloat = 8  // Increased from 7 to 8 (right margin +2px total)
     let closeButton = NSButton(frame: NSRect(
       x: containerView.bounds.width - closeButtonSize - closeButtonMargin,
       y: (headerHeight - closeButtonSize) / 2,
@@ -459,19 +464,99 @@ final class ClipboardPopupWindow: NSPanel {
 
   @objc private func switchToHistoryTab() {
     activeTab = "history"
+    // PERFORMANCE: Clear cache when switching tabs
+    rowHeightCache.removeAll()
+    // Update tab button styles
+    updateTabStyles()
     tableView.reloadData()
   }
 
   @objc private func switchToSnippetTab() {
     activeTab = "snippet"
+    // PERFORMANCE: Clear cache when switching tabs
+    rowHeightCache.removeAll()
+    // Update tab button styles
+    updateTabStyles()
     tableView.reloadData()
+  }
+
+  private func updateTabStyles() {
+    // Find tab buttons by tag (we'll set tags during setup)
+    guard let containerView = contentView?.subviews.first,
+          let headerView = containerView.subviews.last(where: { $0.frame.maxY == containerView.bounds.maxY }),
+          let tabsContainer = headerView.subviews.first(where: { $0.frame.minX == 0 }) else {
+      return
+    }
+
+    // History tab button (tag 100) and Snippet tab button (tag 101)
+    if let historyBtn = tabsContainer.viewWithTag(100) as? NSButton,
+       let snippetBtn = tabsContainer.viewWithTag(101) as? NSButton {
+
+      if activeTab == "history" {
+        // Active: History
+        historyBtn.contentTintColor = isDarkMode
+          ? NSColor(red: 0xe5/255.0, green: 0xe7/255.0, blue: 0xeb/255.0, alpha: 1.0)  // #e5e7eb
+          : NSColor(red: 0x0b/255.0, green: 0x12/255.0, blue: 0x20/255.0, alpha: 1.0)  // #0b1220
+
+        // Inactive: Snippet
+        snippetBtn.contentTintColor = NSColor(red: 0x9c/255.0, green: 0xa3/255.0, blue: 0xaf/255.0, alpha: 1.0)  // #9ca3af
+      } else {
+        // Inactive: History
+        historyBtn.contentTintColor = NSColor(red: 0x9c/255.0, green: 0xa3/255.0, blue: 0xaf/255.0, alpha: 1.0)  // #9ca3af
+
+        // Active: Snippet
+        snippetBtn.contentTintColor = isDarkMode
+          ? NSColor(red: 0xe5/255.0, green: 0xe7/255.0, blue: 0xeb/255.0, alpha: 1.0)  // #e5e7eb
+          : NSColor(red: 0x0b/255.0, green: 0x12/255.0, blue: 0x20/255.0, alpha: 1.0)  // #0b1220
+      }
+    }
   }
 
   func updateHistory(items: [ClipboardItem]) {
     DispatchQueue.main.async { [weak self] in
       guard let self = self else { return }
-      self.historyItems = items
-      self.tableView.reloadData()
+
+      // PERFORMANCE: Differential updates - only update what changed
+      let oldCount = self.historyItems.count
+      let newCount = items.count
+
+      if newCount > oldCount {
+        // New items added at the beginning
+        let newIndexes = IndexSet(integersIn: 0..<(newCount - oldCount))
+        self.historyItems = items
+
+        // Clear cache only for affected rows
+        var newCache: [Int: CGFloat] = [:]
+        for (oldRow, height) in self.rowHeightCache {
+          let newRow = oldRow + (newCount - oldCount)
+          newCache[newRow] = height
+        }
+        self.rowHeightCache = newCache
+
+        // Animate insertion
+        self.tableView.insertRows(at: newIndexes, withAnimation: .slideDown)
+      } else if newCount < oldCount {
+        // Items removed
+        let removedIndexes = IndexSet(integersIn: newCount..<oldCount)
+        self.historyItems = items
+
+        // Clear cache for removed rows and adjust remaining
+        var newCache: [Int: CGFloat] = [:]
+        for (oldRow, height) in self.rowHeightCache {
+          if oldRow < newCount {
+            newCache[oldRow] = height
+          }
+        }
+        self.rowHeightCache = newCache
+
+        // Animate removal
+        self.tableView.removeRows(at: removedIndexes, withAnimation: .slideUp)
+      } else {
+        // Same count - full reload (content may have changed)
+        self.historyItems = items
+        self.rowHeightCache.removeAll()
+        self.tableView.reloadData()
+      }
     }
   }
 
@@ -563,9 +648,17 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
     guard row >= 0 && row < items.count else { return nil }
     let item = items[row]
 
-    // Clear any existing cell and create fresh
-    let cellView = NSTableCellView()
-    cellView.identifier = identifier
+    // PERFORMANCE: Reuse cells instead of creating new ones
+    var cellView = tableView.makeView(withIdentifier: identifier, owner: self) as? NSTableCellView
+    if cellView == nil {
+      cellView = NSTableCellView()
+      cellView?.identifier = identifier
+    }
+
+    // Clear existing subviews when reusing
+    cellView?.subviews.forEach { $0.removeFromSuperview() }
+
+    guard let cell = cellView else { return nil }
 
     // Padding: top(3px) + bottom(3px) + left(3px) + right(8px)
     let leftPadding: CGFloat = 3
@@ -625,8 +718,8 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
         textField.textColor = NSColor(red: 0x37/255.0, green: 0x41/255.0, blue: 0x51/255.0, alpha: 1.0)  // #374151
       }
 
-      cellView.addSubview(textField)
-      cellView.textField = textField
+      cell.addSubview(textField)
+      cell.textField = textField
     }
 
     // Add image only if there's no text (text takes priority)
@@ -644,25 +737,40 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
         imageView.image = image
         imageView.imageScaling = .scaleProportionallyDown
         imageView.imageAlignment = .alignLeft
-        cellView.addSubview(imageView)
+        cell.addSubview(imageView)
       }
     }
 
-    return cellView
+    return cell
   }
 
   private func imageFromDataURL(_ dataURL: String) -> NSImage? {
+    // PERFORMANCE: Check cache first
+    if let cached = imageCache[dataURL] {
+      return cached
+    }
+
     // DataURL format: "data:image/png;base64,..."
     guard let commaRange = dataURL.range(of: ","),
           let base64String = dataURL[commaRange.upperBound...].removingPercentEncoding else {
       return nil
     }
 
-    guard let imageData = Data(base64Encoded: String(base64String)) else {
+    guard let imageData = Data(base64Encoded: String(base64String)),
+          let image = NSImage(data: imageData) else {
       return nil
     }
 
-    return NSImage(data: imageData)
+    // PERFORMANCE: Cache the decoded image with LRU eviction
+    if imageCache.count >= imageCacheMaxSize {
+      // Remove oldest entry (first key)
+      if let firstKey = imageCache.keys.first {
+        imageCache.removeValue(forKey: firstKey)
+      }
+    }
+    imageCache[dataURL] = image
+
+    return image
   }
 
   func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
@@ -677,6 +785,12 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
   }
 
   func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
+    // PERFORMANCE: Check cache first
+    if let cached = rowHeightCache[row] {
+      return cached
+    }
+
+    // Calculate height
     let items = activeTab == "history" ? historyItems : snippetItems
     guard row >= 0 && row < items.count else { return 46 }
     let item = items[row]
@@ -714,7 +828,12 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
     totalHeight += bottomPadding
 
     // Minimum height
-    return max(totalHeight, 22)
+    let height = max(totalHeight, 22)
+
+    // PERFORMANCE: Cache the calculated height
+    rowHeightCache[row] = height
+
+    return height
   }
 }
 
