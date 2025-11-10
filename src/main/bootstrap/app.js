@@ -997,6 +997,9 @@ function bootstrapApp() {
     const { getClipboardHistoryService } = require('../services/clipboardHistory');
     const clipboardService = getClipboardHistoryService();
 
+    // Debounce popup updates to avoid excessive IPC
+    let popupUpdateTimeout = null;
+
     // Start monitoring clipboard on app start
     clipboardService.startMonitoring();
 
@@ -1011,16 +1014,25 @@ function bootstrapApp() {
         console.error('Error notifying main window:', err);
       }
 
-      // Also update clipboard popup if it's active
+      // Debounce popup updates (only update every 500ms max)
       try {
         if (isClipboardPopupActive()) {
-          const theme = getPref('UI_THEME') || 'dark';
-          const isDarkMode = theme === 'dark';
-          const opacity = parseFloat(getPref('WINDOW_OPACITY') || '1');
-          updateClipboardPopup(history, { isDarkMode, opacity });
+          if (popupUpdateTimeout) {
+            clearTimeout(popupUpdateTimeout);
+          }
+          popupUpdateTimeout = setTimeout(() => {
+            try {
+              const theme = getPref('UI_THEME') || 'dark';
+              const isDarkMode = theme === 'dark';
+              const opacity = parseFloat(getPref('WINDOW_OPACITY') || '1');
+              updateClipboardPopup(history, { isDarkMode, opacity });
+            } catch (err) {
+              console.error('Error updating clipboard popup:', err);
+            }
+          }, 500);
         }
       } catch (err) {
-        console.error('Error updating clipboard popup:', err);
+        console.error('Error scheduling clipboard popup update:', err);
       }
     });
 
