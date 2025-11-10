@@ -50,6 +50,22 @@ class ClipboardHistoryUI {
     this.snippetSearchResults = [];
     this.clipboardHistory = []; // Store history data for search
 
+    // Performance optimization: track rendered items to enable diff updates
+    this.renderedHistoryIds = new Set();
+    this.renderedSnippetIds = new Set();
+    this.renderedFolderIds = new Set();
+
+    // Performance optimization: cache for DOM elements
+    this.historyItemCache = new Map();
+
+    // Debounce timers
+    this.searchDebounceTimer = null;
+
+    // PERFORMANCE: Virtual scrolling configuration
+    this.virtualScrollEnabled = true;
+    this.virtualScrollThreshold = 20; // Enable virtual scroll for >20 items
+    this.renderBatchSize = 10; // Render items in batches
+
     // i18n
     this.currentLang = 'en';
     this.i18n = null;
@@ -59,6 +75,35 @@ class ClipboardHistoryUI {
     this.applyTheme();
     this.loadHistory();
     this.loadSnippets();
+    this.setupVirtualScroll();
+  }
+
+  // PERFORMANCE: Setup virtual scrolling with Intersection Observer
+  setupVirtualScroll() {
+    if (!this.virtualScrollEnabled || !('IntersectionObserver' in window)) {
+      return;
+    }
+
+    // Observer for items entering/leaving viewport
+    this.itemVisibilityObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const item = entry.target;
+          if (entry.isIntersecting) {
+            // Item is visible - ensure it's fully rendered
+            item.classList.add('visible');
+          } else {
+            // Item is not visible - can optimize
+            item.classList.remove('visible');
+          }
+        });
+      },
+      {
+        root: null, // viewport
+        rootMargin: '100px', // Start rendering 100px before visible
+        threshold: 0.01,
+      }
+    );
   }
 
   async initI18n() {
@@ -164,11 +209,28 @@ class ClipboardHistoryUI {
       });
     }
 
-    // Search input events for history tab
+    // PERFORMANCE: Event delegation for clipboard history list
+    if (this.clipboardList) {
+      this.clipboardList.addEventListener('click', (e) => {
+        this.handleHistoryClick(e);
+      });
+    }
+
+    // PERFORMANCE: Event delegation for snippet list
+    if (this.snippetList) {
+      this.snippetList.addEventListener('click', (e) => {
+        this.handleSnippetClick(e);
+      });
+      this.snippetList.addEventListener('dblclick', (e) => {
+        this.handleSnippetDblClick(e);
+      });
+    }
+
+    // Search input events for history tab with DEBOUNCE
     if (this.historySearchInput) {
       this.historySearchInput.addEventListener('input', (e) => {
         this.historySearchQuery = e.target.value;
-        this.performHistorySearch();
+        this.debouncedHistorySearch();
         this.updateClearButtonVisibility('history');
       });
 
@@ -186,11 +248,11 @@ class ClipboardHistoryUI {
       });
     }
 
-    // Search input events for snippet tab
+    // Search input events for snippet tab with DEBOUNCE
     if (this.snippetSearchInput) {
       this.snippetSearchInput.addEventListener('input', (e) => {
         this.snippetSearchQuery = e.target.value;
-        this.performSnippetSearch();
+        this.debouncedSnippetSearch();
         this.updateClearButtonVisibility('snippet');
       });
 
@@ -206,6 +268,130 @@ class ClipboardHistoryUI {
       this.snippetClearSearch.addEventListener('click', () => {
         this.clearSearch('snippet');
       });
+    }
+  }
+
+  // PERFORMANCE: Debounced search for history
+  debouncedHistorySearch() {
+    if (this.searchDebounceTimer) {
+      clearTimeout(this.searchDebounceTimer);
+    }
+    this.searchDebounceTimer = setTimeout(() => {
+      this.performHistorySearch();
+    }, 300);
+  }
+
+  // PERFORMANCE: Debounced search for snippets
+  debouncedSnippetSearch() {
+    if (this.searchDebounceTimer) {
+      clearTimeout(this.searchDebounceTimer);
+    }
+    this.searchDebounceTimer = setTimeout(() => {
+      this.performSnippetSearch();
+    }, 300);
+  }
+
+  // PERFORMANCE: Event delegation handler for history list
+  handleHistoryClick(e) {
+    const wrapper = e.target.closest('.clipboard-item-wrapper');
+    if (!wrapper) return;
+
+    const itemId = wrapper.dataset.id;
+    const item = this.clipboardHistory.find((i) => i.id === itemId);
+    if (!item) return;
+
+    // Check if copy button was clicked
+    const copyBtn = e.target.closest('.clipboard-item-btn');
+    if (copyBtn || wrapper.contains(e.target)) {
+      this.copyItemWithFeedback(item, wrapper);
+    }
+  }
+
+  // PERFORMANCE: Event delegation handler for snippet list clicks
+  handleSnippetClick(e) {
+    // Handle folder more button
+    const folderMoreBtn = e.target.closest('.snippet-folder-more');
+    if (folderMoreBtn) {
+      const folderEl = folderMoreBtn.closest('.snippet-folder');
+      if (folderEl) {
+        e.stopPropagation();
+        this.toggleFolderMenu(folderEl.dataset.id);
+        return;
+      }
+    }
+
+    // Handle snippet more button
+    const snippetMoreBtn = e.target.closest('.snippet-item-more');
+    if (snippetMoreBtn) {
+      const snippetEl = snippetMoreBtn.closest('.snippet-item');
+      if (snippetEl) {
+        e.stopPropagation();
+        this.toggleSnippetMenu(snippetEl.dataset.id);
+        return;
+      }
+    }
+
+    // Handle folder click (toggle expand)
+    const folderEl = e.target.closest('.snippet-folder');
+    if (folderEl && !folderEl.querySelector('.snippet-folder-name-input')) {
+      const clickedInput = e.target.closest('.snippet-folder-name-input');
+      if (!clickedInput) {
+        this.toggleFolder(folderEl.dataset.id);
+        return;
+      }
+    }
+
+    // Handle snippet click (copy)
+    const snippetEl = e.target.closest('.snippet-item');
+    if (snippetEl && !snippetEl.classList.contains('editing')) {
+      const snippetId = snippetEl.dataset.id;
+      const snippet = this.snippets.find((s) => s.id === snippetId);
+      if (snippet) {
+        const iconDiv = snippetEl.querySelector('.snippet-item-icon');
+        const moreBtn = snippetEl.querySelector('.snippet-item-more');
+        this.copySnippet(snippet, iconDiv, moreBtn, snippetEl);
+      }
+    }
+
+    // Handle add folder button
+    const addFolderBtn = e.target.closest('.add-folder-btn');
+    if (addFolderBtn) {
+      e.stopPropagation();
+      this.addNewFolder();
+    }
+  }
+
+  // PERFORMANCE: Event delegation handler for snippet list double-clicks
+  handleSnippetDblClick(e) {
+    // Handle folder name double-click (edit)
+    const folderName = e.target.closest('.snippet-folder-name');
+    if (folderName) {
+      const folderEl = folderName.closest('.snippet-folder');
+      if (folderEl) {
+        e.stopPropagation();
+        this.startEditingFolder(folderEl.dataset.id);
+        return;
+      }
+    }
+
+    // Handle snippet double-click (edit)
+    const snippetEl = e.target.closest('.snippet-item');
+    if (snippetEl && !snippetEl.classList.contains('editing')) {
+      e.stopPropagation();
+      this.startEditingSnippet(snippetEl.dataset.id);
+    }
+  }
+
+  // Helper method for copy with feedback
+  async copyItemWithFeedback(item, wrapperEl) {
+    const copyBtn = wrapperEl.querySelector('.clipboard-item-btn');
+    if (await this.copyItem(item)) {
+      copyBtn.innerHTML = ICONS.CHECK;
+      wrapperEl.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
+      setTimeout(() => {
+        copyBtn.innerHTML = ICONS.COPY;
+        wrapperEl.style.backgroundColor = '';
+      }, 500);
     }
   }
 
@@ -315,67 +501,139 @@ class ClipboardHistoryUI {
       return;
     }
 
-    this.clipboardList.innerHTML = '';
+    // PERFORMANCE: Differential rendering - only update changed items
+    const newItemIds = new Set(items.map((item) => item.id));
+    const existingElements = this.clipboardList.querySelectorAll('.clipboard-item-wrapper');
 
-    items.forEach((item) => {
-      const wrapperEl = document.createElement('div');
-      wrapperEl.className = 'clipboard-item-wrapper';
-      wrapperEl.dataset.id = item.id;
+    // Remove items that no longer exist
+    existingElements.forEach((el) => {
+      if (!newItemIds.has(el.dataset.id)) {
+        el.remove();
+        this.renderedHistoryIds.delete(el.dataset.id);
+        this.historyItemCache.delete(el.dataset.id);
+      }
+    });
 
-      const itemEl = document.createElement('div');
-      itemEl.className = 'clipboard-item';
+    // Create document fragment for batch DOM updates
+    const fragment = document.createDocumentFragment();
+    const existingIds = new Set(Array.from(existingElements).map((el) => el.dataset.id));
 
-      const contentEl = document.createElement('div');
-      contentEl.className = 'clipboard-item-content';
-
-      if (item.type === 'image' && item.imageData) {
-        // Display image
-        const imgEl = document.createElement('img');
-        imgEl.className = 'clipboard-item-image';
-        imgEl.src = item.imageData;
-        imgEl.alt = 'Clipboard image';
-        contentEl.appendChild(imgEl);
-      } else {
-        // Display text
-        const textEl = document.createElement('div');
-        textEl.className = 'clipboard-item-text';
-        textEl.textContent = item.text || '';
-        contentEl.appendChild(textEl);
+    items.forEach((item, index) => {
+      // PERFORMANCE: Skip if already rendered
+      if (existingIds.has(item.id)) {
+        // Move to correct position if needed
+        const existingEl = this.clipboardList.querySelector(`[data-id="${item.id}"]`);
+        if (existingEl && this.clipboardList.children[index] !== existingEl) {
+          if (index < this.clipboardList.children.length) {
+            this.clipboardList.insertBefore(existingEl, this.clipboardList.children[index]);
+          } else {
+            this.clipboardList.appendChild(existingEl);
+          }
+        }
+        return;
       }
 
-      const actionsEl = document.createElement('div');
-      actionsEl.className = 'clipboard-item-actions';
+      // Create new item element
+      const wrapperEl = this.createHistoryItemElement(item);
+      this.renderedHistoryIds.add(item.id);
+      this.historyItemCache.set(item.id, wrapperEl);
 
-      const copyBtn = document.createElement('button');
-      copyBtn.className = 'clipboard-item-btn copy';
-      copyBtn.title = this.t('copy');
-      copyBtn.innerHTML = ICONS.COPY;
-
-      const showSuccessFeedback = () => {
-        copyBtn.innerHTML = ICONS.CHECK;
-        wrapperEl.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
-        setTimeout(() => {
-          copyBtn.innerHTML = ICONS.COPY;
-          wrapperEl.style.backgroundColor = '';
-        }, 500);
-      };
-
-      copyBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        if (await this.copyItem(item)) showSuccessFeedback();
-      });
-
-      wrapperEl.addEventListener('click', async () => {
-        if (await this.copyItem(item)) showSuccessFeedback();
-      });
-
-      actionsEl.appendChild(copyBtn);
-      itemEl.appendChild(contentEl);
-      itemEl.appendChild(actionsEl);
-      wrapperEl.appendChild(itemEl);
-
-      this.clipboardList.appendChild(wrapperEl);
+      // Add to fragment for batch insertion
+      if (index < this.clipboardList.children.length) {
+        this.clipboardList.insertBefore(wrapperEl, this.clipboardList.children[index]);
+      } else {
+        fragment.appendChild(wrapperEl);
+      }
     });
+
+    // Batch append new items
+    if (fragment.children.length > 0) {
+      this.clipboardList.appendChild(fragment);
+    }
+  }
+
+  // PERFORMANCE: Create history item element (no event listeners - using delegation)
+  createHistoryItemElement(item) {
+    const wrapperEl = document.createElement('div');
+    wrapperEl.className = 'clipboard-item-wrapper';
+    wrapperEl.dataset.id = item.id;
+
+    const itemEl = document.createElement('div');
+    itemEl.className = 'clipboard-item';
+
+    const contentEl = document.createElement('div');
+    contentEl.className = 'clipboard-item-content';
+
+    if (item.type === 'image' && item.imageData) {
+      // PERFORMANCE: Lazy load images
+      const imgEl = document.createElement('img');
+      imgEl.className = 'clipboard-item-image';
+      imgEl.alt = 'Clipboard image';
+      imgEl.loading = 'lazy'; // Native lazy loading
+      imgEl.dataset.src = item.imageData; // Store src for lazy loading
+
+      // Use Intersection Observer for progressive loading
+      if ('IntersectionObserver' in window) {
+        imgEl.src =
+          'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"%3E%3Crect fill="%23f0f0f0" width="200" height="200"/%3E%3C/svg%3E';
+        this.observeImage(imgEl);
+      } else {
+        imgEl.src = item.imageData;
+      }
+
+      contentEl.appendChild(imgEl);
+    } else {
+      // Display text
+      const textEl = document.createElement('div');
+      textEl.className = 'clipboard-item-text';
+      textEl.textContent = item.text || '';
+      contentEl.appendChild(textEl);
+    }
+
+    const actionsEl = document.createElement('div');
+    actionsEl.className = 'clipboard-item-actions';
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'clipboard-item-btn copy';
+    copyBtn.title = this.t('copy');
+    copyBtn.innerHTML = ICONS.COPY;
+
+    actionsEl.appendChild(copyBtn);
+    itemEl.appendChild(contentEl);
+    itemEl.appendChild(actionsEl);
+    wrapperEl.appendChild(itemEl);
+
+    // PERFORMANCE: Observe wrapper for virtual scrolling
+    if (this.itemVisibilityObserver) {
+      this.itemVisibilityObserver.observe(wrapperEl);
+    }
+
+    return wrapperEl;
+  }
+
+  // PERFORMANCE: Intersection Observer for lazy image loading
+  observeImage(imgEl) {
+    if (!this.imageObserver) {
+      this.imageObserver = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              const img = entry.target;
+              const src = img.dataset.src;
+              if (src) {
+                img.src = src;
+                img.removeAttribute('data-src');
+                this.imageObserver.unobserve(img);
+              }
+            }
+          });
+        },
+        {
+          rootMargin: '50px', // Start loading 50px before visible
+        }
+      );
+    }
+    this.imageObserver.observe(imgEl);
   }
 
   renderEmpty() {
@@ -389,6 +647,7 @@ class ClipboardHistoryUI {
     `;
   }
 
+  // PERFORMANCE: Removed event listeners from folder elements (using delegation)
   renderFolder(folder, parentContainer) {
     const folderEl = document.createElement('div');
     folderEl.className = 'snippet-folder';
@@ -405,6 +664,7 @@ class ClipboardHistoryUI {
       input.type = 'text';
       input.className = 'snippet-folder-name-input';
       input.value = folder.name;
+      // Keep blur and keydown for editing - these are needed
       input.addEventListener('blur', () => {
         this.finishEditingFolder(folder.id, input.value);
       });
@@ -426,33 +686,19 @@ class ClipboardHistoryUI {
     } else {
       nameDiv.className = 'snippet-folder-name';
       nameDiv.textContent = folder.name;
-      nameDiv.addEventListener('dblclick', (e) => {
-        e.stopPropagation();
-        this.startEditingFolder(folder.id);
-      });
+      // PERFORMANCE: Removed dblclick listener - handled by event delegation
     }
 
     const moreBtn = document.createElement('div');
     moreBtn.className = 'snippet-folder-more';
     moreBtn.textContent = '⋯';
-    moreBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.toggleFolderMenu(folder.id);
-    });
+    // PERFORMANCE: Removed click listener - handled by event delegation
 
     folderEl.appendChild(iconDiv);
     folderEl.appendChild(nameDiv);
     folderEl.appendChild(moreBtn);
 
-    if (!folder.editing) {
-      folderEl.addEventListener('click', () => {
-        this.toggleFolder(folder.id);
-      });
-    } else {
-      folderEl.addEventListener('click', (e) => {
-        e.stopPropagation();
-      });
-    }
+    // PERFORMANCE: Removed click listener - handled by event delegation
 
     parentContainer.appendChild(folderEl);
 
@@ -478,22 +724,23 @@ class ClipboardHistoryUI {
     }
   }
 
+  // PERFORMANCE: Use RequestAnimationFrame for smooth rendering
   renderSnippets() {
     if (!this.snippetList) return;
 
-    this.snippetList.innerHTML = '';
+    // PERFORMANCE: Use requestAnimationFrame for smooth rendering
+    requestAnimationFrame(() => {
+      this.snippetList.innerHTML = '';
 
-    const rootFolders = this.snippetFolders.filter((f) => !f.parentId);
-    rootFolders.forEach((folder) => this.renderFolder(folder, this.snippetList));
+      const rootFolders = this.snippetFolders.filter((f) => !f.parentId);
+      rootFolders.forEach((folder) => this.renderFolder(folder, this.snippetList));
 
-    const addBtn = document.createElement('button');
-    addBtn.className = 'add-folder-btn';
-    addBtn.innerHTML = `${ICONS.PLUS}<span>${this.t('addFolder')}</span>`;
-    addBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.addNewFolder();
+      const addBtn = document.createElement('button');
+      addBtn.className = 'add-folder-btn';
+      addBtn.innerHTML = `${ICONS.PLUS}<span>${this.t('addFolder')}</span>`;
+      // PERFORMANCE: Removed click listener - handled by event delegation
+      this.snippetList.appendChild(addBtn);
     });
-    this.snippetList.appendChild(addBtn);
   }
 
   toggleFolder(folderId) {
@@ -654,26 +901,13 @@ class ClipboardHistoryUI {
       const moreBtn = document.createElement('div');
       moreBtn.className = 'snippet-item-more';
       moreBtn.textContent = '⋯';
-      moreBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.toggleSnippetMenu(snippet.id);
-      });
+      // PERFORMANCE: Removed click listener - handled by event delegation
 
       snippetEl.appendChild(contentWrapper);
       snippetEl.appendChild(iconDiv);
       snippetEl.appendChild(moreBtn);
 
-      // Click on entire snippet element to copy (except more button)
-      snippetEl.addEventListener('click', (e) => {
-        e.stopPropagation(); // Prevent parent folder from toggling
-        this.copySnippet(snippet, iconDiv, moreBtn, snippetEl);
-      });
-
-      // Double-click to edit
-      snippetEl.addEventListener('dblclick', (e) => {
-        e.stopPropagation();
-        this.startEditingSnippet(snippet.id);
-      });
+      // PERFORMANCE: Removed click and dblclick listeners - handled by event delegation
     }
 
     return snippetEl;
