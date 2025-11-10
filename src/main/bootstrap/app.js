@@ -51,6 +51,30 @@ const { getClipboardHistoryService } = require('../services/clipboardHistory');
 
 const isDev = process.env.NODE_ENV === 'development';
 
+// PERFORMANCE: V8 optimization flags for better memory management
+app.commandLine.appendSwitch('js-flags', '--expose-gc --max-old-space-size=512');
+app.commandLine.appendSwitch('disable-renderer-backgrounding'); // Keep renderer active
+app.commandLine.appendSwitch('disable-background-timer-throttling'); // No throttling
+
+// PERFORMANCE: Periodic garbage collection to prevent memory leaks
+let gcInterval = null;
+function setupPeriodicGC() {
+  if (global.gc && !gcInterval) {
+    gcInterval = setInterval(() => {
+      try {
+        const memUsage = process.memoryUsage();
+        // Only run GC if heap usage exceeds 300MB
+        if (memUsage.heapUsed > 300 * 1024 * 1024) {
+          global.gc();
+          console.log('[GC] Manual garbage collection executed');
+        }
+      } catch (err) {
+        console.error('[GC] Error during garbage collection:', err);
+      }
+    }, 60000); // Every 60 seconds
+  }
+}
+
 function resolveAppLogPath() {
   try {
     const logsDir = app?.getPath?.('logs');
@@ -103,17 +127,48 @@ function bootstrapApp() {
     initialShowMain,
   });
 
+  // PERFORMANCE: Wrapper for setPref to invalidate cache
+  const setPrefWithCacheInvalidation = (key, value) => {
+    setPref(key, value);
+    prefCache.invalidate(key);
+  };
+
   const settingsController = new SettingsController({
     windowManager,
     menuRefresher: () => createAppMenu(),
-    setPref,
+    setPref: setPrefWithCacheInvalidation,
     getPref,
   });
 
-  // Initialize launcher services
-  const appScanner = new AppScanner();
-  const fileSearch = new FileSearchService();
-  const systemCommands = new SystemCommandsService();
+  // PERFORMANCE: Lazy-load launcher services (defer initialization until first use)
+  let appScanner = null;
+  let fileSearch = null;
+  let systemCommands = null;
+
+  function getAppScanner() {
+    if (!appScanner) {
+      appScanner = new AppScanner();
+      // Start background scanning only when first accessed
+      appScanner.scanApplications().catch((err) => {
+        console.error('Error scanning applications:', err);
+      });
+    }
+    return appScanner;
+  }
+
+  function getFileSearch() {
+    if (!fileSearch) {
+      fileSearch = new FileSearchService();
+    }
+    return fileSearch;
+  }
+
+  function getSystemCommands() {
+    if (!systemCommands) {
+      systemCommands = new SystemCommandsService();
+    }
+    return systemCommands;
+  }
 
   function getCurrentLanguage() {
     try {
@@ -327,6 +382,41 @@ function bootstrapApp() {
   }
 
   const responseCache = new ResponseCache();
+
+  // PERFORMANCE: Preference cache to reduce IPC overhead (TTL: 2 seconds)
+  class PreferenceCache {
+    constructor(ttlMs = 2000) {
+      this.cache = new Map();
+      this.ttlMs = ttlMs;
+    }
+
+    get(key) {
+      const entry = this.cache.get(key);
+      if (!entry) return null;
+      if (Date.now() > entry.expiresAt) {
+        this.cache.delete(key);
+        return null;
+      }
+      return entry.value;
+    }
+
+    set(key, value) {
+      this.cache.set(key, {
+        value,
+        expiresAt: Date.now() + this.ttlMs,
+      });
+    }
+
+    invalidate(key) {
+      if (key) {
+        this.cache.delete(key);
+      } else {
+        this.cache.clear();
+      }
+    }
+  }
+
+  const prefCache = new PreferenceCache();
 
   function bringMainWindowToFront(mainWindow) {
     if (!mainWindow || mainWindow.isDestroyed()) return false;
@@ -799,16 +889,52 @@ function bootstrapApp() {
   }
 
   function setupUiHandlers() {
+    // PERFORMANCE: Batched preference getter to reduce IPC calls
+    ipcMain.handle('get-preferences-batch', (_e, keys) => {
+      const result = {};
+      const keysArray = Array.isArray(keys) ? keys : [];
+
+      for (const key of keysArray) {
+        // Check cache first
+        const cached = prefCache.get(key);
+        if (cached !== null) {
+          result[key] = cached;
+        } else {
+          // Get from preferences and cache
+          const value = getPref(key);
+          prefCache.set(key, value);
+          result[key] = value;
+        }
+      }
+
+      return result;
+    });
+
     ipcMain.handle('get-model', () => {
-      return getPref('GEMINI_MODEL') || 'gemini-flash-lite-latest';
+      const cached = prefCache.get('GEMINI_MODEL');
+      if (cached !== null) return cached || 'gemini-flash-lite-latest';
+
+      const value = getPref('GEMINI_MODEL') || 'gemini-flash-lite-latest';
+      prefCache.set('GEMINI_MODEL', value);
+      return value;
     });
 
     ipcMain.handle('get-tone', () => {
-      return getPref('TONE') || 'casual';
+      const cached = prefCache.get('TONE');
+      if (cached !== null) return cached || 'casual';
+
+      const value = getPref('TONE') || 'casual';
+      prefCache.set('TONE', value);
+      return value;
     });
 
     ipcMain.handle('get-ui-theme', () => {
-      return getPref('UI_THEME') || 'dark';
+      const cached = prefCache.get('UI_THEME');
+      if (cached !== null) return cached || 'dark';
+
+      const value = getPref('UI_THEME') || 'dark';
+      prefCache.set('UI_THEME', value);
+      return value;
     });
 
     ipcMain.handle('open-external', (_e, url) => {
@@ -868,12 +994,14 @@ function bootstrapApp() {
 
     ipcMain.handle('save-web-search-setting', (_e, enabled) => {
       settingsController.handleWebSearchToggle(!!enabled);
+      prefCache.invalidate('ENABLE_GOOGLE_SEARCH');
       return true;
     });
 
     ipcMain.handle('save-translate-mode', (_e, mode) => {
       const normalized = String(mode || '').toLowerCase() === 'free' ? 'free' : 'literal';
       settingsController.handleTranslateModeChange(normalized);
+      prefCache.invalidate('TRANSLATE_MODE');
       return normalized;
     });
 
@@ -894,79 +1022,127 @@ function bootstrapApp() {
     ipcMain.handle('save-image-size', (_e, size) => {
       const validSizes = ['auto', '1:1', '9:16', '16:9', '3:4', '4:3'];
       const normalized = validSizes.includes(size) ? size : '1:1';
-      setPref('IMAGE_SIZE', normalized);
+      setPrefWithCacheInvalidation('IMAGE_SIZE', normalized);
       return normalized;
     });
 
     ipcMain.handle('get-image-size', () => {
+      const cached = prefCache.get('IMAGE_SIZE');
+      if (cached !== null) {
+        const validSizes = ['auto', '1:1', '9:16', '16:9', '3:4', '4:3'];
+        return validSizes.includes(cached) ? cached : '1:1';
+      }
+
       const raw = String(getPref('IMAGE_SIZE') || '1:1');
       const validSizes = ['auto', '1:1', '9:16', '16:9', '3:4', '4:3'];
-      return validSizes.includes(raw) ? raw : '1:1';
+      const result = validSizes.includes(raw) ? raw : '1:1';
+      prefCache.set('IMAGE_SIZE', result);
+      return result;
     });
 
     ipcMain.handle('save-image-count', (_e, count) => {
       const validCounts = [1, 2, 3, 4];
       const normalized = validCounts.includes(count) ? count : 1;
-      setPref('IMAGE_COUNT', normalized);
+      setPrefWithCacheInvalidation('IMAGE_COUNT', normalized);
       return normalized;
     });
 
     ipcMain.handle('get-image-count', () => {
+      const cached = prefCache.get('IMAGE_COUNT');
+      if (cached !== null) {
+        const validCounts = [1, 2, 3, 4];
+        return validCounts.includes(cached) ? cached : 1;
+      }
+
       const raw = parseInt(getPref('IMAGE_COUNT') || '1', 10);
       const validCounts = [1, 2, 3, 4];
-      return validCounts.includes(raw) ? raw : 1;
+      const result = validCounts.includes(raw) ? raw : 1;
+      prefCache.set('IMAGE_COUNT', result);
+      return result;
     });
 
     ipcMain.handle('save-video-aspect-ratio', (_e, ratio) => {
       const validRatios = ['16:9', '9:16'];
       const normalized = validRatios.includes(ratio) ? ratio : '16:9';
-      setPref('VIDEO_ASPECT_RATIO', normalized);
+      setPrefWithCacheInvalidation('VIDEO_ASPECT_RATIO', normalized);
       return normalized;
     });
 
     ipcMain.handle('get-video-aspect-ratio', () => {
+      const cached = prefCache.get('VIDEO_ASPECT_RATIO');
+      if (cached !== null) {
+        const validRatios = ['16:9', '9:16'];
+        return validRatios.includes(cached) ? cached : '16:9';
+      }
+
       const raw = getPref('VIDEO_ASPECT_RATIO') || '16:9';
       const validRatios = ['16:9', '9:16'];
-      return validRatios.includes(raw) ? raw : '16:9';
+      const result = validRatios.includes(raw) ? raw : '16:9';
+      prefCache.set('VIDEO_ASPECT_RATIO', result);
+      return result;
     });
 
     ipcMain.handle('save-video-duration', (_e, duration) => {
       const validDurations = [4, 5, 6, 7, 8];
       const normalized = validDurations.includes(duration) ? duration : 4;
-      setPref('VIDEO_DURATION', normalized);
+      setPrefWithCacheInvalidation('VIDEO_DURATION', normalized);
       return normalized;
     });
 
     ipcMain.handle('get-video-duration', () => {
+      const cached = prefCache.get('VIDEO_DURATION');
+      if (cached !== null) {
+        const validDurations = [4, 5, 6, 7, 8];
+        return validDurations.includes(cached) ? cached : 4;
+      }
+
       const raw = parseInt(getPref('VIDEO_DURATION') || '4', 10);
       const validDurations = [4, 5, 6, 7, 8];
-      return validDurations.includes(raw) ? raw : 4;
+      const result = validDurations.includes(raw) ? raw : 4;
+      prefCache.set('VIDEO_DURATION', result);
+      return result;
     });
 
     ipcMain.handle('save-video-count', (_e, count) => {
       const validCounts = [1, 2, 3, 4];
       const normalized = validCounts.includes(count) ? count : 1;
-      setPref('VIDEO_COUNT', normalized);
+      setPrefWithCacheInvalidation('VIDEO_COUNT', normalized);
       return normalized;
     });
 
     ipcMain.handle('get-video-count', () => {
+      const cached = prefCache.get('VIDEO_COUNT');
+      if (cached !== null) {
+        const validCounts = [1, 2, 3, 4];
+        return validCounts.includes(cached) ? cached : 1;
+      }
+
       const raw = parseInt(getPref('VIDEO_COUNT') || '1', 10);
       const validCounts = [1, 2, 3, 4];
-      return validCounts.includes(raw) ? raw : 1;
+      const result = validCounts.includes(raw) ? raw : 1;
+      prefCache.set('VIDEO_COUNT', result);
+      return result;
     });
 
     ipcMain.handle('save-video-resolution', (_e, resolution) => {
       const validResolutions = ['720p', '1080p'];
       const normalized = validResolutions.includes(resolution) ? resolution : '720p';
-      setPref('VIDEO_RESOLUTION', normalized);
+      setPrefWithCacheInvalidation('VIDEO_RESOLUTION', normalized);
       return normalized;
     });
 
     ipcMain.handle('get-video-resolution', () => {
+      const cached = prefCache.get('VIDEO_RESOLUTION');
+      if (cached !== null) {
+        const validResolutions = ['720p', '1080p'];
+        return validResolutions.includes(cached) ? cached : '720p';
+      }
+
       const raw = getPref('VIDEO_RESOLUTION') || '720p';
       const validResolutions = ['720p', '1080p'];
-      return validResolutions.includes(raw) ? raw : '720p';
+      const result = validResolutions.includes(raw) ? raw : '720p';
+      prefCache.set('VIDEO_RESOLUTION', result);
+      return result;
     });
 
     ipcMain.handle('get-window-opacity', () => {
@@ -1094,10 +1270,10 @@ function bootstrapApp() {
   }
 
   function setupLauncherHandlers() {
-    // Application search
+    // Application search - lazy load on first use
     ipcMain.handle('launcher:search-apps', async (_e, query) => {
       try {
-        return appScanner.searchApps(query);
+        return getAppScanner().searchApps(query);
       } catch (err) {
         console.error('App search error:', err);
         return [];
@@ -1120,10 +1296,10 @@ function bootstrapApp() {
       }
     });
 
-    // File search
+    // File search - lazy load on first use
     ipcMain.handle('launcher:search-files', async (_e, query) => {
       try {
-        return await fileSearch.searchFiles(query);
+        return await getFileSearch().searchFiles(query);
       } catch (err) {
         console.error('File search error:', err);
         return [];
@@ -1141,20 +1317,20 @@ function bootstrapApp() {
       }
     });
 
-    // System commands search
+    // System commands search - lazy load on first use
     ipcMain.handle('launcher:search-system-commands', async (_e, query) => {
       try {
-        return systemCommands.searchCommands(query);
+        return getSystemCommands().searchCommands(query);
       } catch (err) {
         console.error('System command search error:', err);
         return [];
       }
     });
 
-    // Execute system command
+    // Execute system command - lazy load on first use
     ipcMain.handle('launcher:execute-system-command', async (_e, commandId) => {
       try {
-        return await systemCommands.executeCommand(commandId);
+        return await getSystemCommands().executeCommand(commandId);
       } catch (err) {
         console.error('Execute system command error:', err);
         return { success: false, error: err.message };
@@ -1650,10 +1826,12 @@ function bootstrapApp() {
     setupAiHandlers();
     setupRendererSync();
 
-    // Initialize app scanner in background
-    appScanner.scanApplications().catch((err) => {
-      console.error('Error scanning applications:', err);
-    });
+    // PERFORMANCE: Start periodic garbage collection
+    setupPeriodicGC();
+
+    // PERFORMANCE: Launcher services are now lazy-loaded on first use
+    // No need to initialize appScanner, fileSearch, or systemCommands here
+
     try {
       setupAutoUpdates();
     } catch {}

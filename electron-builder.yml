@@ -1,12 +1,21 @@
 appId: com.core.irukadark
 productName: "IrukaDark"
+# PERFORMANCE: Enable asar archive for faster file access
 asar: true
+# PERFORMANCE: Unpack native modules for optimal performance
+asarUnpack:
+  - "**/*.node"
+  - "native/**/*"
+# PERFORMANCE: Compress asar archive for smaller size
+compression: maximum
 files:
   - "src/**/*"
   - "!**/*.map"
   - "!**/docs/**"
   - "!**/tests/**"
   - "!**/.github/**"
+  - "!**/*.md"
+  - "!**/.DS_Store"
 extraResources:
   - from: native/macos/IrukaAutomation/dist
     to: mac-automation
