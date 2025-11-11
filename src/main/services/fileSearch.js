@@ -16,37 +16,43 @@ class FileSearchService {
   }
 
   async searchFiles(query, options = {}) {
-    if (!query || query.length < 2) return [];
+    if (!query || query.length < 2) return { results: [], total: 0, hasMore: false };
 
-    const { limit = 15, scope = os.homedir() } = options;
+    const { limit = 20, offset = 0, scope = os.homedir() } = options;
 
-    // Check cache
-    const cacheKey = `${query}:${scope}:${limit}`;
+    // Check cache (cache all results for a query)
+    const cacheKey = `${query}:${scope}`;
     const cached = this.searchCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
-      return cached.results;
+      const total = cached.results.length;
+      const results = cached.results.slice(offset, offset + limit);
+      const hasMore = offset + limit < total;
+      return { results, total, hasMore };
     }
 
     try {
       // Use mdfind (Spotlight CLI) for fast file search
       // -onlyin: search in specific directory
       // -name: search by filename (faster than full-text)
-      const cmd = `mdfind -onlyin "${scope}" -name "${query}" | head -n ${limit}`;
+      // Get enough results to support pagination (fetch up to offset + limit * 10)
+      // This allows for multiple pages while avoiding excessive results
+      const maxResults = Math.min(500, offset + limit * 10);
+      const cmd = `mdfind -onlyin "${scope}" -name "${query}" | head -n ${maxResults}`;
 
       const { stdout } = await execPromise(cmd, {
         timeout: 5000, // 5 second timeout
         maxBuffer: 1024 * 1024, // 1MB
       });
 
-      const files = stdout
+      const allFiles = stdout
         .trim()
         .split('\n')
         .filter(Boolean)
         .map((filePath) => this.createFileResult(filePath));
 
-      // Cache results
+      // Cache all results
       this.searchCache.set(cacheKey, {
-        results: files,
+        results: allFiles,
         timestamp: Date.now(),
       });
 
@@ -55,10 +61,17 @@ class FileSearchService {
         this.cleanCache();
       }
 
-      return files;
+      // Return paginated results
+      const total = allFiles.length;
+      const results = allFiles.slice(offset, offset + limit);
+      // hasMore is true if we got maxResults (meaning there might be more)
+      // OR if we have more cached results beyond the current page
+      const hasMore = allFiles.length >= maxResults || offset + limit < total;
+
+      return { results, total, hasMore };
     } catch (err) {
       console.error('File search error:', err.message);
-      return [];
+      return { results: [], total: 0, hasMore: false };
     }
   }
 

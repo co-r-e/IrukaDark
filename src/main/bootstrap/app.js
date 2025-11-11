@@ -145,13 +145,15 @@ function bootstrapApp() {
   let fileSearch = null;
   let systemCommands = null;
 
-  function getAppScanner() {
+  async function getAppScanner() {
     if (!appScanner) {
       appScanner = new AppScanner();
       // Start background scanning only when first accessed
-      appScanner.scanApplications().catch((err) => {
+      try {
+        await appScanner.scanApplications();
+      } catch (err) {
         console.error('Error scanning applications:', err);
-      });
+      }
     }
     return appScanner;
   }
@@ -826,11 +828,12 @@ function bootstrapApp() {
                 }
 
                 clipboardService.programmaticSetTime = Date.now();
-                if (isDev)
-                  {console.log('Tracked pasted item to prevent re-adding to history', {
+                if (isDev) {
+                  console.log('Tracked pasted item to prevent re-adding to history', {
                     text: !!pastedText,
                     image: !!pastedImageOriginal,
-                  });}
+                  });
+                }
               }
 
               if (isDev) console.log('Clipboard popup opened');
@@ -1281,12 +1284,13 @@ function bootstrapApp() {
 
   function setupLauncherHandlers() {
     // Application search - lazy load on first use
-    ipcMain.handle('launcher:search-apps', async (_e, query) => {
+    ipcMain.handle('launcher:search-apps', async (_e, query, limit = 20, offset = 0) => {
       try {
-        return getAppScanner().searchApps(query);
+        const scanner = await getAppScanner();
+        return scanner.searchApps(query, limit, offset);
       } catch (err) {
         console.error('App search error:', err);
-        return [];
+        return { results: [], total: 0, hasMore: false };
       }
     });
 
@@ -1307,12 +1311,12 @@ function bootstrapApp() {
     });
 
     // File search - lazy load on first use
-    ipcMain.handle('launcher:search-files', async (_e, query) => {
+    ipcMain.handle('launcher:search-files', async (_e, query, limit = 20, offset = 0) => {
       try {
-        return await getFileSearch().searchFiles(query);
+        return await getFileSearch().searchFiles(query, { limit, offset });
       } catch (err) {
         console.error('File search error:', err);
-        return [];
+        return { results: [], total: 0, hasMore: false };
       }
     });
 
@@ -1328,12 +1332,12 @@ function bootstrapApp() {
     });
 
     // System commands search - lazy load on first use
-    ipcMain.handle('launcher:search-system-commands', async (_e, query) => {
+    ipcMain.handle('launcher:search-system-commands', async (_e, query, limit = 20, offset = 0) => {
       try {
-        return getSystemCommands().searchCommands(query);
+        return getSystemCommands().searchCommands(query, limit, offset);
       } catch (err) {
         console.error('System command search error:', err);
-        return [];
+        return { results: [], total: 0, hasMore: false };
       }
     });
 

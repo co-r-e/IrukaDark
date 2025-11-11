@@ -112,11 +112,11 @@ class AppScanner {
     }
   }
 
-  searchApps(query) {
-    if (!query) return [];
+  searchApps(query, limit = 20, offset = 0) {
+    if (!query) return { results: [], total: 0, hasMore: false };
 
     const lowerQuery = query.toLowerCase();
-    return this.apps
+    const allMatches = this.apps
       .filter((app) => app.name.toLowerCase().includes(lowerQuery))
       .sort((a, b) => {
         // Exact matches first
@@ -126,8 +126,13 @@ class AppScanner {
         if (!aStarts && bStarts) return 1;
         // Then alphabetically
         return a.name.localeCompare(b.name);
-      })
-      .slice(0, 10);
+      });
+
+    const total = allMatches.length;
+    const results = allMatches.slice(offset, offset + limit);
+    const hasMore = offset + limit < total;
+
+    return { results, total, hasMore };
   }
 
   getApps() {

@@ -147,18 +147,18 @@ class SystemCommandsService {
     this.commands = SYSTEM_COMMANDS;
   }
 
-  searchCommands(query) {
-    if (!query) return [];
+  searchCommands(query, limit = 20, offset = 0) {
+    if (!query) return { results: [], total: 0, hasMore: false };
 
     const lowerQuery = query.toLowerCase();
-    const results = [];
+    const allResults = [];
 
     for (const [key, cmd] of Object.entries(this.commands)) {
       // Check if query matches any keyword
       const matches = cmd.keywords.some((keyword) => keyword.toLowerCase().includes(lowerQuery));
 
       if (matches) {
-        results.push({
+        allResults.push({
           id: cmd.id,
           name: cmd.name,
           icon: cmd.icon,
@@ -167,7 +167,11 @@ class SystemCommandsService {
       }
     }
 
-    return results.slice(0, 5); // Limit to 5 results
+    const total = allResults.length;
+    const results = allResults.slice(offset, offset + limit);
+    const hasMore = offset + limit < total;
+
+    return { results, total, hasMore };
   }
 
   async executeCommand(commandId) {

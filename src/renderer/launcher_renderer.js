@@ -30,6 +30,14 @@ class LauncherUI {
     // PERFORMANCE: Rendered items tracking for diff updates
     this.renderedResultIds = new Set();
 
+    // Infinite scroll state
+    this.currentQuery = '';
+    this.pageSize = 20;
+    this.offsets = { application: 0, file: 0, 'system-command': 0 };
+    this.hasMore = { application: false, file: false, 'system-command': false };
+    this.isLoadingMore = false;
+    this.loadMoreId = 0; // Track loadMore requests to prevent race conditions
+
     this.init();
   }
 
@@ -88,6 +96,11 @@ class LauncherUI {
       this.resultsContainer.addEventListener('click', (e) => {
         this.handleResultsClick(e);
       });
+
+      // Infinite scroll listener
+      this.resultsContainer.addEventListener('scroll', () => {
+        this.handleScroll();
+      });
     }
 
     // Focus search input when launcher tab is opened
@@ -134,6 +147,7 @@ class LauncherUI {
 
     // Show favorites if search box is empty
     if (!rawValue || !query) {
+      this.currentQuery = ''; // Clear query to prevent loadMore() during favorites
       this.showFavorites();
       return;
     }
@@ -148,22 +162,27 @@ class LauncherUI {
     // Increment search ID to track this search request
     const currentSearchId = ++this.searchId;
 
-    // PERFORMANCE: Check cache first (LRU cache)
-    if (this.searchCache.has(query)) {
-      const cachedResults = this.searchCache.get(query);
-      // Move to end for LRU (most recently used)
-      this.searchCache.delete(query);
-      this.searchCache.set(query, cachedResults);
-      this.renderResults(cachedResults);
-      return;
-    }
+    // Reset pagination state for new search
+    this.currentQuery = query;
+    this.offsets = { application: 0, file: 0, 'system-command': 0 };
+    this.hasMore = { application: false, file: false, 'system-command': false };
+
+    // PERFORMANCE: Check cache first (LRU cache) - cache disabled for pagination
+    // TODO: Implement pagination-aware cache
+    // if (this.searchCache.has(query)) {
+    //   const cachedResults = this.searchCache.get(query);
+    //   this.searchCache.delete(query);
+    //   this.searchCache.set(query, cachedResults);
+    //   this.renderResults(cachedResults);
+    //   return;
+    // }
 
     try {
-      // Search all sources in parallel
-      const [apps, files, systemCmds] = await Promise.all([
-        window.electronAPI.launcher.searchApps(query),
-        window.electronAPI.launcher.searchFiles(query),
-        window.electronAPI.launcher.searchSystemCommands(query),
+      // Search all sources in parallel with pagination
+      const [appsData, filesData, systemCmdsData] = await Promise.all([
+        window.electronAPI.launcher.searchApps(query, this.pageSize, 0),
+        window.electronAPI.launcher.searchFiles(query, this.pageSize, 0),
+        window.electronAPI.launcher.searchSystemCommands(query, this.pageSize, 0),
       ]);
 
       // Only render if this is still the latest search
@@ -171,15 +190,27 @@ class LauncherUI {
         return; // Ignore outdated search results
       }
 
+      // Update offsets and hasMore flags based on actual results received
+      const appsResults = appsData.results || [];
+      const filesResults = filesData.results || [];
+      const systemCmdsResults = systemCmdsData.results || [];
+
+      this.offsets.application = appsResults.length;
+      this.offsets.file = filesResults.length;
+      this.offsets['system-command'] = systemCmdsResults.length;
+      this.hasMore.application = appsData.hasMore || false;
+      this.hasMore.file = filesData.hasMore || false;
+      this.hasMore['system-command'] = systemCmdsData.hasMore || false;
+
       // Combine and sort results
       const allResults = [
-        ...apps.map((app) => ({ ...app, type: 'application' })),
-        ...systemCmds.map((cmd) => ({ ...cmd, type: 'system-command' })),
-        ...files.map((file) => ({ ...file, type: 'file' })),
+        ...appsResults.map((app) => ({ ...app, type: 'application' })),
+        ...systemCmdsResults.map((cmd) => ({ ...cmd, type: 'system-command' })),
+        ...filesResults.map((file) => ({ ...file, type: 'file' })),
       ];
 
-      // PERFORMANCE: Cache results (LRU eviction)
-      this.addToSearchCache(query, allResults);
+      // PERFORMANCE: Cache disabled for pagination
+      // this.addToSearchCache(query, allResults);
 
       this.renderResults(allResults);
     } catch (err) {
@@ -489,12 +520,20 @@ class LauncherUI {
   }
 
   // PERFORMANCE: Use RequestAnimationFrame for smooth rendering
-  applyFilters() {
+  applyFilters(isAppending = false) {
     // Filter results based on active filters
     const filteredResults = this.allResults.filter((result) => this.activeFilters.has(result.type));
 
+    const previousResultsLength = this.results.length;
     this.results = filteredResults;
-    this.selectedIndex = 0;
+
+    // Only reset selectedIndex when not appending or when starting fresh
+    if (!isAppending || previousResultsLength === 0) {
+      this.selectedIndex = 0;
+    } else {
+      // Clamp selectedIndex to valid range when appending
+      this.selectedIndex = Math.min(this.selectedIndex, this.results.length - 1);
+    }
 
     // Use requestAnimationFrame for smooth rendering
     requestAnimationFrame(() => {
@@ -505,36 +544,185 @@ class LauncherUI {
         return;
       }
 
-      // PERFORMANCE: Use Document Fragment for batch DOM updates
-      const fragment = document.createDocumentFragment();
-      const tempDiv = document.createElement('div');
+      // If appending, only render new items
+      if (isAppending && previousResultsLength > 0) {
+        const fragment = document.createDocumentFragment();
+        const tempDiv = document.createElement('div');
 
-      filteredResults.forEach((result, index) => {
-        const isFavorite = this.isFavorite(result);
-        tempDiv.innerHTML = `
-        <div class="launcher-result-item ${index === 0 ? 'selected' : ''}" data-index="${index}">
-          <span class="launcher-result-icon">${this.renderIcon(result.icon, result.type)}</span>
-          <div class="launcher-result-content">
-            <div class="launcher-result-title">${this.escapeHtml(result.name || result.title)}</div>
-            ${result.path ? `<div class="launcher-result-subtitle">${this.escapeHtml(result.path)}</div>` : ''}
+        // Only render new items starting from previousResultsLength
+        for (let index = previousResultsLength; index < filteredResults.length; index++) {
+          const result = filteredResults[index];
+          const isFavorite = this.isFavorite(result);
+          tempDiv.innerHTML = `
+          <div class="launcher-result-item" data-index="${index}">
+            <span class="launcher-result-icon">${this.renderIcon(result.icon, result.type)}</span>
+            <div class="launcher-result-content">
+              <div class="launcher-result-title">${this.escapeHtml(result.name || result.title)}</div>
+              ${result.path ? `<div class="launcher-result-subtitle">${this.escapeHtml(result.path)}</div>` : ''}
+            </div>
+            <span class="launcher-result-type">${this.getTypeLabel(result.type)}</span>
+            <button class="launcher-favorite-btn" data-index="${index}" aria-label="Toggle favorite">
+              <svg class="launcher-star-icon ${isFavorite ? 'favorited' : ''}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+            </button>
           </div>
-          <span class="launcher-result-type">${this.getTypeLabel(result.type)}</span>
-          <button class="launcher-favorite-btn" data-index="${index}" aria-label="Toggle favorite">
-            <svg class="launcher-star-icon ${isFavorite ? 'favorited' : ''}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-            </svg>
-          </button>
-        </div>
-      `;
-        fragment.appendChild(tempDiv.firstElementChild);
-      });
+        `;
+          fragment.appendChild(tempDiv.firstElementChild);
+        }
 
-      // Single DOM update
-      this.resultsContainer.innerHTML = '';
-      this.resultsContainer.appendChild(fragment);
+        // Append only new items
+        this.resultsContainer.appendChild(fragment);
+      } else {
+        // Full render for initial load or filter change
+        const fragment = document.createDocumentFragment();
+        const tempDiv = document.createElement('div');
+
+        filteredResults.forEach((result, index) => {
+          const isFavorite = this.isFavorite(result);
+          tempDiv.innerHTML = `
+          <div class="launcher-result-item ${index === 0 ? 'selected' : ''}" data-index="${index}">
+            <span class="launcher-result-icon">${this.renderIcon(result.icon, result.type)}</span>
+            <div class="launcher-result-content">
+              <div class="launcher-result-title">${this.escapeHtml(result.name || result.title)}</div>
+              ${result.path ? `<div class="launcher-result-subtitle">${this.escapeHtml(result.path)}</div>` : ''}
+            </div>
+            <span class="launcher-result-type">${this.getTypeLabel(result.type)}</span>
+            <button class="launcher-favorite-btn" data-index="${index}" aria-label="Toggle favorite">
+              <svg class="launcher-star-icon ${isFavorite ? 'favorited' : ''}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+            </button>
+          </div>
+        `;
+          fragment.appendChild(tempDiv.firstElementChild);
+        });
+
+        // Single DOM update
+        this.resultsContainer.innerHTML = '';
+        this.resultsContainer.appendChild(fragment);
+      }
     });
 
     // PERFORMANCE: Event listeners removed - handled by event delegation in init()
+  }
+
+  // Infinite scroll handler
+  handleScroll() {
+    if (this.isLoadingMore || !this.currentQuery) return;
+
+    const container = this.resultsContainer;
+    const scrollTop = container.scrollTop;
+    const scrollHeight = container.scrollHeight;
+    const clientHeight = container.clientHeight;
+
+    // Check if near bottom (within 100px)
+    if (scrollTop + clientHeight >= scrollHeight - 100) {
+      this.loadMore();
+    }
+  }
+
+  // Load more results
+  async loadMore() {
+    if (this.isLoadingMore || !this.currentQuery) return;
+
+    // Check if there's more data to load for any active filter
+    const hasMoreToLoad = Array.from(this.activeFilters).some((type) => this.hasMore[type]);
+    if (!hasMoreToLoad) return;
+
+    this.isLoadingMore = true;
+    this.showLoadingIndicator();
+
+    // Track this loadMore request to prevent race conditions
+    const currentLoadMoreId = ++this.loadMoreId;
+    const querySnapshot = this.currentQuery;
+
+    try {
+      // Load more from each source that has more data
+      const promises = [];
+      const types = [];
+
+      if (this.activeFilters.has('application') && this.hasMore.application) {
+        promises.push(
+          window.electronAPI.launcher.searchApps(
+            this.currentQuery,
+            this.pageSize,
+            this.offsets.application
+          )
+        );
+        types.push('application');
+      }
+
+      if (this.activeFilters.has('file') && this.hasMore.file) {
+        promises.push(
+          window.electronAPI.launcher.searchFiles(
+            this.currentQuery,
+            this.pageSize,
+            this.offsets.file
+          )
+        );
+        types.push('file');
+      }
+
+      if (this.activeFilters.has('system-command') && this.hasMore['system-command']) {
+        promises.push(
+          window.electronAPI.launcher.searchSystemCommands(
+            this.currentQuery,
+            this.pageSize,
+            this.offsets['system-command']
+          )
+        );
+        types.push('system-command');
+      }
+
+      const results = await Promise.all(promises);
+
+      // Only process if this is still the latest loadMore request and query hasn't changed
+      if (currentLoadMoreId !== this.loadMoreId || querySnapshot !== this.currentQuery) {
+        return; // Ignore outdated loadMore results
+      }
+
+      // Process results
+      const newResults = [];
+      results.forEach((data, index) => {
+        const type = types[index];
+        const items = (data.results || []).map((item) => ({ ...item, type }));
+        newResults.push(...items);
+
+        // Update offset based on actual results received
+        this.offsets[type] += items.length;
+        this.hasMore[type] = data.hasMore || false;
+      });
+
+      // Append new results to existing ones
+      this.allResults = [...this.allResults, ...newResults];
+
+      // Re-render with new results (use differential update)
+      this.applyFilters(true);
+    } catch (err) {
+      console.error('Load more error:', err);
+    } finally {
+      this.isLoadingMore = false;
+      this.hideLoadingIndicator();
+    }
+  }
+
+  showLoadingIndicator() {
+    const existingIndicator = document.getElementById('launcher-loading-indicator');
+    if (existingIndicator) return;
+
+    const indicator = document.createElement('div');
+    indicator.id = 'launcher-loading-indicator';
+    indicator.className = 'launcher-loading-indicator';
+    indicator.textContent = 'Loading...';
+    this.resultsContainer.appendChild(indicator);
+  }
+
+  hideLoadingIndicator() {
+    const indicator = document.getElementById('launcher-loading-indicator');
+    if (indicator) {
+      indicator.remove();
+    }
   }
 
   // Favorite management methods
