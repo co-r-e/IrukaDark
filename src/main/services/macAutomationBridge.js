@@ -352,7 +352,7 @@ function updateClipboardPopup(historyItems, options = {}) {
   }
 }
 
-async function spawnClipboardPopup(historyItems, position, options = {}) {
+async function spawnClipboardPopup(historyItems, options = {}) {
   return new Promise((resolve, reject) => {
     const executable = resolveExecutablePath();
     if (!executable) {
@@ -383,10 +383,8 @@ async function spawnClipboardPopup(historyItems, position, options = {}) {
 
     const input = {
       items,
-      position: {
-        x: Math.round(position.x),
-        y: Math.round(position.y),
-      },
+      // Position is now automatically determined by Swift using cursor location
+      // No need to pass position from Electron
       isDarkMode: options.isDarkMode || false,
       opacity: options.opacity || 1.0,
       activeTab: options.activeTab || 'history',
@@ -405,7 +403,6 @@ async function spawnClipboardPopup(historyItems, position, options = {}) {
 
     logBridgeEvent('spawnClipboardPopup.start', {
       itemCount: items.length,
-      position: input.position,
       childPid: child.pid,
     });
 

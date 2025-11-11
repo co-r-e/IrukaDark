@@ -157,6 +157,116 @@ final class LRUCache<Key: Hashable, Value> {
   }
 }
 
+// MARK: - Cursor Position Detection
+
+/// カーソル位置をAppKit座標系で取得
+struct CursorPositionDetector {
+  /// 現在のカーソル位置を取得（AppKit座標系）
+  static func getCurrentCursorPosition() -> NSPoint {
+    // NSEvent.mouseLocation は現在のグローバルカーソル位置を返す（AppKit座標系：左下原点）
+    return NSEvent.mouseLocation
+  }
+
+  /// カーソル位置を含むスクリーンを検出
+  static func getScreenAtCursor() -> NSScreen? {
+    let cursorPosition = getCurrentCursorPosition()
+
+    // カーソル位置を含むスクリーンを検出
+    for screen in NSScreen.screens {
+      if screen.frame.contains(cursorPosition) {
+        return screen
+      }
+    }
+
+    // フォールバック: メインスクリーン
+    return NSScreen.main
+  }
+}
+
+// MARK: - Window Position Management
+
+/// ウィンドウ配置設定
+struct WindowPlacementConfiguration {
+  let windowSize: NSSize
+  let screenEdgeMargin: CGFloat
+  let cursorOffset: NSPoint
+
+  static let `default` = WindowPlacementConfiguration(
+    windowSize: NSSize(width: 260, height: 280),
+    screenEdgeMargin: 16,
+    cursorOffset: NSPoint(x: 20, y: -20)  // カーソルの右下に配置
+  )
+}
+
+/// ウィンドウ位置計算マネージャー
+final class WindowPositionManager {
+  private let configuration: WindowPlacementConfiguration
+
+  init(configuration: WindowPlacementConfiguration = .default) {
+    self.configuration = configuration
+  }
+
+  /// カーソル位置を基準にウィンドウの最適位置を計算
+  func calculateOptimalPosition() -> NSRect {
+    // 1. カーソル位置を取得（AppKit座標系）
+    let cursorPosition = CursorPositionDetector.getCurrentCursorPosition()
+
+    // 2. カーソル位置を含むスクリーンを検出
+    guard let screen = CursorPositionDetector.getScreenAtCursor() else {
+      return fallbackPosition()
+    }
+
+    // 3. ウィンドウ位置を計算（カーソルからオフセット）
+    var windowOrigin = NSPoint(
+      x: cursorPosition.x + configuration.cursorOffset.x,
+      y: cursorPosition.y + configuration.cursorOffset.y - configuration.windowSize.height
+    )
+
+    // 4. スクリーン境界内に調整
+    let visibleFrame = screen.visibleFrame
+    let margin = configuration.screenEdgeMargin
+
+    // X軸調整（右端）
+    if windowOrigin.x + configuration.windowSize.width > visibleFrame.maxX - margin {
+      windowOrigin.x = visibleFrame.maxX - configuration.windowSize.width - margin
+    }
+    // X軸調整（左端）
+    if windowOrigin.x < visibleFrame.minX + margin {
+      windowOrigin.x = visibleFrame.minX + margin
+    }
+
+    // Y軸調整（上端）
+    if windowOrigin.y + configuration.windowSize.height > visibleFrame.maxY - margin {
+      windowOrigin.y = visibleFrame.maxY - configuration.windowSize.height - margin
+    }
+    // Y軸調整（下端）
+    if windowOrigin.y < visibleFrame.minY + margin {
+      windowOrigin.y = visibleFrame.minY + margin
+    }
+
+    return NSRect(origin: windowOrigin, size: configuration.windowSize)
+  }
+
+  /// フォールバック位置（スクリーン検出失敗時）
+  private func fallbackPosition() -> NSRect {
+    guard let mainScreen = NSScreen.main else {
+      // 最悪のフォールバック
+      return NSRect(origin: .zero, size: configuration.windowSize)
+    }
+
+    let visibleFrame = mainScreen.visibleFrame
+    let centerX = visibleFrame.midX - configuration.windowSize.width / 2
+    let centerY = visibleFrame.midY - configuration.windowSize.height / 2
+
+    return NSRect(
+      x: centerX,
+      y: centerY,
+      width: configuration.windowSize.width,
+      height: configuration.windowSize.height
+    )
+  }
+}
+
 // MARK: - Clipboard Popup
 
 struct ClipboardItem: Decodable {
@@ -218,7 +328,7 @@ final class SnippetTreeNode {
 
 struct ClipboardPopupInput: Decodable {
   let items: [ClipboardItem]
-  let position: Position
+  let position: Position?  // Optional for backward compatibility (now using cursor detection)
   let isDarkMode: Bool
   let opacity: Double
   let activeTab: String?
@@ -560,7 +670,7 @@ final class ClipboardPopupWindow: NSPanel {
   private var rowInfoCache: [String: CachedRowInfo] = [:]
   private var imageCache = LRUCache<String, NSImage>(capacity: 50)
 
-  init(items: [ClipboardItem], position: NSPoint, isDarkMode: Bool = false, opacity: Double = 1.0, activeTab: String = "history", snippetDataPath: String? = nil) {
+  init(items: [ClipboardItem], isDarkMode: Bool = false, opacity: Double = 1.0, activeTab: String = "history", snippetDataPath: String? = nil) {
     self.historyItems = items
     self.isDarkMode = isDarkMode
     self.opacity = opacity
@@ -572,38 +682,9 @@ final class ClipboardPopupWindow: NSPanel {
       self.previousApp = activeApp
     }
 
-    // Match Electron main window size: 260x280
-    let windowWidth: CGFloat = 260
-    let windowHeight: CGFloat = 280
-
-    // Adjust position to keep window on screen
-    var adjustedPosition = position
-    if let screen = NSScreen.main {
-      let screenFrame = screen.visibleFrame
-
-      // Adjust X
-      if adjustedPosition.x + windowWidth > screenFrame.maxX {
-        adjustedPosition.x = screenFrame.maxX - windowWidth - 10
-      }
-      if adjustedPosition.x < screenFrame.minX {
-        adjustedPosition.x = screenFrame.minX + 10
-      }
-
-      // Adjust Y (flip coordinate for AppKit)
-      let flippedY = screenFrame.maxY - adjustedPosition.y
-      if flippedY - windowHeight < screenFrame.minY {
-        adjustedPosition.y = screenFrame.maxY - screenFrame.minY - windowHeight - 10
-      } else {
-        adjustedPosition.y = flippedY
-      }
-    }
-
-    let contentRect = NSRect(
-      x: adjustedPosition.x,
-      y: adjustedPosition.y - windowHeight,
-      width: windowWidth,
-      height: windowHeight
-    )
+    // Use WindowPositionManager to calculate optimal position based on cursor
+    let positionManager = WindowPositionManager()
+    let contentRect = positionManager.calculateOptimalPosition()
 
     super.init(
       contentRect: contentRect,
@@ -1828,10 +1909,9 @@ struct IrukaAutomationCLI {
     }
 
     // Create and show popup window
-    let position = NSPoint(x: input.position.x, y: input.position.y)
+    // Position is now automatically determined by cursor location (no need for input.position)
     let window = ClipboardPopupWindow(
       items: input.items,
-      position: position,
       isDarkMode: input.isDarkMode,
       opacity: input.opacity,
       activeTab: input.activeTab ?? "history",

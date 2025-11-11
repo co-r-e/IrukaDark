@@ -789,9 +789,6 @@ function bootstrapApp() {
                 return;
               }
 
-              // Get cursor position
-              const cursorPosition = screen.getCursorScreenPoint();
-
               // Get clipboard history
               const clipboardService = getClipboardHistoryService();
               const history = clipboardService.getHistory();
@@ -806,8 +803,8 @@ function bootstrapApp() {
               const isDarkMode = theme === 'dark';
               const opacity = parseFloat(getPref('WINDOW_OPACITY') || '1');
 
-              // Spawn clipboard popup
-              const result = await spawnClipboardPopup(history, cursorPosition, {
+              // Spawn clipboard popup (position determined by Swift using cursor location)
+              const result = await spawnClipboardPopup(history, {
                 isDarkMode,
                 opacity,
               });
