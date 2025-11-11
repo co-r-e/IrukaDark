@@ -1050,12 +1050,7 @@
       <div id="chatHistory" class="flex-1 overflow-y-auto px-4 py-4"></div>
 
       <!-- History List -->
-      <div id="clipboardList" class="clipboard-list" style="display: none">
-        <div class="empty-state">
-          <div class="empty-state-icon">📋</div>
-          <div data-i18n="clipboard.noHistoryYet">No clipboard history yet</div>
-        </div>
-      </div>
+      <div id="clipboardList" class="clipboard-list" style="display: none"></div>
 
       <!-- Snippet List -->
       <div id="snippetList" class="clipboard-list" style="display: none">
@@ -1432,6 +1427,13 @@
           snippetFooter.style.display = 'none';
           memoFooter.style.display = 'none';
           launcherFooter.style.display = 'none';
+
+          // Hide search results menu when switching tabs
+          const searchResultsMenu = document.getElementById('searchResultsMenu');
+          if (searchResultsMenu) {
+            searchResultsMenu.style.display = 'none';
+            searchResultsMenu.innerHTML = '';
+          }
 
           // Show/hide input area based on tab
           if (tabName === 'chat') {

@@ -639,12 +639,7 @@ class ClipboardHistoryUI {
   renderEmpty() {
     if (!this.clipboardList) return;
 
-    this.clipboardList.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-state-icon">📋</div>
-        <div>${this.t('noHistoryYet')}</div>
-      </div>
-    `;
+    this.clipboardList.innerHTML = '';
   }
 
   // PERFORMANCE: Removed event listeners from folder elements (using delegation)
