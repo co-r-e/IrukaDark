@@ -321,6 +321,7 @@ function updateClipboardPopup(historyItems, options = {}) {
       .map((item) => ({
         text: item.text || null,
         imageData: item.imageData || null,
+        imageDataOriginal: item.imageDataOriginal || null,
         timestamp: item.timestamp || Date.now(),
       }));
 
@@ -367,6 +368,7 @@ async function spawnClipboardPopup(historyItems, position, options = {}) {
       .map((item) => ({
         text: item.text || null,
         imageData: item.imageData || null,
+        imageDataOriginal: item.imageDataOriginal || null,
         timestamp: item.timestamp || Date.now(),
       }));
 
@@ -376,6 +378,9 @@ async function spawnClipboardPopup(historyItems, position, options = {}) {
       return;
     }
 
+    const path = require('path');
+    const { app } = require('electron');
+
     const input = {
       items,
       position: {
@@ -384,6 +389,8 @@ async function spawnClipboardPopup(historyItems, position, options = {}) {
       },
       isDarkMode: options.isDarkMode || false,
       opacity: options.opacity || 1.0,
+      activeTab: options.activeTab || 'history',
+      snippetDataPath: path.join(app.getPath('userData'), 'snippets.json'),
     };
 
     const inputJSON = JSON.stringify(input);

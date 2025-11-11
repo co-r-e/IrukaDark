@@ -19,6 +19,16 @@ struct BridgeOutput: Encodable {
   let source: Source?
   let code: String?
   let message: String?
+  let imageDataOriginal: String?  // For tracking pasted images
+
+  init(status: Status, text: String?, source: Source?, code: String?, message: String?, imageDataOriginal: String? = nil) {
+    self.status = status
+    self.text = text
+    self.source = source
+    self.code = code
+    self.message = message
+    self.imageDataOriginal = imageDataOriginal
+  }
 
   func encoded() -> String {
     let encoder = JSONEncoder()
@@ -68,12 +78,142 @@ struct PasteboardSnapshot {
   }
 }
 
+// MARK: - LRU Cache
+
+/// High-performance LRU Cache with O(1) operations
+final class LRUCache<Key: Hashable, Value> {
+  private class Node {
+    let key: Key
+    var value: Value
+    var prev: Node?
+    var next: Node?
+
+    init(key: Key, value: Value) {
+      self.key = key
+      self.value = value
+    }
+  }
+
+  private let capacity: Int
+  private var cache: [Key: Node] = [:]
+  private var head: Node?
+  private var tail: Node?
+
+  init(capacity: Int) {
+    self.capacity = capacity
+  }
+
+  func get(_ key: Key) -> Value? {
+    guard let node = cache[key] else { return nil }
+    moveToHead(node)
+    return node.value
+  }
+
+  func set(_ key: Key, value: Value) {
+    if let node = cache[key] {
+      node.value = value
+      moveToHead(node)
+    } else {
+      let newNode = Node(key: key, value: value)
+      cache[key] = newNode
+      addToHead(newNode)
+
+      if cache.count > capacity {
+        removeTail()
+      }
+    }
+  }
+
+  func clear() {
+    cache.removeAll()
+    head = nil
+    tail = nil
+  }
+
+  private func moveToHead(_ node: Node) {
+    removeNode(node)
+    addToHead(node)
+  }
+
+  private func removeNode(_ node: Node) {
+    if node === head { head = node.next }
+    if node === tail { tail = node.prev }
+    node.prev?.next = node.next
+    node.next?.prev = node.prev
+  }
+
+  private func addToHead(_ node: Node) {
+    node.next = head
+    node.prev = nil
+    head?.prev = node
+    head = node
+    if tail == nil { tail = node }
+  }
+
+  private func removeTail() {
+    guard let tailNode = tail else { return }
+    cache.removeValue(forKey: tailNode.key)
+    removeNode(tailNode)
+  }
+}
+
 // MARK: - Clipboard Popup
 
 struct ClipboardItem: Decodable {
   let text: String?
   let imageData: String?
+  let imageDataOriginal: String?
   let timestamp: Int64?
+}
+
+// MARK: - Snippet Data Structures
+
+struct SnippetDataStructure: Decodable {
+  let folders: [SnippetFolder]
+  let snippets: [SnippetItem]
+  let nextFolderId: Int
+  let nextSnippetId: Int
+}
+
+struct SnippetFolder: Decodable {
+  let id: String
+  let name: String
+  let parentId: String?
+  let count: Int?
+  var expanded: Bool?
+  let editable: Bool?
+  let editing: Bool?
+}
+
+struct SnippetItem: Decodable {
+  let id: String
+  let name: String
+  let content: String
+  let folderId: String?
+  let editing: Bool?
+}
+
+// Tree node for NSOutlineView
+final class SnippetTreeNode {
+  enum NodeType {
+    case folder(id: String, name: String)
+    case snippet(id: String, name: String, contentRef: String)
+  }
+
+  let type: NodeType
+  var children: [SnippetTreeNode] = []
+  weak var parent: SnippetTreeNode?
+
+  init(type: NodeType) {
+    self.type = type
+  }
+
+  var id: String {
+    switch type {
+    case .folder(let id, _), .snippet(let id, _, _):
+      return id
+    }
+  }
 }
 
 struct ClipboardPopupInput: Decodable {
@@ -82,6 +222,7 @@ struct ClipboardPopupInput: Decodable {
   let isDarkMode: Bool
   let opacity: Double
   let activeTab: String?
+  let snippetDataPath: String?
 
   struct Position: Decodable {
     let x: Double
@@ -200,24 +341,227 @@ final class HoverableTableRowView: NSTableRowView {
   }
 }
 
+// MARK: - Custom Cell Views
+
+/// High-performance custom cell view for clipboard items with full view reuse
+final class ClipboardItemCell: NSTableCellView {
+  private let contentTextLabel = NSTextField(labelWithString: "")
+  private let contentImageView = NSImageView()
+  private var isConfigured = false
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    setupSubviews()
+  }
+
+  required init?(coder: NSCoder) {
+    super.init(coder: coder)
+    setupSubviews()
+  }
+
+  private func setupSubviews() {
+    guard !isConfigured else { return }
+
+    // Text label - configure once
+    contentTextLabel.isEditable = false
+    contentTextLabel.isBordered = false
+    contentTextLabel.backgroundColor = .clear
+    contentTextLabel.maximumNumberOfLines = 3
+    contentTextLabel.lineBreakMode = .byTruncatingTail
+    contentTextLabel.font = .systemFont(ofSize: 11)
+    contentTextLabel.usesSingleLineMode = false
+    contentTextLabel.cell?.wraps = true
+    contentTextLabel.cell?.isScrollable = false
+    addSubview(contentTextLabel)
+
+    // Image view - configure once
+    contentImageView.imageScaling = .scaleProportionallyDown
+    contentImageView.imageAlignment = .alignLeft
+    contentImageView.isHidden = true
+    addSubview(contentImageView)
+
+    isConfigured = true
+  }
+
+  func configure(text: String?, image: NSImage?, rowHeight: CGFloat, availableWidth: CGFloat, isDarkMode: Bool) {
+    let leftPadding: CGFloat = 3
+    let topPadding: CGFloat = 3
+
+    if let text = text, !text.isEmpty {
+      // Text mode
+      contentTextLabel.stringValue = text
+      contentTextLabel.textColor = isDarkMode
+        ? NSColor(red: 0xe5/255.0, green: 0xe7/255.0, blue: 0xeb/255.0, alpha: 1.0)
+        : NSColor(red: 0x37/255.0, green: 0x41/255.0, blue: 0x51/255.0, alpha: 1.0)
+
+      let textHeight = rowHeight - topPadding * 2
+      contentTextLabel.frame = NSRect(x: leftPadding, y: topPadding, width: availableWidth, height: textHeight)
+      contentTextLabel.isHidden = false
+      contentImageView.isHidden = true
+    } else if let image = image {
+      // Image mode
+      contentImageView.image = image
+      let imageHeight: CGFloat = 36
+      contentImageView.frame = NSRect(
+        x: leftPadding,
+        y: (rowHeight - imageHeight) / 2,
+        width: availableWidth,
+        height: imageHeight
+      )
+      contentImageView.isHidden = false
+      contentTextLabel.isHidden = true
+    } else {
+      // Empty mode
+      contentTextLabel.isHidden = true
+      contentImageView.isHidden = true
+    }
+  }
+
+  override func prepareForReuse() {
+    super.prepareForReuse()
+    // Lightweight reset only
+    contentTextLabel.stringValue = ""
+    contentImageView.image = nil
+  }
+}
+
+/// Custom cell view for snippet folders
+final class SnippetFolderCell: NSTableCellView {
+  private let nameLabel = NSTextField(labelWithString: "")
+  private var isConfigured = false
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    setupSubviews()
+  }
+
+  required init?(coder: NSCoder) {
+    super.init(coder: coder)
+    setupSubviews()
+  }
+
+  private func setupSubviews() {
+    guard !isConfigured else { return }
+
+    // Name only
+    nameLabel.isEditable = false
+    nameLabel.isBordered = false
+    nameLabel.backgroundColor = .clear
+    nameLabel.font = .systemFont(ofSize: 11, weight: .medium)
+    addSubview(nameLabel)
+
+    isConfigured = true
+  }
+
+  func configure(name: String, isExpanded: Bool, level: Int, isDarkMode: Bool) {
+    let indentWidth: CGFloat = 16
+    let leftPadding: CGFloat = 8 + (CGFloat(level) * indentWidth)  // Wider spacing from disclosure triangle
+    let topPadding: CGFloat = 1  // Narrower vertical padding
+    let rowHeight: CGFloat = 22  // Reduced row height
+    let contentHeight = rowHeight - topPadding * 2  // 20px
+
+    // Name - vertically centered
+    nameLabel.stringValue = name
+    let textFieldHeight: CGFloat = 16  // Height for 11pt font
+    let yOffset = topPadding + (contentHeight - textFieldHeight) / 2
+    nameLabel.frame = NSRect(x: leftPadding, y: yOffset, width: 240, height: textFieldHeight)
+
+    // Root folders (level 0) are pink, sub-folders (level 1+) are light pink
+    if level == 0 {
+      nameLabel.textColor = isDarkMode
+        ? NSColor(red: 0xff/255.0, green: 0x69/255.0, blue: 0xb4/255.0, alpha: 1.0)  // Hot pink for dark mode
+        : NSColor(red: 0xff/255.0, green: 0x1a/255.0, blue: 0x8c/255.0, alpha: 1.0)  // Deep pink for light mode
+    } else {
+      nameLabel.textColor = isDarkMode
+        ? NSColor(red: 0xff/255.0, green: 0xb3/255.0, blue: 0xd9/255.0, alpha: 0.8)  // Light pink for dark mode
+        : NSColor(red: 0xff/255.0, green: 0x69/255.0, blue: 0xb4/255.0, alpha: 0.7)  // Light hot pink for light mode
+    }
+  }
+
+  override func prepareForReuse() {
+    super.prepareForReuse()
+    nameLabel.stringValue = ""
+  }
+}
+
+/// Custom cell view for snippets
+final class SnippetItemCell: NSTableCellView {
+  private let nameLabel = NSTextField(labelWithString: "")
+  private var isConfigured = false
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    setupSubviews()
+  }
+
+  required init?(coder: NSCoder) {
+    super.init(coder: coder)
+    setupSubviews()
+  }
+
+  private func setupSubviews() {
+    guard !isConfigured else { return }
+
+    // Name only
+    nameLabel.isEditable = false
+    nameLabel.isBordered = false
+    nameLabel.backgroundColor = .clear
+    nameLabel.font = .systemFont(ofSize: 11, weight: .regular)
+    addSubview(nameLabel)
+
+    isConfigured = true
+  }
+
+  func configure(name: String, level: Int, isDarkMode: Bool) {
+    let indentWidth: CGFloat = 16
+    let leftPadding: CGFloat = 8 + (CGFloat(level) * indentWidth)  // Wider spacing from disclosure triangle
+    let topPadding: CGFloat = 1  // Narrower vertical padding
+    let rowHeight: CGFloat = 22  // Reduced row height
+    let contentHeight = rowHeight - topPadding * 2  // 20px
+
+    // Name - vertically centered
+    nameLabel.stringValue = name
+    let textFieldHeight: CGFloat = 16  // Height for 11pt font
+    let yOffset = topPadding + (contentHeight - textFieldHeight) / 2
+    nameLabel.frame = NSRect(x: leftPadding, y: yOffset, width: 240, height: textFieldHeight)
+    nameLabel.textColor = isDarkMode
+      ? NSColor(red: 0xe5/255.0, green: 0xe7/255.0, blue: 0xeb/255.0, alpha: 1.0)
+      : NSColor(red: 0x37/255.0, green: 0x41/255.0, blue: 0x51/255.0, alpha: 1.0)
+  }
+
+  override func prepareForReuse() {
+    super.prepareForReuse()
+    nameLabel.stringValue = ""
+  }
+}
+
 final class ClipboardPopupWindow: NSPanel {
   private var historyItems: [ClipboardItem] = []
   private var snippetItems: [ClipboardItem] = []
   private var previousApp: NSRunningApplication?
   private var tableView: NSTableView!
+  private var outlineView: NSOutlineView!
   private var scrollView: NSScrollView!
   private var isDarkMode: Bool = false
   private var opacity: Double = 1.0
   private var activeTab: String = "history"
 
-  // PERFORMANCE: Caches for optimization
-  private var rowHeightCache: [Int: CGFloat] = [:]
-  private var imageCache: [String: NSImage] = [:]
-  private let imageCacheMaxSize = 50
+  // Snippet data
+  private var snippetTreeRoot: SnippetTreeNode?
+  private var snippetContentMap: [String: String] = [:]
+  private var snippetFolders: [SnippetFolder] = []
+  private var snippets: [SnippetItem] = []
 
-  init(items: [ClipboardItem], position: NSPoint, isDarkMode: Bool = false, opacity: Double = 1.0, activeTab: String = "history") {
+  // PERFORMANCE: Enhanced caches with LRU and row info
+  private struct CachedRowInfo {
+    let height: CGFloat
+    let textHeight: CGFloat
+  }
+  private var rowInfoCache: [String: CachedRowInfo] = [:]
+  private var imageCache = LRUCache<String, NSImage>(capacity: 50)
+
+  init(items: [ClipboardItem], position: NSPoint, isDarkMode: Bool = false, opacity: Double = 1.0, activeTab: String = "history", snippetDataPath: String? = nil) {
     self.historyItems = items
-    self.snippetItems = [] // TODO: Load snippet data from persistence
     self.isDarkMode = isDarkMode
     self.opacity = opacity
     self.activeTab = activeTab
@@ -275,6 +619,11 @@ final class ClipboardPopupWindow: NSPanel {
     self.hasShadow = true
     self.hidesOnDeactivate = false
     self.becomesKeyOnlyIfNeeded = true
+
+    // Load snippet data if path provided
+    if let path = snippetDataPath {
+      loadSnippetsFromFile(path)
+    }
 
     setupUI()
   }
@@ -452,10 +801,40 @@ final class ClipboardPopupWindow: NSPanel {
     column.width = scrollView.bounds.width - 20
     tableView.addTableColumn(column)
 
-    scrollView.documentView = tableView
-    containerView.addSubview(scrollView)
+    // OutlineView for snippets
+    outlineView = NSOutlineView(frame: scrollView.bounds)
+    outlineView.headerView = nil
+    outlineView.backgroundColor = .clear
+    outlineView.selectionHighlightStyle = .none
+    outlineView.intercellSpacing = NSSize(width: 0, height: 0)
+    outlineView.indentationPerLevel = 0  // We handle indentation manually
+    outlineView.delegate = self
+    outlineView.dataSource = self
 
-    tableView.reloadData()
+    // Set appearance for disclosure triangle color
+    if isDarkMode {
+      outlineView.appearance = NSAppearance(named: .darkAqua)
+    } else {
+      outlineView.appearance = NSAppearance(named: .aqua)
+    }
+
+    let outlineColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("snippet"))
+    outlineColumn.width = scrollView.bounds.width - 20
+    outlineView.addTableColumn(outlineColumn)
+    outlineView.outlineTableColumn = outlineColumn
+
+    // Set initial document view based on active tab
+    if activeTab == "snippet" {
+      scrollView.documentView = outlineView
+      outlineView.reloadData()
+      // Expand all folders by default
+      expandAllFolders()
+    } else {
+      scrollView.documentView = tableView
+      tableView.reloadData()
+    }
+
+    containerView.addSubview(scrollView)
   }
 
   @objc private func closeWindow() {
@@ -465,19 +844,40 @@ final class ClipboardPopupWindow: NSPanel {
   @objc private func switchToHistoryTab() {
     activeTab = "history"
     // PERFORMANCE: Clear cache when switching tabs
-    rowHeightCache.removeAll()
+    rowInfoCache.removeAll()
     // Update tab button styles
     updateTabStyles()
+    // Switch to table view
+    scrollView.documentView = tableView
     tableView.reloadData()
   }
 
   @objc private func switchToSnippetTab() {
     activeTab = "snippet"
     // PERFORMANCE: Clear cache when switching tabs
-    rowHeightCache.removeAll()
+    rowInfoCache.removeAll()
     // Update tab button styles
     updateTabStyles()
-    tableView.reloadData()
+    // Switch to outline view
+    scrollView.documentView = outlineView
+    outlineView.reloadData()
+    expandAllFolders()
+  }
+
+  private func expandAllFolders() {
+    guard let root = snippetTreeRoot else { return }
+    for child in root.children {
+      expandRecursive(node: child)
+    }
+  }
+
+  private func expandRecursive(node: SnippetTreeNode) {
+    outlineView.expandItem(node)
+    for child in node.children {
+      if case .folder = child.type {
+        expandRecursive(node: child)
+      }
+    }
   }
 
   private func updateTabStyles() {
@@ -525,13 +925,7 @@ final class ClipboardPopupWindow: NSPanel {
         let newIndexes = IndexSet(integersIn: 0..<(newCount - oldCount))
         self.historyItems = items
 
-        // Clear cache only for affected rows
-        var newCache: [Int: CGFloat] = [:]
-        for (oldRow, height) in self.rowHeightCache {
-          let newRow = oldRow + (newCount - oldCount)
-          newCache[newRow] = height
-        }
-        self.rowHeightCache = newCache
+        // Note: rowInfoCache uses item-based keys, no need to adjust
 
         // Animate insertion
         self.tableView.insertRows(at: newIndexes, withAnimation: .slideDown)
@@ -540,21 +934,15 @@ final class ClipboardPopupWindow: NSPanel {
         let removedIndexes = IndexSet(integersIn: newCount..<oldCount)
         self.historyItems = items
 
-        // Clear cache for removed rows and adjust remaining
-        var newCache: [Int: CGFloat] = [:]
-        for (oldRow, height) in self.rowHeightCache {
-          if oldRow < newCount {
-            newCache[oldRow] = height
-          }
-        }
-        self.rowHeightCache = newCache
+        // Note: rowInfoCache uses item-based keys, no need to adjust
 
         // Animate removal
         self.tableView.removeRows(at: removedIndexes, withAnimation: .slideUp)
       } else {
         // Same count - full reload (content may have changed)
         self.historyItems = items
-        self.rowHeightCache.removeAll()
+        // Clear cache since content might have changed
+        self.rowInfoCache.removeAll()
         self.tableView.reloadData()
       }
     }
@@ -578,13 +966,14 @@ final class ClipboardPopupWindow: NSPanel {
 
     // Close window after a short delay and report the pasted item
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-      // Output the pasted text so Electron can track it
+      // Output the pasted item info so Electron can track it
       let output = BridgeOutput(
         status: .ok,
-        text: item.text ?? "",
+        text: item.text,
         source: nil,
         code: "item_pasted",
-        message: "Item pasted successfully"
+        message: "Item pasted successfully",
+        imageDataOriginal: item.imageDataOriginal
       )
       print(output.encoded())
       self.close()
@@ -605,8 +994,14 @@ final class ClipboardPopupWindow: NSPanel {
       pasteboard.setString(item.text!, forType: .string)
     } else if hasImage {
       // Write image only if there's no text
-      if let imageDataUrl = item.imageData, let image = imageFromDataURL(imageDataUrl) {
-        pasteboard.writeObjects([image])
+      // Use original image for pasting (high quality), fallback to thumbnail
+      let imageDataUrl = item.imageDataOriginal ?? item.imageData
+      if let dataUrl = imageDataUrl {
+        // Write original binary data directly to avoid re-encoding quality loss
+        if let (imageData, imageType) = extractImageDataFromDataURL(dataUrl) {
+          pasteboard.clearContents()
+          pasteboard.setData(imageData, forType: imageType)
+        }
       }
     }
 
@@ -615,9 +1010,17 @@ final class ClipboardPopupWindow: NSPanel {
       return
     }
 
-    // Activate previous app
-    if let previousApp = previousApp {
-      previousApp.activate(options: [.activateIgnoringOtherApps])
+    // Activate target app (prefer current frontmost, fallback to previous)
+    let targetApp: NSRunningApplication?
+    if let frontmost = NSWorkspace.shared.frontmostApplication,
+       frontmost.bundleIdentifier != Bundle.main.bundleIdentifier {
+      targetApp = frontmost
+    } else {
+      targetApp = previousApp
+    }
+
+    if let app = targetApp {
+      app.activate(options: [.activateIgnoringOtherApps])
       usleep(150_000) // 150ms
     }
 
@@ -648,108 +1051,45 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
     guard row >= 0 && row < items.count else { return nil }
     let item = items[row]
 
-    // PERFORMANCE: Reuse cells instead of creating new ones
-    var cellView = tableView.makeView(withIdentifier: identifier, owner: self) as? NSTableCellView
-    if cellView == nil {
-      cellView = NSTableCellView()
-      cellView?.identifier = identifier
+    // PERFORMANCE: Reuse custom cell view (subviews persist!)
+    var cell = tableView.makeView(withIdentifier: identifier, owner: self) as? ClipboardItemCell
+    if cell == nil {
+      cell = ClipboardItemCell()
+      cell?.identifier = identifier
     }
 
-    // Clear existing subviews when reusing
-    cellView?.subviews.forEach { $0.removeFromSuperview() }
+    guard let cellView = cell else { return nil }
 
-    guard let cell = cellView else { return nil }
-
-    // Padding: top(3px) + bottom(3px) + left(3px) + right(8px)
-    let leftPadding: CGFloat = 3
+    // Get row height and available width
+    let rowHeight = self.tableView(tableView, heightOfRow: row)
     let rightPadding: CGFloat = 8
-    let topPadding: CGFloat = 3
+    let leftPadding: CGFloat = 3
     let availableWidth = tableView.bounds.width - leftPadding - rightPadding
 
-    // Get the row height for this row
-    let rowHeight = tableView.delegate?.tableView?(tableView, heightOfRow: row) ?? 46
-
-    // Check if we have text
-    let hasText = item.text != nil && !item.text!.isEmpty
-    let hasImage = item.imageData != nil && !item.imageData!.isEmpty
-
-    // Start from the top of the cell (AppKit uses bottom-left origin)
-    var yPosition = rowHeight - topPadding
-
-    // Add text if present
-    if let text = item.text, !text.isEmpty {
-      let font = NSFont.systemFont(ofSize: 11)
-
-      // Calculate actual text height
-      let textRect = (text as NSString).boundingRect(
-        with: NSSize(width: availableWidth, height: CGFloat.greatestFiniteMagnitude),
-        options: [.usesLineFragmentOrigin, .usesFontLeading],
-        attributes: [.font: font]
-      )
-
-      // Limit to 3 lines max (approximate line height: 15px for 11pt font)
-      let lineHeight: CGFloat = 15
-      let maxHeight = lineHeight * 3
-      let textHeight = min(ceil(textRect.height), maxHeight)
-
-      yPosition -= textHeight
-
-      let textField = NSTextField(frame: NSRect(
-        x: leftPadding,
-        y: yPosition,
-        width: availableWidth,
-        height: textHeight
-      ))
-      textField.isEditable = false
-      textField.isBordered = false
-      textField.backgroundColor = NSColor.clear
-      textField.maximumNumberOfLines = 3
-      textField.lineBreakMode = NSLineBreakMode.byTruncatingTail
-      textField.font = font
-      textField.usesSingleLineMode = false
-      textField.cell?.wraps = true
-      textField.cell?.isScrollable = false
-      textField.stringValue = text
-
-      // Apply theme-aware text color - match main window history tab
-      if isDarkMode {
-        textField.textColor = NSColor(red: 0xe5/255.0, green: 0xe7/255.0, blue: 0xeb/255.0, alpha: 1.0)  // #e5e7eb
-      } else {
-        textField.textColor = NSColor(red: 0x37/255.0, green: 0x41/255.0, blue: 0x51/255.0, alpha: 1.0)  // #374151
-      }
-
-      cell.addSubview(textField)
-      cell.textField = textField
-    }
-
-    // Add image only if there's no text (text takes priority)
-    if hasImage && !hasText {
-      if let imageDataUrl = item.imageData, let image = imageFromDataURL(imageDataUrl) {
-        let imageHeight: CGFloat = 36
-        yPosition -= imageHeight
-
-        let imageView = NSImageView(frame: NSRect(
-          x: leftPadding,
-          y: yPosition,
-          width: availableWidth,
-          height: imageHeight
-        ))
-        imageView.image = image
-        imageView.imageScaling = .scaleProportionallyDown
-        imageView.imageAlignment = .alignLeft
-        cell.addSubview(imageView)
+    // Get image from cache if needed
+    var image: NSImage? = nil
+    if (item.text == nil || item.text!.isEmpty), let imageDataUrl = item.imageData {
+      image = imageCache.get(imageDataUrl)
+      if image == nil {
+        // Decode image synchronously for first appearance (will be cached)
+        image = decodeImageFromDataURL(imageDataUrl)
       }
     }
 
-    return cell
+    // Configure cell (no subview recreation!)
+    cellView.configure(
+      text: item.text,
+      image: image,
+      rowHeight: rowHeight,
+      availableWidth: availableWidth,
+      isDarkMode: isDarkMode
+    )
+
+    return cellView
   }
 
-  private func imageFromDataURL(_ dataURL: String) -> NSImage? {
-    // PERFORMANCE: Check cache first
-    if let cached = imageCache[dataURL] {
-      return cached
-    }
-
+  // PERFORMANCE: Image decoding with LRU cache (O(1) operations)
+  private func decodeImageFromDataURL(_ dataURL: String) -> NSImage? {
     // DataURL format: "data:image/png;base64,..."
     guard let commaRange = dataURL.range(of: ","),
           let base64String = dataURL[commaRange.upperBound...].removingPercentEncoding else {
@@ -761,16 +1101,45 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
       return nil
     }
 
-    // PERFORMANCE: Cache the decoded image with LRU eviction
-    if imageCache.count >= imageCacheMaxSize {
-      // Remove oldest entry (first key)
-      if let firstKey = imageCache.keys.first {
-        imageCache.removeValue(forKey: firstKey)
-      }
-    }
-    imageCache[dataURL] = image
-
+    // Cache with LRU (automatic eviction)
+    imageCache.set(dataURL, value: image)
     return image
+  }
+
+  // Get image from cache or decode (for display purposes)
+  private func imageFromDataURL(_ dataURL: String) -> NSImage? {
+    if let cached = imageCache.get(dataURL) {
+      return cached
+    }
+    return decodeImageFromDataURL(dataURL)
+  }
+
+  // Extract image binary data and MIME type from DataURL (for high-quality pasting)
+  private func extractImageDataFromDataURL(_ dataURL: String) -> (data: Data, type: NSPasteboard.PasteboardType)? {
+    // DataURL format: "data:image/png;base64,..." or "data:image/jpeg;base64,..."
+    guard let commaRange = dataURL.range(of: ",") else {
+      return nil
+    }
+
+    // Extract MIME type
+    let prefix = String(dataURL[..<commaRange.lowerBound])
+    var pasteboardType: NSPasteboard.PasteboardType = .png  // Default to PNG
+
+    if prefix.contains("image/jpeg") || prefix.contains("image/jpg") {
+      pasteboardType = .init("public.jpeg")
+    } else if prefix.contains("image/png") {
+      pasteboardType = .png
+    } else if prefix.contains("image/tiff") {
+      pasteboardType = .tiff
+    }
+
+    // Extract base64 data
+    guard let base64String = dataURL[commaRange.upperBound...].removingPercentEncoding,
+          let imageData = Data(base64Encoded: String(base64String)) else {
+      return nil
+    }
+
+    return (data: imageData, type: pasteboardType)
   }
 
   func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
@@ -779,21 +1148,31 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
   }
 
   func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
-    let rowView = HoverableTableRowView(isDarkMode: isDarkMode)
-    rowView.wantsLayer = true
+    // PERFORMANCE: Reuse row views
+    let identifier = "HoverableRow"
+    var rowView = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier(identifier), owner: self) as? HoverableTableRowView
+
+    if rowView == nil {
+      rowView = HoverableTableRowView(isDarkMode: isDarkMode)
+      rowView?.identifier = NSUserInterfaceItemIdentifier(identifier)
+      rowView?.wantsLayer = true
+    }
+
     return rowView
   }
 
   func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
-    // PERFORMANCE: Check cache first
-    if let cached = rowHeightCache[row] {
-      return cached
-    }
-
-    // Calculate height
     let items = activeTab == "history" ? historyItems : snippetItems
     guard row >= 0 && row < items.count else { return 46 }
     let item = items[row]
+
+    // PERFORMANCE: Create cache key from item (timestamp + text hash)
+    let cacheKey = "\(item.timestamp ?? 0)_\(item.text?.prefix(50).hashValue ?? 0)"
+
+    // Check cache first
+    if let cached = rowInfoCache[cacheKey] {
+      return cached.height
+    }
 
     let topPadding: CGFloat = 3
     let bottomPadding: CGFloat = 3
@@ -805,6 +1184,7 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
     let hasImage = item.imageData != nil && !item.imageData!.isEmpty
 
     var totalHeight: CGFloat = topPadding
+    var textHeight: CGFloat = 0
 
     // Add image height if image exists and no text
     if hasImage && !hasText {
@@ -822,7 +1202,8 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
       // Limit to 3 lines max (approximate line height: 15px for 11pt font)
       let lineHeight: CGFloat = 15
       let maxHeight = lineHeight * 3
-      totalHeight += min(ceil(textRect.height), maxHeight)
+      textHeight = min(ceil(textRect.height), maxHeight)
+      totalHeight += textHeight
     }
 
     totalHeight += bottomPadding
@@ -830,10 +1211,238 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
     // Minimum height
     let height = max(totalHeight, 22)
 
-    // PERFORMANCE: Cache the calculated height
-    rowHeightCache[row] = height
+    // PERFORMANCE: Cache both height and text height
+    rowInfoCache[cacheKey] = CachedRowInfo(height: height, textHeight: textHeight)
 
     return height
+  }
+
+  // MARK: - Snippet Loading and Tree Building
+
+  private func loadSnippetsFromFile(_ path: String) {
+    guard FileManager.default.fileExists(atPath: path),
+          let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+          let decoded = try? JSONDecoder().decode(SnippetDataStructure.self, from: data)
+    else { return }
+
+    self.snippetFolders = decoded.folders
+    self.snippets = decoded.snippets
+
+    // Build content map (ID -> content)
+    for snippet in decoded.snippets {
+      snippetContentMap[snippet.id] = snippet.content
+    }
+
+    // Build tree structure
+    buildSnippetTree()
+  }
+
+  private func buildSnippetTree() {
+    let rootNode = SnippetTreeNode(type: .folder(id: "root", name: "Root"))
+
+    // Get root folders (no parentId)
+    let rootFolders = snippetFolders.filter { $0.parentId == nil }
+
+    for folder in rootFolders {
+      if let node = buildNodeRecursive(folder: folder) {
+        rootNode.children.append(node)
+        node.parent = rootNode
+      }
+    }
+
+    snippetTreeRoot = rootNode
+  }
+
+  private func buildNodeRecursive(folder: SnippetFolder) -> SnippetTreeNode? {
+    let folderNode = SnippetTreeNode(type: .folder(id: folder.id, name: folder.name))
+
+    // Add snippets in this folder
+    let snippetsInFolder = snippets.filter { $0.folderId == folder.id }
+    for snippet in snippetsInFolder {
+      let snippetNode = SnippetTreeNode(type: .snippet(
+        id: snippet.id,
+        name: snippet.name,
+        contentRef: snippet.id
+      ))
+      folderNode.children.append(snippetNode)
+      snippetNode.parent = folderNode
+    }
+
+    // Add subfolders recursively
+    let subfolders = snippetFolders.filter { $0.parentId == folder.id }
+    for subfolder in subfolders {
+      if let subNode = buildNodeRecursive(folder: subfolder) {
+        folderNode.children.append(subNode)
+        subNode.parent = folderNode
+      }
+    }
+
+    return folderNode
+  }
+
+  private func getNodeLevel(_ node: SnippetTreeNode) -> Int {
+    var level = 0
+    var current = node.parent
+    while current != nil && current?.id != "root" {
+      level += 1
+      current = current?.parent
+    }
+    return level
+  }
+}
+
+// MARK: - NSOutlineViewDataSource
+extension ClipboardPopupWindow: NSOutlineViewDataSource {
+  func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
+    if item == nil {
+      // Root level
+      return snippetTreeRoot?.children.count ?? 0
+    }
+    guard let node = item as? SnippetTreeNode else { return 0 }
+    return node.children.count
+  }
+
+  func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
+    if item == nil {
+      // Root level
+      return snippetTreeRoot!.children[index]
+    }
+    guard let node = item as? SnippetTreeNode else {
+      fatalError("Invalid item")
+    }
+    return node.children[index]
+  }
+
+  func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
+    guard let node = item as? SnippetTreeNode else { return false }
+    if case .folder = node.type {
+      return !node.children.isEmpty
+    }
+    return false
+  }
+}
+
+// MARK: - NSOutlineViewDelegate (Snippet View)
+extension ClipboardPopupWindow: NSOutlineViewDelegate {
+  func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
+    guard let node = item as? SnippetTreeNode else { return nil }
+    let level = getNodeLevel(node)
+
+    switch node.type {
+    case .folder(_, let name):
+      let identifier = NSUserInterfaceItemIdentifier("FolderCell")
+      var cell = outlineView.makeView(withIdentifier: identifier, owner: self) as? SnippetFolderCell
+      if cell == nil {
+        cell = SnippetFolderCell()
+        cell?.identifier = identifier
+      }
+      let isExpanded = outlineView.isItemExpanded(node)
+      cell?.configure(name: name, isExpanded: isExpanded, level: level, isDarkMode: isDarkMode)
+      return cell
+
+    case .snippet(_, let name, _):
+      let identifier = NSUserInterfaceItemIdentifier("SnippetCell")
+      var cell = outlineView.makeView(withIdentifier: identifier, owner: self) as? SnippetItemCell
+      if cell == nil {
+        cell = SnippetItemCell()
+        cell?.identifier = identifier
+      }
+      cell?.configure(name: name, level: level, isDarkMode: isDarkMode)
+      return cell
+    }
+  }
+
+  func outlineView(_ outlineView: NSOutlineView, heightOfRowByItem item: Any) -> CGFloat {
+    // All rows (folders and snippets) have the same height
+    return 22
+  }
+
+  func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {
+    guard let node = item as? SnippetTreeNode else { return false }
+
+    switch node.type {
+    case .folder:
+      // Toggle expansion on click
+      if outlineView.isItemExpanded(node) {
+        outlineView.collapseItem(node)
+      } else {
+        outlineView.expandItem(node)
+      }
+      // Update folder icon
+      outlineView.reloadItem(node)
+      return false
+
+    case .snippet(_, _, let contentRef):
+      // Paste snippet
+      if let content = snippetContentMap[contentRef] {
+        pasteSnippetContent(content)
+      }
+      return false
+    }
+  }
+
+  func outlineView(_ outlineView: NSOutlineView, rowViewForItem item: Any) -> NSTableRowView? {
+    let identifier = "HoverableRow"
+    var rowView = outlineView.makeView(withIdentifier: NSUserInterfaceItemIdentifier(identifier), owner: self) as? HoverableTableRowView
+
+    if rowView == nil {
+      rowView = HoverableTableRowView(isDarkMode: isDarkMode)
+      rowView?.identifier = NSUserInterfaceItemIdentifier(identifier)
+      rowView?.wantsLayer = true
+    }
+
+    return rowView
+  }
+
+  private func pasteSnippetContent(_ content: String) {
+    // Update clipboard
+    let pasteboard = NSPasteboard.general
+    pasteboard.clearContents()
+    pasteboard.setString(content, forType: .string)
+
+    // Ensure accessibility permission
+    guard SelectedTextStateMachine.ensureAccessibility(prompt: false) else {
+      return
+    }
+
+    // Activate target app (prefer current frontmost, fallback to previous)
+    let targetApp: NSRunningApplication?
+    if let frontmost = NSWorkspace.shared.frontmostApplication,
+       frontmost.bundleIdentifier != Bundle.main.bundleIdentifier {
+      targetApp = frontmost
+    } else {
+      targetApp = previousApp
+    }
+
+    if let app = targetApp {
+      app.activate(options: [.activateIgnoringOtherApps])
+      usleep(150_000) // 150ms
+    }
+
+    // Send Command+V
+    guard let source = CGEventSource(stateID: .hidSystemState) else { return }
+
+    if let keyDown = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: true),
+       let keyUp = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: false) {
+      keyDown.flags = [.maskCommand]
+      keyDown.post(tap: .cghidEventTap)
+      usleep(10_000) // 10ms
+      keyUp.flags = [.maskCommand]
+      keyUp.post(tap: .cghidEventTap)
+    }
+
+    // Close window after a short delay
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+      let output = BridgeOutput(
+        status: .ok,
+        text: content,
+        source: nil,
+        code: "snippet_pasted",
+        message: "Snippet pasted successfully"
+      )
+      print(output.encoded())
+      self.close()
+    }
   }
 }
 
@@ -1225,7 +1834,8 @@ struct IrukaAutomationCLI {
       position: position,
       isDarkMode: input.isDarkMode,
       opacity: input.opacity,
-      activeTab: input.activeTab ?? "history"
+      activeTab: input.activeTab ?? "history",
+      snippetDataPath: input.snippetDataPath
     )
 
     window.makeKeyAndOrderFront(nil)

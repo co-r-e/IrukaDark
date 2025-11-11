@@ -110,12 +110,15 @@ class ClipboardHistoryService extends EventEmitter {
 
         // Create thumbnail and calculate hash if present
         let imageDataUrl = null;
+        let imageDataOriginal = null;
         let imageHash = '';
         if (hasImage) {
-          // Create thumbnail for better performance
+          // Save original for pasting (high quality)
+          imageDataOriginal = currentImage.toDataURL();
+          // Create thumbnail for display (better performance)
           imageDataUrl = this.createThumbnail(currentImage);
-          // Use cached hash calculation
-          imageHash = this.getImageHash(imageDataUrl);
+          // Use cached hash calculation (based on original for accuracy)
+          imageHash = this.getImageHash(imageDataOriginal);
         }
 
         // Check if this was programmatically set (within last 3 seconds)
@@ -150,17 +153,13 @@ class ClipboardHistoryService extends EventEmitter {
             if (hasText && item.text === currentText) {
               // If only text changed and it matches an existing item
               if (!hasImage) return true;
-              // If both text and image, check image too
-              if (hasImage && item.imageData) {
-                // Use cached hash instead of recalculating
-                const existingImageHash = item.imageHash || this.getImageHash(item.imageData);
-                return existingImageHash === imageHash;
+              // If both text and image, check image hash
+              if (hasImage && item.imageHash) {
+                return item.imageHash === imageHash;
               }
             }
-            if (hasImage && !hasText && item.imageData) {
-              // Use cached hash instead of recalculating
-              const existingImageHash = item.imageHash || this.getImageHash(item.imageData);
-              return existingImageHash === imageHash;
+            if (hasImage && !hasText && item.imageHash) {
+              return item.imageHash === imageHash;
             }
             return false;
           });
@@ -171,6 +170,7 @@ class ClipboardHistoryService extends EventEmitter {
               {
                 text: hasText ? currentText : null,
                 imageData: hasImage ? imageDataUrl : null,
+                imageDataOriginal: hasImage ? imageDataOriginal : null,
                 imageHash: hasImage ? imageHash : null,
               },
               'auto',
@@ -197,17 +197,21 @@ class ClipboardHistoryService extends EventEmitter {
 
       if (hasText || hasImage) {
         let imageDataUrl = null;
+        let imageDataOriginal = null;
         let imageHash = '';
         if (hasImage) {
-          // Create thumbnail for better performance
+          // Save original for pasting (high quality)
+          imageDataOriginal = currentImage.toDataURL();
+          // Create thumbnail for display (better performance)
           imageDataUrl = this.createThumbnail(currentImage);
-          // Use cached hash calculation
-          imageHash = this.getImageHash(imageDataUrl);
+          // Use cached hash calculation (based on original for accuracy)
+          imageHash = this.getImageHash(imageDataOriginal);
         }
 
         this.addToHistory({
           text: hasText ? currentText : null,
           imageData: hasImage ? imageDataUrl : null,
+          imageDataOriginal: hasImage ? imageDataOriginal : null,
           imageHash: hasImage ? imageHash : null,
         });
 
@@ -230,9 +234,9 @@ class ClipboardHistoryService extends EventEmitter {
     const { skipIfDuplicate = false } = options;
     let item;
 
-    // Handle new format: { text, imageData, imageHash }
+    // Handle new format: { text, imageData, imageDataOriginal, imageHash }
     if (typeof content === 'object' && content.constructor === Object) {
-      const { text, imageData, imageHash } = content;
+      const { text, imageData, imageDataOriginal, imageHash } = content;
 
       if (!text && !imageData) return;
 
@@ -245,19 +249,22 @@ class ClipboardHistoryService extends EventEmitter {
       }
 
       // Calculate hash if not provided
-      const actualImageHash = imageHash || (imageData ? this.getImageHash(imageData) : null);
+      const actualImageHash =
+        imageHash || (imageDataOriginal ? this.getImageHash(imageDataOriginal) : null);
 
-      // Check for duplicates
+      // Check for duplicates using hash comparison
       const duplicateIndex = this.history.findIndex((item) => {
-        // Check for exact match
-        if (text && item.text === text && imageData && item.imageData === imageData) {
-          return true; // Duplicate with both
+        if (text && item.text === text) {
+          // Text matches
+          if (!actualImageHash && !item.imageHash) {
+            return true; // Both text-only
+          }
+          if (actualImageHash && item.imageHash === actualImageHash) {
+            return true; // Both text and same image
+          }
         }
-        if (!imageData && text && item.text === text && !item.imageData) {
-          return true; // Duplicate text-only
-        }
-        if (!text && imageData && item.imageData === imageData && !item.text) {
-          return true; // Duplicate image-only
+        if (!text && actualImageHash && item.imageHash === actualImageHash && !item.text) {
+          return true; // Image-only match
         }
         return false;
       });
@@ -276,17 +283,17 @@ class ClipboardHistoryService extends EventEmitter {
         type: itemType,
         text: text || null,
         imageData: imageData || null,
+        imageDataOriginal: imageDataOriginal || null,
         imageHash: actualImageHash,
         timestamp: Date.now(),
         id: `clip-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       };
     } else if (type === 'image') {
-      // Legacy support: content is a data URL string
+      // Legacy support: content is a data URL string (thumbnail only)
       const imageDataUrl = content;
+      const imageHash = this.getImageHash(imageDataUrl);
 
-      const duplicateIndex = this.history.findIndex(
-        (item) => item.imageData === imageDataUrl && !item.text
-      );
+      const duplicateIndex = this.history.findIndex((item) => item.imageHash === imageHash);
 
       if (duplicateIndex !== -1) {
         if (skipIfDuplicate) {
@@ -296,13 +303,11 @@ class ClipboardHistoryService extends EventEmitter {
         }
       }
 
-      // Calculate hash for image
-      const imageHash = this.getImageHash(imageDataUrl);
-
       item = {
         type: 'image',
         text: null,
         imageData: imageDataUrl,
+        imageDataOriginal: null, // Legacy: no original available
         imageHash,
         timestamp: Date.now(),
         id: `clip-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
@@ -313,7 +318,7 @@ class ClipboardHistoryService extends EventEmitter {
       if (!data) return;
 
       const duplicateIndex = this.history.findIndex(
-        (item) => item.text === data && !item.imageData
+        (item) => item.text === data && !item.imageHash
       );
 
       if (duplicateIndex !== -1) {
@@ -376,14 +381,16 @@ class ClipboardHistoryService extends EventEmitter {
         this.programmaticSetTime = Date.now();
       } else if (item.text && item.imageData) {
         // Both text and image - write both to clipboard
-        const image = nativeImage.createFromDataURL(item.imageData);
+        // Use original image for pasting (high quality), fallback to thumbnail
+        const imageDataToPaste = item.imageDataOriginal || item.imageData;
+        const image = nativeImage.createFromDataURL(imageDataToPaste);
         clipboard.write({
           text: item.text,
           image,
         });
         this.lastClipboard = item.text;
         // Use cached hash if available
-        const imageHash = item.imageHash || this.getImageHash(item.imageData);
+        const imageHash = item.imageHash || this.getImageHash(imageDataToPaste);
         this.lastImageHash = imageHash;
         // Track programmatic change
         this.lastProgrammaticText = item.text;
@@ -400,10 +407,12 @@ class ClipboardHistoryService extends EventEmitter {
         this.programmaticSetTime = Date.now();
       } else if (item.imageData) {
         // Image only
-        const image = nativeImage.createFromDataURL(item.imageData);
+        // Use original image for pasting (high quality), fallback to thumbnail
+        const imageDataToPaste = item.imageDataOriginal || item.imageData;
+        const image = nativeImage.createFromDataURL(imageDataToPaste);
         clipboard.writeImage(image);
         // Use cached hash if available
-        const imageHash = item.imageHash || this.getImageHash(item.imageData);
+        const imageHash = item.imageHash || this.getImageHash(imageDataToPaste);
         this.lastImageHash = imageHash;
         this.lastClipboard = '';
         // Track programmatic change
@@ -441,11 +450,15 @@ class ClipboardHistoryService extends EventEmitter {
 
         // Rebuild hash cache from loaded items
         this.history.forEach((item) => {
-          if (item.imageData && item.imageHash) {
-            this.imageHashCache.set(item.imageData, item.imageHash);
-          } else if (item.imageData && !item.imageHash) {
-            // Calculate and cache hash for old items without hash
-            item.imageHash = this.getImageHash(item.imageData);
+          // Use original image for hash if available, fallback to thumbnail
+          const imageForHash = item.imageDataOriginal || item.imageData;
+          if (imageForHash) {
+            if (item.imageHash) {
+              this.imageHashCache.set(imageForHash, item.imageHash);
+            } else {
+              // Calculate and cache hash for old items without hash
+              item.imageHash = this.getImageHash(imageForHash);
+            }
           }
         });
 

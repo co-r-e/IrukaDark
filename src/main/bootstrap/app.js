@@ -811,16 +811,26 @@ function bootstrapApp() {
               });
 
               // If an item was pasted, track it to prevent re-adding to history
-              if (
-                result &&
-                result.payload &&
-                result.payload.code === 'item_pasted' &&
-                result.payload.text
-              ) {
-                clipboardService.lastProgrammaticText = result.payload.text;
-                clipboardService.lastProgrammaticImageHash = null;
+              if (result && result.payload && result.payload.code === 'item_pasted') {
+                const pastedText = result.payload.text;
+                const pastedImageOriginal = result.payload.imageDataOriginal;
+
+                clipboardService.lastProgrammaticText = pastedText || null;
+
+                // Calculate image hash if image was pasted
+                if (pastedImageOriginal) {
+                  clipboardService.lastProgrammaticImageHash =
+                    clipboardService.getImageHash(pastedImageOriginal);
+                } else {
+                  clipboardService.lastProgrammaticImageHash = null;
+                }
+
                 clipboardService.programmaticSetTime = Date.now();
-                if (isDev) console.log('Tracked pasted item to prevent re-adding to history');
+                if (isDev)
+                  {console.log('Tracked pasted item to prevent re-adding to history', {
+                    text: !!pastedText,
+                    image: !!pastedImageOriginal,
+                  });}
               }
 
               if (isDev) console.log('Clipboard popup opened');
