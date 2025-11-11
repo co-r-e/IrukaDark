@@ -908,8 +908,6 @@ final class ClipboardPopupWindow: NSPanel {
     if activeTab == "snippet" {
       scrollView.documentView = outlineView
       outlineView.reloadData()
-      // Expand all folders by default
-      expandAllFolders()
     } else {
       scrollView.documentView = tableView
       tableView.reloadData()
@@ -942,23 +940,6 @@ final class ClipboardPopupWindow: NSPanel {
     // Switch to outline view
     scrollView.documentView = outlineView
     outlineView.reloadData()
-    expandAllFolders()
-  }
-
-  private func expandAllFolders() {
-    guard let root = snippetTreeRoot else { return }
-    for child in root.children {
-      expandRecursive(node: child)
-    }
-  }
-
-  private func expandRecursive(node: SnippetTreeNode) {
-    outlineView.expandItem(node)
-    for child in node.children {
-      if case .folder = child.type {
-        expandRecursive(node: child)
-      }
-    }
   }
 
   private func updateTabStyles() {
