@@ -390,8 +390,59 @@ final class TooltipWindow: NSPanel {
     // Apply the same attributes to contentLabel to ensure consistent rendering
     contentLabel.attributedStringValue = NSAttributedString(string: contentLabel.stringValue, attributes: attributes)
 
-    // Position tooltip
-    let tooltipFrame = NSRect(x: position.x, y: position.y - height, width: width, height: height)
+    // Calculate initial tooltip position (right side of row)
+    var tooltipX = position.x
+    var tooltipY = position.y - height
+
+    // Get the screen containing the tooltip position
+    var targetScreen: NSScreen? = nil
+    for screen in NSScreen.screens {
+      if screen.frame.contains(position) {
+        targetScreen = screen
+        break
+      }
+    }
+
+    // Adjust position to stay within screen bounds
+    if let screen = targetScreen ?? NSScreen.main {
+      let visibleFrame = screen.visibleFrame
+      let margin: CGFloat = 10
+
+      // Check right edge - if tooltip goes off screen, show on left side instead
+      if tooltipX + width > visibleFrame.maxX - margin {
+        // Position to the left of the original position (subtract width + offset)
+        tooltipX = position.x - width - 10
+
+        // If still off screen on the left, clamp to left edge
+        if tooltipX < visibleFrame.minX + margin {
+          tooltipX = visibleFrame.minX + margin
+        }
+      }
+
+      // Check left edge
+      if tooltipX < visibleFrame.minX + margin {
+        tooltipX = visibleFrame.minX + margin
+      }
+
+      // Check bottom edge - if tooltip goes off screen bottom, show above instead
+      if tooltipY < visibleFrame.minY + margin {
+        // Position above the original position
+        tooltipY = position.y + 10
+
+        // If still off screen on top, clamp to visible area
+        if tooltipY + height > visibleFrame.maxY - margin {
+          tooltipY = visibleFrame.maxY - height - margin
+        }
+      }
+
+      // Check top edge
+      if tooltipY + height > visibleFrame.maxY - margin {
+        tooltipY = visibleFrame.maxY - height - margin
+      }
+    }
+
+    // Position tooltip with adjusted coordinates
+    let tooltipFrame = NSRect(x: tooltipX, y: tooltipY, width: width, height: height)
     setFrame(tooltipFrame, display: true)
 
     contentLabel.frame = NSRect(x: padding, y: padding, width: width - padding * 2, height: contentHeight)
