@@ -267,6 +267,180 @@ final class WindowPositionManager {
   }
 }
 
+// MARK: - Tooltip Support
+
+/// Protocol for providing tooltip content from row data
+protocol TooltipDataSource: AnyObject {
+  func tooltipText(forRow row: Int, inView view: NSView) -> String?
+  func getTooltipDarkMode() -> Bool
+}
+
+/// Floating tooltip window that displays item content
+final class TooltipWindow: NSPanel {
+  private let contentLabel = NSTextField(wrappingLabelWithString: "")
+  private let minWidth: CGFloat = 120
+  private let maxWidth: CGFloat = 320
+  private let maxLines: Int = 10
+
+  init() {
+    super.init(
+      contentRect: NSRect(x: 0, y: 0, width: 100, height: 100),
+      styleMask: [.borderless, .nonactivatingPanel],
+      backing: .buffered,
+      defer: false
+    )
+
+    self.level = .popUpMenu + 1  // Above the main popup window
+    self.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
+    self.isOpaque = false
+    self.backgroundColor = .clear
+    self.hasShadow = true
+    self.ignoresMouseEvents = true  // Click-through
+
+    setupUI()
+  }
+
+  override var canBecomeKey: Bool { false }
+  override var canBecomeMain: Bool { false }
+
+  private func setupUI() {
+    let containerView = NSView()
+    containerView.wantsLayer = true
+    containerView.layer?.cornerRadius = 8
+
+    contentLabel.isEditable = false
+    contentLabel.isBordered = false
+    contentLabel.isBezeled = false
+    contentLabel.drawsBackground = false
+    contentLabel.backgroundColor = .clear
+    contentLabel.maximumNumberOfLines = maxLines
+    contentLabel.lineBreakMode = .byWordWrapping
+    contentLabel.font = .systemFont(ofSize: 11)
+    contentLabel.usesSingleLineMode = false
+    contentLabel.cell?.wraps = true
+    contentLabel.cell?.isScrollable = false
+    contentLabel.cell?.truncatesLastVisibleLine = false
+
+    // Remove internal padding/insets
+    if let cell = contentLabel.cell as? NSTextFieldCell {
+      cell.usesSingleLineMode = false
+      cell.wraps = true
+    }
+
+    containerView.addSubview(contentLabel)
+    contentView = containerView
+  }
+
+  func show(with text: String, at position: NSPoint, isDarkMode: Bool) {
+    // Format text to max 10 lines
+    let lines = text.components(separatedBy: .newlines)
+    let displayLines = Array(lines.prefix(maxLines))
+    let displayText = displayLines.joined(separator: "\n")
+    let truncated = lines.count > maxLines
+
+    contentLabel.stringValue = truncated ? displayText + "\n..." : displayText
+
+    // Apply theme colors
+    if isDarkMode {
+      contentLabel.textColor = NSColor(red: 0xe5/255.0, green: 0xe7/255.0, blue: 0xeb/255.0, alpha: 1.0)
+      contentView?.layer?.backgroundColor = NSColor(red: 0x1a/255.0, green: 0x1a/255.0, blue: 0x2e/255.0, alpha: 0.95).cgColor
+    } else {
+      contentLabel.textColor = NSColor(red: 0x37/255.0, green: 0x41/255.0, blue: 0x51/255.0, alpha: 1.0)
+      contentView?.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.95).cgColor
+    }
+
+    // Calculate size more accurately
+    let padding: CGFloat = 12
+    let font = NSFont.systemFont(ofSize: 11)
+
+    // Set up paragraph style to match NSTextField rendering exactly
+    let paragraphStyle = NSMutableParagraphStyle()
+    paragraphStyle.lineBreakMode = .byWordWrapping
+    paragraphStyle.alignment = .left
+    paragraphStyle.lineSpacing = 0  // No extra line spacing
+    paragraphStyle.paragraphSpacing = 0  // No paragraph spacing
+    paragraphStyle.lineHeightMultiple = 1.0  // Default line height
+
+    let attributes: [NSAttributedString.Key: Any] = [
+      .font: font,
+      .paragraphStyle: paragraphStyle
+    ]
+
+    // First, calculate the text width
+    let textRect = (contentLabel.stringValue as NSString).boundingRect(
+      with: NSSize(width: maxWidth - padding * 2, height: CGFloat.greatestFiniteMagnitude),
+      options: [.usesLineFragmentOrigin],
+      attributes: attributes
+    )
+
+    // Determine actual width (content width + padding, with min/max constraints)
+    let contentWidth = ceil(textRect.width)
+    let width = max(minWidth, min(contentWidth + padding * 2, maxWidth))
+
+    // Recalculate height with the actual width to ensure accurate wrapping
+    let finalTextRect = (contentLabel.stringValue as NSString).boundingRect(
+      with: NSSize(width: width - padding * 2, height: CGFloat.greatestFiniteMagnitude),
+      options: [.usesLineFragmentOrigin],
+      attributes: attributes
+    )
+
+    let contentHeight = ceil(finalTextRect.height)
+    let height = contentHeight + padding * 2
+
+    // Apply the same attributes to contentLabel to ensure consistent rendering
+    contentLabel.attributedStringValue = NSAttributedString(string: contentLabel.stringValue, attributes: attributes)
+
+    // Position tooltip
+    let tooltipFrame = NSRect(x: position.x, y: position.y - height, width: width, height: height)
+    setFrame(tooltipFrame, display: true)
+
+    contentLabel.frame = NSRect(x: padding, y: padding, width: width - padding * 2, height: contentHeight)
+
+    orderFrontRegardless()
+  }
+
+  func hide() {
+    orderOut(nil)
+  }
+}
+
+/// Manager for tooltip display with delay
+final class TooltipManager {
+  static let shared = TooltipManager()
+
+  private var tooltipWindow: TooltipWindow?
+  private var showTimer: Timer?
+  private let showDelay: TimeInterval = 0.3
+
+  private init() {}
+
+  func scheduleShow(text: String, at position: NSPoint, isDarkMode: Bool) {
+    // Cancel any pending show
+    cancelShow()
+
+    showTimer = Timer.scheduledTimer(withTimeInterval: showDelay, repeats: false) { [weak self] _ in
+      self?.showTooltip(text: text, at: position, isDarkMode: isDarkMode)
+    }
+  }
+
+  func cancelShow() {
+    showTimer?.invalidate()
+    showTimer = nil
+  }
+
+  func hideTooltip() {
+    cancelShow()
+    tooltipWindow?.hide()
+  }
+
+  private func showTooltip(text: String, at position: NSPoint, isDarkMode: Bool) {
+    if tooltipWindow == nil {
+      tooltipWindow = TooltipWindow()
+    }
+    tooltipWindow?.show(with: text, at: position, isDarkMode: isDarkMode)
+  }
+}
+
 // MARK: - Clipboard Popup
 
 struct ClipboardItem: Decodable {
@@ -352,6 +526,7 @@ struct ClipboardPopupUpdate: Decodable {
 final class HoverableTableRowView: NSTableRowView {
   private var isHovering = false
   private var isDarkMode: Bool = false
+  weak var tooltipDataSource: TooltipDataSource?
 
   init(isDarkMode: Bool) {
     self.isDarkMode = isDarkMode
@@ -384,6 +559,7 @@ final class HoverableTableRowView: NSTableRowView {
     setupTrackingArea()
 
     // Reset hover state when tracking area updates (e.g., during scrolling)
+    hideTooltip()
     checkMouseLocation()
   }
 
@@ -392,6 +568,7 @@ final class HoverableTableRowView: NSTableRowView {
     // Reset state when row is reused
     isHovering = false
     updateBackgroundColor()
+    hideTooltip()
   }
 
   override func viewDidMoveToWindow() {
@@ -400,6 +577,7 @@ final class HoverableTableRowView: NSTableRowView {
     if window == nil {
       isHovering = false
       updateBackgroundColor()
+      hideTooltip()
     }
   }
 
@@ -424,12 +602,44 @@ final class HoverableTableRowView: NSTableRowView {
     super.mouseEntered(with: event)
     isHovering = true
     updateBackgroundColor()
+    showTooltip()
   }
 
   override func mouseExited(with event: NSEvent) {
     super.mouseExited(with: event)
     isHovering = false
     updateBackgroundColor()
+    hideTooltip()
+  }
+
+  private func showTooltip() {
+    // Get row index
+    guard let tableView = superview as? NSTableView else { return }
+    let row = tableView.row(for: self)
+    guard row >= 0 else { return }
+
+    // Get tooltip text from data source
+    guard let text = tooltipDataSource?.tooltipText(forRow: row, inView: tableView),
+          !text.isEmpty else { return }
+
+    // Calculate tooltip position (right side of the row)
+    guard let window = window else { return }
+    let rowFrameInWindow = convert(bounds, to: nil)
+    let rowFrameOnScreen = window.convertToScreen(rowFrameInWindow)
+
+    // Position tooltip to the right of the row with 10px offset
+    let tooltipX = rowFrameOnScreen.maxX + 10
+    let tooltipY = rowFrameOnScreen.maxY  // Top of the row
+
+    let tooltipPosition = NSPoint(x: tooltipX, y: tooltipY)
+    let isDark = tooltipDataSource?.getTooltipDarkMode() ?? false
+
+    // Schedule tooltip display
+    TooltipManager.shared.scheduleShow(text: text, at: tooltipPosition, isDarkMode: isDark)
+  }
+
+  private func hideTooltip() {
+    TooltipManager.shared.hideTooltip()
   }
 
   private func updateBackgroundColor() {
@@ -712,6 +922,11 @@ final class ClipboardPopupWindow: NSPanel {
   override var canBecomeKey: Bool { false }
   override var canBecomeMain: Bool { false }
 
+  deinit {
+    // Clean up tooltip when window is deallocated
+    TooltipManager.shared.hideTooltip()
+  }
+
   private func setupUI() {
     // Container view
     let containerView = NSView(frame: contentView!.bounds)
@@ -917,10 +1132,12 @@ final class ClipboardPopupWindow: NSPanel {
   }
 
   @objc private func closeWindow() {
+    TooltipManager.shared.hideTooltip()
     self.close()
   }
 
   @objc private func switchToHistoryTab() {
+    TooltipManager.shared.hideTooltip()
     activeTab = "history"
     // PERFORMANCE: Clear cache when switching tabs
     rowInfoCache.removeAll()
@@ -932,6 +1149,7 @@ final class ClipboardPopupWindow: NSPanel {
   }
 
   @objc private func switchToSnippetTab() {
+    TooltipManager.shared.hideTooltip()
     activeTab = "snippet"
     // PERFORMANCE: Clear cache when switching tabs
     rowInfoCache.removeAll()
@@ -1220,6 +1438,9 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
       rowView?.wantsLayer = true
     }
 
+    // Set tooltip data source
+    rowView?.tooltipDataSource = self
+
     return rowView
   }
 
@@ -1453,6 +1674,9 @@ extension ClipboardPopupWindow: NSOutlineViewDelegate {
       rowView?.wantsLayer = true
     }
 
+    // Set tooltip data source
+    rowView?.tooltipDataSource = self
+
     return rowView
   }
 
@@ -1505,6 +1729,51 @@ extension ClipboardPopupWindow: NSOutlineViewDelegate {
       print(output.encoded())
       self.close()
     }
+  }
+}
+
+// MARK: - TooltipDataSource Implementation
+extension ClipboardPopupWindow: TooltipDataSource {
+  func tooltipText(forRow row: Int, inView view: NSView) -> String? {
+    // Determine if we're in tableView or outlineView
+    if view == tableView {
+      // History or snippet items (flat list)
+      let items = activeTab == "history" ? historyItems : snippetItems
+      guard row >= 0 && row < items.count else { return nil }
+      let item = items[row]
+
+      // Return text content if available
+      if let text = item.text, !text.isEmpty {
+        return text
+      }
+
+      // For images, show metadata
+      if item.imageData != nil {
+        return "[Image]"
+      }
+
+      return nil
+    } else if view == outlineView {
+      // Snippet tree view
+      guard let item = outlineView.item(atRow: row) as? SnippetTreeNode else { return nil }
+
+      switch item.type {
+      case .folder(_, let name):
+        return name
+      case .snippet(_, let name, let contentRef):
+        // Return snippet content for tooltip
+        if let content = snippetContentMap[contentRef], !content.isEmpty {
+          return content
+        }
+        return name
+      }
+    }
+
+    return nil
+  }
+
+  func getTooltipDarkMode() -> Bool {
+    return self.isDarkMode
   }
 }
 
