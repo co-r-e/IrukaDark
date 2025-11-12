@@ -390,64 +390,65 @@ final class TooltipWindow: NSPanel {
     // Apply the same attributes to contentLabel to ensure consistent rendering
     contentLabel.attributedStringValue = NSAttributedString(string: contentLabel.stringValue, attributes: attributes)
 
-    // Calculate initial tooltip position (right side of row)
-    var tooltipX = position.x
-    var tooltipY = position.y - height
+    // Calculate optimal tooltip position with screen boundary checks
+    let tooltipSize = NSSize(width: width, height: height)
+    let tooltipFrame = calculateTooltipPosition(
+      anchorPoint: position,
+      tooltipSize: tooltipSize
+    )
 
-    // Get the screen containing the tooltip position
-    var targetScreen: NSScreen? = nil
-    for screen in NSScreen.screens {
-      if screen.frame.contains(position) {
-        targetScreen = screen
-        break
-      }
-    }
-
-    // Adjust position to stay within screen bounds
-    if let screen = targetScreen ?? NSScreen.main {
-      let visibleFrame = screen.visibleFrame
-      let margin: CGFloat = 10
-
-      // Check right edge - if tooltip goes off screen, show on left side instead
-      if tooltipX + width > visibleFrame.maxX - margin {
-        // Position to the left of the original position (subtract width + offset)
-        tooltipX = position.x - width - 10
-
-        // If still off screen on the left, clamp to left edge
-        if tooltipX < visibleFrame.minX + margin {
-          tooltipX = visibleFrame.minX + margin
-        }
-      }
-
-      // Check left edge
-      if tooltipX < visibleFrame.minX + margin {
-        tooltipX = visibleFrame.minX + margin
-      }
-
-      // Check bottom edge - if tooltip goes off screen bottom, show above instead
-      if tooltipY < visibleFrame.minY + margin {
-        // Position above the original position
-        tooltipY = position.y + 10
-
-        // If still off screen on top, clamp to visible area
-        if tooltipY + height > visibleFrame.maxY - margin {
-          tooltipY = visibleFrame.maxY - height - margin
-        }
-      }
-
-      // Check top edge
-      if tooltipY + height > visibleFrame.maxY - margin {
-        tooltipY = visibleFrame.maxY - height - margin
-      }
-    }
-
-    // Position tooltip with adjusted coordinates
-    let tooltipFrame = NSRect(x: tooltipX, y: tooltipY, width: width, height: height)
     setFrame(tooltipFrame, display: true)
-
     contentLabel.frame = NSRect(x: padding, y: padding, width: width - padding * 2, height: contentHeight)
 
     orderFrontRegardless()
+  }
+
+  /// Calculate optimal tooltip position with screen boundary checks
+  private func calculateTooltipPosition(anchorPoint: NSPoint, tooltipSize: NSSize) -> NSRect {
+    let screenMargin: CGFloat = 10
+    let offsetFromAnchor: CGFloat = 10
+
+    // Find screen containing the anchor point
+    let targetScreen = NSScreen.screens.first(where: { $0.frame.contains(anchorPoint) }) ?? NSScreen.main
+    guard let screen = targetScreen else {
+      return NSRect(origin: anchorPoint, size: tooltipSize)
+    }
+
+    let visibleFrame = screen.visibleFrame
+    var tooltipX = anchorPoint.x
+    var tooltipY = anchorPoint.y - tooltipSize.height
+
+    // Horizontal positioning: prefer right, fallback to left
+    if tooltipX + tooltipSize.width > visibleFrame.maxX - screenMargin {
+      // Try left side
+      tooltipX = anchorPoint.x - tooltipSize.width - offsetFromAnchor
+
+      // Clamp to left edge if still out of bounds
+      if tooltipX < visibleFrame.minX + screenMargin {
+        tooltipX = visibleFrame.minX + screenMargin
+      }
+    }
+
+    // Clamp to left edge
+    tooltipX = max(tooltipX, visibleFrame.minX + screenMargin)
+
+    // Vertical positioning: prefer below, fallback to above
+    if tooltipY < visibleFrame.minY + screenMargin {
+      // Try above
+      tooltipY = anchorPoint.y + offsetFromAnchor
+
+      // Clamp to top edge if still out of bounds
+      if tooltipY + tooltipSize.height > visibleFrame.maxY - screenMargin {
+        tooltipY = visibleFrame.maxY - tooltipSize.height - screenMargin
+      }
+    }
+
+    // Clamp to top edge
+    if tooltipY + tooltipSize.height > visibleFrame.maxY - screenMargin {
+      tooltipY = visibleFrame.maxY - tooltipSize.height - screenMargin
+    }
+
+    return NSRect(x: tooltipX, y: tooltipY, width: tooltipSize.width, height: tooltipSize.height)
   }
 
   func hide() {
