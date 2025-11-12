@@ -661,6 +661,31 @@ final class HoverableTableRowView: NSTableRowView {
   }
 }
 
+// MARK: - Text Formatting Helpers
+
+extension String {
+  /// プレビュー表示用にテキストを整形（空行・余分な空白を削除）
+  func compactForPreview() -> String {
+    // 1. 各行をトリム
+    let lines = self.components(separatedBy: .newlines)
+
+    // 2. 空行を除去し、各行の連続する空白を1つに
+    let compactedLines = lines
+      .map { line in
+        // 連続する空白を1つのスペースに
+        line.replacingOccurrences(
+          of: "\\s+",
+          with: " ",
+          options: .regularExpression
+        ).trimmingCharacters(in: .whitespaces)
+      }
+      .filter { !$0.isEmpty }  // 空行を除去
+
+    // 3. 結合
+    return compactedLines.joined(separator: " ")
+  }
+}
+
 // MARK: - Custom Cell Views
 
 /// High-performance custom cell view for clipboard items with full view reuse
@@ -686,11 +711,11 @@ final class ClipboardItemCell: NSTableCellView {
     contentTextLabel.isEditable = false
     contentTextLabel.isBordered = false
     contentTextLabel.backgroundColor = .clear
-    contentTextLabel.maximumNumberOfLines = 3
+    contentTextLabel.maximumNumberOfLines = 1
     contentTextLabel.lineBreakMode = .byTruncatingTail
     contentTextLabel.font = .systemFont(ofSize: 11)
     contentTextLabel.usesSingleLineMode = false
-    contentTextLabel.cell?.wraps = true
+    contentTextLabel.cell?.wraps = false
     contentTextLabel.cell?.isScrollable = false
     addSubview(contentTextLabel)
 
@@ -708,8 +733,9 @@ final class ClipboardItemCell: NSTableCellView {
     let topPadding: CGFloat = 3
 
     if let text = text, !text.isEmpty {
-      // Text mode
-      contentTextLabel.stringValue = text
+      // Text mode - プレビュー用に整形（空行・空白を詰める）
+      let previewText = text.compactForPreview()
+      contentTextLabel.stringValue = previewText
       contentTextLabel.textColor = isDarkMode
         ? NSColor(red: 0xe5/255.0, green: 0xe7/255.0, blue: 0xeb/255.0, alpha: 1.0)
         : NSColor(red: 0x37/255.0, green: 0x41/255.0, blue: 0x51/255.0, alpha: 1.0)
@@ -1459,9 +1485,6 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
 
     let topPadding: CGFloat = 3
     let bottomPadding: CGFloat = 3
-    let leftPadding: CGFloat = 3
-    let rightPadding: CGFloat = 8
-    let availableWidth = tableView.bounds.width - leftPadding - rightPadding
 
     let hasText = item.text != nil && !item.text!.isEmpty
     let hasImage = item.imageData != nil && !item.imageData!.isEmpty
@@ -1474,18 +1497,11 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
       totalHeight += 36  // Image height
     }
 
-    // Add text height if text exists
+    // Add text height if text exists (1 line only)
     if let text = item.text, !text.isEmpty {
-      let font = NSFont.systemFont(ofSize: 11)
-      let textRect = (text as NSString).boundingRect(
-        with: NSSize(width: availableWidth, height: CGFloat.greatestFiniteMagnitude),
-        options: [.usesLineFragmentOrigin, .usesFontLeading],
-        attributes: [.font: font]
-      )
-      // Limit to 3 lines max (approximate line height: 15px for 11pt font)
+      // Single line height: 11pt font + minimal padding
       let lineHeight: CGFloat = 15
-      let maxHeight = lineHeight * 3
-      textHeight = min(ceil(textRect.height), maxHeight)
+      textHeight = lineHeight
       totalHeight += textHeight
     }
 
