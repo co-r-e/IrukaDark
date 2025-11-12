@@ -3125,8 +3125,12 @@ class GeminiService {
 
         // Include previous image as reference if available
         if (this.lastGeneratedImage) {
-          options.referenceImage = this.lastGeneratedImage.imageBase64;
-          options.referenceMimeType = this.lastGeneratedImage.mimeType;
+          options.referenceImages = [
+            {
+              base64: this.lastGeneratedImage.imageBase64,
+              mimeType: this.lastGeneratedImage.mimeType,
+            },
+          ];
         }
 
         const result = await window.electronAPI.generateImageFromText(prompt, options);
