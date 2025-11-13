@@ -194,7 +194,7 @@ struct WindowPlacementConfiguration {
   static let `default` = WindowPlacementConfiguration(
     windowSize: NSSize(width: 220, height: 280),
     screenEdgeMargin: 16,
-    cursorOffset: NSPoint(x: 20, y: -20)  // カーソルの右下に配置
+    cursorOffset: NSPoint(x: 1, y: -1)  // カーソルの右下1pxに配置
   )
 }
 
@@ -937,8 +937,8 @@ final class ClipboardPopupWindow: NSPanel {
   private var historyItems: [ClipboardItem] = []
   private var snippetItems: [ClipboardItem] = []
   private var previousApp: NSRunningApplication?
-  private var tableView: NSTableView!
-  private var outlineView: NSOutlineView!
+  private var tableView: NSTableView?
+  private var outlineView: NSOutlineView?
   private var scrollView: NSScrollView!
   private var isDarkMode: Bool = false
   private var opacity: Double = 1.0
@@ -956,7 +956,8 @@ final class ClipboardPopupWindow: NSPanel {
     let textHeight: CGFloat
   }
   private var rowInfoCache: [String: CachedRowInfo] = [:]
-  private var imageCache = LRUCache<String, NSImage>(capacity: 50)
+  // PERFORMANCE: Reduced image cache size to save memory (50 → 30)
+  private var imageCache = LRUCache<String, NSImage>(capacity: 30)
 
   init(items: [ClipboardItem], isDarkMode: Bool = false, opacity: Double = 1.0, activeTab: String = "history", snippetDataPath: String? = nil) {
     self.historyItems = items
@@ -989,12 +990,14 @@ final class ClipboardPopupWindow: NSPanel {
     self.hidesOnDeactivate = false
     self.becomesKeyOnlyIfNeeded = true
 
-    // Load snippet data if path provided
-    if let path = snippetDataPath {
-      loadSnippetsFromFile(path)
-    }
-
     setupUI()
+
+    // PERFORMANCE: Load snippet data asynchronously if path provided
+    if let path = snippetDataPath {
+      DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        self?.loadSnippetsFromFile(path)
+      }
+    }
   }
 
   override var canBecomeKey: Bool { false }
@@ -1003,6 +1006,50 @@ final class ClipboardPopupWindow: NSPanel {
   deinit {
     // Clean up tooltip when window is deallocated
     TooltipManager.shared.hideTooltip()
+  }
+
+  // PERFORMANCE: Window reuse - reset state for next use
+  func reset(items: [ClipboardItem], isDarkMode: Bool, opacity: Double, activeTab: String, snippetDataPath: String?) {
+    // Hide tooltip
+    TooltipManager.shared.hideTooltip()
+
+    // Update basic properties
+    self.historyItems = items
+    self.isDarkMode = isDarkMode
+    self.opacity = opacity
+    self.activeTab = activeTab
+
+    // Clear caches
+    self.rowInfoCache.removeAll()
+    self.imageCache.clear()
+
+    // Load snippet data if path provided (asynchronously)
+    if let path = snippetDataPath {
+      DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        self?.loadSnippetsFromFile(path)
+      }
+    } else {
+      // Clear existing snippet data
+      self.snippetFolders = []
+      self.snippets = []
+      self.snippetContentMap = [:]
+      self.snippetTreeRoot = nil
+    }
+
+    // Recalculate position based on cursor
+    let positionManager = WindowPositionManager()
+    let contentRect = positionManager.calculateOptimalPosition()
+    self.setFrame(contentRect, display: false)
+
+    // Reload active view
+    if activeTab == "history" {
+      tableView?.reloadData()
+    } else {
+      outlineView?.reloadData()
+    }
+
+    // Update tab styles
+    updateTabStyles()
   }
 
   private func setupUI() {
@@ -1022,6 +1069,11 @@ final class ClipboardPopupWindow: NSPanel {
       gradientLayer.startPoint = CGPoint(x: 0, y: 1)
       gradientLayer.endPoint = CGPoint(x: 1, y: 0)
       gradientLayer.cornerRadius = 12
+
+      // PERFORMANCE: Cache the gradient as a rasterized bitmap
+      gradientLayer.shouldRasterize = true
+      gradientLayer.rasterizationScale = NSScreen.main?.backingScaleFactor ?? 2.0
+
       containerView.layer?.insertSublayer(gradientLayer, at: 0)
       containerView.layer?.cornerRadius = 12
     } else {
@@ -1162,46 +1214,48 @@ final class ClipboardPopupWindow: NSPanel {
     scrollView.drawsBackground = false
     scrollView.scrollerStyle = .overlay  // Use overlay style (auto-hiding)
 
-    // TableView
-    tableView = NSTableView(frame: scrollView.bounds)
-    tableView.headerView = nil
-    tableView.backgroundColor = .clear
-    tableView.selectionHighlightStyle = .none
-    tableView.intercellSpacing = NSSize(width: 0, height: 0)  // No spacing between rows
-    tableView.delegate = self
-    tableView.dataSource = self
-
-    let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("text"))
-    column.width = scrollView.bounds.width - 20
-    tableView.addTableColumn(column)
-
-    // OutlineView for snippets
-    outlineView = NSOutlineView(frame: scrollView.bounds)
-    outlineView.headerView = nil
-    outlineView.backgroundColor = .clear
-    outlineView.selectionHighlightStyle = .none
-    outlineView.intercellSpacing = NSSize(width: 0, height: 0)
-    outlineView.indentationPerLevel = 0  // We handle indentation manually
-    outlineView.delegate = self
-    outlineView.dataSource = self
-
-    // Set appearance for disclosure triangle color
-    if isDarkMode {
-      outlineView.appearance = NSAppearance(named: .darkAqua)
-    } else {
-      outlineView.appearance = NSAppearance(named: .aqua)
-    }
-
-    let outlineColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("snippet"))
-    outlineColumn.width = scrollView.bounds.width - 20
-    outlineView.addTableColumn(outlineColumn)
-    outlineView.outlineTableColumn = outlineColumn
-
-    // Set initial document view based on active tab
+    // PERFORMANCE: Lazy view initialization - only create the view for the active tab
     if activeTab == "snippet" {
+      // Create OutlineView only
+      let outlineView = NSOutlineView(frame: scrollView.bounds)
+      outlineView.headerView = nil
+      outlineView.backgroundColor = .clear
+      outlineView.selectionHighlightStyle = .none
+      outlineView.intercellSpacing = NSSize(width: 0, height: 0)
+      outlineView.indentationPerLevel = 0  // We handle indentation manually
+      outlineView.delegate = self
+      outlineView.dataSource = self
+
+      // Set appearance for disclosure triangle color
+      if isDarkMode {
+        outlineView.appearance = NSAppearance(named: .darkAqua)
+      } else {
+        outlineView.appearance = NSAppearance(named: .aqua)
+      }
+
+      let outlineColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("snippet"))
+      outlineColumn.width = scrollView.bounds.width - 20
+      outlineView.addTableColumn(outlineColumn)
+      outlineView.outlineTableColumn = outlineColumn
+
+      self.outlineView = outlineView
       scrollView.documentView = outlineView
       outlineView.reloadData()
     } else {
+      // Create TableView only (default: history tab)
+      let tableView = NSTableView(frame: scrollView.bounds)
+      tableView.headerView = nil
+      tableView.backgroundColor = .clear
+      tableView.selectionHighlightStyle = .none
+      tableView.intercellSpacing = NSSize(width: 0, height: 0)  // No spacing between rows
+      tableView.delegate = self
+      tableView.dataSource = self
+
+      let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("text"))
+      column.width = scrollView.bounds.width - 20
+      tableView.addTableColumn(column)
+
+      self.tableView = tableView
       scrollView.documentView = tableView
       tableView.reloadData()
     }
@@ -1221,9 +1275,27 @@ final class ClipboardPopupWindow: NSPanel {
     rowInfoCache.removeAll()
     // Update tab button styles
     updateTabStyles()
+
+    // PERFORMANCE: Lazy initialization - create tableView only when needed
+    if tableView == nil {
+      let newTableView = NSTableView(frame: scrollView.bounds)
+      newTableView.headerView = nil
+      newTableView.backgroundColor = .clear
+      newTableView.selectionHighlightStyle = .none
+      newTableView.intercellSpacing = NSSize(width: 0, height: 0)
+      newTableView.delegate = self
+      newTableView.dataSource = self
+
+      let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("text"))
+      column.width = scrollView.bounds.width - 20
+      newTableView.addTableColumn(column)
+
+      self.tableView = newTableView
+    }
+
     // Switch to table view
     scrollView.documentView = tableView
-    tableView.reloadData()
+    tableView?.reloadData()
   }
 
   @objc private func switchToSnippetTab() {
@@ -1233,9 +1305,36 @@ final class ClipboardPopupWindow: NSPanel {
     rowInfoCache.removeAll()
     // Update tab button styles
     updateTabStyles()
+
+    // PERFORMANCE: Lazy initialization - create outlineView only when needed
+    if outlineView == nil {
+      let newOutlineView = NSOutlineView(frame: scrollView.bounds)
+      newOutlineView.headerView = nil
+      newOutlineView.backgroundColor = .clear
+      newOutlineView.selectionHighlightStyle = .none
+      newOutlineView.intercellSpacing = NSSize(width: 0, height: 0)
+      newOutlineView.indentationPerLevel = 0
+      newOutlineView.delegate = self
+      newOutlineView.dataSource = self
+
+      // Set appearance for disclosure triangle color
+      if isDarkMode {
+        newOutlineView.appearance = NSAppearance(named: .darkAqua)
+      } else {
+        newOutlineView.appearance = NSAppearance(named: .aqua)
+      }
+
+      let outlineColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("snippet"))
+      outlineColumn.width = scrollView.bounds.width - 20
+      newOutlineView.addTableColumn(outlineColumn)
+      newOutlineView.outlineTableColumn = outlineColumn
+
+      self.outlineView = newOutlineView
+    }
+
     // Switch to outline view
     scrollView.documentView = outlineView
-    outlineView.reloadData()
+    outlineView?.reloadData()
   }
 
   private func updateTabStyles() {
@@ -1285,8 +1384,8 @@ final class ClipboardPopupWindow: NSPanel {
 
         // Note: rowInfoCache uses item-based keys, no need to adjust
 
-        // Animate insertion
-        self.tableView.insertRows(at: newIndexes, withAnimation: .slideDown)
+        // Animate insertion (only if tableView exists)
+        self.tableView?.insertRows(at: newIndexes, withAnimation: .slideDown)
       } else if newCount < oldCount {
         // Items removed
         let removedIndexes = IndexSet(integersIn: newCount..<oldCount)
@@ -1294,14 +1393,14 @@ final class ClipboardPopupWindow: NSPanel {
 
         // Note: rowInfoCache uses item-based keys, no need to adjust
 
-        // Animate removal
-        self.tableView.removeRows(at: removedIndexes, withAnimation: .slideUp)
+        // Animate removal (only if tableView exists)
+        self.tableView?.removeRows(at: removedIndexes, withAnimation: .slideUp)
       } else {
         // Same count - full reload (content may have changed)
         self.historyItems = items
         // Clear cache since content might have changed
         self.rowInfoCache.removeAll()
-        self.tableView.reloadData()
+        self.tableView?.reloadData()
       }
     }
   }
@@ -1311,8 +1410,8 @@ final class ClipboardPopupWindow: NSPanel {
     guard index >= 0 && index < items.count else { return }
     let item = items[index]
 
-    // Visual feedback
-    if let rowView = tableView.rowView(atRow: index, makeIfNecessary: false) {
+    // Visual feedback (only if tableView exists)
+    if let rowView = tableView?.rowView(atRow: index, makeIfNecessary: false) {
       rowView.backgroundColor = NSColor.systemGreen.withAlphaComponent(0.15)
       DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
         rowView.backgroundColor = .clear
@@ -1447,14 +1546,19 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
   }
 
   // PERFORMANCE: Image decoding with LRU cache (O(1) operations)
+  // Optimized with faster base64 decoding
   private func decodeImageFromDataURL(_ dataURL: String) -> NSImage? {
     // DataURL format: "data:image/png;base64,..."
-    guard let commaRange = dataURL.range(of: ","),
-          let base64String = dataURL[commaRange.upperBound...].removingPercentEncoding else {
+    guard let commaRange = dataURL.range(of: ",") else {
       return nil
     }
 
-    guard let imageData = Data(base64Encoded: String(base64String)),
+    // PERFORMANCE: Direct substring extraction without percent encoding removal
+    let base64Substring = dataURL[commaRange.upperBound...]
+    let base64String = String(base64Substring)
+
+    // PERFORMANCE: Use Data's optimized base64 decoder with ignoreUnknownCharacters option
+    guard let imageData = Data(base64Encoded: base64String, options: .ignoreUnknownCharacters),
           let image = NSImage(data: imageData) else {
       return nil
     }
@@ -1462,6 +1566,23 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
     // Cache with LRU (automatic eviction)
     imageCache.set(dataURL, value: image)
     return image
+  }
+
+  // PERFORMANCE: Async image decoding for better responsiveness
+  private func decodeImageAsync(_ dataURL: String, completion: @escaping (NSImage?) -> Void) {
+    // Check cache first
+    if let cached = imageCache.get(dataURL) {
+      completion(cached)
+      return
+    }
+
+    // Decode in background
+    DispatchQueue.global(qos: .userInteractive).async { [weak self] in
+      let image = self?.decodeImageFromDataURL(dataURL)
+      DispatchQueue.main.async {
+        completion(image)
+      }
+    }
   }
 
   // Get image from cache or decode (for display purposes)
@@ -1571,21 +1692,32 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
   // MARK: - Snippet Loading and Tree Building
 
   private func loadSnippetsFromFile(_ path: String) {
+    // PERFORMANCE: File I/O on background thread
     guard FileManager.default.fileExists(atPath: path),
           let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
           let decoded = try? JSONDecoder().decode(SnippetDataStructure.self, from: data)
     else { return }
 
-    self.snippetFolders = decoded.folders
-    self.snippets = decoded.snippets
+    // Update data on main thread
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self else { return }
 
-    // Build content map (ID -> content)
-    for snippet in decoded.snippets {
-      snippetContentMap[snippet.id] = snippet.content
+      self.snippetFolders = decoded.folders
+      self.snippets = decoded.snippets
+
+      // Build content map (ID -> content)
+      for snippet in decoded.snippets {
+        self.snippetContentMap[snippet.id] = snippet.content
+      }
+
+      // Build tree structure
+      self.buildSnippetTree()
+
+      // Reload outline view if it's already created and active
+      if self.activeTab == "snippet" {
+        self.outlineView?.reloadData()
+      }
     }
-
-    // Build tree structure
-    buildSnippetTree()
   }
 
   private func buildSnippetTree() {
@@ -1804,7 +1936,7 @@ extension ClipboardPopupWindow: NSOutlineViewDelegate {
 extension ClipboardPopupWindow: TooltipDataSource {
   func tooltipText(forRow row: Int, inView view: NSView) -> String? {
     // Determine if we're in tableView or outlineView
-    if view == tableView {
+    if let tableView = tableView, view == tableView {
       // History or snippet items (flat list)
       let items = activeTab == "history" ? historyItems : snippetItems
       guard row >= 0 && row < items.count else { return nil }
@@ -1821,7 +1953,7 @@ extension ClipboardPopupWindow: TooltipDataSource {
       }
 
       return nil
-    } else if view == outlineView {
+    } else if let outlineView = outlineView, view == outlineView {
       // Snippet tree view
       guard let item = outlineView.item(atRow: row) as? SnippetTreeNode else { return nil }
 
@@ -2090,6 +2222,9 @@ enum Command: String {
   case version = "version"
 }
 
+// PERFORMANCE: Window pool - reuse windows instead of recreating
+private var cachedPopupWindow: ClipboardPopupWindow?
+
 @main
 struct IrukaAutomationCLI {
   static func main() {
@@ -2226,15 +2361,29 @@ struct IrukaAutomationCLI {
       exit(EXIT_FAILURE)
     }
 
-    // Create and show popup window
-    // Position is now automatically determined by cursor location (no need for input.position)
-    let window = ClipboardPopupWindow(
-      items: input.items,
-      isDarkMode: input.isDarkMode,
-      opacity: input.opacity,
-      activeTab: input.activeTab ?? "history",
-      snippetDataPath: input.snippetDataPath
-    )
+    // PERFORMANCE: Reuse cached window if available
+    let window: ClipboardPopupWindow
+    if let cached = cachedPopupWindow, cached.isVisible == false {
+      // Reuse existing window
+      window = cached
+      window.reset(
+        items: input.items,
+        isDarkMode: input.isDarkMode,
+        opacity: input.opacity,
+        activeTab: input.activeTab ?? "history",
+        snippetDataPath: input.snippetDataPath
+      )
+    } else {
+      // Create new window
+      window = ClipboardPopupWindow(
+        items: input.items,
+        isDarkMode: input.isDarkMode,
+        opacity: input.opacity,
+        activeTab: input.activeTab ?? "history",
+        snippetDataPath: input.snippetDataPath
+      )
+      cachedPopupWindow = window
+    }
 
     window.makeKeyAndOrderFront(nil)
 
