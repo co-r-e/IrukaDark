@@ -889,10 +889,14 @@ class IrukaDarkApp {
   }
 
   applySolidWindowClass(value) {
-    const solid = (parseFloat(value) || 1) >= 0.999;
+    const opacity = parseFloat(value) || 1;
+    const solid = opacity >= 0.999;
     const html = document.documentElement;
     if (solid) html.classList.add('solid-window');
     else html.classList.remove('solid-window');
+
+    // Apply opacity to CSS custom property for background transparency
+    html.style.setProperty('--window-bg-opacity', opacity.toString());
   }
 
   async handleExplainClipboard(text) {

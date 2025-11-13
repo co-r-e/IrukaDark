@@ -25,15 +25,16 @@ body {
   --blur-light: 8px;
   --shadow-window: 0 32px 64px -12px rgba(0, 0, 0, 0.25);
   --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.1);
+  --window-bg-opacity: 1;
 }
 
 html:not(.theme-dark) .glass-effect {
-  background: #ffffff;
+  background: rgba(255, 255, 255, var(--window-bg-opacity));
   border: none;
 }
 
 html.solid-window:not(.theme-dark) .glass-effect {
-  background: #ffffff !important;
+  background: rgba(255, 255, 255, var(--window-bg-opacity)) !important;
 }
 
 html:not(.theme-dark) .message-user-content {
@@ -55,13 +56,21 @@ html:not(.theme-dark) #messageInput {
 }
 
 .theme-dark .glass-effect {
-  background: linear-gradient(145deg, #0b1021, #1a1446);
+  background: linear-gradient(
+    145deg,
+    rgba(11, 16, 33, var(--window-bg-opacity)),
+    rgba(26, 20, 70, var(--window-bg-opacity))
+  );
   color: #e5e7eb;
   border: none;
 }
 
 html.solid-window.theme-dark .glass-effect {
-  background: linear-gradient(145deg, #0b1021, #1a1446) !important;
+  background: linear-gradient(
+    145deg,
+    rgba(11, 16, 33, var(--window-bg-opacity)),
+    rgba(26, 20, 70, var(--window-bg-opacity))
+  ) !important;
 }
 
 .theme-dark .message-user-content {

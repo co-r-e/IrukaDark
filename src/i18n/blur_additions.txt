@@ -1,0 +1,5 @@
+windowBlur: 'Desenfoque de ventana',
+blurNone: 'Ninguno',
+blurWeak: 'Débil (8px)',
+blurMedium: 'Medio (20px)',
+blurStrong: 'Fuerte (40px)',

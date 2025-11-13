@@ -73,8 +73,8 @@ class WindowManager {
     // Handle focus/blur for opacity management
     mainWindow.on('focus', () => {
       try {
-        // Restore original opacity when focused
-        mainWindow.setOpacity(this.savedOpacity);
+        // Send opacity to renderer when focused
+        mainWindow.webContents.send('window-opacity-changed', this.savedOpacity);
       } catch {}
     });
 
@@ -233,10 +233,7 @@ class WindowManager {
     const mainWindow = getMainWindow();
     try {
       if (mainWindow && !mainWindow.isDestroyed()) {
-        // Only apply if window is focused, otherwise keep background opacity
-        if (mainWindow.isFocused()) {
-          mainWindow.setOpacity(opacity);
-        }
+        // Send opacity to renderer instead of using setOpacity()
         try {
           mainWindow.webContents.send('window-opacity-changed', opacity);
         } catch {}
@@ -369,7 +366,8 @@ class WindowManager {
     if (!Number.isNaN(savedOpacity)) {
       this.savedOpacity = savedOpacity; // Store the opacity value
       try {
-        win.setOpacity(savedOpacity);
+        // Send opacity to renderer instead of using setOpacity()
+        win.webContents.send('window-opacity-changed', savedOpacity);
       } catch {}
     }
   }
