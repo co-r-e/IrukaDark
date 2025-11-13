@@ -192,7 +192,7 @@ struct WindowPlacementConfiguration {
   let cursorOffset: NSPoint
 
   static let `default` = WindowPlacementConfiguration(
-    windowSize: NSSize(width: 260, height: 280),
+    windowSize: NSSize(width: 220, height: 280),
     screenEdgeMargin: 16,
     cursorOffset: NSPoint(x: 20, y: -20)  // カーソルの右下に配置
   )
