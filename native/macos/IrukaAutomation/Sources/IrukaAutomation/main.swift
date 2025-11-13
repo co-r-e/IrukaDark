@@ -934,7 +934,33 @@ final class SnippetItemCell: NSTableCellView {
 }
 
 final class ClipboardPopupWindow: NSPanel {
-  private var historyItems: [ClipboardItem] = []
+  // MARK: - Constants
+
+  private enum TabTag: Int {
+    case history = 100
+    case historyImage = 102
+    case snippet = 101
+  }
+
+  private struct UIConstants {
+    static let tabButtonHeight: CGFloat = 17
+    static let tabButtonYOffset: CGFloat = 3
+    static let tabButtonFontSize: CGFloat = 9
+
+    struct TabButton {
+      static let historyX: CGFloat = 4
+      static let historyWidth: CGFloat = 45
+      static let historyImageX: CGFloat = 49
+      static let historyImageWidth: CGFloat = 60
+      static let snippetX: CGFloat = 109
+      static let snippetWidth: CGFloat = 50
+    }
+  }
+
+  // MARK: - Properties
+
+  private var historyTextItems: [ClipboardItem] = []
+  private var historyImageItems: [ClipboardItem] = []
   private var snippetItems: [ClipboardItem] = []
   private var previousApp: NSRunningApplication?
   private var tableView: NSTableView?
@@ -960,7 +986,16 @@ final class ClipboardPopupWindow: NSPanel {
   private var imageCache = LRUCache<String, NSImage>(capacity: 30)
 
   init(items: [ClipboardItem], isDarkMode: Bool = false, opacity: Double = 1.0, activeTab: String = "history", snippetDataPath: String? = nil) {
-    self.historyItems = items
+    // PERFORMANCE: Classify items into text and image categories
+    self.historyTextItems = items.filter { item in
+      if let text = item.text, !text.isEmpty { return true }
+      return false
+    }
+    self.historyImageItems = items.filter { item in
+      let hasNoText = item.text == nil || item.text!.isEmpty
+      let hasImage = item.imageData != nil && !item.imageData!.isEmpty
+      return hasNoText && hasImage
+    }
     self.isDarkMode = isDarkMode
     self.opacity = opacity
     self.activeTab = activeTab
@@ -1014,7 +1049,7 @@ final class ClipboardPopupWindow: NSPanel {
     TooltipManager.shared.hideTooltip()
 
     // Update basic properties
-    self.historyItems = items
+    self.classifyItems(items)
     self.isDarkMode = isDarkMode
     self.opacity = opacity
     self.activeTab = activeTab
@@ -1042,15 +1077,101 @@ final class ClipboardPopupWindow: NSPanel {
     self.setFrame(contentRect, display: false)
 
     // Reload active view
-    if activeTab == "history" {
+    if activeTab == "history" || activeTab == "historyImage" {
       tableView?.reloadData()
-    } else {
+    } else if activeTab == "snippet" {
       outlineView?.reloadData()
     }
 
     // Update tab styles
     updateTabStyles()
   }
+
+  // MARK: - Helper Methods
+
+  /// Classify items into text and image categories
+  private func classifyItems(_ items: [ClipboardItem]) {
+    historyTextItems = items.filter { item in
+      if let text = item.text, !text.isEmpty {
+        return true
+      }
+      return false
+    }
+
+    historyImageItems = items.filter { item in
+      let hasNoText = item.text == nil || item.text!.isEmpty
+      let hasImage = item.imageData != nil && !item.imageData!.isEmpty
+      return hasNoText && hasImage
+    }
+  }
+
+  /// Get items array for the currently active tab
+  private func getItemsForActiveTab() -> [ClipboardItem] {
+    switch activeTab {
+    case "history":
+      return historyTextItems
+    case "historyImage":
+      return historyImageItems
+    case "snippet":
+      return snippetItems
+    default:
+      return []
+    }
+  }
+
+  /// Create or get existing table view for history/historyImage tabs
+  private func ensureTableViewExists() -> NSTableView {
+    if let existing = tableView {
+      return existing
+    }
+
+    let newTableView = NSTableView(frame: scrollView.bounds)
+    newTableView.headerView = nil
+    newTableView.backgroundColor = .clear
+    newTableView.selectionHighlightStyle = .none
+    newTableView.intercellSpacing = NSSize(width: 0, height: 0)
+    newTableView.delegate = self
+    newTableView.dataSource = self
+
+    let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("text"))
+    column.width = scrollView.bounds.width - 20
+    newTableView.addTableColumn(column)
+
+    self.tableView = newTableView
+    return newTableView
+  }
+
+  /// Create or get existing outline view for snippet tab
+  private func ensureOutlineViewExists() -> NSOutlineView {
+    if let existing = outlineView {
+      return existing
+    }
+
+    let newOutlineView = NSOutlineView(frame: scrollView.bounds)
+    newOutlineView.headerView = nil
+    newOutlineView.backgroundColor = .clear
+    newOutlineView.selectionHighlightStyle = .none
+    newOutlineView.intercellSpacing = NSSize(width: 0, height: 0)
+    newOutlineView.indentationPerLevel = 0
+    newOutlineView.delegate = self
+    newOutlineView.dataSource = self
+
+    if isDarkMode {
+      newOutlineView.appearance = NSAppearance(named: .darkAqua)
+    } else {
+      newOutlineView.appearance = NSAppearance(named: .aqua)
+    }
+
+    let outlineColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("snippet"))
+    outlineColumn.width = scrollView.bounds.width - 20
+    newOutlineView.addTableColumn(outlineColumn)
+    newOutlineView.outlineTableColumn = outlineColumn
+
+    self.outlineView = newOutlineView
+    return newOutlineView
+  }
+
+  // MARK: - UI Setup
 
   private func setupUI() {
     // Container view
@@ -1101,23 +1222,23 @@ final class ClipboardPopupWindow: NSPanel {
       height: headerHeight
     ))
 
-    // History tab button (matching main window style)
+    // History tab button
     let historyTabButton = NSButton(frame: NSRect(
-      x: 6,  // Increased from 5 to 6 (left margin +2px total)
-      y: 3,
-      width: 50,
-      height: 17
+      x: UIConstants.TabButton.historyX,
+      y: UIConstants.tabButtonYOffset,
+      width: UIConstants.TabButton.historyWidth,
+      height: UIConstants.tabButtonHeight
     ))
     historyTabButton.title = "History"
     historyTabButton.bezelStyle = .recessed
     historyTabButton.isBordered = false
     historyTabButton.wantsLayer = true
     historyTabButton.layer?.cornerRadius = 4
-    historyTabButton.font = .systemFont(ofSize: 10, weight: .medium)
+    historyTabButton.font = .systemFont(ofSize: UIConstants.tabButtonFontSize, weight: .medium)
     historyTabButton.alignment = .center
     historyTabButton.target = self
     historyTabButton.action = #selector(switchToHistoryTab)
-    historyTabButton.tag = 100  // Tag for finding button later
+    historyTabButton.tag = TabTag.history.rawValue
 
     // Apply theme-aware colors based on active state
     if activeTab == "history" {
@@ -1131,23 +1252,53 @@ final class ClipboardPopupWindow: NSPanel {
 
     tabsContainer.addSubview(historyTabButton)
 
+    // HistoryImage tab button
+    let historyImageButton = NSButton(frame: NSRect(
+      x: UIConstants.TabButton.historyImageX,
+      y: UIConstants.tabButtonYOffset,
+      width: UIConstants.TabButton.historyImageWidth,
+      height: UIConstants.tabButtonHeight
+    ))
+    historyImageButton.title = "HistoryImg"
+    historyImageButton.bezelStyle = .recessed
+    historyImageButton.isBordered = false
+    historyImageButton.wantsLayer = true
+    historyImageButton.layer?.cornerRadius = 4
+    historyImageButton.font = .systemFont(ofSize: UIConstants.tabButtonFontSize, weight: .medium)
+    historyImageButton.alignment = .center
+    historyImageButton.target = self
+    historyImageButton.action = #selector(switchToHistoryImageTab)
+    historyImageButton.tag = TabTag.historyImage.rawValue
+
+    // Apply theme-aware colors based on active state
+    if activeTab == "historyImage" {
+      historyImageButton.contentTintColor = isDarkMode
+        ? NSColor(red: 0xe5/255.0, green: 0xe7/255.0, blue: 0xeb/255.0, alpha: 1.0)  // #e5e7eb
+        : NSColor(red: 0x0b/255.0, green: 0x12/255.0, blue: 0x20/255.0, alpha: 1.0)  // #0b1220
+    } else {
+      historyImageButton.contentTintColor = NSColor(red: 0x9c/255.0, green: 0xa3/255.0, blue: 0xaf/255.0, alpha: 1.0)  // #9ca3af
+    }
+    historyImageButton.layer?.backgroundColor = NSColor.clear.cgColor
+
+    tabsContainer.addSubview(historyImageButton)
+
     // Snippet tab button
     let snippetTabButton = NSButton(frame: NSRect(
-      x: 56,  // Increased from 55 to 56 (follows History tab shift)
-      y: 3,
-      width: 50,
-      height: 17
+      x: UIConstants.TabButton.snippetX,
+      y: UIConstants.tabButtonYOffset,
+      width: UIConstants.TabButton.snippetWidth,
+      height: UIConstants.tabButtonHeight
     ))
     snippetTabButton.title = "Snippet"
     snippetTabButton.bezelStyle = .recessed
     snippetTabButton.isBordered = false
     snippetTabButton.wantsLayer = true
     snippetTabButton.layer?.cornerRadius = 4
-    snippetTabButton.font = .systemFont(ofSize: 10, weight: .medium)
+    snippetTabButton.font = .systemFont(ofSize: UIConstants.tabButtonFontSize, weight: .medium)
     snippetTabButton.alignment = .center
     snippetTabButton.target = self
     snippetTabButton.action = #selector(switchToSnippetTab)
-    snippetTabButton.tag = 101  // Tag for finding button later
+    snippetTabButton.tag = TabTag.snippet.rawValue
 
     // Apply theme-aware colors based on active state
     if activeTab == "snippet" {
@@ -1268,145 +1419,114 @@ final class ClipboardPopupWindow: NSPanel {
     self.close()
   }
 
-  @objc private func switchToHistoryTab() {
+  // MARK: - Tab Switching
+
+  /// Common tab switching logic
+  private func switchToTab(_ newTab: String) {
     TooltipManager.shared.hideTooltip()
-    activeTab = "history"
-    // PERFORMANCE: Clear cache when switching tabs
+    activeTab = newTab
     rowInfoCache.removeAll()
-    // Update tab button styles
     updateTabStyles()
 
-    // PERFORMANCE: Lazy initialization - create tableView only when needed
-    if tableView == nil {
-      let newTableView = NSTableView(frame: scrollView.bounds)
-      newTableView.headerView = nil
-      newTableView.backgroundColor = .clear
-      newTableView.selectionHighlightStyle = .none
-      newTableView.intercellSpacing = NSSize(width: 0, height: 0)
-      newTableView.delegate = self
-      newTableView.dataSource = self
+    switch newTab {
+    case "history", "historyImage":
+      let view = ensureTableViewExists()
+      scrollView.documentView = view
+      view.reloadData()
 
-      let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("text"))
-      column.width = scrollView.bounds.width - 20
-      newTableView.addTableColumn(column)
+    case "snippet":
+      let view = ensureOutlineViewExists()
+      scrollView.documentView = view
+      view.reloadData()
 
-      self.tableView = newTableView
+    default:
+      break
     }
+  }
 
-    // Switch to table view
-    scrollView.documentView = tableView
-    tableView?.reloadData()
+  @objc private func switchToHistoryTab() {
+    switchToTab("history")
+  }
+
+  @objc private func switchToHistoryImageTab() {
+    switchToTab("historyImage")
   }
 
   @objc private func switchToSnippetTab() {
-    TooltipManager.shared.hideTooltip()
-    activeTab = "snippet"
-    // PERFORMANCE: Clear cache when switching tabs
-    rowInfoCache.removeAll()
-    // Update tab button styles
-    updateTabStyles()
-
-    // PERFORMANCE: Lazy initialization - create outlineView only when needed
-    if outlineView == nil {
-      let newOutlineView = NSOutlineView(frame: scrollView.bounds)
-      newOutlineView.headerView = nil
-      newOutlineView.backgroundColor = .clear
-      newOutlineView.selectionHighlightStyle = .none
-      newOutlineView.intercellSpacing = NSSize(width: 0, height: 0)
-      newOutlineView.indentationPerLevel = 0
-      newOutlineView.delegate = self
-      newOutlineView.dataSource = self
-
-      // Set appearance for disclosure triangle color
-      if isDarkMode {
-        newOutlineView.appearance = NSAppearance(named: .darkAqua)
-      } else {
-        newOutlineView.appearance = NSAppearance(named: .aqua)
-      }
-
-      let outlineColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("snippet"))
-      outlineColumn.width = scrollView.bounds.width - 20
-      newOutlineView.addTableColumn(outlineColumn)
-      newOutlineView.outlineTableColumn = outlineColumn
-
-      self.outlineView = newOutlineView
-    }
-
-    // Switch to outline view
-    scrollView.documentView = outlineView
-    outlineView?.reloadData()
+    switchToTab("snippet")
   }
 
   private func updateTabStyles() {
-    // Find tab buttons by tag (we'll set tags during setup)
     guard let containerView = contentView?.subviews.first,
           let headerView = containerView.subviews.last(where: { $0.frame.maxY == containerView.bounds.maxY }),
           let tabsContainer = headerView.subviews.first(where: { $0.frame.minX == 0 }) else {
       return
     }
 
-    // History tab button (tag 100) and Snippet tab button (tag 101)
-    if let historyBtn = tabsContainer.viewWithTag(100) as? NSButton,
-       let snippetBtn = tabsContainer.viewWithTag(101) as? NSButton {
+    let historyBtn = tabsContainer.viewWithTag(TabTag.history.rawValue) as? NSButton
+    let historyImageBtn = tabsContainer.viewWithTag(TabTag.historyImage.rawValue) as? NSButton
+    let snippetBtn = tabsContainer.viewWithTag(TabTag.snippet.rawValue) as? NSButton
 
-      if activeTab == "history" {
-        // Active: History
-        historyBtn.contentTintColor = isDarkMode
-          ? NSColor(red: 0xe5/255.0, green: 0xe7/255.0, blue: 0xeb/255.0, alpha: 1.0)  // #e5e7eb
-          : NSColor(red: 0x0b/255.0, green: 0x12/255.0, blue: 0x20/255.0, alpha: 1.0)  // #0b1220
+    let activeColor = isDarkMode
+      ? NSColor(red: 0xe5/255.0, green: 0xe7/255.0, blue: 0xeb/255.0, alpha: 1.0)
+      : NSColor(red: 0x0b/255.0, green: 0x12/255.0, blue: 0x20/255.0, alpha: 1.0)
+    let inactiveColor = NSColor(red: 0x9c/255.0, green: 0xa3/255.0, blue: 0xaf/255.0, alpha: 1.0)
 
-        // Inactive: Snippet
-        snippetBtn.contentTintColor = NSColor(red: 0x9c/255.0, green: 0xa3/255.0, blue: 0xaf/255.0, alpha: 1.0)  // #9ca3af
-      } else {
-        // Inactive: History
-        historyBtn.contentTintColor = NSColor(red: 0x9c/255.0, green: 0xa3/255.0, blue: 0xaf/255.0, alpha: 1.0)  // #9ca3af
-
-        // Active: Snippet
-        snippetBtn.contentTintColor = isDarkMode
-          ? NSColor(red: 0xe5/255.0, green: 0xe7/255.0, blue: 0xeb/255.0, alpha: 1.0)  // #e5e7eb
-          : NSColor(red: 0x0b/255.0, green: 0x12/255.0, blue: 0x20/255.0, alpha: 1.0)  // #0b1220
-      }
-    }
+    historyBtn?.contentTintColor = activeTab == "history" ? activeColor : inactiveColor
+    historyImageBtn?.contentTintColor = activeTab == "historyImage" ? activeColor : inactiveColor
+    snippetBtn?.contentTintColor = activeTab == "snippet" ? activeColor : inactiveColor
   }
 
   func updateHistory(items: [ClipboardItem]) {
     DispatchQueue.main.async { [weak self] in
       guard let self = self else { return }
 
-      // PERFORMANCE: Differential updates - only update what changed
-      let oldCount = self.historyItems.count
-      let newCount = items.count
+      // PERFORMANCE: Classify incoming items
+      let oldTextCount = self.historyTextItems.count
+      let oldImageCount = self.historyImageItems.count
 
-      if newCount > oldCount {
-        // New items added at the beginning
-        let newIndexes = IndexSet(integersIn: 0..<(newCount - oldCount))
-        self.historyItems = items
+      self.classifyItems(items)
 
-        // Note: rowInfoCache uses item-based keys, no need to adjust
+      let newTextCount = self.historyTextItems.count
+      let newImageCount = self.historyImageItems.count
 
-        // Animate insertion (only if tableView exists)
-        self.tableView?.insertRows(at: newIndexes, withAnimation: .slideDown)
-      } else if newCount < oldCount {
-        // Items removed
-        let removedIndexes = IndexSet(integersIn: newCount..<oldCount)
-        self.historyItems = items
-
-        // Note: rowInfoCache uses item-based keys, no need to adjust
-
-        // Animate removal (only if tableView exists)
-        self.tableView?.removeRows(at: removedIndexes, withAnimation: .slideUp)
-      } else {
-        // Same count - full reload (content may have changed)
-        self.historyItems = items
-        // Clear cache since content might have changed
-        self.rowInfoCache.removeAll()
-        self.tableView?.reloadData()
+      // Update only the active tab's view
+      if self.activeTab == "history" {
+        // Update text items view
+        if newTextCount > oldTextCount {
+          // New items added
+          let newIndexes = IndexSet(integersIn: 0..<(newTextCount - oldTextCount))
+          self.tableView?.insertRows(at: newIndexes, withAnimation: .slideDown)
+        } else if newTextCount < oldTextCount {
+          // Items removed
+          let removedIndexes = IndexSet(integersIn: newTextCount..<oldTextCount)
+          self.tableView?.removeRows(at: removedIndexes, withAnimation: .slideUp)
+        } else {
+          // Same count - full reload
+          self.rowInfoCache.removeAll()
+          self.tableView?.reloadData()
+        }
+      } else if self.activeTab == "historyImage" {
+        // Update image items view
+        if newImageCount > oldImageCount {
+          // New items added
+          let newIndexes = IndexSet(integersIn: 0..<(newImageCount - oldImageCount))
+          self.tableView?.insertRows(at: newIndexes, withAnimation: .slideDown)
+        } else if newImageCount < oldImageCount {
+          // Items removed
+          let removedIndexes = IndexSet(integersIn: newImageCount..<oldImageCount)
+          self.tableView?.removeRows(at: removedIndexes, withAnimation: .slideUp)
+        } else {
+          // Same count - full reload
+          self.rowInfoCache.removeAll()
+          self.tableView?.reloadData()
+        }
       }
     }
   }
 
   private func handleItemClick(index: Int) {
-    let items = activeTab == "history" ? historyItems : snippetItems
+    let items = getItemsForActiveTab()
     guard index >= 0 && index < items.count else { return }
     let item = items[index]
 
@@ -1497,14 +1617,23 @@ final class ClipboardPopupWindow: NSPanel {
 
 extension ClipboardPopupWindow: NSTableViewDataSource {
   func numberOfRows(in tableView: NSTableView) -> Int {
-    return activeTab == "history" ? historyItems.count : snippetItems.count
+    switch activeTab {
+    case "history":
+      return historyTextItems.count
+    case "historyImage":
+      return historyImageItems.count
+    case "snippet":
+      return snippetItems.count
+    default:
+      return 0
+    }
   }
 }
 
 extension ClipboardPopupWindow: NSTableViewDelegate {
   func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
     let identifier = NSUserInterfaceItemIdentifier("ClipboardItemCell")
-    let items = activeTab == "history" ? historyItems : snippetItems
+    let items = getItemsForActiveTab()
     guard row >= 0 && row < items.count else { return nil }
     let item = items[row]
 
@@ -1644,7 +1773,7 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
   }
 
   func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
-    let items = activeTab == "history" ? historyItems : snippetItems
+    let items = getItemsForActiveTab()
     guard row >= 0 && row < items.count else { return 46 }
     let item = items[row]
 
@@ -1935,10 +2064,13 @@ extension ClipboardPopupWindow: NSOutlineViewDelegate {
 // MARK: - TooltipDataSource Implementation
 extension ClipboardPopupWindow: TooltipDataSource {
   func tooltipText(forRow row: Int, inView view: NSView) -> String? {
-    // Determine if we're in tableView or outlineView
     if let tableView = tableView, view == tableView {
-      // History or snippet items (flat list)
-      let items = activeTab == "history" ? historyItems : snippetItems
+      // No tooltip for historyImage tab
+      if activeTab == "historyImage" {
+        return nil
+      }
+
+      let items = getItemsForActiveTab()
       guard row >= 0 && row < items.count else { return nil }
       let item = items[row]
 
