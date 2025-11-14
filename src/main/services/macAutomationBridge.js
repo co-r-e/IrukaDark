@@ -314,10 +314,11 @@ function updateClipboardPopup(historyItems, options = {}) {
   if (!clipboardPopupProcess) return false;
 
   try {
-    // Filter and prepare items (text and/or image, max 30 items)
+    // Prepare items for Swift popup (max 60 items)
+    // Swift will separate them into History tab (30 text) and HistoryImage tab (30 image)
     const items = historyItems
       .filter((item) => (item.text && typeof item.text === 'string') || item.imageData)
-      .slice(0, 30)
+      .slice(0, 60)
       .map((item) => ({
         text: item.text || null,
         imageData: item.imageData || null,
@@ -361,10 +362,11 @@ async function spawnClipboardPopup(historyItems, options = {}) {
       return;
     }
 
-    // Filter and prepare items (text and/or image, max 30 items)
+    // Prepare items for Swift popup (max 60 items)
+    // Swift will separate them into History tab (30 text) and HistoryImage tab (30 image)
     const items = historyItems
       .filter((item) => (item.text && typeof item.text === 'string') || item.imageData)
-      .slice(0, 30)
+      .slice(0, 60)
       .map((item) => ({
         text: item.text || null,
         imageData: item.imageData || null,

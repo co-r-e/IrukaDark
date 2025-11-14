@@ -12,7 +12,10 @@ const crypto = require('crypto');
 class ClipboardHistoryService extends EventEmitter {
   constructor(options = {}) {
     super();
-    this.maxItems = options.maxItems || 30;
+    // History limits: separate counts for text and image items
+    // Mixed items (containing both) count toward both limits
+    this.maxTextItems = options.maxTextItems || 30;
+    this.maxImageItems = options.maxImageItems || 30;
     this.history = [];
     this.lastClipboard = '';
     this.lastImageHash = '';
@@ -342,10 +345,8 @@ class ClipboardHistoryService extends EventEmitter {
     // Add to beginning
     this.history.unshift(item);
 
-    // Limit history size
-    if (this.history.length > this.maxItems) {
-      this.history = this.history.slice(0, this.maxItems);
-    }
+    // Limit history size by category (text and image separately)
+    this.trimHistory();
 
     // Save to file (debounced)
     this.saveHistoryToFile();
@@ -354,6 +355,28 @@ class ClipboardHistoryService extends EventEmitter {
     this.emit('history-updated', this.getHistory());
     // Emit new item event for differential updates
     this.emit('item-added', item);
+  }
+
+  /**
+   * Trim history to maintain separate limits for text and image items.
+   * - Text items (including mixed): max 30
+   * - Image items (including mixed): max 30
+   * - Mixed items count toward both limits
+   * - Total can be up to 60 items if all are unique to each category
+   */
+  trimHistory() {
+    // Collect IDs of latest text items (text or mixed type)
+    const latestTextItems = this.history.filter((item) => item.text).slice(0, this.maxTextItems);
+    const textIds = new Set(latestTextItems.map((item) => item.id));
+
+    // Collect IDs of latest image items (image or mixed type)
+    const latestImageItems = this.history
+      .filter((item) => item.imageData)
+      .slice(0, this.maxImageItems);
+    const imageIds = new Set(latestImageItems.map((item) => item.id));
+
+    // Keep items that belong to either category (or both)
+    this.history = this.history.filter((item) => textIds.has(item.id) || imageIds.has(item.id));
   }
 
   getHistory() {

@@ -1052,16 +1052,18 @@ final class ClipboardPopupWindow: NSPanel {
   private var imageCache = LRUCache<String, NSImage>(capacity: 30)
 
   init(items: [ClipboardItem], isDarkMode: Bool = false, opacity: Double = 1.0, activeTab: String = "history", snippetDataPath: String? = nil) {
-    // PERFORMANCE: Classify items into text and image categories
-    self.historyTextItems = items.filter { item in
-      if let text = item.text, !text.isEmpty { return true }
-      return false
-    }
-    self.historyImageItems = items.filter { item in
-      let hasNoText = item.text == nil || item.text!.isEmpty
-      let hasImage = item.imageData != nil && !item.imageData!.isEmpty
-      return hasNoText && hasImage
-    }
+    // Classify and limit items for display:
+    // - History tab: Items with text (max 30)
+    // - HistoryImage tab: Items with image data (max 30)
+    // - Mixed items (text + image) appear in both tabs
+    self.historyTextItems = Array(items.filter { item in
+      guard let text = item.text, !text.isEmpty else { return false }
+      return true
+    }.prefix(30))
+    self.historyImageItems = Array(items.filter { item in
+      guard let imageData = item.imageData, !imageData.isEmpty else { return false }
+      return true
+    }.prefix(30))
     self.isDarkMode = isDarkMode
     self.opacity = opacity
     self.activeTab = activeTab
@@ -1155,20 +1157,22 @@ final class ClipboardPopupWindow: NSPanel {
 
   // MARK: - Helper Methods
 
-  /// Classify items into text and image categories
+  /// Classify and limit items for display in tabs
+  /// - History tab: Items with text (max 30)
+  /// - HistoryImage tab: Items with image data (max 30)
+  /// - Mixed items (text + image) appear in both tabs
   private func classifyItems(_ items: [ClipboardItem]) {
-    historyTextItems = items.filter { item in
-      if let text = item.text, !text.isEmpty {
-        return true
-      }
-      return false
-    }
+    // Text items: Items containing non-empty text
+    historyTextItems = Array(items.filter { item in
+      guard let text = item.text, !text.isEmpty else { return false }
+      return true
+    }.prefix(30))
 
-    historyImageItems = items.filter { item in
-      let hasNoText = item.text == nil || item.text!.isEmpty
-      let hasImage = item.imageData != nil && !item.imageData!.isEmpty
-      return hasNoText && hasImage
-    }
+    // Image items: Items containing image data
+    historyImageItems = Array(items.filter { item in
+      guard let imageData = item.imageData, !imageData.isEmpty else { return false }
+      return true
+    }.prefix(30))
   }
 
   /// Get items array for the currently active tab
