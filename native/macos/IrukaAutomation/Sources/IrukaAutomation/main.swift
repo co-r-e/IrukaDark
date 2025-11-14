@@ -738,6 +738,72 @@ extension String {
   }
 }
 
+// MARK: - Hoverable Tab Button
+
+/// Custom tab button with hover-to-switch functionality
+final class HoverableTabButton: NSButton {
+  private var hoverTimer: Timer?
+  private var isHovering = false
+  var onHover: (() -> Void)?
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    setupTrackingArea()
+  }
+
+  required init?(coder: NSCoder) {
+    super.init(coder: coder)
+    setupTrackingArea()
+  }
+
+  private func setupTrackingArea() {
+    let trackingArea = NSTrackingArea(
+      rect: bounds,
+      options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+      owner: self,
+      userInfo: nil
+    )
+    addTrackingArea(trackingArea)
+  }
+
+  override func updateTrackingAreas() {
+    super.updateTrackingAreas()
+    // Remove old tracking areas
+    for area in trackingAreas {
+      removeTrackingArea(area)
+    }
+    // Add new tracking area
+    setupTrackingArea()
+  }
+
+  override func mouseEntered(with event: NSEvent) {
+    super.mouseEntered(with: event)
+    isHovering = true
+
+    // Cancel any existing timer
+    hoverTimer?.invalidate()
+
+    // Start a new timer for 0.3 seconds
+    hoverTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) { [weak self] _ in
+      guard let self = self, self.isHovering else { return }
+      self.onHover?()
+    }
+  }
+
+  override func mouseExited(with event: NSEvent) {
+    super.mouseExited(with: event)
+    isHovering = false
+
+    // Cancel the timer if mouse leaves
+    hoverTimer?.invalidate()
+    hoverTimer = nil
+  }
+
+  deinit {
+    hoverTimer?.invalidate()
+  }
+}
+
 // MARK: - Custom Cell Views
 
 /// High-performance custom cell view for clipboard items with full view reuse
@@ -1223,7 +1289,7 @@ final class ClipboardPopupWindow: NSPanel {
     ))
 
     // History tab button
-    let historyTabButton = NSButton(frame: NSRect(
+    let historyTabButton = HoverableTabButton(frame: NSRect(
       x: UIConstants.TabButton.historyX,
       y: UIConstants.tabButtonYOffset,
       width: UIConstants.TabButton.historyWidth,
@@ -1239,6 +1305,9 @@ final class ClipboardPopupWindow: NSPanel {
     historyTabButton.target = self
     historyTabButton.action = #selector(switchToHistoryTab)
     historyTabButton.tag = TabTag.history.rawValue
+    historyTabButton.onHover = { [weak self] in
+      self?.switchToHistoryTab()
+    }
 
     // Apply theme-aware colors based on active state
     if activeTab == "history" {
@@ -1253,7 +1322,7 @@ final class ClipboardPopupWindow: NSPanel {
     tabsContainer.addSubview(historyTabButton)
 
     // HistoryImage tab button
-    let historyImageButton = NSButton(frame: NSRect(
+    let historyImageButton = HoverableTabButton(frame: NSRect(
       x: UIConstants.TabButton.historyImageX,
       y: UIConstants.tabButtonYOffset,
       width: UIConstants.TabButton.historyImageWidth,
@@ -1269,6 +1338,9 @@ final class ClipboardPopupWindow: NSPanel {
     historyImageButton.target = self
     historyImageButton.action = #selector(switchToHistoryImageTab)
     historyImageButton.tag = TabTag.historyImage.rawValue
+    historyImageButton.onHover = { [weak self] in
+      self?.switchToHistoryImageTab()
+    }
 
     // Apply theme-aware colors based on active state
     if activeTab == "historyImage" {
@@ -1283,7 +1355,7 @@ final class ClipboardPopupWindow: NSPanel {
     tabsContainer.addSubview(historyImageButton)
 
     // Snippet tab button
-    let snippetTabButton = NSButton(frame: NSRect(
+    let snippetTabButton = HoverableTabButton(frame: NSRect(
       x: UIConstants.TabButton.snippetX,
       y: UIConstants.tabButtonYOffset,
       width: UIConstants.TabButton.snippetWidth,
@@ -1299,6 +1371,9 @@ final class ClipboardPopupWindow: NSPanel {
     snippetTabButton.target = self
     snippetTabButton.action = #selector(switchToSnippetTab)
     snippetTabButton.tag = TabTag.snippet.rawValue
+    snippetTabButton.onHover = { [weak self] in
+      self?.switchToSnippetTab()
+    }
 
     // Apply theme-aware colors based on active state
     if activeTab == "snippet" {
