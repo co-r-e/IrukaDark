@@ -1020,6 +1020,15 @@ class IrukaDarkApp {
     await this.cancelActiveShortcut();
     // Switch to chat tab when shortcut is triggered
     if (window.switchToTab) window.switchToTab('chat');
+    // Restore scroll state after tab switch
+    if (this.chatHistory) {
+      this.chatHistory.style.overflowY = 'auto';
+      setTimeout(() => {
+        if (this.chatHistory) {
+          this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+        }
+      }, 0);
+    }
     const token = ++this.shortcutRequestId;
     const content = (text || '').trim();
     if (!content) return;
@@ -1066,6 +1075,15 @@ class IrukaDarkApp {
     await this.cancelActiveShortcut();
     // Switch to chat tab when shortcut is triggered
     if (window.switchToTab) window.switchToTab('chat');
+    // Restore scroll state after tab switch
+    if (this.chatHistory) {
+      this.chatHistory.style.overflowY = 'auto';
+      setTimeout(() => {
+        if (this.chatHistory) {
+          this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+        }
+      }, 0);
+    }
     const token = ++this.shortcutRequestId;
     const content = (text || '').trim();
     if (!content) return;
@@ -1136,6 +1154,15 @@ class IrukaDarkApp {
     await this.cancelActiveShortcut();
     // Switch to chat tab when shortcut is triggered
     if (window.switchToTab) window.switchToTab('chat');
+    // Restore scroll state after tab switch
+    if (this.chatHistory) {
+      this.chatHistory.style.overflowY = 'auto';
+      setTimeout(() => {
+        if (this.chatHistory) {
+          this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+        }
+      }, 0);
+    }
     const token = ++this.shortcutRequestId;
     const targetUrl = this.normalizeUrlForShortcut(url);
     if (!targetUrl) return;
@@ -1182,6 +1209,15 @@ class IrukaDarkApp {
     await this.cancelActiveShortcut();
     // Switch to chat tab when shortcut is triggered
     if (window.switchToTab) window.switchToTab('chat');
+    // Restore scroll state after tab switch
+    if (this.chatHistory) {
+      this.chatHistory.style.overflowY = 'auto';
+      setTimeout(() => {
+        if (this.chatHistory) {
+          this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+        }
+      }, 0);
+    }
     const token = ++this.shortcutRequestId;
     const targetUrl = this.normalizeUrlForShortcut(url);
     if (!targetUrl) return;
@@ -1228,6 +1264,15 @@ class IrukaDarkApp {
     await this.cancelActiveShortcut();
     // Switch to chat tab when shortcut is triggered
     if (window.switchToTab) window.switchToTab('chat');
+    // Restore scroll state after tab switch
+    if (this.chatHistory) {
+      this.chatHistory.style.overflowY = 'auto';
+      setTimeout(() => {
+        if (this.chatHistory) {
+          this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+        }
+      }, 0);
+    }
     const token = ++this.shortcutRequestId;
     const content = (text || '').trim();
     if (!content) return;
@@ -1271,6 +1316,15 @@ class IrukaDarkApp {
     await this.cancelActiveShortcut();
     // Switch to chat tab when shortcut is triggered
     if (window.switchToTab) window.switchToTab('chat');
+    // Restore scroll state after tab switch
+    if (this.chatHistory) {
+      this.chatHistory.style.overflowY = 'auto';
+      setTimeout(() => {
+        if (this.chatHistory) {
+          this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+        }
+      }, 0);
+    }
     const token = ++this.shortcutRequestId;
     const content = (text || '').trim();
     if (!content) return;
@@ -1322,6 +1376,15 @@ class IrukaDarkApp {
       await this.cancelActiveShortcut();
       // Switch to chat tab when shortcut is triggered
       if (window.switchToTab) window.switchToTab('chat');
+      // Restore scroll state after tab switch
+      if (this.chatHistory) {
+        this.chatHistory.style.overflowY = 'auto';
+        setTimeout(() => {
+          if (this.chatHistory) {
+            this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+          }
+        }, 0);
+      }
       const token = ++this.shortcutRequestId;
       const data = payload && payload.data ? String(payload.data) : '';
       const mime = payload && payload.mimeType ? String(payload.mimeType) : 'image/png';
@@ -1364,6 +1427,15 @@ class IrukaDarkApp {
       await this.cancelActiveShortcut();
       // Switch to chat tab when shortcut is triggered
       if (window.switchToTab) window.switchToTab('chat');
+      // Restore scroll state after tab switch
+      if (this.chatHistory) {
+        this.chatHistory.style.overflowY = 'auto';
+        setTimeout(() => {
+          if (this.chatHistory) {
+            this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+          }
+        }, 0);
+      }
       const token = ++this.shortcutRequestId;
       const data = payload && payload.data ? String(payload.data) : '';
       const mime = payload && payload.mimeType ? String(payload.mimeType) : 'image/png';

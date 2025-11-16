@@ -1590,6 +1590,12 @@
         let settingsUI = null;
 
         function switchTab(tabName) {
+          // Check if chat tab is already active and visible to prevent flashing
+          const isChatAlreadyVisible =
+            tabName === 'chat' &&
+            chatTab.classList.contains('active') &&
+            chatHistory.style.display === 'block';
+
           // Remove active class from all tabs
           chatTab.classList.remove('active');
           historyTab.classList.remove('active');
@@ -1599,7 +1605,9 @@
           settingsTab.classList.remove('active');
 
           // Hide all views
-          chatHistory.style.display = 'none';
+          if (!isChatAlreadyVisible) {
+            chatHistory.style.display = 'none';
+          }
           const apiKeyForm = document.getElementById('apiKeyForm');
           if (apiKeyForm) apiKeyForm.style.display = 'none';
           clipboardList.style.display = 'none';
@@ -1624,8 +1632,11 @@
           if (tabName === 'chat') {
             chatTab.classList.add('active');
             inputArea.style.display = 'block';
-            // Check API key and display appropriate view (form or chat)
-            if (window.app && window.app.checkApiKey) {
+            // If chat is already visible, skip checkApiKey to prevent flashing
+            if (isChatAlreadyVisible) {
+              // Already visible, do nothing more
+            } else if (window.app && window.app.checkApiKey) {
+              // Check API key and display appropriate view (form or chat)
               window.app.checkApiKey();
             } else {
               // Fallback if app not ready
