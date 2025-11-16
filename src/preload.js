@@ -77,6 +77,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('popup:set-position', { x: Number(x) || 0, y: Number(y) || 0 }),
   // Unhide the main window; pass true to also focus
   ensureVisible: (focus = false) => ipcRenderer.invoke('ui:ensure-visible', { focus }),
+  // Set dragging state (for window level adjustment)
+  setDragging: (isDragging) => ipcRenderer.invoke('ui:set-dragging', isDragging),
   // Clipboard history
   getClipboardHistory: () => ipcRenderer.invoke('clipboard:get-history'),
   clearClipboardHistory: () => ipcRenderer.invoke('clipboard:clear-history'),

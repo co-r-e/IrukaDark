@@ -27,6 +27,7 @@
         flex: 1;
         overflow-y: auto;
         padding: 8px;
+        position: relative;
       }
 
       .empty-state {
@@ -266,7 +267,7 @@
         border: none;
         border-radius: 8px;
         padding: 3px 10px;
-        margin-bottom: 0;
+        margin-bottom: 1px;
         cursor: pointer;
         transition: all 0.15s ease;
         display: flex;
@@ -369,7 +370,7 @@
         border: none;
         border-radius: 8px;
         padding: 2px 8px;
-        margin-bottom: 0;
+        margin-bottom: 1px;
         cursor: pointer;
         transition: all 0.15s ease;
         display: flex;
@@ -1001,6 +1002,75 @@
 
       .confirmation-btn-confirm:hover {
         opacity: 0.9;
+      }
+
+      /* Custom Drag & Drop Styles (Window-Constrained) */
+      .snippet-folder:not(.editing),
+      .snippet-item:not(.editing) {
+        cursor: grab;
+      }
+
+      .snippet-folder.dragging,
+      .snippet-item.dragging {
+        opacity: 0.5;
+        cursor: grabbing;
+        transform: scale(0.95);
+        transition: transform 0.1s ease;
+      }
+
+      .snippet-folder.drop-target,
+      .snippet-item.drop-target {
+        background: rgba(217, 70, 239, 0.15);
+        box-shadow:
+          inset 0 0 0 2px #d946ef,
+          inset 0 0 8px rgba(217, 70, 239, 0.3);
+        border-radius: 8px;
+        transition: all 0.15s ease;
+      }
+
+      html:not(.theme-dark) .snippet-folder.drop-target,
+      html:not(.theme-dark) .snippet-item.drop-target {
+        background: rgba(217, 70, 239, 0.08);
+        box-shadow:
+          inset 0 0 0 2px #d946ef,
+          inset 0 0 8px rgba(217, 70, 239, 0.2);
+      }
+
+      /* Disable dragging for editing mode */
+      .snippet-folder.editing,
+      .snippet-item.editing {
+        cursor: default;
+      }
+
+      /* Prevent text selection during drag */
+      body.dragging {
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      /* Insertion line - macOS Notes style */
+      .insertion-line {
+        position: absolute;
+        left: 8px;
+        right: 8px;
+        height: 2px;
+        background: linear-gradient(90deg, #ff4d6d, #d946ef);
+        border-radius: 1px;
+        pointer-events: none;
+        z-index: 1000;
+        box-shadow: 0 0 4px rgba(217, 70, 239, 0.5);
+      }
+
+      /* Drop target for nesting inside folder */
+      .drop-target-nest {
+        background: rgba(217, 70, 239, 0.08);
+        box-shadow: inset 0 0 0 2px rgba(217, 70, 239, 0.4);
+        border-radius: 8px;
+      }
+
+      html:not(.theme-dark) .drop-target-nest {
+        background: rgba(217, 70, 239, 0.05);
+        box-shadow: inset 0 0 0 2px rgba(217, 70, 239, 0.3);
       }
     </style>
   </head>

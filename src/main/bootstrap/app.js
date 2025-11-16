@@ -918,6 +918,19 @@ function bootstrapApp() {
       return false;
     });
 
+    ipcMain.handle('ui:set-dragging', (_e, isDragging) => {
+      try {
+        if (windowManager) {
+          windowManager.setDraggingState(!!isDragging);
+          return true;
+        }
+        return false;
+      } catch (err) {
+        console.error('Error setting dragging state:', err);
+        return false;
+      }
+    });
+
     ipcMain.handle('ui:show-app-menu', (event, pos) => {
       try {
         let menu = Menu.getApplicationMenu();

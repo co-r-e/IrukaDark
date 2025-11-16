@@ -228,6 +228,24 @@ class WindowManager {
     } catch {}
   }
 
+  setDraggingState(isDragging) {
+    const mainWindow = getMainWindow();
+    try {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        // When dragging, temporarily set to highest level to prevent window from going behind
+        if (isDragging) {
+          mainWindow.setAlwaysOnTop(true, 'screen-saver');
+        } else {
+          // Restore to original level based on pin preference
+          const pinEnabled = this.readPinAllSpacesPref();
+          mainWindow.setAlwaysOnTop(true, pinEnabled ? 'screen-saver' : 'floating');
+        }
+      }
+    } catch (err) {
+      console.error('Error setting dragging state:', err);
+    }
+  }
+
   setOpacityForWindows(opacity) {
     this.savedOpacity = opacity; // Update saved opacity
     const mainWindow = getMainWindow();

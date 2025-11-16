@@ -50,18 +50,30 @@ class ClipboardHistoryUI {
     this.snippetSearchResults = [];
     this.clipboardHistory = []; // Store history data for search
 
-    // Performance optimization: track rendered items to enable diff updates
-    this.renderedHistoryIds = new Set();
-    this.renderedSnippetIds = new Set();
-    this.renderedFolderIds = new Set();
+    // Drag & Drop state (custom mouse-based implementation)
+    this.drag = {
+      element: null, // The DOM element being dragged
+      type: null, // 'folder' or 'snippet'
+      id: null, // ID of the dragged item
+      startX: 0, // Mouse X position when drag started
+      startY: 0, // Mouse Y position when drag started
+      isActive: false, // Whether drag is currently happening
+      threshold: 5, // Minimum pixels to move before starting drag
+      target: null, // Current drop target element
+      dropType: null, // 'insert-before', 'insert-after', or 'nest-inside'
+    };
 
-    // Performance optimization: cache for DOM elements
+    // Insertion line element for visual feedback
+    this.currentInsertionLine = null;
+
+    // Performance optimization: track rendered items and cache DOM elements
+    this.renderedHistoryIds = new Set();
     this.historyItemCache = new Map();
 
     // Debounce timers
     this.searchDebounceTimer = null;
 
-    // PERFORMANCE: Virtual scrolling configuration
+    // Virtual scrolling configuration
     this.virtualScrollEnabled = true;
     this.virtualScrollThreshold = 20; // Enable virtual scroll for >20 items
     this.renderBatchSize = 10; // Render items in batches
@@ -78,7 +90,6 @@ class ClipboardHistoryUI {
     this.setupVirtualScroll();
   }
 
-  // PERFORMANCE: Setup virtual scrolling with Intersection Observer
   setupVirtualScroll() {
     if (!this.virtualScrollEnabled || !('IntersectionObserver' in window)) {
       return;
@@ -209,14 +220,14 @@ class ClipboardHistoryUI {
       });
     }
 
-    // PERFORMANCE: Event delegation for clipboard history list
+    // Event delegation for clipboard history list
     if (this.clipboardList) {
       this.clipboardList.addEventListener('click', (e) => {
         this.handleHistoryClick(e);
       });
     }
 
-    // PERFORMANCE: Event delegation for snippet list
+    // Event delegation for snippet list
     if (this.snippetList) {
       this.snippetList.addEventListener('click', (e) => {
         this.handleSnippetClick(e);
@@ -224,7 +235,20 @@ class ClipboardHistoryUI {
       this.snippetList.addEventListener('dblclick', (e) => {
         this.handleSnippetDblClick(e);
       });
+      // Custom Drag & Drop for reordering folders and snippets (window-constrained)
+      this.snippetList.addEventListener('mousedown', (e) => {
+        this.handleMouseDown(e);
+      });
     }
+
+    // Global mouse event listeners for drag & drop
+    window.addEventListener('mousemove', (e) => {
+      this.handleMouseMove(e);
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      this.handleMouseUp(e);
+    });
 
     // Search input events for history tab with DEBOUNCE
     if (this.historySearchInput) {
@@ -271,7 +295,6 @@ class ClipboardHistoryUI {
     }
   }
 
-  // PERFORMANCE: Debounced search for history
   debouncedHistorySearch() {
     if (this.searchDebounceTimer) {
       clearTimeout(this.searchDebounceTimer);
@@ -281,7 +304,6 @@ class ClipboardHistoryUI {
     }, 300);
   }
 
-  // PERFORMANCE: Debounced search for snippets
   debouncedSnippetSearch() {
     if (this.searchDebounceTimer) {
       clearTimeout(this.searchDebounceTimer);
@@ -291,7 +313,6 @@ class ClipboardHistoryUI {
     }, 300);
   }
 
-  // PERFORMANCE: Event delegation handler for history list
   handleHistoryClick(e) {
     const wrapper = e.target.closest('.clipboard-item-wrapper');
     if (!wrapper) return;
@@ -307,7 +328,6 @@ class ClipboardHistoryUI {
     }
   }
 
-  // PERFORMANCE: Event delegation handler for snippet list clicks
   handleSnippetClick(e) {
     // Handle folder more button
     const folderMoreBtn = e.target.closest('.snippet-folder-more');
@@ -361,7 +381,6 @@ class ClipboardHistoryUI {
     }
   }
 
-  // PERFORMANCE: Event delegation handler for snippet list double-clicks
   handleSnippetDblClick(e) {
     // Handle folder name double-click (edit)
     const folderName = e.target.closest('.snippet-folder-name');
@@ -466,6 +485,15 @@ class ClipboardHistoryUI {
         // Clear editing state on load
         this.snippetFolders.forEach((f) => (f.editing = false));
         this.snippets.forEach((s) => (s.editing = false));
+
+        // Remove any root-level snippets (snippets without folderId)
+        // Snippets must always be inside a folder
+        const rootSnippets = this.snippets.filter((s) => !s.folderId);
+        if (rootSnippets.length > 0) {
+          this.snippets = this.snippets.filter((s) => s.folderId);
+          // Save the cleaned data
+          await this.saveSnippets();
+        }
       }
     } catch (err) {
       console.error('Error loading snippets:', err);
@@ -501,7 +529,7 @@ class ClipboardHistoryUI {
       return;
     }
 
-    // PERFORMANCE: Differential rendering - only update changed items
+    // Differential rendering - only update changed items
     const newItemIds = new Set(items.map((item) => item.id));
     const existingElements = this.clipboardList.querySelectorAll('.clipboard-item-wrapper');
 
@@ -519,7 +547,7 @@ class ClipboardHistoryUI {
     const existingIds = new Set(Array.from(existingElements).map((el) => el.dataset.id));
 
     items.forEach((item, index) => {
-      // PERFORMANCE: Skip if already rendered
+      // Skip if already rendered
       if (existingIds.has(item.id)) {
         // Move to correct position if needed
         const existingEl = this.clipboardList.querySelector(`[data-id="${item.id}"]`);
@@ -552,7 +580,6 @@ class ClipboardHistoryUI {
     }
   }
 
-  // PERFORMANCE: Create history item element (no event listeners - using delegation)
   createHistoryItemElement(item) {
     const wrapperEl = document.createElement('div');
     wrapperEl.className = 'clipboard-item-wrapper';
@@ -565,7 +592,6 @@ class ClipboardHistoryUI {
     contentEl.className = 'clipboard-item-content';
 
     if (item.type === 'image' && item.imageData) {
-      // PERFORMANCE: Lazy load images
       const imgEl = document.createElement('img');
       imgEl.className = 'clipboard-item-image';
       imgEl.alt = 'Clipboard image';
@@ -603,7 +629,6 @@ class ClipboardHistoryUI {
     itemEl.appendChild(actionsEl);
     wrapperEl.appendChild(itemEl);
 
-    // PERFORMANCE: Observe wrapper for virtual scrolling
     if (this.itemVisibilityObserver) {
       this.itemVisibilityObserver.observe(wrapperEl);
     }
@@ -611,7 +636,6 @@ class ClipboardHistoryUI {
     return wrapperEl;
   }
 
-  // PERFORMANCE: Intersection Observer for lazy image loading
   observeImage(imgEl) {
     if (!this.imageObserver) {
       this.imageObserver = new IntersectionObserver(
@@ -642,7 +666,8 @@ class ClipboardHistoryUI {
     this.clipboardList.innerHTML = '';
   }
 
-  // PERFORMANCE: Removed event listeners from folder elements (using delegation)
+  // ========== Snippet Rendering ==========
+
   renderFolder(folder, parentContainer) {
     const folderEl = document.createElement('div');
     folderEl.className = 'snippet-folder';
@@ -659,20 +684,12 @@ class ClipboardHistoryUI {
       input.type = 'text';
       input.className = 'snippet-folder-name-input';
       input.value = folder.name;
-      // Keep blur and keydown for editing - these are needed
-      input.addEventListener('blur', () => {
-        this.finishEditingFolder(folder.id, input.value);
-      });
+      input.addEventListener('blur', () => this.finishEditingFolder(folder.id, input.value));
       input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          input.blur();
-        } else if (e.key === 'Escape') {
-          this.cancelEditingFolder(folder.id);
-        }
+        if (e.key === 'Enter') input.blur();
+        else if (e.key === 'Escape') this.cancelEditingFolder(folder.id);
       });
-      input.addEventListener('click', (e) => {
-        e.stopPropagation();
-      });
+      input.addEventListener('click', (e) => e.stopPropagation());
       nameDiv.appendChild(input);
       setTimeout(() => {
         input.focus();
@@ -681,35 +698,26 @@ class ClipboardHistoryUI {
     } else {
       nameDiv.className = 'snippet-folder-name';
       nameDiv.textContent = folder.name;
-      // PERFORMANCE: Removed dblclick listener - handled by event delegation
     }
 
     const moreBtn = document.createElement('div');
     moreBtn.className = 'snippet-folder-more';
     moreBtn.textContent = '⋯';
-    // PERFORMANCE: Removed click listener - handled by event delegation
 
     folderEl.appendChild(iconDiv);
     folderEl.appendChild(nameDiv);
     folderEl.appendChild(moreBtn);
-
-    // PERFORMANCE: Removed click listener - handled by event delegation
-
     parentContainer.appendChild(folderEl);
 
-    // Show folder contents if expanded
     if (folder.expanded) {
       const contentDiv = document.createElement('div');
       contentDiv.className = 'folder-content';
 
-      // Render snippets in this folder
       const snippetsInFolder = this.snippets.filter((s) => s.folderId === folder.id);
       snippetsInFolder.forEach((snippet) => {
-        const snippetEl = this.createSnippetElement(snippet);
-        contentDiv.appendChild(snippetEl);
+        contentDiv.appendChild(this.createSnippetElement(snippet));
       });
 
-      // Render subfolders recursively
       const subfolders = this.snippetFolders.filter((f) => f.parentId === folder.id);
       subfolders.forEach((subfolder) => {
         this.renderFolder(subfolder, contentDiv);
@@ -719,40 +727,61 @@ class ClipboardHistoryUI {
     }
   }
 
-  // PERFORMANCE: Use RequestAnimationFrame for smooth rendering
   renderSnippets() {
     if (!this.snippetList) return;
 
-    // PERFORMANCE: Use requestAnimationFrame for smooth rendering
     requestAnimationFrame(() => {
       this.snippetList.innerHTML = '';
 
+      // Render root folders
       const rootFolders = this.snippetFolders.filter((f) => !f.parentId);
       rootFolders.forEach((folder) => this.renderFolder(folder, this.snippetList));
 
+      // Add folder button
       const addBtn = document.createElement('button');
       addBtn.className = 'add-folder-btn';
       addBtn.innerHTML = `${ICONS.PLUS}<span>${this.t('addFolder')}</span>`;
-      // PERFORMANCE: Removed click listener - handled by event delegation
       this.snippetList.appendChild(addBtn);
     });
   }
 
+  // ========== Folder Operations ==========
+
   toggleFolder(folderId) {
     const folder = this.snippetFolders.find((f) => f.id === folderId);
-    if (folder) {
-      folder.expanded = !folder.expanded;
-      this.saveSnippets();
-      this.renderSnippets();
-    }
+    if (!folder) return;
+    folder.expanded = !folder.expanded;
+    this.saveSnippets();
+    this.renderSnippets();
   }
 
   startEditingFolder(folderId) {
     const folder = this.snippetFolders.find((f) => f.id === folderId);
-    if (folder) {
-      folder.editing = true;
-      this.renderSnippets();
+    if (!folder) return;
+    folder.editing = true;
+    this.renderSnippets();
+  }
+
+  finishEditingFolder(folderId, newName) {
+    const folder = this.snippetFolders.find((f) => f.id === folderId);
+    if (!folder) return;
+    folder.name = newName.trim() || this.t('untitledFolder');
+    folder.editing = false;
+    this.saveSnippets();
+    this.renderSnippets();
+  }
+
+  cancelEditingFolder(folderId) {
+    const folderIndex = this.snippetFolders.findIndex((f) => f.id === folderId);
+    if (folderIndex === -1) return;
+
+    const folder = this.snippetFolders[folderIndex];
+    if (folder.editing && folder.editable) {
+      this.snippetFolders.splice(folderIndex, 1);
+    } else {
+      folder.editing = false;
     }
+    this.renderSnippets();
   }
 
   addNewFolder() {
@@ -769,28 +798,33 @@ class ClipboardHistoryUI {
     this.renderSnippets();
   }
 
-  finishEditingFolder(folderId, newName) {
-    const folder = this.snippetFolders.find((f) => f.id === folderId);
-    if (folder) {
-      folder.name = newName.trim() || this.t('untitledFolder');
-      folder.editing = false;
-      this.saveSnippets();
-      this.renderSnippets();
-    }
+  addNewSubfolder(parentFolderId) {
+    const parentFolder = this.snippetFolders.find((f) => f.id === parentFolderId);
+    if (parentFolder) parentFolder.expanded = true;
+
+    const newFolder = {
+      id: `folder-${this.nextFolderId++}`,
+      name: 'New Subfolder',
+      count: 0,
+      editable: true,
+      editing: true,
+      expanded: false,
+      parentId: parentFolderId,
+    };
+    this.snippetFolders.push(newFolder);
+    this.saveSnippets();
+    this.renderSnippets();
   }
 
-  cancelEditingFolder(folderId) {
+  deleteFolder(folderId) {
     const folderIndex = this.snippetFolders.findIndex((f) => f.id === folderId);
-    if (folderIndex > -1) {
-      const folder = this.snippetFolders[folderIndex];
-      if (folder.editing && folder.editable) {
-        // If it was a new folder, remove it
-        this.snippetFolders.splice(folderIndex, 1);
-      } else {
-        folder.editing = false;
-      }
-      this.renderSnippets();
-    }
+    if (folderIndex === -1) return;
+
+    this.snippetFolders.splice(folderIndex, 1);
+    this.snippets = this.snippets.filter((s) => s.folderId !== folderId);
+    this.snippetFolders = this.snippetFolders.filter((f) => f.parentId !== folderId);
+    this.saveSnippets();
+    this.renderSnippets();
   }
 
   createSnippetElement(snippet) {
@@ -896,20 +930,18 @@ class ClipboardHistoryUI {
       const moreBtn = document.createElement('div');
       moreBtn.className = 'snippet-item-more';
       moreBtn.textContent = '⋯';
-      // PERFORMANCE: Removed click listener - handled by event delegation
 
       snippetEl.appendChild(contentWrapper);
       snippetEl.appendChild(iconDiv);
       snippetEl.appendChild(moreBtn);
-
-      // PERFORMANCE: Removed click and dblclick listeners - handled by event delegation
     }
 
     return snippetEl;
   }
 
+  // ========== Snippet Operations ==========
+
   addNewSnippet(folderId) {
-    // Expand the parent folder if it's closed
     const parentFolder = this.snippetFolders.find((f) => f.id === folderId);
     if (parentFolder && !parentFolder.expanded) {
       parentFolder.expanded = true;
@@ -928,58 +960,42 @@ class ClipboardHistoryUI {
     this.renderSnippets();
   }
 
-  addNewSubfolder(parentFolderId) {
-    // Expand the parent folder if it's closed
-    const parentFolder = this.snippetFolders.find((f) => f.id === parentFolderId);
-    if (parentFolder && !parentFolder.expanded) {
-      parentFolder.expanded = true;
-    }
-
-    const newFolder = {
-      id: `folder-${this.nextFolderId++}`,
-      name: 'New Folder',
-      count: 0,
-      editable: true,
-      editing: true,
-      expanded: false,
-      parentId: parentFolderId,
-    };
-    this.snippetFolders.push(newFolder);
-    this.saveSnippets();
-    this.renderSnippets();
-  }
-
   startEditingSnippet(snippetId) {
     const snippet = this.snippets.find((s) => s.id === snippetId);
-    if (snippet) {
-      snippet.editing = true;
-      this.renderSnippets();
-    }
+    if (!snippet) return;
+    snippet.editing = true;
+    this.renderSnippets();
   }
 
   finishEditingSnippet(snippetId, name, content) {
     const snippet = this.snippets.find((s) => s.id === snippetId);
-    if (snippet) {
-      snippet.name = name.trim() || this.t('untitledSnippet');
-      snippet.content = content;
-      snippet.editing = false;
-      this.saveSnippets();
-      this.renderSnippets();
-    }
+    if (!snippet) return;
+    snippet.name = name.trim() || this.t('untitledSnippet');
+    snippet.content = content;
+    snippet.editing = false;
+    this.saveSnippets();
+    this.renderSnippets();
   }
 
   cancelEditingSnippet(snippetId) {
     const snippetIndex = this.snippets.findIndex((s) => s.id === snippetId);
-    if (snippetIndex > -1) {
-      const snippet = this.snippets[snippetIndex];
-      if (snippet.editing && !snippet.content && snippet.name === 'New Snippet') {
-        // If it was a new snippet, remove it
-        this.snippets.splice(snippetIndex, 1);
-      } else {
-        snippet.editing = false;
-      }
-      this.renderSnippets();
+    if (snippetIndex === -1) return;
+
+    const snippet = this.snippets[snippetIndex];
+    if (snippet.editing && !snippet.content && snippet.name === 'New Snippet') {
+      this.snippets.splice(snippetIndex, 1);
+    } else {
+      snippet.editing = false;
     }
+    this.renderSnippets();
+  }
+
+  deleteSnippet(snippetId) {
+    const snippetIndex = this.snippets.findIndex((s) => s.id === snippetId);
+    if (snippetIndex === -1) return;
+    this.snippets.splice(snippetIndex, 1);
+    this.saveSnippets();
+    this.renderSnippets();
   }
 
   copySnippet(snippet, iconDiv, moreBtn, snippetEl) {
@@ -1005,8 +1021,9 @@ class ClipboardHistoryUI {
     }
   }
 
+  // ========== Context Menus ==========
+
   toggleFolderMenu(folderId) {
-    // If the same folder's menu is already open, close it
     if (this.currentMenuFolderId === folderId && this.contextMenu.style.display === 'block') {
       this.hideContextMenu();
       return;
@@ -1178,29 +1195,6 @@ class ClipboardHistoryUI {
     }
   }
 
-  deleteFolder(folderId) {
-    const folderIndex = this.snippetFolders.findIndex((f) => f.id === folderId);
-    if (folderIndex > -1) {
-      // Remove folder
-      this.snippetFolders.splice(folderIndex, 1);
-      // Remove all snippets in this folder
-      this.snippets = this.snippets.filter((s) => s.folderId !== folderId);
-      // Remove all subfolders
-      this.snippetFolders = this.snippetFolders.filter((f) => f.parentId !== folderId);
-      this.saveSnippets();
-      this.renderSnippets();
-    }
-  }
-
-  deleteSnippet(snippetId) {
-    const snippetIndex = this.snippets.findIndex((s) => s.id === snippetId);
-    if (snippetIndex > -1) {
-      this.snippets.splice(snippetIndex, 1);
-      this.saveSnippets();
-      this.renderSnippets();
-    }
-  }
-
   async copyItem(item) {
     try {
       if (!window.electronAPI?.copyToClipboard) return false;
@@ -1209,24 +1203,6 @@ class ClipboardHistoryUI {
     } catch (err) {
       console.error('Error copying to clipboard:', err);
       return false;
-    }
-  }
-
-  async deleteItem(id) {
-    try {
-      if (!window.electronAPI?.deleteClipboardItem) return;
-      await window.electronAPI.deleteClipboardItem(id);
-    } catch (err) {
-      console.error('Error deleting item:', err);
-    }
-  }
-
-  async clearAll() {
-    if (!confirm(this.t('confirmClearHistory'))) return;
-    try {
-      await window.electronAPI.clearClipboardHistory();
-    } catch (err) {
-      console.error('Error clearing history:', err);
     }
   }
 
@@ -1562,6 +1538,603 @@ class ClipboardHistoryUI {
         this.snippetClearSearch.style.display = this.snippetSearchQuery ? 'block' : 'none';
       }
     }
+  }
+
+  // ========== Drag & Drop Operations ==========
+
+  /**
+   * Initiates drag preparation when mouse is pressed on a draggable element
+   * @param {MouseEvent} e - The mousedown event
+   */
+  handleMouseDown(e) {
+    // Ignore clicks on non-draggable elements
+    if (this.shouldIgnoreDragStart(e)) {
+      return;
+    }
+
+    const draggableElement = this.findDraggableElement(e.target);
+    if (!draggableElement) {
+      return;
+    }
+
+    // Prepare for drag (actual drag starts on mouse move)
+    this.drag.element = draggableElement.element;
+    this.drag.type = draggableElement.type;
+    this.drag.id = draggableElement.id;
+    this.drag.startX = e.clientX;
+    this.drag.startY = e.clientY;
+  }
+
+  /**
+   * Handles mouse movement to detect drag start and update drop targets
+   * @param {MouseEvent} e - The mousemove event
+   */
+  handleMouseMove(e) {
+    if (!this.drag.element) return;
+
+    // Check if we should start dragging
+    if (!this.drag.isActive && this.hasMovedBeyondThreshold(e)) {
+      this.startDrag();
+    }
+
+    if (!this.drag.isActive) return;
+
+    // Update drop target highlight
+    this.updateDropTarget(e);
+  }
+
+  /**
+   * Handles mouse release to complete or cancel the drag operation
+   * @param {MouseEvent} e - The mouseup event
+   */
+  handleMouseUp(e) {
+    if (!this.drag.element) return;
+
+    // Perform drop if there's a valid target
+    if (this.drag.isActive && this.drag.target) {
+      this.performDrop();
+    }
+
+    // Clean up drag state
+    this.endDrag();
+  }
+
+  // ---------- Drag State Helpers ----------
+
+  /**
+   * Checks if drag should be ignored for the given event
+   * @param {MouseEvent} e - The event to check
+   * @returns {boolean} True if drag should be ignored
+   */
+  shouldIgnoreDragStart(e) {
+    // Ignore clicks on interactive elements
+    const nonDraggableSelectors = [
+      'input',
+      'textarea',
+      'button',
+      '.snippet-folder-more',
+      '.snippet-item-more',
+      '.add-folder-btn',
+    ];
+
+    return nonDraggableSelectors.some((selector) => e.target.closest(selector));
+  }
+
+  /**
+   * Finds the draggable element from the clicked target
+   * @param {HTMLElement} target - The clicked element
+   * @returns {Object|null} Object with element, type, and id, or null if not draggable
+   */
+  findDraggableElement(target) {
+    const folder = target.closest('.snippet-folder');
+    const snippet = target.closest('.snippet-item');
+
+    // Don't allow dragging while editing
+    if (folder?.classList.contains('editing') || snippet?.classList.contains('editing')) {
+      return null;
+    }
+
+    if (folder) {
+      return {
+        element: folder,
+        type: 'folder',
+        id: folder.dataset.id,
+      };
+    }
+
+    if (snippet) {
+      return {
+        element: snippet,
+        type: 'snippet',
+        id: snippet.dataset.id,
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Checks if mouse has moved beyond the drag threshold
+   * @param {MouseEvent} e - The current mouse event
+   * @returns {boolean} True if moved beyond threshold
+   */
+  hasMovedBeyondThreshold(e) {
+    const deltaX = Math.abs(e.clientX - this.drag.startX);
+    const deltaY = Math.abs(e.clientY - this.drag.startY);
+    return deltaX > this.drag.threshold || deltaY > this.drag.threshold;
+  }
+
+  /**
+   * Starts the drag operation
+   */
+  startDrag() {
+    this.drag.isActive = true;
+    this.drag.element.classList.add('dragging');
+
+    // Set window to highest level to prevent it from going behind
+    if (window.electronAPI?.setDragging) {
+      window.electronAPI.setDragging(true);
+    }
+
+    // Prevent text selection during drag
+    document.body.style.userSelect = 'none';
+    document.body.style.webkitUserSelect = 'none';
+  }
+
+  /**
+   * Updates the drop target based on current mouse position
+   * @param {MouseEvent} e - The current mouse event
+   */
+  updateDropTarget(e) {
+    // Find element at current mouse position
+    const elementAtPoint = document.elementFromPoint(e.clientX, e.clientY);
+
+    // Check if we're inside a folder-content area
+    const folderContent = elementAtPoint?.closest('.folder-content');
+
+    let folder = null;
+    let snippet = null;
+
+    if (folderContent) {
+      // Inside folder content: only consider direct children (not parent folder)
+      snippet = elementAtPoint?.closest('.snippet-item');
+      // Only consider folders that are direct children of this folder-content
+      const closestFolder = elementAtPoint?.closest('.snippet-folder');
+      if (closestFolder && closestFolder.parentElement === folderContent) {
+        folder = closestFolder;
+      }
+
+      // If no child element found and mouse is in empty folder-content area,
+      // find the parent folder to allow dropping at the end
+      if (!folder && !snippet && elementAtPoint.classList?.contains('folder-content')) {
+        const parentFolder = folderContent.previousElementSibling;
+        if (parentFolder?.classList.contains('snippet-folder')) {
+          folder = parentFolder;
+        }
+      }
+    } else {
+      // Outside folder content: normal behavior
+      folder = elementAtPoint?.closest('.snippet-folder');
+      snippet = elementAtPoint?.closest('.snippet-item');
+    }
+
+    // Clear previous highlights and insertion line
+    this.clearDropTargetHighlights();
+    this.clearInsertionLine();
+
+    // Determine valid drop target
+    const validTarget = this.getValidDropTarget(folder, snippet);
+
+    if (validTarget) {
+      // Determine drop type based on mouse position
+      let dropType;
+
+      // Special case: if mouse is in empty folder-content area, always nest-inside
+      if (
+        folderContent &&
+        elementAtPoint.classList?.contains('folder-content') &&
+        !snippet &&
+        folder
+      ) {
+        dropType = 'nest-inside';
+      } else {
+        dropType = this.determineDropType(validTarget, e.clientY);
+      }
+
+      // Show insertion line or nest highlight
+      this.showInsertionLine(validTarget, dropType);
+
+      this.drag.target = validTarget;
+      this.drag.dropType = dropType;
+    } else {
+      this.drag.target = null;
+      this.drag.dropType = null;
+    }
+  }
+
+  /**
+   * Determines if a folder/snippet is a valid drop target
+   * @param {HTMLElement|null} folder - Potential folder target
+   * @param {HTMLElement|null} snippet - Potential snippet target
+   * @returns {HTMLElement|null} Valid drop target or null
+   */
+  getValidDropTarget(folder, snippet) {
+    // Don't allow dropping on self
+    if (
+      (folder && folder.dataset.id === this.drag.id) ||
+      (snippet && snippet.dataset.id === this.drag.id)
+    ) {
+      return null;
+    }
+
+    // Snippet drag rules
+    if (this.drag.type === 'snippet') {
+      if (folder) return folder; // Can drop on folder
+
+      // Only allow dropping on snippets that are inside a folder
+      // (not root-level snippets)
+      if (snippet) {
+        const isInsideFolder = snippet.closest('.folder-content');
+        if (isInsideFolder) {
+          return snippet; // Can reorder with snippet inside folder
+        }
+        return null; // Cannot drop on root-level snippets
+      }
+    }
+
+    // Folder drag rules
+    if (this.drag.type === 'folder') {
+      if (folder) return folder; // Can nest in folder
+      // Cannot drop folder on snippet
+    }
+
+    return null;
+  }
+
+  /**
+   * Determines the drop type based on mouse position within the element
+   * @param {HTMLElement} element - The drop target element
+   * @param {number} mouseY - Mouse Y position
+   * @returns {string} Drop type: 'insert-before', 'insert-after', or 'nest-inside'
+   */
+  determineDropType(element, mouseY) {
+    const rect = element.getBoundingClientRect();
+    const relativeY = mouseY - rect.top;
+    const height = rect.height;
+    const isFolder = element.classList.contains('snippet-folder');
+
+    // Special case: When dragging a snippet onto a folder, always nest inside
+    if (this.drag.type === 'snippet' && isFolder) {
+      return 'nest-inside';
+    }
+
+    // Folder: divide into 3 zones (before, nest, after)
+    // This is only for folder-to-folder drag operations
+    if (isFolder) {
+      const threshold = 0.25; // Top/bottom 25% for insertion
+      if (relativeY < height * threshold) {
+        return 'insert-before';
+      } else if (relativeY > height * (1 - threshold)) {
+        return 'insert-after';
+      } else {
+        return 'nest-inside';
+      }
+    }
+
+    // Snippet: divide into 2 zones (before, after)
+    else {
+      if (relativeY < height * 0.5) {
+        return 'insert-before';
+      } else {
+        return 'insert-after';
+      }
+    }
+  }
+
+  /**
+   * Clears all drop target highlights
+   */
+  clearDropTargetHighlights() {
+    document.querySelectorAll('.drop-target').forEach((el) => {
+      el.classList.remove('drop-target');
+    });
+  }
+
+  /**
+   * Shows insertion line at the appropriate position
+   * @param {HTMLElement} element - The drop target element
+   * @param {string} dropType - The type of drop operation
+   */
+  showInsertionLine(element, dropType) {
+    // Clear any existing insertion line or nest highlight
+    this.clearInsertionLine();
+
+    if (dropType === 'nest-inside') {
+      // Show nest highlight instead of insertion line
+      element.classList.add('drop-target-nest');
+      return;
+    }
+
+    // Create insertion line element
+    const line = document.createElement('div');
+    line.className = 'insertion-line';
+
+    // Get element position relative to snippet list
+    const elementRect = element.getBoundingClientRect();
+    const listRect = this.snippetList.getBoundingClientRect();
+
+    // Calculate line position including scroll offset
+    const scrollTop = this.snippetList.scrollTop;
+    let topPosition;
+    if (dropType === 'insert-before') {
+      topPosition = elementRect.top - listRect.top + scrollTop - 1;
+    } else if (dropType === 'insert-after') {
+      topPosition = elementRect.bottom - listRect.top + scrollTop - 1;
+    }
+
+    line.style.top = `${topPosition}px`;
+
+    // Adjust left indent if element is inside folder-content
+    const folderContent = element.closest('.folder-content');
+    if (folderContent) {
+      const folderContentRect = folderContent.getBoundingClientRect();
+      const leftIndent = folderContentRect.left - listRect.left;
+      line.style.left = `${leftIndent}px`;
+      // Also adjust the right edge to match the folder-content width
+      const rightIndent = listRect.right - folderContentRect.right;
+      line.style.right = `${rightIndent}px`;
+    }
+
+    // Add to snippet list
+    this.snippetList.appendChild(line);
+    this.currentInsertionLine = line;
+  }
+
+  /**
+   * Clears insertion line and nest highlights
+   */
+  clearInsertionLine() {
+    // Remove insertion line
+    if (this.currentInsertionLine) {
+      this.currentInsertionLine.remove();
+      this.currentInsertionLine = null;
+    }
+
+    // Remove nest highlights
+    document.querySelectorAll('.drop-target-nest').forEach((el) => {
+      el.classList.remove('drop-target-nest');
+    });
+  }
+
+  /**
+   * Performs the drop operation based on drag state
+   */
+  performDrop() {
+    const targetFolder = this.drag.target.closest('.snippet-folder');
+    const targetSnippet = this.drag.target.closest('.snippet-item');
+    const dropType = this.drag.dropType;
+
+    try {
+      if (this.drag.type === 'snippet') {
+        if (targetFolder) {
+          if (dropType === 'nest-inside') {
+            this.moveSnippetToFolder(this.drag.id, targetFolder.dataset.id);
+          } else {
+            // insert-before or insert-after
+            this.insertSnippetRelativeToFolder(this.drag.id, targetFolder.dataset.id, dropType);
+          }
+        } else if (targetSnippet) {
+          this.reorderSnippets(this.drag.id, targetSnippet.dataset.id, dropType);
+        }
+      } else if (this.drag.type === 'folder') {
+        if (targetFolder) {
+          this.reorderOrNestFolders(this.drag.id, targetFolder.dataset.id, dropType);
+        }
+      }
+    } catch (err) {
+      console.error('Error performing drop operation:', err);
+    }
+  }
+
+  /**
+   * Ends the drag operation and cleans up state
+   */
+  endDrag() {
+    // Remove visual feedback
+    if (this.drag.element) {
+      this.drag.element.classList.remove('dragging');
+    }
+    this.clearDropTargetHighlights();
+    this.clearInsertionLine();
+
+    // Restore text selection
+    document.body.style.userSelect = '';
+    document.body.style.webkitUserSelect = '';
+
+    // Restore window level
+    if (window.electronAPI?.setDragging) {
+      window.electronAPI.setDragging(false);
+    }
+
+    // Reset drag state
+    this.drag.element = null;
+    this.drag.type = null;
+    this.drag.id = null;
+    this.drag.startX = 0;
+    this.drag.startY = 0;
+    this.drag.isActive = false;
+    this.drag.target = null;
+    this.drag.dropType = null;
+  }
+
+  // ---------- Drop Operation Handlers ----------
+
+  /**
+   * Moves a snippet to a different folder
+   * @param {string} snippetId - ID of the snippet to move
+   * @param {string} targetFolderId - ID of the target folder
+   */
+  moveSnippetToFolder(snippetId, targetFolderId) {
+    const snippet = this.snippets.find((s) => s.id === snippetId);
+    if (!snippet) {
+      console.error(`Snippet not found: ${snippetId}`);
+      return;
+    }
+
+    snippet.folderId = targetFolderId;
+    this.saveSnippets();
+    this.renderSnippets();
+  }
+
+  /**
+   * Inserts a snippet before or after a folder
+   * @param {string} snippetId - ID of the snippet to insert
+   * @param {string} targetFolderId - ID of the target folder
+   * @param {string} dropType - 'insert-before' or 'insert-after'
+   */
+  insertSnippetRelativeToFolder(snippetId, targetFolderId, dropType) {
+    const snippet = this.snippets.find((s) => s.id === snippetId);
+    const targetFolder = this.snippetFolders.find((f) => f.id === targetFolderId);
+
+    if (!snippet || !targetFolder) {
+      console.error('Snippet or folder not found');
+      return;
+    }
+
+    // Don't allow moving snippets to root level
+    // Snippets must always be inside a folder
+    if (!targetFolder.parentId) {
+      console.warn('Cannot move snippet to root level');
+      return;
+    }
+
+    // Move snippet to the same parent as the target folder
+    snippet.folderId = targetFolder.parentId;
+
+    // Find all snippets in the same level
+    const snippetsInSameLevel = this.snippets.filter(
+      (s) => (s.folderId || null) === (targetFolder.parentId || null)
+    );
+
+    // For now, just move to the folder (simple implementation)
+    // In a more complex implementation, you'd reorder based on folder position
+    this.saveSnippets();
+    this.renderSnippets();
+  }
+
+  /**
+   * Reorders snippets by moving dragged snippet to target position
+   * If snippets are in different folders, moves to target's folder
+   * @param {string} draggedId - ID of the dragged snippet
+   * @param {string} targetId - ID of the target snippet
+   * @param {string} dropType - 'insert-before' or 'insert-after'
+   */
+  reorderSnippets(draggedId, targetId, dropType) {
+    const draggedIndex = this.snippets.findIndex((s) => s.id === draggedId);
+    const targetIndex = this.snippets.findIndex((s) => s.id === targetId);
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      console.error('Snippet not found for reordering');
+      return;
+    }
+
+    const draggedSnippet = this.snippets[draggedIndex];
+    const targetSnippet = this.snippets[targetIndex];
+
+    // Don't allow moving snippets to root level
+    if (!targetSnippet.folderId) {
+      console.warn('Cannot move snippet to root level');
+      return;
+    }
+
+    // Remove dragged snippet from array
+    const [removed] = this.snippets.splice(draggedIndex, 1);
+
+    // Update folder if moving to a different folder
+    if (removed.folderId !== targetSnippet.folderId) {
+      removed.folderId = targetSnippet.folderId;
+    }
+
+    // Find new target index (after removal)
+    let newTargetIndex = this.snippets.findIndex((s) => s.id === targetId);
+
+    // Adjust insertion index based on drop type
+    if (dropType === 'insert-after') {
+      newTargetIndex += 1;
+    }
+
+    // Insert at the new position
+    this.snippets.splice(newTargetIndex, 0, removed);
+
+    this.saveSnippets();
+    this.renderSnippets();
+  }
+
+  /**
+   * Reorders folders or nests folder inside another folder
+   * @param {string} draggedId - ID of the dragged folder
+   * @param {string} targetId - ID of the target folder
+   * @param {string} dropType - 'insert-before', 'insert-after', or 'nest-inside'
+   */
+  reorderOrNestFolders(draggedId, targetId, dropType) {
+    const draggedIndex = this.snippetFolders.findIndex((f) => f.id === draggedId);
+    const targetIndex = this.snippetFolders.findIndex((f) => f.id === targetId);
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      console.error('Folder not found for reordering');
+      return;
+    }
+
+    const draggedFolder = this.snippetFolders[draggedIndex];
+    const targetFolder = this.snippetFolders[targetIndex];
+
+    // Prevent nesting a folder inside itself or its descendants
+    if (dropType === 'nest-inside' && this.isFolderDescendant(targetFolder, draggedFolder)) {
+      console.warn('Cannot nest a folder inside itself or its descendants');
+      this.renderSnippets();
+      return;
+    }
+
+    if (dropType === 'nest-inside') {
+      // Nest inside target folder
+      draggedFolder.parentId = targetId;
+      targetFolder.expanded = true;
+    } else {
+      // insert-before or insert-after - reorder at same level as target
+      draggedFolder.parentId = targetFolder.parentId;
+
+      const [removed] = this.snippetFolders.splice(draggedIndex, 1);
+      let newTargetIndex = this.snippetFolders.findIndex((f) => f.id === targetId);
+
+      // Adjust insertion index based on drop type
+      if (dropType === 'insert-after') {
+        newTargetIndex += 1;
+      }
+
+      this.snippetFolders.splice(newTargetIndex, 0, removed);
+    }
+
+    this.saveSnippets();
+    this.renderSnippets();
+  }
+
+  /**
+   * Checks if a folder is a descendant of another folder
+   * @param {Object} folder - The folder to check
+   * @param {Object} potentialAncestor - The potential ancestor folder
+   * @returns {boolean} True if folder is a descendant of potentialAncestor
+   */
+  isFolderDescendant(folder, potentialAncestor) {
+    if (!folder || !potentialAncestor) return false;
+    if (folder.id === potentialAncestor.id) return true;
+
+    let current = folder;
+    while (current.parentId) {
+      if (current.parentId === potentialAncestor.id) return true;
+      current = this.snippetFolders.find((f) => f.id === current.parentId);
+      if (!current) break;
+    }
+    return false;
   }
 }
 
