@@ -321,29 +321,44 @@ class WindowManager {
         return false;
       }
 
-      const popupWidth = 84;
-      const popupHeight = 84;
+      // Get primary display work area
       const primary = screen.getPrimaryDisplay();
       const wa =
         primary && primary.workArea ? primary.workArea : { x: 0, y: 0, width: 1200, height: 800 };
 
-      // Position main window at bottom right
+      // Window dimensions
+      const popupWidth = 84;
+      const popupHeight = 84;
+      const mainWidth = this.mainWindowWidth;
+      const mainHeight = this.mainWindowHeight;
+
+      // Layout constants
       const marginRight = 16;
       const marginBottom = 12;
-      const mainX = Math.round(wa.x + wa.width - this.mainWindowWidth - marginRight);
-      const mainY = Math.round(wa.y + wa.height - this.mainWindowHeight - marginBottom);
+      const gap = -10; // Negative value means windows overlap by 10px
 
-      // Position popup centered below main window
-      const popupX = Math.round(mainX + (this.mainWindowWidth - popupWidth) / 2);
-      const popupY = Math.round(mainY + this.mainWindowHeight - 10);
+      // Calculate main window position (bottom right corner)
+      const totalHeight = mainHeight + popupHeight + gap;
+      let mainX = wa.x + wa.width - mainWidth - marginRight;
+      let mainY = wa.y + wa.height - totalHeight - marginBottom;
 
-      // Move popup window to initial position
-      popupWindow.setPosition(popupX, popupY);
+      // Constrain main window to screen bounds
+      mainX = Math.min(Math.max(mainX, wa.x), wa.x + wa.width - mainWidth);
+      mainY = Math.min(Math.max(mainY, wa.y), wa.y + wa.height - mainHeight);
 
-      // Move main window to initial position
-      mainWindow.setPosition(mainX, mainY);
+      // Calculate popup position (centered below main window)
+      let popupX = mainX + (mainWidth - popupWidth) / 2;
+      let popupY = mainY + mainHeight + gap;
 
-      // Reset offset so it's recalculated
+      // Constrain popup window to screen bounds
+      popupX = Math.min(Math.max(popupX, wa.x), wa.x + wa.width - popupWidth);
+      popupY = Math.min(Math.max(popupY, wa.y), wa.y + wa.height - popupHeight);
+
+      // Apply positions
+      popupWindow.setPosition(Math.round(popupX), Math.round(popupY));
+      mainWindow.setPosition(Math.round(mainX), Math.round(mainY));
+
+      // Reset offset for recalculation on next popup move
       this.mainPopupOffsetX = null;
       this.mainPopupOffsetY = null;
 
