@@ -194,5 +194,17 @@
         clipboardPopup: 'クリップボード履歴',
       },
     },
+    apiKey: {
+      title: 'IrukaDarkへようこそ',
+      description: 'IrukaDarkをご利用いただくには、Gemini APIキーを登録してください。',
+      placeholder: 'Gemini APIキーを入力してください',
+      save: '保存して続ける',
+      saving: '保存中...',
+      help: 'APIキーはこちらから取得',
+      errorSavingUnavailable: 'APIキーの保存機能が利用できません。',
+      errorEmpty: '有効なAPIキーを入力してください。',
+      errorSaving: 'APIキーの保存中にエラーが発生しました。もう一度お試しください。',
+      successSaved: 'APIキーが正常に保存されました！チャットを開始できます。',
+    },
   });
 })();

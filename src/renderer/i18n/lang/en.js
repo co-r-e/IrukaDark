@@ -193,5 +193,17 @@
         clipboardPopup: 'Clipboard History',
       },
     },
+    apiKey: {
+      title: 'Welcome to IrukaDark',
+      description: 'To start using IrukaDark, please register your Gemini API key.',
+      placeholder: 'Enter your Gemini API key',
+      save: 'Save and Continue',
+      saving: 'Saving...',
+      help: 'Get API key here',
+      errorSavingUnavailable: 'API key saving is not available.',
+      errorEmpty: 'Please enter a valid API key.',
+      errorSaving: 'An error occurred while saving the API key. Please try again.',
+      successSaved: 'API key saved successfully! You can now start chatting.',
+    },
   });
 })();

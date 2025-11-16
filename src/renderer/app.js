@@ -160,6 +160,11 @@ class IrukaDarkApp {
     this.updateMonitoringUI();
     this.syncHeader();
 
+    // Check API key on initial load (chat tab is default)
+    setTimeout(() => {
+      this.checkApiKey();
+    }, 0);
+
     try {
       setTimeout(() => this.messageInput && this.messageInput.focus(), 0);
     } catch {}
@@ -217,6 +222,101 @@ class IrukaDarkApp {
     });
   }
 
+  /**
+   * Check if API key exists and show appropriate view
+   * @returns {Promise<void>}
+   */
+  async checkApiKey() {
+    if (!window.electronAPI || !window.electronAPI.getGeminiApiKey) {
+      return;
+    }
+
+    try {
+      const result = await window.electronAPI.getGeminiApiKey();
+      if (result && result.success && result.apiKey && result.apiKey.trim()) {
+        this.showChat();
+      } else {
+        this.showApiKeyForm();
+      }
+    } catch (err) {
+      console.error('Error checking API key:', err);
+      this.showApiKeyForm();
+    }
+  }
+
+  /**
+   * Show API key registration form
+   */
+  showApiKeyForm() {
+    if (this.apiKeyForm) {
+      this.apiKeyForm.style.display = 'flex';
+    }
+    if (this.chatHistory) {
+      this.chatHistory.style.display = 'none';
+    }
+    setTimeout(() => {
+      if (this.apiKeyInput) {
+        this.apiKeyInput.focus();
+      }
+    }, 50);
+  }
+
+  /**
+   * Show chat interface
+   */
+  showChat() {
+    if (this.apiKeyForm) {
+      this.apiKeyForm.style.display = 'none';
+    }
+    if (this.chatHistory) {
+      this.chatHistory.style.display = 'block';
+    }
+  }
+
+  /**
+   * Save API key to preferences
+   * @returns {Promise<void>}
+   */
+  async saveApiKey() {
+    if (!window.electronAPI || !window.electronAPI.saveGeminiApiKey) {
+      alert(getUIText('apiKey.errorSavingUnavailable'));
+      return;
+    }
+
+    const apiKey = this.apiKeyInput ? this.apiKeyInput.value.trim() : '';
+    if (!apiKey) {
+      alert(getUIText('apiKey.errorEmpty'));
+      return;
+    }
+
+    try {
+      if (this.saveApiKeyBtn) {
+        this.saveApiKeyBtn.disabled = true;
+        this.saveApiKeyBtn.textContent = getUIText('apiKey.saving');
+      }
+
+      const result = await window.electronAPI.saveGeminiApiKey(apiKey);
+      if (result && result.success) {
+        if (this.apiKeyInput) {
+          this.apiKeyInput.value = '';
+        }
+        this.showChat();
+        this.addMessage('system', getUIText('apiKey.successSaved'));
+      } else {
+        const errorMsg = result?.error || getUIText('apiKey.errorSaving');
+        alert(errorMsg);
+      }
+    } catch (err) {
+      console.error('Error saving API key:', err);
+      alert(getUIText('apiKey.errorSaving'));
+    } finally {
+      if (this.saveApiKeyBtn) {
+        this.saveApiKeyBtn.disabled = false;
+        this.saveApiKeyBtn.textContent = getUIText('apiKey.save');
+      }
+    }
+  }
+
   checkInitialState() {
     if (!window.electronAPI) {
       this.addMessage('system', getUIText('apiUnavailable'));
@@ -231,6 +331,10 @@ class IrukaDarkApp {
     this.fileInput = document.getElementById('fileInput');
     this.attachmentArea = document.getElementById('attachmentArea');
     this.chatHistory = document.getElementById('chatHistory');
+    this.apiKeyForm = document.getElementById('apiKeyForm');
+    this.apiKeyInput = document.getElementById('apiKeyInput');
+    this.saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
+    this.inputArea = document.getElementById('inputArea');
     this.attachedFiles = [];
   }
 
@@ -248,6 +352,20 @@ class IrukaDarkApp {
     this.fileInput.addEventListener('change', (e) => {
       this.handleFileSelection(e);
     });
+
+    // API Key form events
+    if (this.saveApiKeyBtn) {
+      this.saveApiKeyBtn.addEventListener('click', () => {
+        this.saveApiKey();
+      });
+    }
+    if (this.apiKeyInput) {
+      this.apiKeyInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          this.saveApiKey();
+        }
+      });
+    }
     // Focus input when clicking on empty chat area
     this.chatHistory.addEventListener('click', (e) => {
       // Don't focus if clicking on interactive elements
@@ -4002,5 +4120,5 @@ IrukaDarkApp.prototype.autosizeMessageInput = function (reset = false) {
 
 // アプリケーション初期化
 document.addEventListener('DOMContentLoaded', () => {
-  new IrukaDarkApp();
+  window.app = new IrukaDarkApp();
 });

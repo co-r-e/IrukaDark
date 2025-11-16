@@ -2014,3 +2014,148 @@ html:not(.theme-dark) .shortcut-change-instruction {
   opacity: var(--opacity-disabled);
   cursor: not-allowed;
 }
+
+/* ========================================
+   API Key Registration Form
+   Displays when user has not set up their Gemini API key yet
+   ======================================== */
+
+.api-key-form-container {
+  max-width: 420px;
+  width: 100%;
+  padding: var(--spacing-lg);
+}
+
+/* Header section with title and description */
+.api-key-form-header {
+  margin-bottom: var(--spacing-lg);
+  text-align: center;
+}
+
+/* Title with gradient text effect */
+.api-key-form-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: var(--spacing-sm);
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.api-key-form-description {
+  font-size: var(--font-size-md);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+html:not(.theme-dark) .api-key-form-description {
+  color: var(--text-tertiary-light);
+}
+
+/* Form body containing input and button */
+.api-key-form-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* API key input field with theme support */
+.api-key-input {
+  width: 100%;
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-size: var(--font-size-md);
+  border-radius: var(--radius-lg);
+  outline: none;
+  transition: all 0.15s ease;
+  background: var(--bg-overlay-light);
+  border: 1px solid var(--border-overlay-light);
+  color: #e5e7eb;
+}
+
+html:not(.theme-dark) .api-key-input {
+  background: var(--bg-overlay-light-mode);
+  border-color: var(--border-overlay-light-mode-medium);
+  color: var(--text-primary-light);
+}
+
+.api-key-input:focus {
+  background: var(--bg-overlay-medium);
+  border-color: var(--border-overlay-strong);
+  box-shadow: 0 0 0 2px rgba(255, 77, 109, 0.2);
+}
+
+html:not(.theme-dark) .api-key-input:focus {
+  background: var(--bg-overlay-light-mode-hover);
+  border-color: var(--border-overlay-light-mode-strong);
+  box-shadow: 0 0 0 2px rgba(255, 77, 109, 0.15);
+}
+
+.api-key-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+/* Save button with gradient background */
+.api-key-save-btn {
+  width: 100%;
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  background: var(--primary-gradient);
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.3px;
+}
+
+.api-key-save-btn:hover {
+  opacity: var(--opacity-hover);
+  box-shadow: var(--shadow-glow-primary-strong);
+}
+
+.api-key-save-btn:active {
+  opacity: var(--opacity-active);
+}
+
+.api-key-save-btn:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
+}
+
+/* Help text with link to get API key */
+.api-key-help-text {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.5;
+}
+
+html:not(.theme-dark) .api-key-help-text {
+  color: var(--text-tertiary-light);
+}
+
+/* Link to Google AI Studio with external icon */
+.api-key-link {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 600;
+  transition: opacity 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  vertical-align: baseline;
+}
+
+.api-key-link:hover {
+  opacity: var(--opacity-hover);
+}
+
+/* External link icon (14x14px) */
+.api-key-external-icon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}

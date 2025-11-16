@@ -1055,6 +1055,59 @@
         <div class="titlebar-buttons"></div>
       </div>
 
+      <!-- API Key Registration Form -->
+      <div
+        id="apiKeyForm"
+        class="flex-1 flex items-center justify-center px-4 py-4"
+        style="display: none"
+      >
+        <div class="api-key-form-container">
+          <div class="api-key-form-header">
+            <h2 class="api-key-form-title" data-i18n="apiKey.title">Welcome to IrukaDark</h2>
+            <p class="api-key-form-description" data-i18n="apiKey.description">
+              To start using IrukaDark, please register your Gemini API key.
+            </p>
+          </div>
+          <div class="api-key-form-body">
+            <input
+              type="password"
+              id="apiKeyInput"
+              class="api-key-input"
+              placeholder="Enter your Gemini API key"
+              data-i18n-placeholder="apiKey.placeholder"
+            />
+            <button id="saveApiKeyBtn" class="api-key-save-btn" data-i18n="apiKey.save">
+              Save and Continue
+            </button>
+            <p class="api-key-help-text">
+              <a
+                href="https://aistudio.google.com/app/api-keys"
+                target="_blank"
+                class="api-key-link"
+              >
+                <span data-i18n="apiKey.help">Get API key here</span>
+                <svg
+                  class="api-key-external-icon"
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+              </a>
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div id="chatHistory" class="flex-1 overflow-y-auto px-4 py-4"></div>
 
       <!-- History List -->
@@ -1469,6 +1522,8 @@
 
           // Hide all views
           chatHistory.style.display = 'none';
+          const apiKeyForm = document.getElementById('apiKeyForm');
+          if (apiKeyForm) apiKeyForm.style.display = 'none';
           clipboardList.style.display = 'none';
           snippetList.style.display = 'none';
           memoContainer.style.display = 'none';
@@ -1487,11 +1542,17 @@
             searchResultsMenu.innerHTML = '';
           }
 
-          // Show/hide input area based on tab
+          // Show/hide input area and check API key for chat tab
           if (tabName === 'chat') {
             chatTab.classList.add('active');
-            chatHistory.style.display = 'block';
             inputArea.style.display = 'block';
+            // Check API key and display appropriate view (form or chat)
+            if (window.app && window.app.checkApiKey) {
+              window.app.checkApiKey();
+            } else {
+              // Fallback if app not ready
+              chatHistory.style.display = 'block';
+            }
           } else {
             inputArea.style.display = 'none';
 

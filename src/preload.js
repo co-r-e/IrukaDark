@@ -106,4 +106,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   validateShortcut: (key, excludeAction) =>
     ipcRenderer.invoke('settings:validate-shortcut', key, excludeAction),
   resetShortcutAssignments: () => ipcRenderer.invoke('settings:reset-shortcut-assignments'),
+  // Gemini API Key
+  getGeminiApiKey: () => ipcRenderer.invoke('settings:get-gemini-api-key'),
+  saveGeminiApiKey: (apiKey) => ipcRenderer.invoke('settings:save-gemini-api-key', apiKey),
 });

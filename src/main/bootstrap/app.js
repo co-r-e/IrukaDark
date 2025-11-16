@@ -1403,6 +1403,36 @@ function bootstrapApp() {
         return { success: false, error: err.message };
       }
     });
+
+    // Gemini API Key handlers
+    ipcMain.handle('settings:get-gemini-api-key', () => {
+      try {
+        const apiKey = getPref('GEMINI_API_KEY') || '';
+        return { success: true, apiKey };
+      } catch (err) {
+        console.error('Error getting Gemini API key:', err);
+        return { success: false, error: err.message, apiKey: '' };
+      }
+    });
+
+    ipcMain.handle('settings:save-gemini-api-key', (_e, apiKey) => {
+      try {
+        if (!apiKey || typeof apiKey !== 'string') {
+          return { success: false, error: 'Invalid API key' };
+        }
+
+        const trimmedKey = apiKey.trim();
+        if (!trimmedKey) {
+          return { success: false, error: 'API key cannot be empty' };
+        }
+
+        setPref('GEMINI_API_KEY', trimmedKey);
+        return { success: true };
+      } catch (err) {
+        console.error('Error saving Gemini API key:', err);
+        return { success: false, error: err.message };
+      }
+    });
   }
 
   function setupAiHandlers() {
