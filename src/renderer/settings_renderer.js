@@ -37,6 +37,7 @@ class SettingsUI {
     this.assignmentInProgress = false; // Prevent concurrent shortcut assignments
     this.popupAbortController = null; // For automatic event listener cleanup
     this.lastKeyTime = 0; // For keyboard event debouncing
+    this.hiddenShortcutActions = new Set(['reply']);
 
     // Default shortcut assignments (internal format uses "Alt")
     // Note: These are defined in src/shared/shortcutDefaults.js as well
@@ -168,7 +169,9 @@ class SettingsUI {
     if (!this.i18n || !this.i18n.settings) return '';
 
     const t = this.i18n.settings;
-    const actions = Object.keys(this.shortcuts);
+    const actions = Object.keys(this.shortcuts).filter(
+      (action) => !this.hiddenShortcutActions.has(action)
+    );
 
     return actions
       .map((action) => {

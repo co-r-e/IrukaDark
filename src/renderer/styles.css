@@ -1830,8 +1830,6 @@ html:not(.theme-dark) .settings-empty {
 #resetAllShortcutsBtn:hover {
   background: var(--danger-bg-hover);
   border-color: var(--danger-border-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px var(--danger-shadow);
 }
 
 html:not(.theme-dark) #resetAllShortcutsBtn {
