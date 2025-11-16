@@ -47,7 +47,6 @@
     selectionReplies: 'Varianti di risposta per la selezione',
     urlContextSummary: (url) => `Riepilogo dell’URL selezionato:\n${url}`,
     urlContextDetailed: (url) => `Analisi dettagliata dell’URL selezionato:\n${url}`,
-    snsPostRequest: (url) => `Prepara un post su X da questo URL:\n${url}`,
     invalidUrlSelection: 'Nessun URL valido rilevato. Seleziona un solo URL HTTP(S) e riprova.',
     updateAvailable: (v) => `Nuova versione (${v}) disponibile. Aprire la pagina di download?`,
     upToDate: 'Sei aggiornato.',

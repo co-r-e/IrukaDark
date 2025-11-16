@@ -47,7 +47,6 @@
     selectionReplies: 'Варианты ответа для выделенного текста',
     urlContextSummary: (url) => `Запрос краткого обзора выбранного URL:\n${url}`,
     urlContextDetailed: (url) => `Запрос подробного разбора выбранного URL:\n${url}`,
-    snsPostRequest: (url) => `Черновик поста в X на основе этой ссылки:\n${url}`,
     invalidUrlSelection:
       'Не найден допустимый URL. Выделите один HTTP(S)-адрес и попробуйте снова.',
     updateAvailable: (v) => `Доступна новая версия (${v}). Открыть загрузки?`,

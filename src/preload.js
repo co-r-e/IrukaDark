@@ -35,7 +35,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onSummarizeUrlContext: (cb) => ipcRenderer.on('summarize-url-context', (_e, url) => cb(url)),
   onSummarizeUrlContextDetailed: (cb) =>
     ipcRenderer.on('summarize-url-context-detailed', (_e, url) => cb(url)),
-  onSnsPostFromUrl: (cb) => ipcRenderer.on('sns-post-from-url', (_e, url) => cb(url)),
   onAccessibilityWarning: (cb) => ipcRenderer.on('accessibility-warning', () => cb()),
   onShortcutRegistered: (cb) => ipcRenderer.on('shortcut-registered', (_e, a) => cb(a)),
   onShortcutDetailedRegistered: (cb) =>
@@ -47,8 +46,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('shortcut-url-summary-registered', (_e, a) => cb(a)),
   onShortcutUrlDetailedRegistered: (cb) =>
     ipcRenderer.on('shortcut-url-detailed-registered', (_e, a) => cb(a)),
-  onShortcutSnsPostRegistered: (cb) =>
-    ipcRenderer.on('shortcut-sns-post-registered', (_e, a) => cb(a)),
   onThemeChanged: (cb) => ipcRenderer.on('theme-changed', (_e, theme) => cb(theme)),
   onToneChanged: (cb) => ipcRenderer.on('tone-changed', (_e, tone) => cb(tone)),
   onAppConfig: (cb) => ipcRenderer.on('app-config', (_e, cfg) => cb(cfg)),
@@ -102,4 +99,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     executeSystemCommand: (commandId) =>
       ipcRenderer.invoke('launcher:execute-system-command', commandId),
   },
+  // Shortcut settings
+  getShortcutAssignments: () => ipcRenderer.invoke('settings:get-shortcut-assignments'),
+  saveShortcutAssignment: (action, key) =>
+    ipcRenderer.invoke('settings:save-shortcut-assignment', action, key),
+  validateShortcut: (key, excludeAction) =>
+    ipcRenderer.invoke('settings:validate-shortcut', key, excludeAction),
+  resetShortcutAssignments: () => ipcRenderer.invoke('settings:reset-shortcut-assignments'),
 });

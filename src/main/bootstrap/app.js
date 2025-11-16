@@ -49,6 +49,15 @@ const {
 } = require('../services/macAutomationBridge');
 const { getClipboardHistoryService } = require('../services/clipboardHistory');
 
+// Import shared shortcut constants and validation functions
+const {
+  DEFAULT_SHORTCUTS,
+  RESERVED_SHORTCUTS,
+  isReservedShortcut,
+  isValidShortcutFormat,
+  isValidAction,
+} = require('../../shared/shortcutDefaults');
+
 const isDev = process.env.NODE_ENV === 'development';
 
 // PERFORMANCE: V8 optimization flags for better memory management
@@ -443,7 +452,11 @@ function bootstrapApp() {
     }
   }
 
-  function registerGlobalShortcuts() {
+  function registerGlobalShortcuts(silent = false) {
+    // Load shortcut assignments from preferences
+    const savedAssignments = getPref('SHORTCUT_ASSIGNMENTS') || {};
+    const shortcuts = { ...DEFAULT_SHORTCUTS, ...savedAssignments };
+
     const registerShortcut = (accel, detailed = false) => {
       try {
         const ok = globalShortcut.register(accel, () => {
@@ -551,86 +564,27 @@ function bootstrapApp() {
       }
     };
 
-    const registerSnsPostShortcut = (accel) => {
-      try {
-        const ok = globalShortcut.register(accel, () => {
-          (async () => {
-            try {
-              const mainWindow = getMainWindow();
-              if (!mainWindow || mainWindow.isDestroyed()) return;
+    // Register shortcuts from settings
+    const baseUsed =
+      shortcuts.explain && registerShortcut(shortcuts.explain, false) ? shortcuts.explain : '';
+    const detailedUsed =
+      shortcuts.explainDetailed && registerShortcut(shortcuts.explainDetailed, true)
+        ? shortcuts.explainDetailed
+        : '';
+    const urlSummaryUsed =
+      shortcuts.urlSummary && registerUrlShortcut(shortcuts.urlSummary, false)
+        ? shortcuts.urlSummary
+        : '';
+    const urlDetailedUsed =
+      shortcuts.urlDetailed && registerUrlShortcut(shortcuts.urlDetailed, true)
+        ? shortcuts.urlDetailed
+        : '';
 
-              const text = await tryCopySelectedText();
-              if (!mainWindow || mainWindow.isDestroyed()) return;
-
-              // Bring window to front
-              bringMainWindowToFront(mainWindow);
-
-              const url = extractFirstValidUrl(text);
-              if (url) {
-                mainWindow.webContents.send('sns-post-from-url', url);
-              } else {
-                mainWindow.webContents.send('explain-clipboard-error', 'INVALID_URL_SELECTION');
-              }
-            } catch (e) {
-              if (isDev) console.warn('SNS post shortcut failed:', e?.message);
-            }
-          })();
-        });
-        return ok;
-      } catch (e) {
-        return false;
-      }
-    };
-
-    const baseCandidates = ['Alt+A'];
-    let baseUsed = '';
-    for (const c of baseCandidates) {
-      if (registerShortcut(c, false)) {
-        baseUsed = c;
-        break;
-      }
-    }
-
-    const detailedCandidates = ['Alt+Shift+A'];
-    let detailedUsed = '';
-    for (const c of detailedCandidates) {
-      if (registerShortcut(c, true)) {
-        detailedUsed = c;
-        break;
-      }
-    }
-
-    const urlSummaryCandidates = ['Alt+Q'];
-    let urlSummaryUsed = '';
-    for (const c of urlSummaryCandidates) {
-      if (registerUrlShortcut(c, false)) {
-        urlSummaryUsed = c;
-        break;
-      }
-    }
-
-    const urlDetailedCandidates = ['Alt+Shift+Q'];
-    let urlDetailedUsed = '';
-    for (const c of urlDetailedCandidates) {
-      if (registerUrlShortcut(c, true)) {
-        urlDetailedUsed = c;
-        break;
-      }
-    }
-
-    const snsPostCandidates = ['Control+Alt+1', 'Alt+Control+1'];
-    let snsPostUsed = '';
-    for (const c of snsPostCandidates) {
-      if (registerSnsPostShortcut(c)) {
-        snsPostUsed = c;
-        break;
-      }
-    }
-
-    const translateCandidates = ['Alt+R'];
+    // Register translate shortcut
     let translateUsed = '';
-    for (const c of translateCandidates) {
+    if (shortcuts.translate) {
       try {
+        const c = shortcuts.translate;
         const ok = globalShortcut.register(c, () => {
           logShortcutEvent('shortcut.trigger', { accel: c, kind: 'translate' });
           (async () => {
@@ -654,26 +608,18 @@ function bootstrapApp() {
             }
           })();
         });
-        if (ok) {
-          translateUsed = c;
-          break;
-        }
+        if (ok) translateUsed = c;
       } catch {}
     }
 
-    const replyCandidates = ['Alt+T'];
-    let replyUsed = '';
-    for (const c of replyCandidates) {
-      if (registerReplyShortcut(c)) {
-        replyUsed = c;
-        break;
-      }
-    }
+    const replyUsed =
+      shortcuts.reply && registerReplyShortcut(shortcuts.reply) ? shortcuts.reply : '';
 
-    const screenshotCandidates = ['Alt+S'];
-    for (const c of screenshotCandidates) {
+    // Register screenshot shortcut
+    if (shortcuts.screenshot) {
       try {
-        const ok = globalShortcut.register(c, () => {
+        const c = shortcuts.screenshot;
+        globalShortcut.register(c, () => {
           logShortcutEvent('shortcut.trigger', { accel: c, kind: 'screenshot' });
           (async () => {
             try {
@@ -690,14 +636,14 @@ function bootstrapApp() {
             }
           })();
         });
-        if (ok) break;
       } catch {}
     }
 
-    const screenshotDetailedCandidates = ['Alt+Shift+S'];
-    for (const c of screenshotDetailedCandidates) {
+    // Register screenshot detailed shortcut
+    if (shortcuts.screenshotDetailed) {
       try {
-        const ok = globalShortcut.register(c, () => {
+        const c = shortcuts.screenshotDetailed;
+        globalShortcut.register(c, () => {
           logShortcutEvent('shortcut.trigger', { accel: c, kind: 'screenshot_detailed' });
           (async () => {
             try {
@@ -714,15 +660,14 @@ function bootstrapApp() {
             }
           })();
         });
-        if (ok) break;
       } catch {}
     }
 
     // Move popup window to cursor position shortcut
-    const moveToCursorCandidates = ['Alt+Z'];
-    for (const c of moveToCursorCandidates) {
+    if (shortcuts.moveToCursor) {
       try {
-        const ok = globalShortcut.register(c, () => {
+        const c = shortcuts.moveToCursor;
+        globalShortcut.register(c, () => {
           logShortcutEvent('shortcut.trigger', { accel: c, kind: 'move_to_cursor' });
           try {
             const popupWindow = getPopupWindow();
@@ -750,15 +695,14 @@ function bootstrapApp() {
             if (isDev) console.warn('Move popup to cursor failed:', e?.message);
           }
         });
-        if (ok) break;
       } catch {}
     }
 
     // Reset popup to initial position shortcut
-    const resetToInitialCandidates = ['Alt+Shift+Z'];
-    for (const c of resetToInitialCandidates) {
+    if (shortcuts.resetPosition) {
       try {
-        const ok = globalShortcut.register(c, () => {
+        const c = shortcuts.resetPosition;
+        globalShortcut.register(c, () => {
           logShortcutEvent('shortcut.trigger', { accel: c, kind: 'reset_to_initial' });
           try {
             windowManager.resetPopupToInitialPosition();
@@ -766,15 +710,14 @@ function bootstrapApp() {
             if (isDev) console.warn('Reset popup to initial position failed:', e?.message);
           }
         });
-        if (ok) break;
       } catch {}
     }
 
     // Clipboard history popup shortcut (toggle behavior)
-    const clipboardPopupCandidates = ['Alt+C'];
-    for (const c of clipboardPopupCandidates) {
+    if (shortcuts.clipboardPopup) {
       try {
-        const ok = globalShortcut.register(c, () => {
+        const c = shortcuts.clipboardPopup;
+        globalShortcut.register(c, () => {
           logShortcutEvent('shortcut.trigger', { accel: c, kind: 'clipboard_popup_toggle' });
           (async () => {
             try {
@@ -839,10 +782,7 @@ function bootstrapApp() {
             }
           })();
         });
-        if (ok) {
-          if (isDev) console.log(`Clipboard popup shortcut registered: ${c}`);
-          break;
-        }
+        if (isDev) console.log(`Clipboard popup shortcut registered: ${c}`);
       } catch (e) {
         if (isDev) console.warn('Failed to register clipboard popup shortcut:', e?.message);
       }
@@ -850,14 +790,13 @@ function bootstrapApp() {
 
     try {
       const mainWindow = getMainWindow();
-      if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow && !mainWindow.isDestroyed() && !silent) {
         mainWindow.webContents.send('shortcut-registered', baseUsed);
         mainWindow.webContents.send('shortcut-detailed-registered', detailedUsed);
         mainWindow.webContents.send('shortcut-translate-registered', translateUsed);
         mainWindow.webContents.send('shortcut-reply-registered', replyUsed);
         mainWindow.webContents.send('shortcut-url-summary-registered', urlSummaryUsed);
         mainWindow.webContents.send('shortcut-url-detailed-registered', urlDetailedUsed);
-        mainWindow.webContents.send('shortcut-sns-post-registered', snsPostUsed);
       }
       logShortcutEvent('shortcut.register.summary', {
         baseUsed,
@@ -866,7 +805,6 @@ function bootstrapApp() {
         replyUsed,
         urlSummaryUsed,
         urlDetailedUsed,
-        snsPostUsed,
       });
     } catch {}
 
@@ -1344,6 +1282,124 @@ function bootstrapApp() {
         return await getSystemCommands().executeCommand(commandId);
       } catch (err) {
         console.error('Execute system command error:', err);
+        return { success: false, error: err.message };
+      }
+    });
+  }
+
+  function setupSettingsHandlers() {
+    // Get current shortcut assignments
+    ipcMain.handle('settings:get-shortcut-assignments', () => {
+      try {
+        const saved = getPref('SHORTCUT_ASSIGNMENTS');
+        if (saved && typeof saved === 'object') {
+          return { ...DEFAULT_SHORTCUTS, ...saved };
+        }
+        return DEFAULT_SHORTCUTS;
+      } catch (err) {
+        console.error('Error getting shortcut assignments:', err);
+        return DEFAULT_SHORTCUTS;
+      }
+    });
+
+    // Save a single shortcut assignment
+    ipcMain.handle('settings:save-shortcut-assignment', async (_e, action, key) => {
+      try {
+        // === Input Validation (Security: Prevent injection attacks) ===
+
+        // Check for required parameters
+        if (!action || !key) {
+          throw new Error('Action and key are required');
+        }
+
+        // Validate parameter types
+        if (typeof action !== 'string' || typeof key !== 'string') {
+          throw new Error('Invalid parameter types. Expected strings.');
+        }
+
+        // Validate action is a known shortcut
+        if (!isValidAction(action)) {
+          throw new Error(`Unknown shortcut action: ${action}`);
+        }
+
+        // Validate shortcut format
+        if (!isValidShortcutFormat(key)) {
+          throw new Error(`Invalid shortcut format: ${key}`);
+        }
+
+        // Check if shortcut is reserved by the system
+        if (isReservedShortcut(key)) {
+          throw new Error(`Shortcut ${key} is reserved by the system and cannot be overridden`);
+        }
+
+        const current = getPref('SHORTCUT_ASSIGNMENTS') || {};
+        const allAssignments = { ...DEFAULT_SHORTCUTS, ...current };
+
+        // Remove the same shortcut from other actions (overwrite behavior)
+        for (const [existingAction, existingKey] of Object.entries(allAssignments)) {
+          if (existingAction !== action && existingKey === key) {
+            // Remove shortcut from conflicting action
+            current[existingAction] = '';
+          }
+        }
+
+        // Assign new shortcut
+        const updated = { ...current, [action]: key };
+        setPref('SHORTCUT_ASSIGNMENTS', updated);
+
+        // Re-register all shortcuts with new assignments (silent mode to avoid notifications)
+        try {
+          globalShortcut.unregisterAll();
+          registerGlobalShortcuts(true);
+        } catch (regErr) {
+          console.error('Error re-registering shortcuts:', regErr);
+          // Even if re-registration partially fails, the preference was saved
+        }
+
+        return { success: true };
+      } catch (err) {
+        console.error('Error saving shortcut assignment:', err);
+        return { success: false, error: err.message };
+      }
+    });
+
+    // Validate shortcut for conflicts
+    ipcMain.handle('settings:validate-shortcut', (_e, key, excludeAction) => {
+      try {
+        const assignments = getPref('SHORTCUT_ASSIGNMENTS') || {};
+        const allAssignments = { ...DEFAULT_SHORTCUTS, ...assignments };
+
+        // Check if the key is already assigned to another action
+        for (const [action, assignedKey] of Object.entries(allAssignments)) {
+          if (action !== excludeAction && assignedKey === key) {
+            return action; // Return the conflicting action
+          }
+        }
+
+        return null; // No conflict
+      } catch (err) {
+        console.error('Error validating shortcut:', err);
+        return null;
+      }
+    });
+
+    // Reset all shortcuts to defaults
+    ipcMain.handle('settings:reset-shortcut-assignments', () => {
+      try {
+        setPref('SHORTCUT_ASSIGNMENTS', {});
+
+        // Re-register all shortcuts with defaults (silent mode to avoid notifications)
+        try {
+          globalShortcut.unregisterAll();
+          registerGlobalShortcuts(true);
+        } catch (regErr) {
+          console.error('Error re-registering shortcuts:', regErr);
+          // Even if re-registration partially fails, the preference was cleared
+        }
+
+        return { success: true };
+      } catch (err) {
+        console.error('Error resetting shortcut assignments:', err);
         return { success: false, error: err.message };
       }
     });
@@ -1834,6 +1890,7 @@ function bootstrapApp() {
     setupUrlContentHandlers();
     setupClipboardHandlers();
     setupLauncherHandlers();
+    setupSettingsHandlers();
     setupAiHandlers();
     setupRendererSync();
 

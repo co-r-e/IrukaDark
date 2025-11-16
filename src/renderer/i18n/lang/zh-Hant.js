@@ -46,7 +46,6 @@
     selectionReplies: '選取文字的回覆方案',
     urlContextSummary: (url) => `請求取得所選 URL 的概要：\n${url}`,
     urlContextDetailed: (url) => `請求對所選 URL 進行詳細解析：\n${url}`,
-    snsPostRequest: (url) => `根據此 URL 草擬一則 X 貼文：\n${url}`,
     invalidUrlSelection: '找不到有效的 URL。請選擇單一 HTTP(S) URL 後再試一次。',
     updateAvailable: (v) => `有新版本（${v}）。是否開啟下載頁？`,
     upToDate: '已是最新版本。',

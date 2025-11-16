@@ -1043,6 +1043,14 @@
           <button id="memoTab" class="titlebar-tab" data-tab="memo" data-i18n="clipboard.tabMemo">
             Memo
           </button>
+          <button
+            id="settingsTab"
+            class="titlebar-tab"
+            data-tab="settings"
+            data-i18n="clipboard.tabSettings"
+          >
+            Settings
+          </button>
         </div>
         <div class="titlebar-buttons"></div>
       </div>
@@ -1075,6 +1083,11 @@
         <div id="launcherResults" class="launcher-results"></div>
       </div>
 
+      <!-- Settings -->
+      <div id="settingsContainer" class="clipboard-list" style="display: none; padding: 0">
+        <div class="settings-content"></div>
+      </div>
+
       <!-- Context Menu -->
       <div id="contextMenu" class="context-menu"></div>
 
@@ -1099,6 +1112,24 @@
               Confirm
             </button>
           </div>
+        </div>
+      </div>
+
+      <!-- Shortcut Change Popup -->
+      <div id="shortcutChangePopup" class="shortcut-change-popup" style="display: none">
+        <button class="shortcut-change-close" aria-label="Close">×</button>
+        <div class="shortcut-change-content">
+          <div class="shortcut-change-current">
+            <div class="shortcut-change-label" data-i18n="settings.currentLabel">Current:</div>
+            <div class="shortcut-change-current-key">Option+A</div>
+          </div>
+          <div class="shortcut-change-listening">
+            <div class="shortcut-change-instruction" data-i18n="settings.popupInstruction">
+              Press a key combination...
+            </div>
+            <div class="shortcut-change-preview"></div>
+          </div>
+          <button class="shortcut-change-apply-btn" data-i18n="settings.apply">Change</button>
         </div>
       </div>
 
@@ -1312,6 +1343,19 @@
         </div>
       </div>
 
+      <!-- Settings Footer -->
+      <div id="settingsFooter" class="tab-footer" style="display: none">
+        <div style="display: flex; justify-content: center; width: 100%; padding: 4px 0">
+          <button
+            id="resetAllShortcutsBtn"
+            style="padding: 6px 16px; font-size: 10px; border-radius: 5px"
+            data-i18n="settings.resetAll"
+          >
+            Reset to Defaults
+          </button>
+        </div>
+      </div>
+
       <div
         id="inputArea"
         class="px-3 pt-4 pb-6 border-t border-white/15 bg-white/5 backdrop-blur-sm"
@@ -1385,6 +1429,7 @@
 
     <script src="./clipboard_renderer.js"></script>
     <script src="./launcher_renderer.js"></script>
+    <script src="./settings_renderer.js"></script>
     <script>
       // Tab switching logic
       (function () {
@@ -1393,21 +1438,25 @@
         const snippetTab = document.getElementById('snippetTab');
         const launcherTab = document.getElementById('launcherTab');
         const memoTab = document.getElementById('memoTab');
+        const settingsTab = document.getElementById('settingsTab');
 
         const chatHistory = document.getElementById('chatHistory');
         const clipboardList = document.getElementById('clipboardList');
         const snippetList = document.getElementById('snippetList');
         const memoContainer = document.getElementById('memoContainer');
         const launcherContainer = document.getElementById('launcherContainer');
+        const settingsContainer = document.getElementById('settingsContainer');
         const historyFooter = document.getElementById('historyFooter');
         const snippetFooter = document.getElementById('snippetFooter');
         const memoFooter = document.getElementById('memoFooter');
         const launcherFooter = document.getElementById('launcherFooter');
+        const settingsFooter = document.getElementById('settingsFooter');
         const inputArea = document.getElementById('inputArea');
 
         let clipboardUI = null;
         let memoUI = null;
         let launcherUI = null;
+        let settingsUI = null;
 
         function switchTab(tabName) {
           // Remove active class from all tabs
@@ -1416,6 +1465,7 @@
           snippetTab.classList.remove('active');
           launcherTab.classList.remove('active');
           memoTab.classList.remove('active');
+          settingsTab.classList.remove('active');
 
           // Hide all views
           chatHistory.style.display = 'none';
@@ -1423,10 +1473,12 @@
           snippetList.style.display = 'none';
           memoContainer.style.display = 'none';
           launcherContainer.style.display = 'none';
+          settingsContainer.style.display = 'none';
           historyFooter.style.display = 'none';
           snippetFooter.style.display = 'none';
           memoFooter.style.display = 'none';
           launcherFooter.style.display = 'none';
+          settingsFooter.style.display = 'none';
 
           // Hide search results menu when switching tabs
           const searchResultsMenu = document.getElementById('searchResultsMenu');
@@ -1487,6 +1539,15 @@
               if (!memoUI) {
                 memoUI = new MemoUI();
               }
+            } else if (tabName === 'settings') {
+              settingsTab.classList.add('active');
+              settingsContainer.style.display = 'block';
+              settingsFooter.style.display = 'flex';
+
+              // Initialize settings UI if not already done
+              if (!settingsUI) {
+                settingsUI = new SettingsUI();
+              }
             }
           }
         }
@@ -1496,9 +1557,10 @@
         snippetTab.addEventListener('click', () => switchTab('snippet'));
         launcherTab.addEventListener('click', () => switchTab('launcher'));
         memoTab.addEventListener('click', () => switchTab('memo'));
+        settingsTab.addEventListener('click', () => switchTab('settings'));
 
         // Keyboard navigation for tabs
-        const tabs = ['chat', 'history', 'snippet', 'launcher', 'memo'];
+        const tabs = ['chat', 'history', 'snippet', 'launcher', 'memo', 'settings'];
 
         function getCurrentTabIndex() {
           if (chatTab.classList.contains('active')) return 0;
@@ -1506,6 +1568,7 @@
           if (snippetTab.classList.contains('active')) return 2;
           if (launcherTab.classList.contains('active')) return 3;
           if (memoTab.classList.contains('active')) return 4;
+          if (settingsTab.classList.contains('active')) return 5;
           return 0; // Default to chat
         }
 
@@ -1519,7 +1582,9 @@
                   ? snippetTab
                   : tabName === 'launcher'
                     ? launcherTab
-                    : memoTab;
+                    : tabName === 'memo'
+                      ? memoTab
+                      : settingsTab;
 
           if (tabElement) {
             tabElement.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });

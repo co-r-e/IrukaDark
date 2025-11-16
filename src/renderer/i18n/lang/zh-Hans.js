@@ -46,7 +46,6 @@
     selectionReplies: '选中文本的回复方案',
     urlContextSummary: (url) => `请求对所选 URL 进行概览：\n${url}`,
     urlContextDetailed: (url) => `请求对所选 URL 进行详细解读：\n${url}`,
-    snsPostRequest: (url) => `基于此 URL 草拟一篇 X 帖子：\n${url}`,
     invalidUrlSelection: '未检测到有效的 URL。请选择唯一的 HTTP(S) URL 后重试。',
     updateAvailable: (v) => `发现新版本（${v}）。是否打开下载页？`,
     upToDate: '已是最新版本。',

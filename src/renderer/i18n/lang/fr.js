@@ -47,7 +47,6 @@
     selectionReplies: 'Variations de réponse pour la sélection',
     urlContextSummary: (url) => `Résumé de l’URL sélectionnée :\n${url}`,
     urlContextDetailed: (url) => `Analyse détaillée de l’URL sélectionnée :\n${url}`,
-    snsPostRequest: (url) => `Préparer un post X à partir de cette URL :\n${url}`,
     invalidUrlSelection:
       'Aucune URL valide détectée. Sélectionnez une seule URL http(s) puis réessayez.',
     updateAvailable: (v) =>

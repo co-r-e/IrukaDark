@@ -46,7 +46,6 @@
     selectionReplies: 'Các phương án trả lời cho vùng chọn',
     urlContextSummary: (url) => `Yêu cầu tóm tắt URL đã chọn:\n${url}`,
     urlContextDetailed: (url) => `Yêu cầu phân tích chi tiết URL đã chọn:\n${url}`,
-    snsPostRequest: (url) => `Tạo bản nháp bài đăng X từ URL này:\n${url}`,
     invalidUrlSelection:
       'Không tìm thấy URL hợp lệ. Hãy chọn một URL HTTP(S) duy nhất rồi thử lại.',
     updateAvailable: (v) => `Có phiên bản mới (${v}). Mở trang tải xuống?`,

@@ -46,7 +46,6 @@
     selectionReplies: '선택한 내용에 대한 답변 변형',
     urlContextSummary: (url) => `선택한 URL 요약 요청:\n${url}`,
     urlContextDetailed: (url) => `선택한 URL 상세 분석 요청:\n${url}`,
-    snsPostRequest: (url) => `이 URL로 X 게시물 초안 작성:\n${url}`,
     invalidUrlSelection:
       '유효한 URL을 찾을 수 없습니다. HTTP(S) URL 한 개만 선택하고 다시 시도하세요.',
     updateAvailable: (v) => `새 버전(${v})을 사용할 수 있습니다. 다운로드 페이지를 열까요?`,

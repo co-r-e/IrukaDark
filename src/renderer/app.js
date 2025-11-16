@@ -404,7 +404,6 @@ class IrukaDarkApp {
     on('onReplyClipboard', (text) => this.handleReplyClipboard(text));
     on('onSummarizeUrlContext', (url) => this.handleSummarizeUrlContext(url));
     on('onSummarizeUrlContextDetailed', (url) => this.handleSummarizeUrlContextDetailed(url));
-    on('onSnsPostFromUrl', (url) => this.handleSnsPostFromUrl(url));
     on('onExplainClipboardError', (msg) => {
       const key = String(msg || '').trim();
       if (key === 'INVALID_URL_SELECTION') {
@@ -447,7 +446,7 @@ class IrukaDarkApp {
     on('onShortcutReplyRegistered', (accel) => {
       if (!accel) return;
       const display = String(accel || '').replace(/\bAlt\b/g, 'Option');
-      if (accel && accel !== 'Alt+Z') {
+      if (accel && accel !== 'Alt+T') {
         this.showToast(getUIText('shortcutRegistered', display), 'info', 3200);
       }
     });
@@ -1015,14 +1014,6 @@ class IrukaDarkApp {
     return `${prefix}\n${url}`;
   }
 
-  formatSnsPostQuestion(url) {
-    try {
-      const label = getUIText('snsPostRequest', url);
-      if (label && label !== 'snsPostRequest') return label;
-    } catch {}
-    return `SNS post draft request:\n${url}`;
-  }
-
   async handleSummarizeUrlContext(url) {
     await this.cancelActiveShortcut();
     // Switch to chat tab when shortcut is triggered
@@ -1088,48 +1079,6 @@ class IrukaDarkApp {
         historyText,
         'detailed'
       );
-
-      if (token !== this.shortcutRequestId) {
-        return;
-      }
-      this.hideTypingIndicator();
-      if (this.cancelRequested) {
-        return;
-      }
-      this.addMessage('ai', response);
-      try {
-        window.electronAPI &&
-          window.electronAPI.ensureVisible &&
-          window.electronAPI.ensureVisible(false);
-      } catch {}
-      this.syncHeader();
-    } catch (e) {
-      if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
-        return;
-      }
-      this.hideTypingIndicator();
-      this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
-      this.syncHeader();
-    } finally {
-      this.disableAutoScroll = false;
-    }
-  }
-
-  async handleSnsPostFromUrl(url) {
-    await this.cancelActiveShortcut();
-    // Switch to chat tab when shortcut is triggered
-    if (window.switchToTab) window.switchToTab('chat');
-    const token = ++this.shortcutRequestId;
-    const targetUrl = this.normalizeUrlForShortcut(url);
-    if (!targetUrl) return;
-    this.disableAutoScroll = true;
-    this.addMessage('system-question', this.formatSnsPostQuestion(targetUrl));
-    this.syncHeader();
-    this.showTypingIndicator();
-
-    try {
-      const historyText = this.buildHistoryContext();
-      const response = await this.geminiService.generateSnsPostFromUrl(targetUrl, historyText);
 
       if (token !== this.shortcutRequestId) {
         return;
@@ -3372,66 +3321,6 @@ class GeminiService {
         prompt = `${historyBlock}Based on the following website content, write a 3-4 sentence summary in ${name} (${code}) that covers: key takeaway(s), why they matter, and immediate actions or next steps.${toneLine}${truncatedNote}\nInclude concrete details (section titles, statistics, quotes) when available. If the page cannot be verified, say so explicitly and suggest how to confirm it or alternative sources.\n\nWebsite URL: ${finalUrl}\n\nContent:\n${pageText}\n\nProvide the summary:`;
       } else {
         prompt = `${historyBlock}Based on the following website content, produce a detailed analysis in ${name} (${code}) with the headings: Overview (2-3 sentences), Key Details (bullet list with section names, data, or quotes), Context/Background, Risks or Caveats, and Recommended Actions.${toneLine}${truncatedNote}\nIf the page cannot be verified, explain what failed and offer next steps.\n\nWebsite URL: ${finalUrl}\n\nContent:\n${pageText}\n\nProvide the detailed analysis:`;
-      }
-    }
-
-    return this.requestText(prompt, false, 'shortcut', {
-      generationConfigOverrides: cfgOverrides,
-    });
-  }
-
-  async generateSnsPostFromUrl(url, historyText = '') {
-    const normalizedUrl = this.normalizeUrlForPrompt(url);
-    if (!normalizedUrl) {
-      throw new Error('Invalid URL');
-    }
-    const baseConfig = this.defaultGenerationConfig();
-    const baseTopK = Number(baseConfig.topK);
-    const baseTopP = Number(baseConfig.topP);
-    const baseMaxTokens = Number(baseConfig.maxOutputTokens);
-    const cfgOverrides = {
-      temperature: 0.6,
-      topK: Number.isFinite(baseTopK) ? Math.min(36, baseTopK) : 36,
-      topP: Number.isFinite(baseTopP) ? Math.min(0.92, baseTopP) : 0.92,
-      maxOutputTokens: Number.isFinite(baseMaxTokens) ? Math.min(640, baseMaxTokens) : 640,
-    };
-
-    const {
-      text: pageText,
-      truncated,
-      finalUrl,
-    } = await this.fetchUrlPlainText(normalizedUrl, 8000);
-
-    const lang =
-      (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
-    const tone = typeof getCurrentTone === 'function' ? getCurrentTone() : 'casual';
-    const { name, code } = getLangMeta(lang);
-    const truncatedNote = truncated
-      ? lang === 'ja'
-        ? '\n※ 抽出したコンテンツは長さ制限のため一部のみ掲載しています。'
-        : '\nNote: Extracted content was truncated for length.'
-      : '';
-
-    let prompt;
-    if (lang === 'ja') {
-      const toneSuffix =
-        tone === 'casual'
-          ? '\n- 口調はフレンドリーで親しみやすい常体。ただしくだけすぎず、絵文字は使わない'
-          : '\n- 口調は落ち着いた丁寧語で、読みやすさを意識する';
-      prompt = `以下のウェブサイト内容をもとに、X向けのカジュアルな投稿文（約500文字）を作成してください。\nフォーカスすべき点:\n- どんな内容か\n- 主要なポイント\n- 読者に寄り添う会話調${toneSuffix}${truncatedNote}\n- 引用したい数値や固有名詞があれば自然に織り込む\n- 最後に内容に合ったハッシュタグを2〜3個付ける（例: #TechTips）\n\nWebsite URL: ${finalUrl}\n\nContent:\n${pageText}\n\n投稿文:`;
-      if (historyText && historyText.trim()) {
-        prompt = `【チャット履歴（直近）】\n${historyText}\n\nこの文脈を踏まえてトーンや強調点を調整してください。\n\n${prompt}`;
-      }
-    } else {
-      const toneLine =
-        tone === 'casual'
-          ? ' Use a friendly, conversational tone (no emojis).'
-          : tone === 'formal'
-            ? ' Use a clear, professional tone.'
-            : '';
-      prompt = `Based on the following website content, write a casual X post in ${name} (${code}) that explains the content.\n\nFocus on:\n- What the content is about\n- Key takeaways\n- Conversational tone${toneLine}${truncatedNote}\nKeep it around 500 characters, use natural line breaks, and end with 2-3 relevant hashtags such as #TechTips.\n\nWebsite URL: ${finalUrl}\n\nContent:\n${pageText}\n\nGenerate the post:`;
-      if (historyText && historyText.trim()) {
-        prompt = `Recent chat context:\n${historyText}\n\nUse this context if it helps tailor tone or emphasis.\n\n${prompt}`;
       }
     }
 
