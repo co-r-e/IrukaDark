@@ -5,6 +5,20 @@
 
 class LauncherUI {
   constructor() {
+    // Initialize i18n
+    this.currentLang = null;
+    this.i18n = {};
+    try {
+      this.currentLang = window.electronAPI?.getAppLang?.() || 'en';
+      if (window.IRUKADARK_I18N && window.IRUKADARK_I18N[this.currentLang]) {
+        this.i18n = window.IRUKADARK_I18N[this.currentLang];
+      } else {
+        this.i18n = window.IRUKADARK_I18N['en'] || {};
+      }
+    } catch {
+      this.i18n = window.IRUKADARK_I18N['en'] || {};
+    }
+
     this.searchInput = document.getElementById('launcherSearchInput');
     this.resultsContainer = document.getElementById('launcherResults');
     this.filterBtn = document.getElementById('launcherFilterBtn');
@@ -714,7 +728,7 @@ class LauncherUI {
     const indicator = document.createElement('div');
     indicator.id = 'launcher-loading-indicator';
     indicator.className = 'launcher-loading-indicator';
-    indicator.textContent = 'Loading...';
+    indicator.textContent = this.i18n?.launcher?.loading || 'Loading...';
     this.resultsContainer.appendChild(indicator);
   }
 

@@ -157,6 +157,10 @@
       searchPlaceholder: 'アプリ、ファイルを検索...',
       noResults: '結果が見つかりません',
       noFavorites: 'お気に入りはまだありません。アイテムに星をつけて追加してください。',
+      filterApp: 'アプリ',
+      filterFile: 'ファイル',
+      filterSystem: 'システム',
+      loading: '読み込み中...',
     },
     settings: {
       tabSettings: '設定',
@@ -205,6 +209,16 @@
       errorEmpty: '有効なAPIキーを入力してください。',
       errorSaving: 'APIキーの保存中にエラーが発生しました。もう一度お試しください。',
       successSaved: 'APIキーが正常に保存されました！チャットを開始できます。',
+    },
+    common: {
+      confirmAction: '確認',
+      areYouSure: '実行してもよろしいですか？',
+      cancel: 'キャンセル',
+      confirm: '確認',
+      close: '閉じる',
+    },
+    prompt: {
+      close: '閉じる',
     },
   });
 })();

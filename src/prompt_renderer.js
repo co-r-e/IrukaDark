@@ -13,33 +13,43 @@
     if (t.startsWith('ja')) {
       $('cancelBtn').textContent = 'キャンセル';
       $('okBtn').textContent = '保存';
+      $('xBtn').setAttribute('title', '閉じる');
     } else if (t.startsWith('fr')) {
       $('cancelBtn').textContent = 'Annuler';
       $('okBtn').textContent = 'Enregistrer';
+      $('xBtn').setAttribute('title', 'Fermer');
     } else if (t.startsWith('de')) {
       $('cancelBtn').textContent = 'Abbrechen';
       $('okBtn').textContent = 'Speichern';
+      $('xBtn').setAttribute('title', 'Schließen');
     } else if (t.startsWith('es')) {
       $('cancelBtn').textContent = 'Cancelar';
       $('okBtn').textContent = 'Guardar';
+      $('xBtn').setAttribute('title', 'Cerrar');
     } else if (t.startsWith('pt')) {
       $('cancelBtn').textContent = 'Cancelar';
       $('okBtn').textContent = 'Salvar';
+      $('xBtn').setAttribute('title', 'Fechar');
     } else if (t.startsWith('ko')) {
       $('cancelBtn').textContent = '취소';
       $('okBtn').textContent = '저장';
+      $('xBtn').setAttribute('title', '닫기');
     } else if (t.startsWith('zh')) {
       $('cancelBtn').textContent = '取消';
       $('okBtn').textContent = '保存';
+      $('xBtn').setAttribute('title', '关闭');
     } else if (t.startsWith('tr')) {
       $('cancelBtn').textContent = 'İptal';
       $('okBtn').textContent = 'Kaydet';
+      $('xBtn').setAttribute('title', 'Kapat');
     } else if (t.startsWith('ar')) {
       $('cancelBtn').textContent = 'إلغاء';
       $('okBtn').textContent = 'حفظ';
+      $('xBtn').setAttribute('title', 'إغلاق');
     } else {
       $('cancelBtn').textContent = 'Cancel';
       $('okBtn').textContent = 'Save';
+      $('xBtn').setAttribute('title', 'Close');
     }
   }
 

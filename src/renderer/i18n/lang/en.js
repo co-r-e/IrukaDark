@@ -156,6 +156,10 @@
       searchPlaceholder: 'Type to search apps, files...',
       noResults: 'No results found',
       noFavorites: 'No favorites yet. Star items to add them here.',
+      filterApp: 'App',
+      filterFile: 'File',
+      filterSystem: 'System',
+      loading: 'Loading...',
     },
     settings: {
       tabSettings: 'Settings',
@@ -204,6 +208,16 @@
       errorEmpty: 'Please enter a valid API key.',
       errorSaving: 'An error occurred while saving the API key. Please try again.',
       successSaved: 'API key saved successfully! You can now start chatting.',
+    },
+    common: {
+      confirmAction: 'Confirm Action',
+      areYouSure: 'Are you sure you want to proceed?',
+      cancel: 'Cancel',
+      confirm: 'Confirm',
+      close: 'Close',
+    },
+    prompt: {
+      close: 'Close',
     },
   });
 })();

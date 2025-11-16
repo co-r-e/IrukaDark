@@ -1152,16 +1152,24 @@
         <div class="confirmation-dialog">
           <div class="confirmation-title">
             <span id="confirmationIcon">⚠️</span>
-            <span id="confirmationTitleText">Confirm Action</span>
+            <span id="confirmationTitleText" data-i18n="common.confirmAction">Confirm Action</span>
           </div>
-          <div class="confirmation-message" id="confirmationMessage">
+          <div class="confirmation-message" id="confirmationMessage" data-i18n="common.areYouSure">
             Are you sure you want to proceed?
           </div>
           <div class="confirmation-buttons">
-            <button class="confirmation-btn confirmation-btn-cancel" id="confirmationCancel">
+            <button
+              class="confirmation-btn confirmation-btn-cancel"
+              id="confirmationCancel"
+              data-i18n="common.cancel"
+            >
               Cancel
             </button>
-            <button class="confirmation-btn confirmation-btn-confirm" id="confirmationConfirm">
+            <button
+              class="confirmation-btn confirmation-btn-confirm"
+              id="confirmationConfirm"
+              data-i18n="common.confirm"
+            >
               Confirm
             </button>
           </div>
@@ -1359,7 +1367,7 @@
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
-            <span>App</span>
+            <span data-i18n="launcher.filterApp">App</span>
           </div>
           <div class="filter-menu-item active" data-filter="file">
             <div class="filter-checkbox">
@@ -1375,7 +1383,7 @@
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
-            <span>File</span>
+            <span data-i18n="launcher.filterFile">File</span>
           </div>
           <div class="filter-menu-item active" data-filter="system-command">
             <div class="filter-checkbox">
@@ -1391,7 +1399,7 @@
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
-            <span>System</span>
+            <span data-i18n="launcher.filterSystem">System</span>
           </div>
         </div>
       </div>
