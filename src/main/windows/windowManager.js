@@ -16,6 +16,9 @@ class WindowManager {
     this.mainPopupOffsetX = null;
     this.mainPopupOffsetY = null;
     this.savedOpacity = 1.0; // Store the user-configured opacity
+
+    // Re-entry guard state for positionMainAbovePopup
+    this.repositionPending = false;
   }
 
   createMainWindow() {
@@ -173,13 +176,23 @@ class WindowManager {
       setPopupWindow(null);
     });
 
-    const reposition = () => this.positionMainAbovePopup();
+    // Position main window when popup moves
+    // Direct call for responsive tracking (re-entry guard prevents issues)
     popupWindow.on('move', () => {
-      reposition();
+      // Track movement state for click detection
       if (this.popupPointerDown) this.popupMovedSinceDown = true;
+
+      // Immediate repositioning for responsive tracking
+      this.positionMainAbovePopup();
     });
-    popupWindow.on('resize', reposition);
-    reposition();
+
+    popupWindow.on('resize', () => {
+      // Resize should trigger immediate repositioning
+      this.positionMainAbovePopup();
+    });
+
+    // Initial positioning
+    this.positionMainAbovePopup();
 
     return popupWindow;
   }
@@ -424,30 +437,59 @@ class WindowManager {
     } catch {}
   }
 
+  /**
+   * Helper to get constrained bounds for a window on the nearest screen
+   * @param {Object} popupBounds - Popup window bounds
+   * @returns {Object} Screen work area
+   */
+  getConstrainedScreenBounds(popupBounds) {
+    const nearest = screen.getDisplayNearestPoint({ x: popupBounds.x, y: popupBounds.y });
+    return nearest.workArea;
+  }
+
+  /**
+   * Position main window above popup window
+   * Uses re-entry guard to prevent concurrent execution while allowing responsive tracking
+   */
   positionMainAbovePopup() {
+    // Re-entry guard: prevent concurrent execution
+    if (this.isRepositioning) {
+      this.repositionPending = true;
+      return;
+    }
+
     try {
       const popupWindow = getPopupWindow();
       const mainWindow = getMainWindow();
       if (!mainWindow || mainWindow.isDestroyed() || !popupWindow || popupWindow.isDestroyed()) {
         return;
       }
+
+      this.isRepositioning = true;
+      this.repositionPending = false;
+
       const popupBounds = popupWindow.getBounds();
       const mainWidth = this.mainWindowWidth;
       const mainHeight = this.mainWindowHeight;
+
+      // Get screen bounds once (eliminates duplicate getDisplayNearestPoint calls)
+      const workArea = this.getConstrainedScreenBounds(popupBounds);
 
       // Calculate target position
       let targetX, targetY;
 
       // First time: calculate and store the offset
       if (this.mainPopupOffsetX === null || this.mainPopupOffsetY === null) {
-        const gap = -10;
+        const gap = -10; // Negative value means windows overlap by 10px
         targetX = popupBounds.x + Math.round((popupBounds.width - mainWidth) / 2);
         targetY = popupBounds.y - mainHeight - gap;
 
-        const nearest = screen.getDisplayNearestPoint({ x: popupBounds.x, y: popupBounds.y });
-        const wa = nearest.workArea;
-        targetX = Math.min(Math.max(targetX, wa.x), wa.x + wa.width - mainWidth);
-        targetY = Math.min(Math.max(targetY, wa.y), wa.y + wa.height - mainHeight);
+        // Apply screen bounds constraints
+        targetX = Math.min(Math.max(targetX, workArea.x), workArea.x + workArea.width - mainWidth);
+        targetY = Math.min(
+          Math.max(targetY, workArea.y),
+          workArea.y + workArea.height - mainHeight
+        );
 
         // Store the offset (main position relative to popup position)
         this.mainPopupOffsetX = targetX - popupBounds.x;
@@ -457,26 +499,37 @@ class WindowManager {
         targetX = popupBounds.x + this.mainPopupOffsetX;
         targetY = popupBounds.y + this.mainPopupOffsetY;
 
-        // Still apply screen bounds constraints
-        const nearest = screen.getDisplayNearestPoint({ x: popupBounds.x, y: popupBounds.y });
-        const wa = nearest.workArea;
-        targetX = Math.min(Math.max(targetX, wa.x), wa.x + wa.width - mainWidth);
-        targetY = Math.min(Math.max(targetY, wa.y), wa.y + wa.height - mainHeight);
+        // Apply screen bounds constraints
+        targetX = Math.min(Math.max(targetX, workArea.x), workArea.x + workArea.width - mainWidth);
+        targetY = Math.min(
+          Math.max(targetY, workArea.y),
+          workArea.y + workArea.height - mainHeight
+        );
       }
 
-      this.isRepositioning = true;
       mainWindow.setBounds({
         x: Math.round(targetX),
         y: Math.round(targetY),
         width: mainWidth,
         height: mainHeight,
       });
-      this.isRepositioning = false;
+
       if (!this.mainInitiallyShown && this.initialShowMain) {
         mainWindow.show();
         this.mainInitiallyShown = true;
       }
-    } catch {}
+    } catch (error) {
+      console.error('Error positioning main window above popup:', error);
+    } finally {
+      this.isRepositioning = false;
+
+      // If another reposition was requested while we were executing, run it now
+      if (this.repositionPending) {
+        this.repositionPending = false;
+        // Use setImmediate to avoid deep recursion
+        setImmediate(() => this.positionMainAbovePopup());
+      }
+    }
   }
 
   wireExternalLinkHandling(mainWindow) {

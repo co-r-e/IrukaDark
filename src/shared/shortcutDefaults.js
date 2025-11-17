@@ -20,7 +20,7 @@ const DEFAULT_SHORTCUTS = {
   screenshotDetailed: 'Alt+Shift+S',
   moveToCursor: 'Alt+Z',
   resetPosition: 'Alt+Shift+Z',
-  clipboardPopup: 'Alt+C',
+  clipboardPopup: 'Command+Shift+V',
 };
 
 /**

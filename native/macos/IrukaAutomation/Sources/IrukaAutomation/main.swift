@@ -495,11 +495,21 @@ final class TooltipManager {
 
 // MARK: - Clipboard Popup
 
+/// Clipboard item containing text and/or image data
 struct ClipboardItem: Decodable {
   let text: String?
   let imageData: String?
   let imageDataOriginal: String?
   let timestamp: Int64?
+  let richText: RichTextData?
+}
+
+/// Rich text formatting data for clipboard items
+/// - Note: RTF data is stored as base64-encoded string for JSON compatibility
+struct RichTextData: Decodable {
+  let rtf: String?      // Base64-encoded RTF data
+  let html: String?     // HTML string
+  let markdown: String? // Markdown string (future support)
 }
 
 // MARK: - Snippet Data Structures
@@ -1629,8 +1639,12 @@ final class ClipboardPopupWindow: NSPanel {
     }
   }
 
+  /// Paste a clipboard item to the active application
+  /// - Parameter item: The clipboard item containing text and/or image data
+  /// - Note: Text is prioritized over images. Rich text formats (RTF, HTML) are written
+  ///         alongside plain text when available, allowing automatic fallback for apps
+  ///         that don't support rich text.
   private func pasteItem(item: ClipboardItem) {
-    // Update clipboard
     let pasteboard = NSPasteboard.general
     pasteboard.clearContents()
 
@@ -1639,18 +1653,19 @@ final class ClipboardPopupWindow: NSPanel {
 
     // Prioritize text over image
     if hasText {
-      // Write text only
+      // Write plain text (always available as fallback)
       pasteboard.setString(item.text!, forType: .string)
+
+      // Write rich text formats if available
+      if let richText = item.richText {
+        writeRichTextToPasteboard(pasteboard, richText: richText)
+      }
     } else if hasImage {
-      // Write image only if there's no text
-      // Use original image for pasting (high quality), fallback to thumbnail
+      // Write image only (no text present)
       let imageDataUrl = item.imageDataOriginal ?? item.imageData
-      if let dataUrl = imageDataUrl {
-        // Write original binary data directly to avoid re-encoding quality loss
-        if let (imageData, imageType) = extractImageDataFromDataURL(dataUrl) {
-          pasteboard.clearContents()
-          pasteboard.setData(imageData, forType: imageType)
-        }
+      if let dataUrl = imageDataUrl,
+         let (imageData, imageType) = extractImageDataFromDataURL(dataUrl) {
+        pasteboard.setData(imageData, forType: imageType)
       }
     }
 
@@ -1820,6 +1835,28 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
     }
 
     return (data: imageData, type: pasteboardType)
+  }
+
+  /// Write rich text formats to pasteboard
+  /// - Parameters:
+  ///   - pasteboard: The pasteboard to write to
+  ///   - richText: Rich text data containing RTF, HTML, and/or Markdown
+  private func writeRichTextToPasteboard(_ pasteboard: NSPasteboard, richText: RichTextData) {
+    // Write RTF format
+    if let rtfBase64 = richText.rtf, let rtfData = Data(base64Encoded: rtfBase64) {
+      pasteboard.setData(rtfData, forType: .rtf)
+    }
+
+    // Write HTML format
+    if let html = richText.html, let htmlData = html.data(using: .utf8) {
+      pasteboard.setData(htmlData, forType: .html)
+    }
+
+    // Write Markdown format (using public.markdown UTI)
+    if let markdown = richText.markdown, let markdownData = markdown.data(using: .utf8) {
+      let markdownType = NSPasteboard.PasteboardType("public.markdown")
+      pasteboard.setData(markdownData, forType: markdownType)
+    }
   }
 
   func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {

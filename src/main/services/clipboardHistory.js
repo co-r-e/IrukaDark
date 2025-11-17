@@ -93,6 +93,69 @@ class ClipboardHistoryService extends EventEmitter {
     return resized.toDataURL();
   }
 
+  /**
+   * Read rich text formats from clipboard
+   * @returns {Object|null} Rich text data or null if no rich text present
+   */
+  readRichTextFromClipboard() {
+    try {
+      const rtf = clipboard.readRTF();
+      const html = clipboard.readHTML();
+
+      const hasRTF = rtf && rtf.trim();
+      const hasHTML = html && html.trim();
+
+      if (!hasRTF && !hasHTML) {
+        return null;
+      }
+
+      const richText = {};
+      if (hasRTF) {
+        richText.rtf = Buffer.from(rtf, 'utf-8').toString('base64');
+      }
+      if (hasHTML) {
+        richText.html = html;
+      }
+
+      return richText;
+    } catch (err) {
+      console.error('Error reading rich text from clipboard:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Prepare clipboard formats object with rich text
+   * @param {string} text - Plain text content
+   * @param {Object|null} richText - Rich text data
+   * @param {Object|null} image - Native image object (optional)
+   * @returns {Object} Clipboard formats object
+   */
+  prepareClipboardFormats(text, richText, image = null) {
+    const formats = { text };
+
+    // Add image if provided
+    if (image) {
+      formats.image = image;
+    }
+
+    // Add rich text formats if available
+    if (richText) {
+      if (richText.rtf) {
+        try {
+          formats.rtf = Buffer.from(richText.rtf, 'base64').toString('utf-8');
+        } catch (err) {
+          console.error('Error decoding RTF data:', err);
+        }
+      }
+      if (richText.html) {
+        formats.html = richText.html;
+      }
+    }
+
+    return formats;
+  }
+
   startMonitoring() {
     if (this.monitoringInterval) {
       return; // Already monitoring
@@ -100,7 +163,7 @@ class ClipboardHistoryService extends EventEmitter {
 
     this.monitoringInterval = setInterval(() => {
       try {
-        // Check for both text and image simultaneously
+        // Check for text, image, and rich text formats
         const currentText = clipboard.readText();
         const currentImage = clipboard.readImage();
 
@@ -168,13 +231,17 @@ class ClipboardHistoryService extends EventEmitter {
           });
 
           if (!alreadyInHistory) {
-            // Add both text and image to history as a single item
+            // Read rich text formats from clipboard
+            const richText = this.readRichTextFromClipboard();
+
+            // Add text and/or image to history as a single item
             this.addToHistory(
               {
                 text: hasText ? currentText : null,
                 imageData: hasImage ? imageDataUrl : null,
                 imageDataOriginal: hasImage ? imageDataOriginal : null,
                 imageHash: hasImage ? imageHash : null,
+                richText,
               },
               'auto',
               { skipIfDuplicate: true }
@@ -211,17 +278,23 @@ class ClipboardHistoryService extends EventEmitter {
           imageHash = this.getImageHash(imageDataOriginal);
         }
 
+        // Read rich text formats from clipboard
+        const richText = this.readRichTextFromClipboard();
+
         this.addToHistory({
           text: hasText ? currentText : null,
           imageData: hasImage ? imageDataUrl : null,
           imageDataOriginal: hasImage ? imageDataOriginal : null,
           imageHash: hasImage ? imageHash : null,
+          richText,
         });
 
         this.lastClipboard = hasText ? currentText : '';
         this.lastImageHash = hasImage ? imageHash : '';
       }
-    } catch {}
+    } catch (err) {
+      console.error('Error initializing clipboard history:', err);
+    }
   }
 
   stopMonitoring() {
@@ -231,15 +304,22 @@ class ClipboardHistoryService extends EventEmitter {
     }
   }
 
+  /**
+   * Add item to clipboard history
+   * @param {string|Object} content - Text string or object with text/image/richText
+   * @param {string} type - Type of content ('auto', 'text', 'image')
+   * @param {Object} options - Additional options
+   * @param {boolean} options.skipIfDuplicate - Skip adding if duplicate exists
+   */
   addToHistory(content, type = 'auto', options = {}) {
     if (!content) return;
 
     const { skipIfDuplicate = false } = options;
     let item;
 
-    // Handle new format: { text, imageData, imageDataOriginal, imageHash }
+    // Handle object format: { text, imageData, imageDataOriginal, imageHash, richText }
     if (typeof content === 'object' && content.constructor === Object) {
-      const { text, imageData, imageDataOriginal, imageHash } = content;
+      const { text, imageData, imageDataOriginal, imageHash, richText } = content;
 
       if (!text && !imageData) return;
 
@@ -288,6 +368,7 @@ class ClipboardHistoryService extends EventEmitter {
         imageData: imageData || null,
         imageDataOriginal: imageDataOriginal || null,
         imageHash: actualImageHash,
+        richText: richText || null,
         timestamp: Date.now(),
         id: `clip-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       };
@@ -385,12 +466,15 @@ class ClipboardHistoryService extends EventEmitter {
 
   clearHistory() {
     this.history = [];
-    // Save to file
     this.saveHistoryToFile();
-    // Emit update event
     this.emit('history-updated', this.getHistory());
   }
 
+  /**
+   * Copy item to system clipboard with rich text support
+   * @param {string|Object} item - Text string or clipboard item object
+   * @returns {boolean} True if successful, false otherwise
+   */
   copyToClipboard(item) {
     try {
       if (typeof item === 'string') {
@@ -404,15 +488,13 @@ class ClipboardHistoryService extends EventEmitter {
         this.programmaticSetTime = Date.now();
       } else if (item.text && item.imageData) {
         // Both text and image - write both to clipboard
-        // Use original image for pasting (high quality), fallback to thumbnail
         const imageDataToPaste = item.imageDataOriginal || item.imageData;
         const image = nativeImage.createFromDataURL(imageDataToPaste);
-        clipboard.write({
-          text: item.text,
-          image,
-        });
+
+        const formats = this.prepareClipboardFormats(item.text, item.richText, image);
+        clipboard.write(formats);
+
         this.lastClipboard = item.text;
-        // Use cached hash if available
         const imageHash = item.imageHash || this.getImageHash(imageDataToPaste);
         this.lastImageHash = imageHash;
         // Track programmatic change
@@ -420,8 +502,15 @@ class ClipboardHistoryService extends EventEmitter {
         this.lastProgrammaticImageHash = imageHash;
         this.programmaticSetTime = Date.now();
       } else if (item.text) {
-        // Text only
-        clipboard.writeText(item.text);
+        // Text only (with or without rich text formats)
+        if (item.richText) {
+          const formats = this.prepareClipboardFormats(item.text, item.richText);
+          clipboard.write(formats);
+        } else {
+          // Plain text only
+          clipboard.writeText(item.text);
+        }
+
         this.lastClipboard = item.text;
         this.lastImageHash = '';
         // Track programmatic change

@@ -314,8 +314,9 @@ function updateClipboardPopup(historyItems, options = {}) {
   if (!clipboardPopupProcess) return false;
 
   try {
-    // Prepare items for Swift popup (max 60 items)
-    // Swift will separate them into History tab (30 text) and HistoryImage tab (30 image)
+    // Prepare items for Swift popup (max 60 items total)
+    // Swift separates them into History tab (30 text items) and HistoryImage tab (30 image items)
+    // Rich text data (RTF, HTML) is passed along with text items for format-preserving paste
     const items = historyItems
       .filter((item) => (item.text && typeof item.text === 'string') || item.imageData)
       .slice(0, 60)
@@ -324,6 +325,7 @@ function updateClipboardPopup(historyItems, options = {}) {
         imageData: item.imageData || null,
         imageDataOriginal: item.imageDataOriginal || null,
         timestamp: item.timestamp || Date.now(),
+        richText: item.richText || null, // RTF, HTML, Markdown formats
       }));
 
     if (items.length === 0) {
@@ -362,8 +364,9 @@ async function spawnClipboardPopup(historyItems, options = {}) {
       return;
     }
 
-    // Prepare items for Swift popup (max 60 items)
-    // Swift will separate them into History tab (30 text) and HistoryImage tab (30 image)
+    // Prepare items for Swift popup (max 60 items total)
+    // Swift separates them into History tab (30 text items) and HistoryImage tab (30 image items)
+    // Rich text data (RTF, HTML) is passed along with text items for format-preserving paste
     const items = historyItems
       .filter((item) => (item.text && typeof item.text === 'string') || item.imageData)
       .slice(0, 60)
@@ -372,6 +375,7 @@ async function spawnClipboardPopup(historyItems, options = {}) {
         imageData: item.imageData || null,
         imageDataOriginal: item.imageDataOriginal || null,
         timestamp: item.timestamp || Date.now(),
+        richText: item.richText || null, // RTF, HTML, Markdown formats
       }));
 
     if (items.length === 0) {
