@@ -148,6 +148,9 @@ class IrukaDarkApp {
     this.isGenerating = false;
     this.cancelRequested = false;
     this.i18nElementsCache = null;
+    this.historyContextCache = null;
+    this.historyContextCacheTime = 0;
+    this.historyContextCacheTTL = 500;
     this.initializeElements();
     this.bindEvents();
     this.updateUILanguage();
@@ -158,7 +161,6 @@ class IrukaDarkApp {
     this.createIconsEnhanced();
     this.initSlashSuggest();
     this.updateMonitoringUI();
-    this.syncHeader();
 
     // Check API key on initial load (chat tab is default)
     setTimeout(() => {
@@ -1020,24 +1022,27 @@ class IrukaDarkApp {
     await this.cancelActiveShortcut();
     // Switch to chat tab when shortcut is triggered
     if (window.switchToTab) window.switchToTab('chat');
-    // Restore scroll state after tab switch
     if (this.chatHistory) {
       this.chatHistory.style.overflowY = 'auto';
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         if (this.chatHistory) {
           this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
         }
-      }, 0);
+      });
     }
     const token = ++this.shortcutRequestId;
     const content = (text || '').trim();
     if (!content) return;
     this.disableAutoScroll = true;
-    this.addMessage('system-question', content);
-    this.syncHeader();
-    this.showTypingIndicator();
+
+    // Performance optimization: batch DOM operations in single frame
+    requestAnimationFrame(() => {
+      this.addMessage('system-question', content);
+      this.showTypingIndicator();
+    });
 
     try {
+      // Build history context in parallel with DOM operations
       const historyText = this.buildHistoryContext();
       const response = await this.geminiService.generateTextExplanation(
         content,
@@ -1058,14 +1063,12 @@ class IrukaDarkApp {
           window.electronAPI.ensureVisible &&
           window.electronAPI.ensureVisible(false);
       } catch {}
-      this.syncHeader();
     } catch (e) {
       if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
         return;
       }
       this.hideTypingIndicator();
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
-      this.syncHeader();
     } finally {
       this.disableAutoScroll = false;
     }
@@ -1075,21 +1078,19 @@ class IrukaDarkApp {
     await this.cancelActiveShortcut();
     // Switch to chat tab when shortcut is triggered
     if (window.switchToTab) window.switchToTab('chat');
-    // Restore scroll state after tab switch
     if (this.chatHistory) {
       this.chatHistory.style.overflowY = 'auto';
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         if (this.chatHistory) {
           this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
         }
-      }, 0);
+      });
     }
     const token = ++this.shortcutRequestId;
     const content = (text || '').trim();
     if (!content) return;
     this.disableAutoScroll = true;
     this.addMessage('system-question', content);
-    this.syncHeader();
     this.showTypingIndicator();
 
     try {
@@ -1113,14 +1114,12 @@ class IrukaDarkApp {
           window.electronAPI.ensureVisible &&
           window.electronAPI.ensureVisible(false);
       } catch {}
-      this.syncHeader();
     } catch (e) {
       if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
         return;
       }
       this.hideTypingIndicator();
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
-      this.syncHeader();
     } finally {
       this.disableAutoScroll = false;
     }
@@ -1154,21 +1153,19 @@ class IrukaDarkApp {
     await this.cancelActiveShortcut();
     // Switch to chat tab when shortcut is triggered
     if (window.switchToTab) window.switchToTab('chat');
-    // Restore scroll state after tab switch
     if (this.chatHistory) {
       this.chatHistory.style.overflowY = 'auto';
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         if (this.chatHistory) {
           this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
         }
-      }, 0);
+      });
     }
     const token = ++this.shortcutRequestId;
     const targetUrl = this.normalizeUrlForShortcut(url);
     if (!targetUrl) return;
     this.disableAutoScroll = true;
     this.addMessage('system-question', this.formatUrlContextQuestion(targetUrl, 'summary'));
-    this.syncHeader();
     this.showTypingIndicator();
 
     try {
@@ -1192,14 +1189,12 @@ class IrukaDarkApp {
           window.electronAPI.ensureVisible &&
           window.electronAPI.ensureVisible(false);
       } catch {}
-      this.syncHeader();
     } catch (e) {
       if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
         return;
       }
       this.hideTypingIndicator();
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
-      this.syncHeader();
     } finally {
       this.disableAutoScroll = false;
     }
@@ -1209,21 +1204,19 @@ class IrukaDarkApp {
     await this.cancelActiveShortcut();
     // Switch to chat tab when shortcut is triggered
     if (window.switchToTab) window.switchToTab('chat');
-    // Restore scroll state after tab switch
     if (this.chatHistory) {
       this.chatHistory.style.overflowY = 'auto';
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         if (this.chatHistory) {
           this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
         }
-      }, 0);
+      });
     }
     const token = ++this.shortcutRequestId;
     const targetUrl = this.normalizeUrlForShortcut(url);
     if (!targetUrl) return;
     this.disableAutoScroll = true;
     this.addMessage('system-question', this.formatUrlContextQuestion(targetUrl, 'detailed'));
-    this.syncHeader();
     this.showTypingIndicator();
 
     try {
@@ -1247,14 +1240,12 @@ class IrukaDarkApp {
           window.electronAPI.ensureVisible &&
           window.electronAPI.ensureVisible(false);
       } catch {}
-      this.syncHeader();
     } catch (e) {
       if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
         return;
       }
       this.hideTypingIndicator();
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
-      this.syncHeader();
     } finally {
       this.disableAutoScroll = false;
     }
@@ -1264,21 +1255,19 @@ class IrukaDarkApp {
     await this.cancelActiveShortcut();
     // Switch to chat tab when shortcut is triggered
     if (window.switchToTab) window.switchToTab('chat');
-    // Restore scroll state after tab switch
     if (this.chatHistory) {
       this.chatHistory.style.overflowY = 'auto';
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         if (this.chatHistory) {
           this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
         }
-      }, 0);
+      });
     }
     const token = ++this.shortcutRequestId;
     const content = (text || '').trim();
     if (!content) return;
     this.disableAutoScroll = true;
     this.addMessage('system-question', getUIText('selectionTranslation'));
-    this.syncHeader();
     this.showTypingIndicator();
 
     try {
@@ -1296,14 +1285,12 @@ class IrukaDarkApp {
           window.electronAPI.ensureVisible &&
           window.electronAPI.ensureVisible(false);
       } catch {}
-      this.syncHeader();
     } catch (e) {
       if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
         return;
       }
       this.hideTypingIndicator();
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
-      this.syncHeader();
     } finally {
       this.disableAutoScroll = false;
     }
@@ -1316,14 +1303,13 @@ class IrukaDarkApp {
     await this.cancelActiveShortcut();
     // Switch to chat tab when shortcut is triggered
     if (window.switchToTab) window.switchToTab('chat');
-    // Restore scroll state after tab switch
     if (this.chatHistory) {
       this.chatHistory.style.overflowY = 'auto';
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         if (this.chatHistory) {
           this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
         }
-      }, 0);
+      });
     }
     const token = ++this.shortcutRequestId;
     const content = (text || '').trim();
@@ -1337,7 +1323,6 @@ class IrukaDarkApp {
           ? '選択範囲への返信バリエーション'
           : 'Reply variations for selection';
     this.addMessage('system-question', questionLabel);
-    this.syncHeader();
     this.showTypingIndicator();
 
     try {
@@ -1355,14 +1340,12 @@ class IrukaDarkApp {
           window.electronAPI.ensureVisible &&
           window.electronAPI.ensureVisible(false);
       } catch {}
-      this.syncHeader();
     } catch (e) {
       if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
         return;
       }
       this.hideTypingIndicator();
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
-      this.syncHeader();
     } finally {
       this.disableAutoScroll = false;
     }
@@ -1390,9 +1373,14 @@ class IrukaDarkApp {
       const mime = payload && payload.mimeType ? String(payload.mimeType) : 'image/png';
       if (!data) return;
       this.disableAutoScroll = true;
-      this.addMessage('system-question', getUIText('selectionExplanation'));
-      this.syncHeader();
-      this.showTypingIndicator();
+
+      // Performance optimization: batch DOM operations in single frame
+      requestAnimationFrame(() => {
+        this.addMessage('system-question', getUIText('selectionExplanation'));
+        this.showTypingIndicator();
+      });
+
+      // Build history context in parallel with DOM operations
       const historyText = this.buildHistoryContext();
       const response = await this.geminiService.generateImageExplanation(
         data,
@@ -1409,14 +1397,12 @@ class IrukaDarkApp {
         return;
       }
       this.addMessage('ai', response);
-      this.syncHeader();
     } catch (e) {
       if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
         return;
       }
       this.hideTypingIndicator();
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
-      this.syncHeader();
     } finally {
       this.disableAutoScroll = false;
     }
@@ -1442,7 +1428,6 @@ class IrukaDarkApp {
       if (!data) return;
       this.disableAutoScroll = true;
       this.addMessage('system-question', getUIText('selectionExplanation'));
-      this.syncHeader();
       this.showTypingIndicator();
       const historyText = this.buildHistoryContext();
       const response = await this.geminiService.generateImageDetailedExplanation(
@@ -1460,14 +1445,12 @@ class IrukaDarkApp {
         return;
       }
       this.addMessage('ai', response);
-      this.syncHeader();
     } catch (e) {
       if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
         return;
       }
       this.hideTypingIndicator();
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
-      this.syncHeader();
     } finally {
       this.disableAutoScroll = false;
     }
@@ -1483,7 +1466,6 @@ class IrukaDarkApp {
   }
 
   updateMonitoringUI() {
-    this.syncHeader();
     this.messageInput.disabled = false;
     this.sendBtn.disabled = false;
     this.clearWelcomeMessage();
@@ -1534,7 +1516,6 @@ class IrukaDarkApp {
     }
 
     this.addMessage('user', message, attachments);
-    this.syncHeader();
     if (this.maybeRespondIdentity(message)) {
       this.messageInput?.focus();
       return;
@@ -1567,14 +1548,12 @@ class IrukaDarkApp {
       }
       this.addMessage('ai', response);
       this.messageInput?.focus();
-      this.syncHeader();
     } catch (error) {
       this.hideTypingIndicator();
       if (this.cancelRequested || /CANCELLED|Abort/i.test(String(error?.message || ''))) {
         return;
       }
       this.addMessage('system', `${getUIText('errorOccurred')}: ${error.message}`);
-      this.syncHeader();
       this.messageInput?.focus();
     } finally {
       this.disableAutoScroll = false;
@@ -2801,7 +2780,6 @@ class IrukaDarkApp {
     this.hideTypingIndicator();
     this.setGenerating(false);
     this.addMessage('system', getUIText('canceled'));
-    this.syncHeader();
   }
 
   showTypingIndicator() {
@@ -2837,6 +2815,8 @@ class IrukaDarkApp {
   }
 
   addMessage(type, content, attachments = []) {
+    this.clearHistoryContextCache();
+
     const messageDiv = document.createElement('div');
     messageDiv.className = `message-${type} message-enter`;
 
@@ -3009,6 +2989,15 @@ class IrukaDarkApp {
   // 直近のチャット履歴をテキスト化して返す
   buildHistoryContext(maxChars = 6000, maxMessages = 12) {
     try {
+      // Performance optimization: return cached result if still valid
+      const now = Date.now();
+      if (
+        this.historyContextCache &&
+        now - this.historyContextCacheTime < this.historyContextCacheTTL
+      ) {
+        return this.historyContextCache;
+      }
+
       if (!Array.isArray(this.chatHistoryData) || this.chatHistoryData.length === 0) return '';
       const recent = this.chatHistoryData.slice(-maxMessages);
       const lines = [];
@@ -3021,10 +3010,21 @@ class IrukaDarkApp {
       }
       let text = lines.join('\n');
       if (text.length > maxChars) text = text.slice(-maxChars);
+
+      // Cache the result
+      this.historyContextCache = text;
+      this.historyContextCacheTime = now;
+
       return text;
     } catch (e) {
       return '';
     }
+  }
+
+  // Clear history context cache
+  clearHistoryContextCache() {
+    this.historyContextCache = null;
+    this.historyContextCacheTime = 0;
   }
 
   // Toast helper
@@ -3151,8 +3151,6 @@ class IrukaDarkApp {
       return { text, sources: [] };
     }
   }
-
-  syncHeader() {}
 
   async applyThemeFromSystem() {
     try {

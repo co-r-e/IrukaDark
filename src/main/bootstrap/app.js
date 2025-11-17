@@ -427,11 +427,17 @@ function bootstrapApp() {
     }
   }
 
-  const prefCache = new PreferenceCache();
+  // Performance optimization: extend TTL to 5 seconds for faster shortcut responses
+  const prefCache = new PreferenceCache(5000);
 
   function bringMainWindowToFront(mainWindow) {
     if (!mainWindow || mainWindow.isDestroyed()) return false;
     try {
+      // Performance optimization: skip if already focused and visible on top
+      if (mainWindow.isVisible() && mainWindow.isFocused() && mainWindow.isAlwaysOnTop()) {
+        return true; // Already in desired state
+      }
+
       // Reset alwaysOnTop to bring window to front of other alwaysOnTop windows
       const pinAllSpaces = windowManager.readPinAllSpacesPref();
       mainWindow.setAlwaysOnTop(false);

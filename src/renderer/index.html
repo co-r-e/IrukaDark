@@ -1596,6 +1596,11 @@
             chatTab.classList.contains('active') &&
             chatHistory.style.display === 'block';
 
+          // Performance optimization: early return if chat tab is already active
+          if (isChatAlreadyVisible) {
+            return; // Already on chat tab, no work needed
+          }
+
           // Remove active class from all tabs
           chatTab.classList.remove('active');
           historyTab.classList.remove('active');
@@ -1631,19 +1636,33 @@
           // Show/hide input area and check API key for chat tab
           if (tabName === 'chat') {
             chatTab.classList.add('active');
+
+            // Performance optimization: prevent flashing by hiding inputArea until layout is ready
+            inputArea.classList.add('invisible');
             inputArea.style.display = 'block';
+
             // If chat is already visible, skip checkApiKey to prevent flashing
             if (isChatAlreadyVisible) {
-              // Already visible, do nothing more
+              // Already visible, show inputArea immediately
+              inputArea.classList.remove('invisible');
             } else if (window.app && window.app.checkApiKey) {
               // Check API key and display appropriate view (form or chat)
               window.app.checkApiKey();
+              // Wait for layout to be ready before showing inputArea
+              requestAnimationFrame(() => {
+                inputArea.classList.remove('invisible');
+              });
             } else {
               // Fallback if app not ready
               chatHistory.style.display = 'block';
+              // Wait for layout to be ready before showing inputArea
+              requestAnimationFrame(() => {
+                inputArea.classList.remove('invisible');
+              });
             }
           } else {
             inputArea.style.display = 'none';
+            inputArea.classList.remove('invisible'); // Reset class
 
             if (tabName === 'history') {
               historyTab.classList.add('active');

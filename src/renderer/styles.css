@@ -1170,6 +1170,10 @@ html[dir='rtl'] .toast-container {
   padding-bottom: 0.25rem !important; /* was 1.5rem via pb-6 */
 }
 
+#inputArea.invisible {
+  visibility: hidden;
+}
+
 /* Dark mode chat tone & focus */
 .theme-dark .message-user-content {
   background: linear-gradient(145deg, #1a1446, #0b1021);
