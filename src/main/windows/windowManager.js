@@ -31,6 +31,33 @@ class WindowManager {
   }
 
   /**
+   * Safe execution wrapper with error logging
+   * @param {Function} fn - Function to execute
+   * @param {string} context - Context for error logging
+   * @param {*} defaultValue - Default value to return on error
+   * @returns {*} Result of function or default value on error
+   * @private
+   */
+  safeExecute(fn, context, defaultValue = undefined) {
+    try {
+      return fn();
+    } catch (error) {
+      console.error(`[WindowManager] ${context}:`, error);
+      return defaultValue;
+    }
+  }
+
+  /**
+   * Check if window is valid and not destroyed
+   * @param {BrowserWindow} window - Window to check
+   * @returns {boolean} True if window is valid
+   * @private
+   */
+  isValidWindow(window) {
+    return window && !window.isDestroyed();
+  }
+
+  /**
    * Creates or returns the existing main application window
    *
    * @returns {BrowserWindow} The created or existing main window
@@ -51,8 +78,9 @@ class WindowManager {
    * mainWindow.show();
    */
   createMainWindow() {
-    if (getMainWindow() && !getMainWindow().isDestroyed()) {
-      return getMainWindow();
+    const existing = getMainWindow();
+    if (this.isValidWindow(existing)) {
+      return existing;
     }
 
     const baseOpts = {
@@ -84,16 +112,18 @@ class WindowManager {
     const mainWindow = new BrowserWindow(baseOpts);
     setMainWindow(mainWindow);
 
-    try {
-      mainWindow.setMinimumSize(
-        WINDOW_DIMENSIONS.MAIN.MIN_WIDTH,
-        WINDOW_DIMENSIONS.MAIN.MIN_HEIGHT
-      );
-    } catch {}
+    this.safeExecute(
+      () =>
+        mainWindow.setMinimumSize(
+          WINDOW_DIMENSIONS.MAIN.MIN_WIDTH,
+          WINDOW_DIMENSIONS.MAIN.MIN_HEIGHT
+        ),
+      'Failed to set minimum size'
+    );
 
     // Update stored size when user manually resizes the window
     mainWindow.on('resize', () => {
-      try {
+      this.safeExecute(() => {
         // Ignore resize events during programmatic repositioning
         if (this.isRepositioning) return;
         const [width, height] = mainWindow.getSize();
@@ -101,21 +131,19 @@ class WindowManager {
         this.mainWindowHeight = height;
         // Reset offset when size changes so it's recalculated with new size
         this.positioner.resetOffset();
-      } catch {}
+      }, 'Error handling resize');
     });
 
     // Handle focus/blur for opacity management
     mainWindow.on(WINDOW_EVENTS.FOCUS, () => {
-      try {
-        // Send opacity to renderer when focused
-        mainWindow.webContents.send(IPC_EVENTS.OPACITY_CHANGED, this.savedOpacity);
-      } catch {}
+      this.safeExecute(
+        () => mainWindow.webContents.send(IPC_EVENTS.OPACITY_CHANGED, this.savedOpacity),
+        'Error handling focus'
+      );
     });
 
     mainWindow.on(WINDOW_EVENTS.BLUR, () => {
-      try {
-        // No special handling needed
-      } catch {}
+      // No special handling needed - just keeping event for consistency
     });
 
     this.wireExternalLinkHandling(mainWindow);
@@ -124,19 +152,16 @@ class WindowManager {
     this.positionMainWindow(mainWindow);
 
     mainWindow.loadFile(path.join(__dirname, '../../renderer/index.html'));
-    try {
-      mainWindow.once('ready-to-show', () => {
-        if (this.initialShowMain) {
-          mainWindow.show();
-          this.mainInitiallyShown = true;
-        }
-      });
-    } catch {}
+
+    mainWindow.once('ready-to-show', () => {
+      if (this.initialShowMain) {
+        mainWindow.show();
+        this.mainInitiallyShown = true;
+      }
+    });
 
     mainWindow.webContents.once(WINDOW_EVENTS.DID_FINISH_LOAD, () => {
-      try {
-        this.createPopupWindow();
-      } catch {}
+      this.safeExecute(() => this.createPopupWindow(), 'Error creating popup window on load');
     });
 
     const iconPath = path.resolve(__dirname, '../../renderer/assets/icons/icon.png');
@@ -170,13 +195,13 @@ class WindowManager {
    */
   createPopupWindow() {
     const existing = getPopupWindow();
-    if (existing && !existing.isDestroyed()) {
+    if (this.isValidWindow(existing)) {
       existing.focus();
       return existing;
     }
 
     const mainWindow = getMainWindow();
-    if (!mainWindow || mainWindow.isDestroyed()) {
+    if (!this.isValidWindow(mainWindow)) {
       return null;
     }
 
@@ -220,7 +245,11 @@ class WindowManager {
 
     this.applyPinAllSpaces(this.readPinAllSpacesPref());
 
-    popupWindow.loadFile(path.join(__dirname, '../../renderer/popup.html'));
+    // Load popup with debug mode configuration
+    const debugMode = WINDOW_OPTIONS.POPUP.DEBUG_MODE ? '1' : '0';
+    popupWindow.loadFile(path.join(__dirname, '../../renderer/popup.html'), {
+      query: { debug: debugMode },
+    });
     mainWindow.setPosition(Math.round(mainX), Math.round(mainY));
 
     popupWindow.on(WINDOW_EVENTS.CLOSED, () => {
@@ -260,11 +289,12 @@ class WindowManager {
    */
   bringAppToFront() {
     const mainWindow = getMainWindow();
-    if (!mainWindow || mainWindow.isDestroyed()) return;
-    try {
+    if (!this.isValidWindow(mainWindow)) return;
+
+    this.safeExecute(() => {
       if (!mainWindow.isVisible()) mainWindow.show();
       mainWindow.focus();
-    } catch {}
+    }, 'Error bringing app to front');
   }
 
   /**
@@ -322,26 +352,22 @@ class WindowManager {
    * windowManager.applyPinAllSpaces(false);
    */
   applyPinAllSpaces(enabled) {
-    const mainWindow = getMainWindow();
-    const popupWindow = getPopupWindow();
     const level = enabled ? WINDOW_LEVELS.SCREEN_SAVER : WINDOW_LEVELS.FLOATING;
+    const windows = [
+      { window: getMainWindow(), name: 'main' },
+      { window: getPopupWindow(), name: 'popup' },
+    ];
 
-    try {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.setAlwaysOnTop(true, level);
+    windows.forEach(({ window, name }) => {
+      if (!this.isValidWindow(window)) return;
+
+      this.safeExecute(() => {
+        window.setAlwaysOnTop(true, level);
         if (process.platform === 'darwin') {
-          mainWindow.setVisibleOnAllWorkspaces(!!enabled, { visibleOnFullScreen: !!enabled });
+          window.setVisibleOnAllWorkspaces(enabled, { visibleOnFullScreen: enabled });
         }
-      }
-    } catch {}
-    try {
-      if (popupWindow && !popupWindow.isDestroyed()) {
-        popupWindow.setAlwaysOnTop(true, level);
-        if (process.platform === 'darwin') {
-          popupWindow.setVisibleOnAllWorkspaces(!!enabled, { visibleOnFullScreen: !!enabled });
-        }
-      }
-    } catch {}
+      }, `Error applying pin all spaces to ${name} window`);
+    });
   }
 
   /**
@@ -393,16 +419,15 @@ class WindowManager {
    * windowManager.setOpacityForWindows(0.8);
    */
   setOpacityForWindows(opacity) {
-    this.savedOpacity = opacity; // Update saved opacity
+    this.savedOpacity = opacity;
     const mainWindow = getMainWindow();
-    try {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        // Send opacity to renderer instead of using setOpacity()
-        try {
-          mainWindow.webContents.send(IPC_EVENTS.OPACITY_CHANGED, opacity);
-        } catch {}
-      }
-    } catch {}
+
+    if (this.isValidWindow(mainWindow)) {
+      this.safeExecute(
+        () => mainWindow.webContents.send(IPC_EVENTS.OPACITY_CHANGED, opacity),
+        'Error setting opacity for windows'
+      );
+    }
   }
 
   /**
@@ -425,52 +450,70 @@ class WindowManager {
    * electronAPI.notifyPopupPointer('up');    // On pointer up
    */
   handlePopupPointer(phase) {
-    try {
-      const p = String(phase || '').toLowerCase();
-      const popupWindow = getPopupWindow();
-      if (!popupWindow || popupWindow.isDestroyed()) return false;
-      if (p === 'down') {
-        this.popupPointerDown = true;
-        this.popupMovedSinceDown = false;
-        try {
-          this.popupDownBounds = popupWindow.getBounds();
-        } catch {
-          this.popupDownBounds = null;
+    return this.safeExecute(
+      () => {
+        const p = String(phase || '').toLowerCase();
+        const popupWindow = getPopupWindow();
+        if (!this.isValidWindow(popupWindow)) return false;
+
+        if (p === 'down') {
+          this.popupPointerDown = true;
+          this.popupMovedSinceDown = false;
+          this.popupDownBounds = this.safeExecute(
+            () => popupWindow.getBounds(),
+            'Error getting popup bounds on pointer down',
+            null
+          );
+          return true;
         }
-        return true;
-      }
-      if (p === 'up') {
-        const wasDown = this.popupPointerDown;
-        this.popupPointerDown = false;
-        let moved = !!this.popupMovedSinceDown;
-        this.popupMovedSinceDown = false;
-        try {
+
+        if (p === 'up') {
+          const wasDown = this.popupPointerDown;
+          this.popupPointerDown = false;
+          let moved = this.popupMovedSinceDown;
+          this.popupMovedSinceDown = false;
+
+          // Check if popup actually moved
           if (this.popupDownBounds) {
-            const cur = popupWindow.getBounds();
-            if (cur && typeof cur.x === 'number' && typeof cur.y === 'number') {
-              const same = cur.x === this.popupDownBounds.x && cur.y === this.popupDownBounds.y;
-              moved = moved || !same ? moved : false;
+            const current = this.safeExecute(
+              () => popupWindow.getBounds(),
+              'Error checking popup movement'
+            );
+            if (current?.x === this.popupDownBounds.x && current?.y === this.popupDownBounds.y) {
+              moved = false;
             }
           }
-        } catch {}
-        this.popupDownBounds = null;
-        if (wasDown && !moved) {
-          const mainWindow = getMainWindow();
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            try {
-              if (mainWindow.isVisible()) {
-                mainWindow.hide();
-              } else {
-                mainWindow.show();
-                mainWindow.focus();
-              }
-            } catch {}
+          this.popupDownBounds = null;
+
+          // Toggle main window if click without drag
+          if (wasDown && !moved) {
+            this.toggleMainWindowVisibility();
           }
+          return true;
         }
-        return true;
+        return false;
+      },
+      'Error handling popup pointer event',
+      false
+    );
+  }
+
+  /**
+   * Toggle main window visibility
+   * @private
+   */
+  toggleMainWindowVisibility() {
+    const mainWindow = getMainWindow();
+    if (!this.isValidWindow(mainWindow)) return;
+
+    this.safeExecute(() => {
+      if (mainWindow.isVisible()) {
+        mainWindow.hide();
+      } else {
+        mainWindow.show();
+        mainWindow.focus();
       }
-    } catch {}
-    return false;
+    }, 'Error toggling main window visibility');
   }
 
   /**
@@ -489,13 +532,10 @@ class WindowManager {
    * }
    */
   getPopupBounds() {
-    try {
-      const popupWindow = getPopupWindow();
-      if (popupWindow && !popupWindow.isDestroyed()) {
-        return popupWindow.getBounds();
-      }
-    } catch {}
-    return null;
+    const popupWindow = getPopupWindow();
+    if (!this.isValidWindow(popupWindow)) return null;
+
+    return this.safeExecute(() => popupWindow.getBounds(), 'Error getting popup bounds', null);
   }
 
   /**
@@ -533,66 +573,73 @@ class WindowManager {
    *
    * @description
    * Moves both windows back to their default positions:
-   * - Main window: bottom right of screen
-   * - Popup: centered below main window with slight overlap
+   * - Popup: bottom right of screen
+   * - Main window: centered above popup with slight overlap
    *
-   * Also resets the positioning offset cache and brings popup to front.
+   * Also resets the positioning offset cache and ensures correct window stacking.
    *
    * @example
    * // Reset windows after user drags them around
    * windowManager.resetPopupToInitialPosition();
    */
   resetPopupToInitialPosition() {
-    try {
-      const popupWindow = getPopupWindow();
-      const mainWindow = getMainWindow();
-      if (!popupWindow || popupWindow.isDestroyed() || !mainWindow || mainWindow.isDestroyed()) {
-        return false;
-      }
-
-      // Window dimensions
-      const popupWidth = WINDOW_DIMENSIONS.POPUP.WIDTH;
-      const popupHeight = WINDOW_DIMENSIONS.POPUP.HEIGHT;
-
-      // Calculate initial positions using positioner
-      const positions = this.positioner.calculateInitialPositions(
-        this.mainWindowWidth,
-        this.mainWindowHeight,
-        popupWidth,
-        popupHeight
-      );
-
-      // Apply positions
-      popupWindow.setPosition(positions.popupX, positions.popupY);
-      mainWindow.setPosition(positions.mainX, positions.mainY);
-
-      // Reset offset for recalculation on next popup move
-      this.positioner.resetOffset();
-
-      // Bring popup window to front
-      if (!popupWindow.isVisible()) {
-        popupWindow.show();
-      }
-      popupWindow.focus();
-
-      return true;
-    } catch (e) {
-      console.error('[WindowManager] Failed to reset popup position:', e);
+    const popupWindow = getPopupWindow();
+    const mainWindow = getMainWindow();
+    if (!this.isValidWindow(popupWindow) || !this.isValidWindow(mainWindow)) {
       return false;
     }
+
+    return this.safeExecute(
+      () => {
+        const popupWidth = WINDOW_DIMENSIONS.POPUP.WIDTH;
+        const popupHeight = WINDOW_DIMENSIONS.POPUP.HEIGHT;
+
+        // Calculate initial positions using positioner
+        const positions = this.positioner.calculateInitialPositions(
+          this.mainWindowWidth,
+          this.mainWindowHeight,
+          popupWidth,
+          popupHeight
+        );
+
+        // Reset offset cache before repositioning
+        this.positioner.resetOffset();
+
+        // Position popup first
+        popupWindow.setPosition(positions.popupX, positions.popupY);
+
+        // Ensure popup is visible
+        if (!popupWindow.isVisible()) {
+          popupWindow.show();
+        }
+
+        // Position main window above popup (this will recalculate offset)
+        this.positionMainAbovePopup();
+
+        // Keep main window visible and focused if it was shown
+        if (mainWindow.isVisible()) {
+          mainWindow.focus();
+        }
+
+        return true;
+      },
+      'Failed to reset popup position',
+      false
+    );
   }
 
   applySavedOpacity(win) {
-    if (!win || win.isDestroyed?.()) return;
-    if (win === getPopupWindow()) return;
+    if (!this.isValidWindow(win) || win === getPopupWindow()) return;
+
     const defaultOpacity = WINDOW_OPTIONS.MAIN.DEFAULT_OPACITY;
     const savedOpacity = parseFloat(this.getPref('WINDOW_OPACITY') || defaultOpacity);
+
     if (!Number.isNaN(savedOpacity)) {
-      this.savedOpacity = savedOpacity; // Store the opacity value
-      try {
-        // Send opacity to renderer instead of using setOpacity()
-        win.webContents.send(IPC_EVENTS.OPACITY_CHANGED, savedOpacity);
-      } catch {}
+      this.savedOpacity = savedOpacity;
+      this.safeExecute(
+        () => win.webContents.send(IPC_EVENTS.OPACITY_CHANGED, savedOpacity),
+        'Error applying saved opacity'
+      );
     }
   }
 
@@ -663,34 +710,26 @@ class WindowManager {
   }
 
   wireExternalLinkHandling(mainWindow) {
-    try {
-      const isExternalHttpUrl = (u) => {
-        try {
-          return /^https?:\/\//i.test(String(u || ''));
-        } catch {
-          return false;
-        }
-      };
-      mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-        if (isExternalHttpUrl(url)) {
-          try {
-            shell.openExternal(url);
-          } catch {}
-          return { action: 'deny' };
-        }
-        return { action: 'allow' };
-      });
-      mainWindow.webContents.on('will-navigate', (e, url) => {
-        if (isExternalHttpUrl(url)) {
-          try {
-            e.preventDefault();
-          } catch {}
-          try {
-            shell.openExternal(url);
-          } catch {}
-        }
-      });
-    } catch {}
+    const isExternalHttpUrl = (url) => /^https?:\/\//i.test(String(url || ''));
+
+    const openExternal = (url) => {
+      this.safeExecute(() => shell.openExternal(url), `Error opening external URL: ${url}`);
+    };
+
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+      if (isExternalHttpUrl(url)) {
+        openExternal(url);
+        return { action: 'deny' };
+      }
+      return { action: 'allow' };
+    });
+
+    mainWindow.webContents.on('will-navigate', (e, url) => {
+      if (isExternalHttpUrl(url)) {
+        this.safeExecute(() => e.preventDefault(), 'Error preventing navigation');
+        openExternal(url);
+      }
+    });
   }
 }
 

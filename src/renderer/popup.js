@@ -5,7 +5,15 @@
 
 // Constants for DragController
 const DRAG_THRESHOLD = 0; // Minimum distance to consider as drag
-const DEBUG_MODE = false; // Set to true for console logging
+// Read debug mode from URL parameter (set in windowConfig.js)
+const DEBUG_MODE = (() => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('debug') === '1';
+  } catch {
+    return false;
+  }
+})();
 
 /**
  * DragController - Manages popup window dragging with responsive IPC communication
@@ -85,86 +93,71 @@ class DragController {
   }
 
   /**
-   * Notify main process of pointer phase
-   * @param {string} phase - Pointer phase ('down' or 'up')
-   * @returns {boolean} True if notification was sent successfully
+   * Safe API call wrapper with logging
+   * @param {string} methodName - API method name
+   * @param {Array} args - Arguments to pass
+   * @param {string} errorMsg - Error message
+   * @param {*} defaultValue - Default value on error
+   * @returns {*} Result or default value
+   * @private
    */
-  notifyPhase(phase) {
-    if (!this.api?.notifyPopupPointer) {
-      this.log('Warning: notifyPopupPointer API not available');
-      return false;
+  callAPI(methodName, args = [], errorMsg = '', defaultValue = null) {
+    if (!this.api?.[methodName]) {
+      this.log(`Warning: ${methodName} API not available`);
+      return defaultValue;
     }
 
     try {
-      this.api.notifyPopupPointer(phase);
-      return true;
+      return this.api[methodName](...args);
     } catch (error) {
-      this.log('Error notifying phase:', error);
-      return false;
+      this.log(errorMsg || `Error calling ${methodName}:`, error);
+      return defaultValue;
     }
+  }
+
+  /**
+   * Notify main process of pointer phase
+   * @param {string} phase - Pointer phase ('down' or 'up')
+   */
+  notifyPhase(phase) {
+    this.callAPI('notifyPopupPointer', [phase], `Error notifying phase: ${phase}`);
   }
 
   /**
    * Get current popup window bounds
-   * @returns {Promise<Object|null>} Bounds object with x, y, width, height or null on error
+   * @returns {Promise<Object|null>} Bounds object or null on error
    */
-  async getBounds() {
-    try {
-      if (!this.api?.getPopupBounds) {
-        throw new Error('getPopupBounds API not available');
-      }
-      return await this.api.getPopupBounds();
-    } catch (error) {
-      this.log('Error getting bounds:', error);
-      return null;
-    }
+  getBounds() {
+    return this.callAPI('getPopupBounds', [], 'Error getting bounds');
   }
 
   /**
-   * Set popup window position (fire-and-forget for immediate response)
+   * Set popup window position (fire-and-forget)
    * @param {number} x - X coordinate
    * @param {number} y - Y coordinate
    */
-  async setPosition(x, y) {
-    try {
-      if (!this.api?.setPopupPosition) {
-        throw new Error('setPopupPosition API not available');
-      }
-      // Direct IPC call without throttling for immediate response
-      // Don't await - fire and forget for maximum responsiveness
-      this.api.setPopupPosition(Math.round(x), Math.round(y));
-      this.log('Position updated:', x, y);
-    } catch (error) {
-      this.log('Error setting position:', error);
-      // Keep drag state intact even if IPC fails
-    }
+  setPosition(x, y) {
+    this.callAPI('setPopupPosition', [x, y]);
+    this.log('Position updated:', x, y);
   }
 
   /**
    * Set or release pointer capture for reliable drag tracking
    * @param {PointerEvent} event - The pointer event
    * @param {boolean} shouldCapture - True to capture, false to release
-   * @returns {boolean} True if successful
    * @private
    */
   managePointerCapture(event, shouldCapture) {
-    if (!this.supportsPointer || this.currentPointerId == null) {
-      return false;
-    }
+    if (!this.supportsPointer || this.currentPointerId == null || !event.target) return;
 
     const method = shouldCapture ? 'setPointerCapture' : 'releasePointerCapture';
-
-    if (!event.target?.[method]) {
-      return false;
-    }
+    if (typeof event.target[method] !== 'function') return;
 
     try {
       event.target[method](this.currentPointerId);
       this.log(`Pointer ${shouldCapture ? 'captured' : 'released'}:`, this.currentPointerId);
-      return true;
     } catch (error) {
-      this.log(`Failed to ${shouldCapture ? 'set' : 'release'} pointer capture:`, error);
-      return false;
+      this.log(`Failed to ${method}:`, error);
     }
   }
 
@@ -204,17 +197,13 @@ class DragController {
    * @param {PointerEvent|MouseEvent} event - The pointer or mouse event
    */
   handleMove(event) {
-    if (!this.isDragging || !this.startBounds) {
-      return;
-    }
+    if (!this.isDragging || !this.startBounds) return;
 
     const dx = event.screenX - this.startScreenX;
     const dy = event.screenY - this.startScreenY;
 
     // Track if moved beyond threshold
-    if (Math.abs(dx) + Math.abs(dy) > DRAG_THRESHOLD) {
-      this.hasMoved = true;
-    }
+    this.hasMoved ||= Math.abs(dx) + Math.abs(dy) > DRAG_THRESHOLD;
 
     // Update position immediately for responsive tracking
     this.setPosition(this.startBounds.x + dx, this.startBounds.y + dy);
@@ -287,18 +276,40 @@ class DragController {
 
 /**
  * Setup error handling for logo image
- * Displays fallback logo if the main logo fails to load
+ * Dynamically creates and displays fallback logo if the main logo fails to load
  */
 function setupLogoErrorHandling() {
   const logoImg = document.getElementById('logoImg');
-  const fallbackLogo = document.getElementById('fallbackLogo');
+  const container = document.getElementById('logoContainer');
 
-  if (logoImg && fallbackLogo) {
-    logoImg.addEventListener('error', () => {
+  if (!logoImg || !container) return;
+
+  logoImg.addEventListener(
+    'error',
+    () => {
       logoImg.style.display = 'none';
+
+      // Create fallback logo with inline SVG using template literal
+      const fallbackLogo = document.createElement('div');
+      fallbackLogo.id = 'fallbackLogo';
+      fallbackLogo.className = 'fallback-logo';
       fallbackLogo.style.display = 'flex';
-    });
-  }
+      fallbackLogo.innerHTML = `
+        <svg width="60" height="60" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 8V4H8" />
+          <rect width="16" height="12" x="4" y="8" rx="2" />
+          <path d="M2 14h2" />
+          <path d="M20 14h2" />
+          <path d="M15 13v2" />
+          <path d="M9 13v2" />
+        </svg>
+      `;
+
+      container.appendChild(fallbackLogo);
+    },
+    { once: true }
+  );
 }
 
 /**

@@ -48,6 +48,18 @@ class WindowPositioner {
   }
 
   /**
+   * Constrain a value to a range
+   * @param {number} value - Value to constrain
+   * @param {number} min - Minimum value
+   * @param {number} max - Maximum value
+   * @returns {number} Constrained value
+   * @private
+   */
+  clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  /**
    * Constrain a position to screen bounds
    * @param {number} x - X coordinate
    * @param {number} y - Y coordinate
@@ -57,12 +69,9 @@ class WindowPositioner {
    * @returns {Object} Constrained position with x, y
    */
   constrainToBounds(x, y, width, height, workArea) {
-    const constrainedX = Math.min(Math.max(x, workArea.x), workArea.x + workArea.width - width);
-    const constrainedY = Math.min(Math.max(y, workArea.y), workArea.y + workArea.height - height);
-
     return {
-      x: Math.round(constrainedX),
-      y: Math.round(constrainedY),
+      x: Math.round(this.clamp(x, workArea.x, workArea.x + workArea.width - width)),
+      y: Math.round(this.clamp(y, workArea.y, workArea.y + workArea.height - height)),
     };
   }
 
@@ -79,25 +88,21 @@ class WindowPositioner {
    */
   calculateInitialPositions(mainWidth, mainHeight, popupWidth, popupHeight, workArea = null) {
     const wa = workArea || this.getPrimaryWorkArea();
+    const { RIGHT: marginRight, BOTTOM: marginBottom } = WINDOW_MARGINS;
+    const { POPUP_MAIN_OVERLAP: overlap } = WINDOW_LAYOUT;
 
-    // Layout constants
-    const marginRight = WINDOW_MARGINS.RIGHT;
-    const marginBottom = WINDOW_MARGINS.BOTTOM;
-    const overlap = WINDOW_LAYOUT.POPUP_MAIN_OVERLAP;
-
-    // Position main window at bottom right
+    // Calculate unconstrained positions
     const mainX = wa.x + wa.width - mainWidth - marginRight;
     const mainY = wa.y + wa.height - mainHeight - marginBottom;
-
-    // Position popup centered below main window
     const popupX = mainX + (mainWidth - popupWidth) / 2;
     const popupY = mainY + mainHeight + overlap;
 
-    // Constrain both windows to screen bounds
+    // Apply constraints
     const mainPos = this.constrainToBounds(mainX, mainY, mainWidth, mainHeight, wa);
     const popupPos = this.constrainToBounds(popupX, popupY, popupWidth, popupHeight, wa);
 
     return {
+      ...mainPos,
       mainX: mainPos.x,
       mainY: mainPos.y,
       popupX: popupPos.x,
@@ -120,41 +125,28 @@ class WindowPositioner {
    */
   calculateMainAbovePopup(popupBounds, mainWidth, mainHeight) {
     const workArea = this.getConstrainedScreenBounds(popupBounds);
-    let targetX, targetY;
 
-    // First time: calculate and store the offset
-    if (this.mainPopupOffsetX === null || this.mainPopupOffsetY === null) {
-      const overlap = WINDOW_LAYOUT.POPUP_MAIN_OVERLAP;
+    // Calculate or use cached offset
+    if (!this.hasOffset()) {
+      const { POPUP_MAIN_OVERLAP: overlap } = WINDOW_LAYOUT;
+      const idealX = popupBounds.x + Math.round((popupBounds.width - mainWidth) / 2);
+      const idealY = popupBounds.y - mainHeight - overlap;
 
-      // Center main window above popup
-      targetX = popupBounds.x + Math.round((popupBounds.width - mainWidth) / 2);
-      targetY = popupBounds.y - mainHeight - overlap;
+      const constrained = this.constrainToBounds(idealX, idealY, mainWidth, mainHeight, workArea);
 
-      // Apply screen bounds constraints
-      const constrained = this.constrainToBounds(targetX, targetY, mainWidth, mainHeight, workArea);
-      targetX = constrained.x;
-      targetY = constrained.y;
-
-      // Store the offset (main position relative to popup position)
-      this.mainPopupOffsetX = targetX - popupBounds.x;
-      this.mainPopupOffsetY = targetY - popupBounds.y;
-    } else {
-      // Use stored offset to maintain fixed distance
-      targetX = popupBounds.x + this.mainPopupOffsetX;
-      targetY = popupBounds.y + this.mainPopupOffsetY;
-
-      // Still apply screen bounds constraints
-      const constrained = this.constrainToBounds(targetX, targetY, mainWidth, mainHeight, workArea);
-      targetX = constrained.x;
-      targetY = constrained.y;
+      // Cache offset for consistent positioning
+      this.mainPopupOffsetX = constrained.x - popupBounds.x;
+      this.mainPopupOffsetY = constrained.y - popupBounds.y;
     }
 
-    return {
-      x: Math.round(targetX),
-      y: Math.round(targetY),
-      width: mainWidth,
-      height: mainHeight,
-    };
+    // Calculate position using cached offset
+    const targetX = popupBounds.x + this.mainPopupOffsetX;
+    const targetY = popupBounds.y + this.mainPopupOffsetY;
+
+    // Ensure still within bounds
+    const final = this.constrainToBounds(targetX, targetY, mainWidth, mainHeight, workArea);
+
+    return { ...final, width: mainWidth, height: mainHeight };
   }
 
   /**
@@ -167,8 +159,7 @@ class WindowPositioner {
    */
   calculateMainWindowPosition(width, height) {
     const wa = this.getPrimaryWorkArea();
-    const marginRight = WINDOW_MARGINS.RIGHT;
-    const marginBottom = WINDOW_MARGINS.BOTTOM;
+    const { RIGHT: marginRight, BOTTOM: marginBottom } = WINDOW_MARGINS;
 
     const x = wa.x + wa.width - width - marginRight;
     const y = wa.y + wa.height - height - marginBottom;

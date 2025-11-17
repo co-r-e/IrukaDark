@@ -1,36 +1,39 @@
 appId: com.core.irukadark
-productName: "IrukaDark"
+productName: 'IrukaDark'
 # PERFORMANCE: Enable asar archive for faster file access
 asar: true
 # PERFORMANCE: Unpack native modules for optimal performance
 asarUnpack:
-  - "**/*.node"
-  - "native/**/*"
+  - '**/*.node'
+  - 'native/**/*'
 # PERFORMANCE: Compress asar archive for smaller size
 compression: maximum
 files:
-  - "src/**/*"
-  - "!**/*.map"
-  - "!**/docs/**"
-  - "!**/tests/**"
-  - "!**/.github/**"
-  - "!**/*.md"
-  - "!**/.DS_Store"
+  - 'src/**/*'
+  - '!**/*.map'
+  - '!**/docs/**'
+  - '!**/tests/**'
+  - '!**/.github/**'
+  - '!**/*.md'
+  - '!**/.DS_Store'
 extraResources:
   - from: native/macos/IrukaAutomation/dist
     to: mac-automation
     filter:
-      - "IrukaAutomation"
+      - 'IrukaAutomation'
 mac:
   target:
     - target: dmg
       arch: [x64, arm64]
+  # Electron 38+ requires macOS 12 (Monterey) or later
+  # macOS 11 (Big Sur) support was dropped in Electron 38
+  minimumSystemVersion: '12.0.0'
   hardenedRuntime: true
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
   icon: src/renderer/assets/icons/icon.png
 dmg:
-  artifactName: "${productName}-${version}-mac-${arch}.dmg"
+  artifactName: '${productName}-${version}-mac-${arch}.dmg'
 publish:
   - provider: github
     releaseType: release

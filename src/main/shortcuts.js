@@ -5,32 +5,74 @@ const fs = require('fs');
 const path = require('path');
 const { fetchSelectedText } = require('./services/macAutomationBridge');
 
+// Constants
 const isDev = process.env.NODE_ENV === 'development';
 const DEFAULT_CLIPBOARD_TIMEOUT_MS = 1500;
+const WINDOW_ALWAYS_ON_TOP_DELAY_MS = 100;
 
+/**
+ * Shows a window and brings it to the front without stealing focus from other applications.
+ * Uses setAlwaysOnTop temporarily to ensure the window appears on top.
+ *
+ * @param {BrowserWindow} win - The Electron BrowserWindow instance to show
+ */
 function showWindowNonActivating(win) {
   try {
-    if (!win || win.isDestroyed()) return;
-    if (typeof win.showInactive === 'function') {
-      win.showInactive();
-    } else {
+    if (!win || win.isDestroyed()) {
+      return;
+    }
+
+    // Ensure window is visible
+    if (!win.isVisible()) {
       win.show();
     }
 
-    try {
-      if (typeof win.moveTop === 'function') {
-        win.moveTop();
-      }
-    } catch {}
+    // Temporarily set always-on-top to bring window to front
+    const wasAlwaysOnTop = win.isAlwaysOnTop();
+    if (!wasAlwaysOnTop) {
+      win.setAlwaysOnTop(true);
+    }
 
+    // Focus the window
     try {
       if (!win.isFocused()) {
         win.focus();
       }
-    } catch {}
-  } catch {}
+    } catch (focusError) {
+      if (isDev) {
+        console.warn('[showWindowNonActivating] Failed to focus window:', focusError);
+      }
+    }
+
+    // Restore original always-on-top state
+    if (!wasAlwaysOnTop) {
+      setTimeout(() => {
+        try {
+          if (!win.isDestroyed()) {
+            win.setAlwaysOnTop(false);
+          }
+        } catch (restoreError) {
+          if (isDev) {
+            console.warn(
+              '[showWindowNonActivating] Failed to restore always-on-top state:',
+              restoreError
+            );
+          }
+        }
+      }, WINDOW_ALWAYS_ON_TOP_DELAY_MS);
+    }
+  } catch (error) {
+    if (isDev) {
+      console.error('[showWindowNonActivating] Unexpected error:', error);
+    }
+  }
 }
 
+/**
+ * Resolves the clipboard timeout value from environment variable or default.
+ *
+ * @returns {number} Timeout in milliseconds
+ */
 function resolveClipboardTimeout() {
   const envMaxWait = Number.parseInt(process.env.CLIPBOARD_MAX_WAIT_MS || '', 10);
   if (Number.isFinite(envMaxWait) && envMaxWait > 0) {
@@ -39,6 +81,12 @@ function resolveClipboardTimeout() {
   return DEFAULT_CLIPBOARD_TIMEOUT_MS;
 }
 
+/**
+ * Attempts to retrieve selected text from the active application using Swift automation bridge.
+ * Returns empty string if the operation fails.
+ *
+ * @returns {Promise<string>} The selected text, trimmed, or empty string on failure
+ */
 async function tryCopySelectedText() {
   const timeoutMs = resolveClipboardTimeout();
   const response = await fetchSelectedText({ timeoutMs });
@@ -49,7 +97,7 @@ async function tryCopySelectedText() {
 
   if (isDev) {
     console.warn(
-      'Swift automation bridge failed to retrieve selected text:',
+      '[tryCopySelectedText] Swift automation bridge failed to retrieve selected text:',
       response.code || response.status,
       response.message || ''
     );
@@ -58,28 +106,62 @@ async function tryCopySelectedText() {
   return '';
 }
 
+/**
+ * Captures a user-selected screen area using macOS screencapture utility.
+ * The captured image is returned as base64-encoded PNG data.
+ *
+ * @returns {Promise<{data: string, mimeType: string}>} Object containing base64 image data and MIME type
+ */
 async function captureInteractiveArea() {
   try {
     const tmpDir = app.getPath('temp');
     const file = path.join(tmpDir, `irukadark_capture_${Date.now()}.png`);
     const cmd = `screencapture -i -x "${file}"`;
-    const code = await new Promise((resolve) => exec(cmd, (error) => resolve(error ? 1 : 0)));
+
+    // Execute screencapture command
+    const code = await new Promise((resolve) => {
+      exec(cmd, (error) => resolve(error ? 1 : 0));
+    });
+
+    // Check if capture was successful
     if (code !== 0) {
+      // Clean up temporary file if it exists
       try {
-        fs.existsSync(file) && fs.unlinkSync(file);
-      } catch {}
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+      } catch (cleanupError) {
+        if (isDev) {
+          console.warn('[captureInteractiveArea] Failed to clean up temporary file:', cleanupError);
+        }
+      }
       return { data: '', mimeType: '' };
     }
+
+    // Read and encode the captured image
     try {
       const buf = fs.readFileSync(file);
+
+      // Clean up temporary file
       try {
         fs.unlinkSync(file);
-      } catch {}
+      } catch (cleanupError) {
+        if (isDev) {
+          console.warn('[captureInteractiveArea] Failed to delete temporary file:', cleanupError);
+        }
+      }
+
       return { data: buf.toString('base64'), mimeType: 'image/png' };
-    } catch {
+    } catch (readError) {
+      if (isDev) {
+        console.error('[captureInteractiveArea] Failed to read captured image:', readError);
+      }
       return { data: '', mimeType: '' };
     }
-  } catch {
+  } catch (error) {
+    if (isDev) {
+      console.error('[captureInteractiveArea] Unexpected error:', error);
+    }
     return { data: '', mimeType: '' };
   }
 }

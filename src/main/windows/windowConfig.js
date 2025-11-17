@@ -71,6 +71,7 @@ const WINDOW_OPTIONS = {
     MINIMIZABLE: false,
     MAXIMIZABLE: false,
     CLOSABLE: true,
+    DEBUG_MODE: false, // Set to true to enable console logging in popup drag controller
   },
 };
 
