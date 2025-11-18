@@ -7,10 +7,13 @@ const {
   ipcMain,
   systemPreferences,
   Menu,
+  Tray,
   globalShortcut,
   BrowserWindow,
   shell,
   screen,
+  powerMonitor,
+  nativeImage,
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -18,7 +21,7 @@ const fs = require('fs');
 const { loadPrefs, savePrefs, setPref, getPref } = require('../services/preferences');
 const { WindowManager } = require('../windows/windowManager');
 const { SettingsController } = require('../services/settingsController');
-const menuBuilder = require('../menu');
+const { createAppMenu, createTrayMenu } = require('../menu');
 const {
   showWindowNonActivating,
   tryCopySelectedText,
@@ -144,7 +147,7 @@ function bootstrapApp() {
 
   const settingsController = new SettingsController({
     windowManager,
-    menuRefresher: () => createAppMenu(),
+    menuRefresher: () => buildAppMenu(),
     setPref: setPrefWithCacheInvalidation,
     getPref,
   });
@@ -293,7 +296,7 @@ function bootstrapApp() {
     });
   }
 
-  function createAppMenu() {
+  function buildAppMenu() {
     try {
       const ctx = {
         currentLang: getCurrentLanguage(),
@@ -307,17 +310,81 @@ function bootstrapApp() {
         handleWindowOpacityChange: (opacity) =>
           settingsController.handleWindowOpacityChange(opacity),
         handlePinAllSpacesChange: (enabled) => settingsController.handlePinAllSpacesChange(enabled),
+        handleAutoStartChange: (enabled) => settingsController.handleAutoStartChange(enabled),
         hasPopupWindow: () => windowManager.hasPopupWindow(),
         togglePopupWindow: () => windowManager.togglePopupWindow(),
-        rebuild: () => createAppMenu(),
+        showMainWindow: () => windowManager.showMainWindow(),
+        rebuild: () => buildAppMenu(),
       };
-      menuBuilder(ctx);
+      createAppMenu(ctx);
     } catch (error) {
       if (isDev) console.warn('Failed to create menu:', error?.message);
       try {
         const fallback = Menu.buildFromTemplate([{ role: 'editMenu' }, { role: 'windowMenu' }]);
         Menu.setApplicationMenu(fallback);
       } catch {}
+    }
+  }
+
+  let tray = null;
+
+  function createTrayIcon() {
+    const iconPath = path.join(__dirname, '../../renderer/assets/icons/icon.png');
+
+    if (process.platform === 'darwin') {
+      let icon;
+      if (fs.existsSync(iconPath)) {
+        icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+      } else {
+        icon = nativeImage.createFromNamedImage('NSApplicationIcon', [16, 16, 32, 32]);
+      }
+      icon.setTemplateImage(true);
+      return icon;
+    }
+
+    return nativeImage.createFromPath(iconPath);
+  }
+
+  function buildTrayMenuContext() {
+    return {
+      getPref,
+      handleAutoStartChange: (enabled) => {
+        settingsController.handleAutoStartChange(enabled);
+        buildAppMenu();
+        updateTrayMenu();
+      },
+      showMainWindow: () => windowManager.showMainWindow(),
+    };
+  }
+
+  function initializeTray() {
+    try {
+      if (tray && !tray.isDestroyed()) return;
+
+      tray = new Tray(createTrayIcon());
+      tray.setToolTip('IrukaDark');
+      tray.setContextMenu(createTrayMenu(buildTrayMenuContext()));
+
+      if (process.platform === 'darwin') {
+        tray.on('click', () => {
+          try {
+            windowManager.showMainWindow();
+          } catch (err) {
+            console.error('Failed to show main window from tray click:', err);
+          }
+        });
+      }
+    } catch (error) {
+      if (isDev) console.warn('Failed to create tray:', error?.message);
+    }
+  }
+
+  function updateTrayMenu() {
+    try {
+      if (!tray || tray.isDestroyed()) return;
+      tray.setContextMenu(createTrayMenu(buildTrayMenuContext()));
+    } catch (error) {
+      if (isDev) console.warn('Failed to update tray menu:', error?.message);
     }
   }
 
@@ -941,7 +1008,7 @@ function bootstrapApp() {
       try {
         let menu = Menu.getApplicationMenu();
         if (!menu) {
-          createAppMenu();
+          buildAppMenu();
           menu = Menu.getApplicationMenu();
         }
         if (!menu) return false;
@@ -1930,8 +1997,21 @@ function bootstrapApp() {
       }
     } catch {}
 
+    try {
+      const autoStartEnabled = !['0', 'false', 'off'].includes(
+        String(getPref('AUTO_START_ENABLED') || '0').toLowerCase()
+      );
+      app.setLoginItemSettings({
+        openAtLogin: autoStartEnabled,
+        openAsHidden: false,
+      });
+    } catch (err) {
+      if (isDev) console.warn('Failed to apply auto-start setting:', err?.message);
+    }
+
     windowManager.createMainWindow();
-    createAppMenu();
+    buildAppMenu();
+    initializeTray();
     registerGlobalShortcuts();
     setupPopupIpcHandlers();
     setupCaptureHandlers();

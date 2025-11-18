@@ -14,6 +14,9 @@ function createAppMenu(ctx) {
   const curTheme = String(getPref('UI_THEME') || 'dark');
   const curTone = String(getPref('TONE') || 'casual');
   const hasSavedGeminiKey = !!getPref('GEMINI_API_KEY');
+  const autoStartEnabled = !['0', 'false', 'off'].includes(
+    String(getPref('AUTO_START_ENABLED') || '0').toLowerCase()
+  );
   const placeholderSaved = currentLang.startsWith('ja')
     ? '••••••••（保存済み。変更するには新しいキーを入力／空で削除）'
     : '•••••••• (saved; enter new key to overwrite, leave blank to remove)';
@@ -351,6 +354,13 @@ function createAppMenu(ctx) {
           ],
         },
         { type: 'separator' },
+        {
+          label: t.launchAtLogin || 'Launch at Login',
+          type: 'checkbox',
+          checked: !!autoStartEnabled,
+          click: (mi) => ctx.handleAutoStartChange(!!mi.checked),
+        },
+        { type: 'separator' },
         { role: 'hide', label: t.hide },
         { role: 'unhide', label: t.unhide },
         { type: 'separator' },
@@ -381,4 +391,29 @@ function createAppMenu(ctx) {
   Menu.setApplicationMenu(menu);
 }
 
-module.exports = createAppMenu;
+function createTrayMenu(ctx) {
+  const autoStartEnabled = !['0', 'false', 'off'].includes(
+    String(ctx.getPref('AUTO_START_ENABLED') || '0').toLowerCase()
+  );
+
+  return Menu.buildFromTemplate([
+    {
+      label: 'Show',
+      click: () => ctx.showMainWindow(),
+    },
+    { type: 'separator' },
+    {
+      label: 'Launch at Login',
+      type: 'checkbox',
+      checked: autoStartEnabled,
+      click: (mi) => ctx.handleAutoStartChange(mi.checked),
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit',
+      click: () => require('electron').app.quit(),
+    },
+  ]);
+}
+
+module.exports = { createAppMenu, createTrayMenu };

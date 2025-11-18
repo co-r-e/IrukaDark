@@ -134,7 +134,6 @@ class IrukaDarkApp {
   constructor() {
     this.geminiService = new GeminiService();
     this.chatHistoryData = [];
-    this.disableAutoScroll = false;
     this.shortcutRequestId = 0;
     this.webSearchEnabled = false;
     this.translateMode = 'literal';
@@ -147,10 +146,16 @@ class IrukaDarkApp {
     this.videoResolution = '720p';
     this.isGenerating = false;
     this.cancelRequested = false;
+    this.isSending = false; // Prevent duplicate sendMessage() execution
     this.i18nElementsCache = null;
     this.historyContextCache = null;
     this.historyContextCacheTime = 0;
     this.historyContextCacheTTL = 500;
+    // Memory leak prevention: Track FileReaders and AbortControllers for cleanup
+    this.activeFileReaders = new Set();
+    this.messageAbortControllers = new WeakMap(); // Map DOM elements to AbortControllers
+    // Scroll control: Counter-based approach to prevent race conditions
+    this.disableAutoScrollCount = 0;
     this.initializeElements();
     this.bindEvents();
     this.updateUILanguage();
@@ -250,10 +255,12 @@ class IrukaDarkApp {
    * Show API key registration form
    */
   showApiKeyForm() {
-    if (this.apiKeyForm) {
+    // Only change display if not already in the correct state
+    if (this.apiKeyForm && this.apiKeyForm.style.display !== 'flex') {
       this.apiKeyForm.style.display = 'flex';
     }
-    if (this.chatHistory) {
+    const chatHistory = this.chatHistory;
+    if (chatHistory && chatHistory.isConnected && chatHistory.style.display !== 'none') {
       this.chatHistory.style.display = 'none';
     }
     setTimeout(() => {
@@ -267,10 +274,12 @@ class IrukaDarkApp {
    * Show chat interface
    */
   showChat() {
-    if (this.apiKeyForm) {
+    // Only change display if not already in the correct state
+    if (this.apiKeyForm && this.apiKeyForm.style.display !== 'none') {
       this.apiKeyForm.style.display = 'none';
     }
-    if (this.chatHistory) {
+    const chatHistory = this.chatHistory;
+    if (chatHistory && chatHistory.isConnected && chatHistory.style.display !== 'block') {
       this.chatHistory.style.display = 'block';
     }
   }
@@ -1022,23 +1031,22 @@ class IrukaDarkApp {
     await this.cancelActiveShortcut();
     // Switch to chat tab when shortcut is triggered
     if (window.switchToTab) window.switchToTab('chat');
-    if (this.chatHistory) {
-      this.chatHistory.style.overflowY = 'auto';
-      requestAnimationFrame(() => {
-        if (this.chatHistory) {
-          this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
-        }
-      });
-    }
     const token = ++this.shortcutRequestId;
     const content = (text || '').trim();
     if (!content) return;
-    this.disableAutoScroll = true;
+    this.disableAutoScrollCount++;
 
     // Performance optimization: batch DOM operations in single frame
     requestAnimationFrame(() => {
       this.addMessage('system-question', content);
       this.showTypingIndicator();
+
+      // Scroll to bottom after messages are added
+      requestAnimationFrame(() => {
+        if (this.chatHistory && this.chatHistory.isConnected) {
+          this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+        }
+      });
     });
 
     try {
@@ -1070,7 +1078,7 @@ class IrukaDarkApp {
       this.hideTypingIndicator();
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
     } finally {
-      this.disableAutoScroll = false;
+      this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
     }
   }
 
@@ -1078,20 +1086,23 @@ class IrukaDarkApp {
     await this.cancelActiveShortcut();
     // Switch to chat tab when shortcut is triggered
     if (window.switchToTab) window.switchToTab('chat');
-    if (this.chatHistory) {
-      this.chatHistory.style.overflowY = 'auto';
-      requestAnimationFrame(() => {
-        if (this.chatHistory) {
-          this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
-        }
-      });
-    }
     const token = ++this.shortcutRequestId;
     const content = (text || '').trim();
     if (!content) return;
-    this.disableAutoScroll = true;
-    this.addMessage('system-question', content);
-    this.showTypingIndicator();
+    this.disableAutoScrollCount++;
+
+    // Performance optimization: batch DOM operations in single frame
+    requestAnimationFrame(() => {
+      this.addMessage('system-question', content);
+      this.showTypingIndicator();
+
+      // Scroll to bottom after messages are added
+      requestAnimationFrame(() => {
+        if (this.chatHistory && this.chatHistory.isConnected) {
+          this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+        }
+      });
+    });
 
     try {
       const historyText = this.buildHistoryContext();
@@ -1121,7 +1132,7 @@ class IrukaDarkApp {
       this.hideTypingIndicator();
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
     } finally {
-      this.disableAutoScroll = false;
+      this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
     }
   }
 
@@ -1153,20 +1164,23 @@ class IrukaDarkApp {
     await this.cancelActiveShortcut();
     // Switch to chat tab when shortcut is triggered
     if (window.switchToTab) window.switchToTab('chat');
-    if (this.chatHistory) {
-      this.chatHistory.style.overflowY = 'auto';
-      requestAnimationFrame(() => {
-        if (this.chatHistory) {
-          this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
-        }
-      });
-    }
     const token = ++this.shortcutRequestId;
     const targetUrl = this.normalizeUrlForShortcut(url);
     if (!targetUrl) return;
-    this.disableAutoScroll = true;
-    this.addMessage('system-question', this.formatUrlContextQuestion(targetUrl, 'summary'));
-    this.showTypingIndicator();
+    this.disableAutoScrollCount++;
+
+    // Performance optimization: batch DOM operations in single frame
+    requestAnimationFrame(() => {
+      this.addMessage('system-question', this.formatUrlContextQuestion(targetUrl, 'summary'));
+      this.showTypingIndicator();
+
+      // Scroll to bottom after messages are added
+      requestAnimationFrame(() => {
+        if (this.chatHistory && this.chatHistory.isConnected) {
+          this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+        }
+      });
+    });
 
     try {
       const historyText = this.buildHistoryContext();
@@ -1196,7 +1210,7 @@ class IrukaDarkApp {
       this.hideTypingIndicator();
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
     } finally {
-      this.disableAutoScroll = false;
+      this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
     }
   }
 
@@ -1204,20 +1218,23 @@ class IrukaDarkApp {
     await this.cancelActiveShortcut();
     // Switch to chat tab when shortcut is triggered
     if (window.switchToTab) window.switchToTab('chat');
-    if (this.chatHistory) {
-      this.chatHistory.style.overflowY = 'auto';
-      requestAnimationFrame(() => {
-        if (this.chatHistory) {
-          this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
-        }
-      });
-    }
     const token = ++this.shortcutRequestId;
     const targetUrl = this.normalizeUrlForShortcut(url);
     if (!targetUrl) return;
-    this.disableAutoScroll = true;
-    this.addMessage('system-question', this.formatUrlContextQuestion(targetUrl, 'detailed'));
-    this.showTypingIndicator();
+    this.disableAutoScrollCount++;
+
+    // Performance optimization: batch DOM operations in single frame
+    requestAnimationFrame(() => {
+      this.addMessage('system-question', this.formatUrlContextQuestion(targetUrl, 'detailed'));
+      this.showTypingIndicator();
+
+      // Scroll to bottom after messages are added
+      requestAnimationFrame(() => {
+        if (this.chatHistory && this.chatHistory.isConnected) {
+          this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+        }
+      });
+    });
 
     try {
       const historyText = this.buildHistoryContext();
@@ -1247,7 +1264,7 @@ class IrukaDarkApp {
       this.hideTypingIndicator();
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
     } finally {
-      this.disableAutoScroll = false;
+      this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
     }
   }
 
@@ -1255,20 +1272,23 @@ class IrukaDarkApp {
     await this.cancelActiveShortcut();
     // Switch to chat tab when shortcut is triggered
     if (window.switchToTab) window.switchToTab('chat');
-    if (this.chatHistory) {
-      this.chatHistory.style.overflowY = 'auto';
-      requestAnimationFrame(() => {
-        if (this.chatHistory) {
-          this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
-        }
-      });
-    }
     const token = ++this.shortcutRequestId;
     const content = (text || '').trim();
     if (!content) return;
-    this.disableAutoScroll = true;
-    this.addMessage('system-question', getUIText('selectionTranslation'));
-    this.showTypingIndicator();
+    this.disableAutoScrollCount++;
+
+    // Performance optimization: batch DOM operations in single frame
+    requestAnimationFrame(() => {
+      this.addMessage('system-question', getUIText('selectionTranslation'));
+      this.showTypingIndicator();
+
+      // Scroll to bottom after messages are added
+      requestAnimationFrame(() => {
+        if (this.chatHistory && this.chatHistory.isConnected) {
+          this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+        }
+      });
+    });
 
     try {
       const response = await this.geminiService.generatePureTranslation(content);
@@ -1292,7 +1312,7 @@ class IrukaDarkApp {
       this.hideTypingIndicator();
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
     } finally {
-      this.disableAutoScroll = false;
+      this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
     }
   }
 
@@ -1303,27 +1323,30 @@ class IrukaDarkApp {
     await this.cancelActiveShortcut();
     // Switch to chat tab when shortcut is triggered
     if (window.switchToTab) window.switchToTab('chat');
-    if (this.chatHistory) {
-      this.chatHistory.style.overflowY = 'auto';
-      requestAnimationFrame(() => {
-        if (this.chatHistory) {
-          this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
-        }
-      });
-    }
     const token = ++this.shortcutRequestId;
     const content = (text || '').trim();
     if (!content) return;
-    this.disableAutoScroll = true;
-    const label = getUIText('selectionReplies');
-    const questionLabel =
-      label && label !== 'selectionReplies'
-        ? label
-        : getCurrentUILanguage() === 'ja'
-          ? '選択範囲への返信バリエーション'
-          : 'Reply variations for selection';
-    this.addMessage('system-question', questionLabel);
-    this.showTypingIndicator();
+    this.disableAutoScrollCount++;
+
+    // Performance optimization: batch DOM operations in single frame
+    requestAnimationFrame(() => {
+      const label = getUIText('selectionReplies');
+      const questionLabel =
+        label && label !== 'selectionReplies'
+          ? label
+          : getCurrentUILanguage() === 'ja'
+            ? '選択範囲への返信バリエーション'
+            : 'Reply variations for selection';
+      this.addMessage('system-question', questionLabel);
+      this.showTypingIndicator();
+
+      // Scroll to bottom after messages are added
+      requestAnimationFrame(() => {
+        if (this.chatHistory && this.chatHistory.isConnected) {
+          this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+        }
+      });
+    });
 
     try {
       const response = await this.geminiService.generateReplyVariations(content);
@@ -1347,7 +1370,7 @@ class IrukaDarkApp {
       this.hideTypingIndicator();
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
     } finally {
-      this.disableAutoScroll = false;
+      this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
     }
   }
 
@@ -1359,25 +1382,23 @@ class IrukaDarkApp {
       await this.cancelActiveShortcut();
       // Switch to chat tab when shortcut is triggered
       if (window.switchToTab) window.switchToTab('chat');
-      // Restore scroll state after tab switch
-      if (this.chatHistory) {
-        this.chatHistory.style.overflowY = 'auto';
-        setTimeout(() => {
-          if (this.chatHistory) {
-            this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
-          }
-        }, 0);
-      }
       const token = ++this.shortcutRequestId;
       const data = payload && payload.data ? String(payload.data) : '';
       const mime = payload && payload.mimeType ? String(payload.mimeType) : 'image/png';
       if (!data) return;
-      this.disableAutoScroll = true;
+      this.disableAutoScrollCount++;
 
       // Performance optimization: batch DOM operations in single frame
       requestAnimationFrame(() => {
         this.addMessage('system-question', getUIText('selectionExplanation'));
         this.showTypingIndicator();
+
+        // Scroll to bottom after messages are added
+        requestAnimationFrame(() => {
+          if (this.chatHistory && this.chatHistory.isConnected) {
+            this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+          }
+        });
       });
 
       // Build history context in parallel with DOM operations
@@ -1404,7 +1425,7 @@ class IrukaDarkApp {
       this.hideTypingIndicator();
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
     } finally {
-      this.disableAutoScroll = false;
+      this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
     }
   }
 
@@ -1414,10 +1435,12 @@ class IrukaDarkApp {
       // Switch to chat tab when shortcut is triggered
       if (window.switchToTab) window.switchToTab('chat');
       // Restore scroll state after tab switch
-      if (this.chatHistory) {
+      const chatHistory = this.chatHistory;
+      if (chatHistory && chatHistory.isConnected) {
         this.chatHistory.style.overflowY = 'auto';
         setTimeout(() => {
-          if (this.chatHistory) {
+          const chatHistory = this.chatHistory;
+          if (chatHistory && chatHistory.isConnected) {
             this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
           }
         }, 0);
@@ -1426,7 +1449,7 @@ class IrukaDarkApp {
       const data = payload && payload.data ? String(payload.data) : '';
       const mime = payload && payload.mimeType ? String(payload.mimeType) : 'image/png';
       if (!data) return;
-      this.disableAutoScroll = true;
+      this.disableAutoScrollCount++;
       this.addMessage('system-question', getUIText('selectionExplanation'));
       this.showTypingIndicator();
       const historyText = this.buildHistoryContext();
@@ -1452,7 +1475,7 @@ class IrukaDarkApp {
       this.hideTypingIndicator();
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
     } finally {
-      this.disableAutoScroll = false;
+      this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
     }
   }
 
@@ -1480,83 +1503,105 @@ class IrukaDarkApp {
   }
 
   async sendMessage() {
+    // Prevent duplicate execution (e.g., Enter key spam, button click spam)
+    if (this.isSending) return;
+
     const message = this.messageInput.value.trim();
     if (!message) return;
 
-    const attachments = [...this.attachedFiles];
-
-    this.messageInput.value = '';
-    this.autosizeMessageInput(true);
-    this.clearAttachments();
-    this.messageInput.focus();
-
-    if (message.startsWith('/')) {
-      await this.handleSlashCommand(message);
-      this.autosizeMessageInput(true);
-      this.messageInput.focus();
-      return;
-    }
-
-    const imageCommandMatch = message.match(/^@image\s+(.+)$/i);
-    if (imageCommandMatch) {
-      const imagePrompt = imageCommandMatch[1].trim();
-      await this.handleImageGeneration(imagePrompt, attachments);
-      this.autosizeMessageInput(true);
-      this.messageInput.focus();
-      return;
-    }
-
-    const videoCommandMatch = message.match(/^@video\s+(.+)$/i);
-    if (videoCommandMatch) {
-      const videoPrompt = videoCommandMatch[1].trim();
-      await this.handleVideoGeneration(videoPrompt, attachments);
-      this.autosizeMessageInput(true);
-      this.messageInput.focus();
-      return;
-    }
-
-    this.addMessage('user', message, attachments);
-    if (this.maybeRespondIdentity(message)) {
-      this.messageInput?.focus();
-      return;
-    }
-    this.disableAutoScroll = true;
-    this.showTypingIndicator();
+    // Acquire lock to prevent concurrent execution
+    this.isSending = true;
 
     try {
-      const historyText = this.buildHistoryContext();
-      let response;
+      const attachments = [...this.attachedFiles];
 
-      if (attachments && attachments.length > 0) {
-        response = await this.geminiService.generateResponseWithAttachments(
-          message,
-          historyText,
-          attachments,
-          this.webSearchEnabled
-        );
-      } else {
-        response = await this.geminiService.generateResponse(
-          message,
-          historyText,
-          this.webSearchEnabled
-        );
-      }
+      this.messageInput.value = '';
+      this.autosizeMessageInput(true);
+      this.clearAttachments();
+      this.messageInput.focus();
 
-      this.hideTypingIndicator();
-      if (this.cancelRequested) {
+      if (message.startsWith('/')) {
+        await this.handleSlashCommand(message);
+        this.autosizeMessageInput(true);
+        this.messageInput.focus();
+        this.isSending = false; // Release lock before return
         return;
       }
-      this.addMessage('ai', response);
-      this.messageInput?.focus();
-    } catch (error) {
-      this.hideTypingIndicator();
-      if (this.cancelRequested || /CANCELLED|Abort/i.test(String(error?.message || ''))) {
+
+      const imageCommandMatch = message.match(/^@image\s+(.+)$/i);
+      if (imageCommandMatch) {
+        const imagePrompt = imageCommandMatch[1].trim();
+        await this.handleImageGeneration(imagePrompt, attachments);
+        this.autosizeMessageInput(true);
+        this.messageInput.focus();
+        this.isSending = false; // Release lock before return
         return;
       }
-      this.addMessage('system', `${getUIText('errorOccurred')}: ${error.message}`);
-      this.messageInput?.focus();
-    } finally {
-      this.disableAutoScroll = false;
+
+      const videoCommandMatch = message.match(/^@video\s+(.+)$/i);
+      if (videoCommandMatch) {
+        const videoPrompt = videoCommandMatch[1].trim();
+        await this.handleVideoGeneration(videoPrompt, attachments);
+        this.autosizeMessageInput(true);
+        this.messageInput.focus();
+        this.isSending = false; // Release lock before return
+        return;
+      }
+
+      this.addMessage('user', message, attachments);
+      if (this.maybeRespondIdentity(message)) {
+        this.messageInput?.focus();
+        this.isSending = false; // Release lock before return
+        return;
+      }
+      this.disableAutoScrollCount++;
+      this.showTypingIndicator();
+
+      try {
+        const historyText = this.buildHistoryContext();
+        let response;
+
+        if (attachments && attachments.length > 0) {
+          response = await this.geminiService.generateResponseWithAttachments(
+            message,
+            historyText,
+            attachments,
+            this.webSearchEnabled
+          );
+        } else {
+          response = await this.geminiService.generateResponse(
+            message,
+            historyText,
+            this.webSearchEnabled
+          );
+        }
+
+        // Check cancel before adding message
+        if (this.cancelRequested) {
+          return;
+        }
+        this.addMessage('ai', response);
+        this.messageInput?.focus();
+      } catch (error) {
+        if (this.cancelRequested || /CANCELLED|Abort/i.test(String(error?.message || ''))) {
+          return;
+        }
+        this.addMessage('system', `${getUIText('errorOccurred')}: ${error.message}`);
+        this.messageInput?.focus();
+      } finally {
+        // Always hide typing indicator (even if cancelled)
+        this.hideTypingIndicator();
+        // Only reset auto-scroll if not cancelled (prevent scroll state corruption)
+        if (!this.cancelRequested) {
+          this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
+        }
+        // Always release the lock to allow next message
+        this.isSending = false;
+      }
+    } catch (outerError) {
+      // Outer catch for slash commands and special commands
+      console.error('sendMessage error:', outerError);
+      this.isSending = false;
     }
   }
 
@@ -1572,12 +1617,12 @@ class IrukaDarkApp {
       const matched = isJa ? jaRe.test(t) : enRe.test(t);
       if (!matched) return false;
       const reply = this.pickIdentityResponse(isJa ? 'ja' : 'en');
-      const prev = this.disableAutoScroll;
-      this.disableAutoScroll = true;
+      const prev = this.disableAutoScrollCount;
+      this.disableAutoScrollCount++;
       try {
         this.addMessage('ai', reply);
       } finally {
-        this.disableAutoScroll = prev;
+        this.disableAutoScrollCount = prev;
       }
       return true;
     } catch {
@@ -1628,11 +1673,29 @@ class IrukaDarkApp {
     }
     if (lower === '/clear') {
       try {
+        // Abort all active event listeners to prevent memory leaks
+        const chatHistory = this.chatHistory;
+        if (chatHistory && chatHistory.isConnected) {
+          const messageElements = this.chatHistory.querySelectorAll(
+            '.message-ai, .message-system, .message-system-question, .message-fallback'
+          );
+          messageElements.forEach((el) => {
+            const controller = this.messageAbortControllers.get(el);
+            if (controller) {
+              controller.abort();
+              this.messageAbortControllers.delete(el);
+            }
+          });
+        }
+
         this.chatHistoryData = [];
         if (this.chatHistory) this.chatHistory.innerHTML = '';
         if (this.geminiService) {
           this.geminiService.lastGeneratedImage = null;
         }
+
+        // Clear history context cache
+        this.clearHistoryContextCache();
       } catch (e) {
         this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
       }
@@ -1641,7 +1704,7 @@ class IrukaDarkApp {
 
     if (lower === '/compact') {
       try {
-        this.disableAutoScroll = true;
+        this.disableAutoScrollCount++;
         const historyText = this.buildHistoryContext(8000, 30);
         this.showTypingIndicator();
         const summary = await this.geminiService.generateHistorySummary(
@@ -1662,14 +1725,14 @@ class IrukaDarkApp {
         }
         this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
       } finally {
-        this.disableAutoScroll = false;
+        this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
       }
       return;
     }
 
     if (lower === '/next') {
       try {
-        this.disableAutoScroll = true;
+        this.disableAutoScrollCount++;
         const lastAI = [...(this.chatHistoryData || [])]
           .reverse()
           .find((m) => m && m.role === 'assistant' && m.content);
@@ -1696,14 +1759,14 @@ class IrukaDarkApp {
         }
         this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
       } finally {
-        this.disableAutoScroll = false;
+        this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
       }
       return;
     }
 
     if (lower === '/table') {
       try {
-        this.disableAutoScroll = true;
+        this.disableAutoScrollCount++;
         const lastAI = [...(this.chatHistoryData || [])]
           .reverse()
           .find((m) => m && m.role === 'assistant' && m.content);
@@ -1730,7 +1793,7 @@ class IrukaDarkApp {
         }
         this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
       } finally {
-        this.disableAutoScroll = false;
+        this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
       }
       return;
     }
@@ -1738,7 +1801,7 @@ class IrukaDarkApp {
     // Clarify last AI output: /What do you mean?
     if (lower === '/what do you mean?') {
       try {
-        this.disableAutoScroll = true;
+        this.disableAutoScrollCount++;
         const lastAI = [...(this.chatHistoryData || [])]
           .reverse()
           .find((m) => m && m.role === 'assistant' && m.content);
@@ -1765,7 +1828,7 @@ class IrukaDarkApp {
         }
         this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
       } finally {
-        this.disableAutoScroll = false;
+        this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
       }
       return;
     }
@@ -1906,7 +1969,7 @@ class IrukaDarkApp {
 
   async runSlashTranslation(targetCode, meta = null) {
     try {
-      this.disableAutoScroll = true;
+      this.disableAutoScrollCount++;
       const lastAI = [...(this.chatHistoryData || [])]
         .reverse()
         .find((m) => m && m.role === 'assistant' && m.content);
@@ -1933,13 +1996,13 @@ class IrukaDarkApp {
       }
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
     } finally {
-      this.disableAutoScroll = false;
+      this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
     }
   }
 
   async handleImageGeneration(prompt, attachments = []) {
     try {
-      this.disableAutoScroll = false;
+      this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
       this.addMessage('user', `@image ${prompt}`, attachments);
       this.showTypingIndicator();
 
@@ -1987,7 +2050,7 @@ class IrukaDarkApp {
 
   async handleVideoGeneration(prompt, attachments = []) {
     try {
-      this.disableAutoScroll = false;
+      this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
       this.addMessage('user', `@video ${prompt}`, attachments);
       this.showTypingIndicator(getUIText('videoGenerating') || 'Generating video...');
 
@@ -2057,7 +2120,7 @@ class IrukaDarkApp {
     this.chatHistory.appendChild(messageDiv);
 
     // Scroll to bottom to show the new videos
-    if (!this.disableAutoScroll) {
+    if (this.disableAutoScrollCount === 0) {
       this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
     }
   }
@@ -2085,10 +2148,13 @@ class IrukaDarkApp {
     });
 
     messageDiv.appendChild(imagesContainer);
+
+    if (!this.chatHistory) return;
+
     this.chatHistory.appendChild(messageDiv);
 
     // Scroll to bottom to show the new images
-    if (!this.disableAutoScroll) {
+    if (this.disableAutoScrollCount === 0) {
       this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
     }
   }
@@ -2670,6 +2736,7 @@ class IrukaDarkApp {
                     </svg>
                 `;
         this.sendBtn.title = getUIText('stop');
+        this.sendBtn.setAttribute('aria-label', getUIText('stop'));
       } else {
         // Send icon (paper plane)
         this.sendBtn.innerHTML = `
@@ -2679,6 +2746,7 @@ class IrukaDarkApp {
                     </svg>
                 `;
         this.sendBtn.title = getUIText('send');
+        this.sendBtn.setAttribute('aria-label', getUIText('send'));
       }
     } catch {}
   }
@@ -2744,6 +2812,20 @@ class IrukaDarkApp {
   }
 
   clearAttachments() {
+    // Abort all active FileReaders to prevent memory leaks
+    if (this.activeFileReaders && this.activeFileReaders.size > 0) {
+      for (const reader of this.activeFileReaders) {
+        try {
+          if (reader.readyState === FileReader.LOADING) {
+            reader.abort();
+          }
+        } catch (e) {
+          // Ignore errors during cleanup
+        }
+      }
+      this.activeFileReaders.clear();
+    }
+
     this.attachedFiles = [];
     this.updateAttachmentDisplay();
   }
@@ -2754,10 +2836,25 @@ class IrukaDarkApp {
 
     const items = Array.from(clipboardData.items);
     const imageItems = items.filter((item) => item.type.startsWith('image/'));
+    const textItems = items.filter((item) => item.type.startsWith('text/'));
 
     if (imageItems.length > 0) {
+      // Only preventDefault when we're handling images
       event.preventDefault();
 
+      // If there's text along with images, manually insert it
+      if (textItems.length > 0) {
+        textItems[0].getAsString((text) => {
+          const start = this.messageInput.selectionStart;
+          const end = this.messageInput.selectionEnd;
+          const current = this.messageInput.value;
+          this.messageInput.value = current.slice(0, start) + text + current.slice(end);
+          this.messageInput.selectionStart = this.messageInput.selectionEnd = start + text.length;
+          this.autosizeMessageInput();
+        });
+      }
+
+      // Process images
       imageItems.forEach((item) => {
         const file = item.getAsFile();
         if (file) {
@@ -2767,6 +2864,7 @@ class IrukaDarkApp {
 
       this.updateAttachmentDisplay();
     }
+    // If no images, allow default paste behavior (text only)
   }
 
   cancelGeneration() {
@@ -2784,13 +2882,19 @@ class IrukaDarkApp {
 
   showTypingIndicator() {
     this.setGenerating(true);
+
+    if (!this.chatHistory) return;
+
     const typingDiv = document.createElement('div');
     typingDiv.id = 'typing-indicator';
     typingDiv.className = 'message-ai-container';
+    typingDiv.setAttribute('role', 'status');
+    typingDiv.setAttribute('aria-live', 'polite');
+    typingDiv.setAttribute('aria-label', getUIText('thinking'));
     typingDiv.innerHTML = `
       <div class="typing-indicator-content">
         <div class="flex items-center gap-2">
-          <div class="flex gap-1">
+          <div class="flex gap-1" aria-hidden="true">
             <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
             <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
             <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
@@ -2801,8 +2905,10 @@ class IrukaDarkApp {
     `;
 
     this.chatHistory.appendChild(typingDiv);
-    // Always ensure the typing indicator is visible
-    this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+    // Only auto-scroll if not disabled (consistent with addMessage behavior)
+    if (this.disableAutoScrollCount === 0) {
+      this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+    }
   }
 
   hideTypingIndicator() {
@@ -2815,16 +2921,16 @@ class IrukaDarkApp {
   }
 
   addMessage(type, content, attachments = []) {
-    this.clearHistoryContextCache();
-
     const messageDiv = document.createElement('div');
-    messageDiv.className = `message-${type} message-enter`;
+    messageDiv.className = `message-${type}`;
 
     if (type === 'user') {
       const processedContent = this.processUserContent(content);
       const attachmentsHtml = this.generateAttachmentsPreview(attachments);
 
       this.chatHistoryData.push({ role: 'user', content });
+      // Invalidate cache after modifying history data (optimization: only when history changes)
+      this.clearHistoryContextCache();
       messageDiv.innerHTML = `
         <div class="message-user-container">
           <div class="message-user-content">
@@ -2852,12 +2958,19 @@ class IrukaDarkApp {
 
       const markdownContent = this.renderMarkdown(text);
       this.chatHistoryData.push({ role: 'assistant', content: text });
+      // Invalidate cache after modifying history data (optimization: only when history changes)
+      this.clearHistoryContextCache();
       // Build DOM to allow badge + accordion below
       const container = document.createElement('div');
       container.className = 'message-ai-container';
       const contentEl = document.createElement('div');
       contentEl.className = 'message-ai-content';
       contentEl.innerHTML = markdownContent;
+
+      // Create AbortController for automatic cleanup (memory leak prevention)
+      const abortController = new AbortController();
+      this.messageAbortControllers.set(messageDiv, abortController);
+
       // Open any link in default browser instead of navigating inside the app
       try {
         contentEl.addEventListener(
@@ -2875,7 +2988,7 @@ class IrukaDarkApp {
               }
             } catch {}
           },
-          true
+          { capture: true, signal: abortController.signal }
         );
       } catch {}
       // Wrap tables for horizontal scrolling in chat output
@@ -2905,22 +3018,30 @@ class IrukaDarkApp {
           a.href = s.url;
           a.textContent = s.title || s.url;
           a.rel = 'noopener noreferrer';
-          a.addEventListener('click', (e) => {
-            e.preventDefault();
-            try {
-              if (window.electronAPI && window.electronAPI.openExternal) {
-                window.electronAPI.openExternal(String(s.url));
-              }
-            } catch {}
-          });
+          a.addEventListener(
+            'click',
+            (e) => {
+              e.preventDefault();
+              try {
+                if (window.electronAPI && window.electronAPI.openExternal) {
+                  window.electronAPI.openExternal(String(s.url));
+                }
+              } catch {}
+            },
+            { signal: abortController.signal }
+          );
           li.appendChild(a);
           list.appendChild(li);
         });
         acc.appendChild(list);
-        // Toggle behavior
-        badge.addEventListener('click', () => {
-          acc.classList.toggle('hidden');
-        });
+        // Toggle behavior (with AbortController for automatic cleanup)
+        badge.addEventListener(
+          'click',
+          () => {
+            acc.classList.toggle('hidden');
+          },
+          { signal: abortController.signal }
+        );
         // Place badge at the end of content
         const badgeWrap = document.createElement('div');
         badgeWrap.className = 'source-badge-wrap';
@@ -2932,57 +3053,84 @@ class IrukaDarkApp {
       messageDiv.appendChild(container);
     } else if (type === 'system-question') {
       // ショートカット由来のシステム表示（2行まで表示し、クリックで展開/折りたたみ）
-      messageDiv.className = 'message-enter';
       const safe = this.escapeHtml(content).replace(/\n/g, '<br>');
-      messageDiv.innerHTML =
-        '<div class="message-system message-system-compact">' + safe + '</div>';
+      messageDiv.className = 'message-system message-system-compact';
+      messageDiv.innerHTML = safe;
+
+      // Create AbortController for automatic cleanup
+      const systemAbortController = new AbortController();
+      this.messageAbortControllers.set(messageDiv, systemAbortController);
+
       try {
-        const el = messageDiv.querySelector('.message-system-compact');
-        if (el) {
-          el.addEventListener('click', () => {
-            el.classList.toggle('expanded');
-          });
-        }
+        messageDiv.addEventListener(
+          'click',
+          () => {
+            messageDiv.classList.toggle('expanded');
+          },
+          { signal: systemAbortController.signal }
+        );
       } catch {}
       this.chatHistoryData.push({ role: 'user', content });
+      // Invalidate cache after modifying history data (optimization: only when history changes)
+      this.clearHistoryContextCache();
     } else if (type === 'system') {
       // すべてのシステムメッセージはコンパクト表示に統一（2行クランプ、クリックで展開）
-      messageDiv.className = 'message-enter';
+      // Note: System messages do NOT modify chatHistoryData, so no cache invalidation needed
       const safe = this.escapeHtml(content).replace(/\n/g, '<br>');
-      messageDiv.innerHTML =
-        '<div class="message-system message-system-compact">' + safe + '</div>';
+      messageDiv.className = 'message-system message-system-compact';
+      messageDiv.innerHTML = safe;
+
+      // Create AbortController for automatic cleanup
+      const systemAbortController = new AbortController();
+      this.messageAbortControllers.set(messageDiv, systemAbortController);
+
       try {
-        const el = messageDiv.querySelector('.message-system-compact');
-        if (el) {
-          el.addEventListener('click', () => {
-            el.classList.toggle('expanded');
-          });
-        }
+        messageDiv.addEventListener(
+          'click',
+          () => {
+            messageDiv.classList.toggle('expanded');
+          },
+          { signal: systemAbortController.signal }
+        );
       } catch {}
     } else {
       // Fallback: treat as compact system style for consistency
-      messageDiv.className = 'message-enter';
       const safe = this.escapeHtml(content).replace(/\n/g, '<br>');
-      messageDiv.innerHTML =
-        '<div class="message-system message-system-compact">' + safe + '</div>';
+      messageDiv.className = 'message-system message-system-compact';
+      messageDiv.innerHTML = safe;
+
+      // Create AbortController for automatic cleanup
+      const fallbackAbortController = new AbortController();
+      this.messageAbortControllers.set(messageDiv, fallbackAbortController);
+
       try {
-        const el = messageDiv.querySelector('.message-system-compact');
-        if (el) {
-          el.addEventListener('click', () => {
-            el.classList.toggle('expanded');
-          });
-        }
+        messageDiv.addEventListener(
+          'click',
+          () => {
+            messageDiv.classList.toggle('expanded');
+          },
+          { signal: fallbackAbortController.signal }
+        );
       } catch {}
     }
 
+    if (!this.chatHistory) return;
+
     this.chatHistory.appendChild(messageDiv);
-    if (!this.disableAutoScroll) {
-      this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
-    }
 
     // システムメッセージ（通常/ショートカット）でアイコンを初期化
+    // IMPORTANT: Initialize icons BEFORE scrolling to ensure accurate scroll height
     if (type === 'system' || type === 'system-question') {
       this.createIconsEnhanced();
+    }
+
+    // Scroll after icon initialization (in next frame to ensure layout is complete)
+    if (this.disableAutoScrollCount === 0) {
+      requestAnimationFrame(() => {
+        if (this.chatHistory && this.chatHistory.isConnected) {
+          this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+        }
+      });
     }
   }
 
@@ -3068,7 +3216,8 @@ class IrukaDarkApp {
   }
 
   processUserContent(content) {
-    return this.escapeHtml(content)
+    const text = String(content || '');
+    return this.escapeHtml(text)
       .replace(/\n/g, '<br>')
       .replace(/^@image\s+/i, '<span class="command-badge">@image</span> ')
       .replace(/^@video\s+/i, '<span class="command-badge">@video</span> ');
@@ -3082,10 +3231,25 @@ class IrukaDarkApp {
         if (file.type.startsWith('image/')) {
           const itemId = `preview-${Date.now()}-${Math.random()}`;
           const reader = new FileReader();
+
+          // Track FileReader for cleanup (memory leak prevention)
+          this.activeFileReaders.add(reader);
+
           reader.onload = (e) => {
             const img = document.getElementById(itemId);
             if (img) img.src = e.target.result;
+            // Remove from active set when done
+            this.activeFileReaders.delete(reader);
           };
+          reader.onerror = () => {
+            // Remove from active set on error
+            this.activeFileReaders.delete(reader);
+          };
+          reader.onabort = () => {
+            // Remove from active set on abort
+            this.activeFileReaders.delete(reader);
+          };
+
           reader.readAsDataURL(file);
           return `<div class="message-attachment-item">
             <img id="${itemId}" class="message-attachment-img" src="" alt="${this.escapeHtml(file.name)}" />
@@ -4183,6 +4347,8 @@ IrukaDarkApp.prototype.autosizeMessageInput = function (reset = false) {
       return;
     }
     el.style.height = 'auto';
+    // Force reflow to ensure accurate scrollHeight calculation
+    void el.offsetHeight; // Force reflow
     const next = Math.min(Math.max(el.scrollHeight, min), max);
     el.style.height = `${next}px`;
   } catch (e) {}

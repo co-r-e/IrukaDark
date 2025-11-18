@@ -1597,8 +1597,13 @@
             chatHistory.style.display === 'block';
 
           // Performance optimization: early return if chat tab is already active
+          // BUT still check API key status to ensure consistency
           if (isChatAlreadyVisible) {
-            return; // Already on chat tab, no work needed
+            // Even when already visible, verify API key state asynchronously without causing flicker
+            if (window.app && window.app.checkApiKey) {
+              window.app.checkApiKey().catch(() => {});
+            }
+            return; // Already on chat tab, minimal work needed
           }
 
           // Remove active class from all tabs
@@ -1610,9 +1615,7 @@
           settingsTab.classList.remove('active');
 
           // Hide all views
-          if (!isChatAlreadyVisible) {
-            chatHistory.style.display = 'none';
-          }
+          chatHistory.style.display = 'none';
           const apiKeyForm = document.getElementById('apiKeyForm');
           if (apiKeyForm) apiKeyForm.style.display = 'none';
           clipboardList.style.display = 'none';
@@ -1637,32 +1640,29 @@
           if (tabName === 'chat') {
             chatTab.classList.add('active');
 
-            // Performance optimization: prevent flashing by hiding inputArea until layout is ready
-            inputArea.classList.add('invisible');
+            // Set initial display state before any async operations
             inputArea.style.display = 'block';
 
-            // If chat is already visible, skip checkApiKey to prevent flashing
-            if (isChatAlreadyVisible) {
-              // Already visible, show inputArea immediately
-              inputArea.classList.remove('invisible');
-            } else if (window.app && window.app.checkApiKey) {
-              // Check API key and display appropriate view (form or chat)
-              window.app.checkApiKey();
-              // Wait for layout to be ready before showing inputArea
-              requestAnimationFrame(() => {
-                inputArea.classList.remove('invisible');
-              });
-            } else {
-              // Fallback if app not ready
+            // Show chat history immediately to prevent flicker, will be updated by API key check if needed
+            if (chatHistory.style.display !== 'block') {
               chatHistory.style.display = 'block';
-              // Wait for layout to be ready before showing inputArea
-              requestAnimationFrame(() => {
-                inputArea.classList.remove('invisible');
-              });
+            }
+            if (apiKeyForm && apiKeyForm.style.display !== 'none') {
+              apiKeyForm.style.display = 'none';
+            }
+
+            // Adjust messageInput height
+            if (window.app && window.app.autosizeMessageInput) {
+              window.app.autosizeMessageInput();
+            }
+
+            // Check API key asynchronously without blocking UI
+            if (window.app && window.app.checkApiKey) {
+              window.app.checkApiKey().catch(() => {});
             }
           } else {
             inputArea.style.display = 'none';
-            inputArea.classList.remove('invisible'); // Reset class
+            inputArea.classList.remove('invisible');
 
             if (tabName === 'history') {
               historyTab.classList.add('active');

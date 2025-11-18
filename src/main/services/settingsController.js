@@ -67,6 +67,18 @@ class SettingsController {
     this.menuRefresher();
   }
 
+  handleAutoStartChange(enabled) {
+    try {
+      this.setPref('AUTO_START_ENABLED', enabled ? '1' : '0');
+      const { app } = require('electron');
+      app.setLoginItemSettings({
+        openAtLogin: enabled,
+        openAsHidden: false,
+      });
+    } catch {}
+    this.menuRefresher();
+  }
+
   broadcastToWindows(channel, payload) {
     const mainWindow = getMainWindow();
     const popupWindow = getPopupWindow();

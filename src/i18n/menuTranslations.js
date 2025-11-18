@@ -46,6 +46,7 @@ const menuTranslations = {
     pinAllSpaces: 'Show Over All Apps/Spaces',
     help: 'Help',
     checkForUpdates: 'Check for Updates…',
+    launchAtLogin: 'Launch at Login',
   },
   ja: {
     irukadark: 'IrukaDark',
@@ -94,6 +95,7 @@ const menuTranslations = {
     pinAllSpaces: '全アプリ・全スペースで表示',
     help: 'ヘルプ',
     checkForUpdates: 'アップデートを確認…',
+    launchAtLogin: 'ログイン時に起動',
   },
   es: {
     irukadark: 'IrukaDark',

@@ -144,9 +144,10 @@ html.solid-window.theme-dark .glass-effect {
 
 .theme-dark .message-user-content {
   background: linear-gradient(145deg, #1a1446, #0b1021);
-  color: #e5e7eb;
+  color: #ffffff;
   border-color: rgba(255, 255, 255, 0.15);
 }
+
 .theme-dark .message-system {
   background: linear-gradient(145deg, #1a1446, #0b1021);
   color: #cbd5e1;
@@ -154,9 +155,6 @@ html.solid-window.theme-dark .glass-effect {
 }
 
 .theme-dark .message-ai-content {
-  color: #ffffff;
-}
-.theme-dark .message-user-content {
   color: #ffffff;
 }
 
@@ -265,6 +263,10 @@ html.solid-window.theme-dark .glass-effect {
 }
 
 /* Colors */
+
+.bg-gray-400 {
+  background-color: #9ca3af;
+}
 
 .text-gray-500 {
   color: #6b7280;
@@ -515,6 +517,26 @@ html:not(.theme-dark) .titlebar-tab.active {
 }
 
 /* Message styles */
+.message-user {
+  width: 100%;
+}
+
+.message-ai {
+  width: 100%;
+}
+
+.message-system {
+  width: 100%;
+}
+
+.message-system-question {
+  width: 100%;
+}
+
+.message-fallback {
+  width: 100%;
+}
+
 .message-user-container {
   width: 100%;
   display: flex;
@@ -711,21 +733,6 @@ html:not(.theme-dark) .titlebar-tab.active {
 }
 
 /* Animations */
-.message-enter {
-  animation: messageSlideIn 0.3s ease-out;
-}
-
-@keyframes messageSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
 /* タイピングインジケーター */
 .typing-indicator-content {
@@ -858,6 +865,8 @@ button:disabled {
   margin-bottom: 0.5rem; /* 8px */
   margin-left: -0.5rem; /* -8px */
   flex-shrink: 0;
+  /* Optimize for smooth position changes */
+  will-change: transform;
 }
 
 .theme-dark #plusBtn {
@@ -901,6 +910,8 @@ button:disabled {
   justify-content: center;
   line-height: 0; /* ensure perfect visual centering */
   z-index: 1;
+  /* Optimize for smooth position changes (absolute positioned) */
+  will-change: transform;
 }
 
 #sendBtn svg {
@@ -1102,6 +1113,8 @@ html.solid-window.theme-dark #messageInput {
 /* Ensure input area reserves space for button and stays tidy (stable across sizes) */
 #inputWrapper {
   min-height: 40px;
+  /* Optimize for height changes */
+  contain: layout style;
 }
 #messageInput {
   padding-right: 44px;
@@ -1168,6 +1181,10 @@ html[dir='rtl'] .toast-container {
 #inputArea {
   padding-top: 0.5rem !important; /* was 1rem via pt-4 */
   padding-bottom: 0.25rem !important; /* was 1.5rem via pb-6 */
+  /* Prevent layout jump on tab switch */
+  min-height: 60px;
+  will-change: contents;
+  contain: layout style;
 }
 
 #inputArea.invisible {
@@ -1283,6 +1300,9 @@ html[dir='rtl'] .slash-suggest {
   border-radius: 0.5rem;
   background-color: rgba(255, 255, 255, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.3);
+  /* Optimize height changes for smooth autosizing */
+  will-change: height;
+  contain: layout style;
 }
 
 /* Images container for multiple images */
