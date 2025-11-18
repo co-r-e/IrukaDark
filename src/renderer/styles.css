@@ -1179,10 +1179,10 @@ html[dir='rtl'] .toast-container {
  */
 /* Chat input area: reduce top/bottom spacing */
 #inputArea {
-  padding-top: 0.5rem !important; /* was 1rem via pt-4 */
-  padding-bottom: 0.25rem !important; /* was 1.5rem via pb-6 */
+  padding-top: 0.25rem !important;
+  padding-bottom: 0.25rem !important;
   /* Prevent layout jump on tab switch */
-  min-height: 60px;
+  min-height: 20px;
   will-change: contents;
   contain: layout style;
 }

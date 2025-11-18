@@ -46,7 +46,7 @@
     "prettier": "^3.6.2"
   },
   "dependencies": {
-    "@google/genai": "^1.16.0",
+    "@google/genai": "latest",
     "electron-updater": "^6.3.9"
   },
   "repository": {
