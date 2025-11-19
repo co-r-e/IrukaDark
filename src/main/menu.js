@@ -396,10 +396,19 @@ function createTrayMenu(ctx) {
     String(ctx.getPref('AUTO_START_ENABLED') || '0').toLowerCase()
   );
 
+  // Check if main window is currently visible (default to true since app starts with window shown)
+  const isVisible = ctx.isMainWindowVisible ? ctx.isMainWindowVisible() : true;
+
   return Menu.buildFromTemplate([
     {
-      label: 'Show',
-      click: () => ctx.showMainWindow(),
+      label: isVisible ? 'Hide' : 'Show',
+      click: () => {
+        if (isVisible) {
+          ctx.hideMainWindow && ctx.hideMainWindow();
+        } else {
+          ctx.showMainWindow();
+        }
+      },
     },
     { type: 'separator' },
     {

@@ -313,7 +313,7 @@ function bootstrapApp() {
         handleAutoStartChange: (enabled) => settingsController.handleAutoStartChange(enabled),
         hasPopupWindow: () => windowManager.hasPopupWindow(),
         togglePopupWindow: () => windowManager.togglePopupWindow(),
-        showMainWindow: () => windowManager.showMainWindow(),
+        showMainWindow: () => windowManager.bringAppToFront(),
         rebuild: () => buildAppMenu(),
       };
       createAppMenu(ctx);
@@ -353,7 +353,31 @@ function bootstrapApp() {
         buildAppMenu();
         updateTrayMenu();
       },
-      showMainWindow: () => windowManager.showMainWindow(),
+      showMainWindow: () => {
+        windowManager.bringAppToFront();
+        // Update tray menu after showing to display "Hide" option
+        updateTrayMenu();
+      },
+      hideMainWindow: () => {
+        try {
+          const mainWindow = getMainWindow();
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.hide();
+            // Update tray menu after hiding to show "Show" option
+            updateTrayMenu();
+          }
+        } catch (err) {
+          if (isDev) console.error('Failed to hide main window:', err);
+        }
+      },
+      isMainWindowVisible: () => {
+        try {
+          const mainWindow = getMainWindow();
+          return mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible();
+        } catch (err) {
+          return false;
+        }
+      },
     };
   }
 
@@ -365,15 +389,8 @@ function bootstrapApp() {
       tray.setToolTip('IrukaDark');
       tray.setContextMenu(createTrayMenu(buildTrayMenuContext()));
 
-      if (process.platform === 'darwin') {
-        tray.on('click', () => {
-          try {
-            windowManager.showMainWindow();
-          } catch (err) {
-            console.error('Failed to show main window from tray click:', err);
-          }
-        });
-      }
+      // Removed automatic window showing on tray click
+      // Users can use the tray menu to show/hide the window
     } catch (error) {
       if (isDev) console.warn('Failed to create tray:', error?.message);
     }
@@ -2012,6 +2029,26 @@ function bootstrapApp() {
     windowManager.createMainWindow();
     buildAppMenu();
     initializeTray();
+
+    // Update tray menu when window visibility changes
+    const mainWindow = getMainWindow();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.on('show', () => {
+        try {
+          updateTrayMenu();
+        } catch (err) {
+          if (isDev) console.error('Failed to update tray menu on show:', err);
+        }
+      });
+      mainWindow.on('hide', () => {
+        try {
+          updateTrayMenu();
+        } catch (err) {
+          if (isDev) console.error('Failed to update tray menu on hide:', err);
+        }
+      });
+    }
+
     registerGlobalShortcuts();
     setupPopupIpcHandlers();
     setupCaptureHandlers();
