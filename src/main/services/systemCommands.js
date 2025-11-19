@@ -11,12 +11,12 @@ const SYSTEM_COMMANDS = {
     icon: '🌙',
     keywords: ['sleep', 'スリープ', '睡眠'],
     execute: () => {
-      return new Promise((resolve, reject) => {
-        exec('pmset sleepnow', (error) => {
-          if (error) reject(error);
-          else resolve();
-        });
+      const { promise, resolve, reject } = Promise.withResolvers();
+      exec('pmset sleepnow', (error) => {
+        if (error) reject(error);
+        else resolve();
       });
+      return promise;
     },
   },
   lock: {
@@ -25,15 +25,15 @@ const SYSTEM_COMMANDS = {
     icon: '🔒',
     keywords: ['lock', 'ロック', '锁定', '鎖定'],
     execute: () => {
-      return new Promise((resolve, reject) => {
-        exec(
-          '/System/Library/CoreServices/Menu\\ Extras/User.menu/Contents/Resources/CGSession -suspend',
-          (error) => {
-            if (error) reject(error);
-            else resolve();
-          }
-        );
-      });
+      const { promise, resolve, reject } = Promise.withResolvers();
+      exec(
+        '/System/Library/CoreServices/Menu\\ Extras/User.menu/Contents/Resources/CGSession -suspend',
+        (error) => {
+          if (error) reject(error);
+          else resolve();
+        }
+      );
+      return promise;
     },
   },
   restart: {
@@ -42,12 +42,12 @@ const SYSTEM_COMMANDS = {
     icon: '🔄',
     keywords: ['restart', 'reboot', '再起動', '重启', '重新啟動'],
     execute: () => {
-      return new Promise((resolve, reject) => {
-        exec('osascript -e \'tell app "System Events" to restart\'', (error) => {
-          if (error) reject(error);
-          else resolve();
-        });
+      const { promise, resolve, reject } = Promise.withResolvers();
+      exec('osascript -e \'tell app "System Events" to restart\'', (error) => {
+        if (error) reject(error);
+        else resolve();
       });
+      return promise;
     },
   },
   shutdown: {
@@ -56,12 +56,12 @@ const SYSTEM_COMMANDS = {
     icon: '⚡',
     keywords: ['shutdown', 'シャットダウン', '关机', '關機'],
     execute: () => {
-      return new Promise((resolve, reject) => {
-        exec('osascript -e \'tell app "System Events" to shut down\'', (error) => {
-          if (error) reject(error);
-          else resolve();
-        });
+      const { promise, resolve, reject } = Promise.withResolvers();
+      exec('osascript -e \'tell app "System Events" to shut down\'', (error) => {
+        if (error) reject(error);
+        else resolve();
       });
+      return promise;
     },
   },
   'volume-up': {
@@ -70,15 +70,15 @@ const SYSTEM_COMMANDS = {
     icon: '🔊',
     keywords: ['volume up', '音量上げる', '音量增大', '增加音量'],
     execute: () => {
-      return new Promise((resolve, reject) => {
-        exec(
-          'osascript -e "set volume output volume ((output volume of (get volume settings)) + 10)"',
-          (error) => {
-            if (error) reject(error);
-            else resolve();
-          }
-        );
-      });
+      const { promise, resolve, reject } = Promise.withResolvers();
+      exec(
+        'osascript -e "set volume output volume ((output volume of (get volume settings)) + 10)"',
+        (error) => {
+          if (error) reject(error);
+          else resolve();
+        }
+      );
+      return promise;
     },
   },
   'volume-down': {
@@ -87,15 +87,15 @@ const SYSTEM_COMMANDS = {
     icon: '🔉',
     keywords: ['volume down', '音量下げる', '音量减小', '降低音量'],
     execute: () => {
-      return new Promise((resolve, reject) => {
-        exec(
-          'osascript -e "set volume output volume ((output volume of (get volume settings)) - 10)"',
-          (error) => {
-            if (error) reject(error);
-            else resolve();
-          }
-        );
-      });
+      const { promise, resolve, reject } = Promise.withResolvers();
+      exec(
+        'osascript -e "set volume output volume ((output volume of (get volume settings)) - 10)"',
+        (error) => {
+          if (error) reject(error);
+          else resolve();
+        }
+      );
+      return promise;
     },
   },
   mute: {
@@ -104,12 +104,12 @@ const SYSTEM_COMMANDS = {
     icon: '🔇',
     keywords: ['mute', 'ミュート', '静音'],
     execute: () => {
-      return new Promise((resolve, reject) => {
-        exec('osascript -e "set volume output muted true"', (error) => {
-          if (error) reject(error);
-          else resolve();
-        });
+      const { promise, resolve, reject } = Promise.withResolvers();
+      exec('osascript -e "set volume output muted true"', (error) => {
+        if (error) reject(error);
+        else resolve();
       });
+      return promise;
     },
   },
   unmute: {
@@ -118,12 +118,12 @@ const SYSTEM_COMMANDS = {
     icon: '🔊',
     keywords: ['unmute', 'ミュート解除', '取消静音'],
     execute: () => {
-      return new Promise((resolve, reject) => {
-        exec('osascript -e "set volume output muted false"', (error) => {
-          if (error) reject(error);
-          else resolve();
-        });
+      const { promise, resolve, reject } = Promise.withResolvers();
+      exec('osascript -e "set volume output muted false"', (error) => {
+        if (error) reject(error);
+        else resolve();
       });
+      return promise;
     },
   },
   'empty-trash': {
@@ -132,12 +132,12 @@ const SYSTEM_COMMANDS = {
     icon: '🗑️',
     keywords: ['empty trash', 'ゴミ箱を空にする', '清空废纸篓', '清空垃圾桶'],
     execute: () => {
-      return new Promise((resolve, reject) => {
-        exec('osascript -e \'tell app "Finder" to empty trash\'', (error) => {
-          if (error) reject(error);
-          else resolve();
-        });
+      const { promise, resolve, reject } = Promise.withResolvers();
+      exec('osascript -e \'tell app "Finder" to empty trash\'', (error) => {
+        if (error) reject(error);
+        else resolve();
       });
+      return promise;
     },
   },
 };

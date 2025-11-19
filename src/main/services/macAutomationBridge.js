@@ -109,136 +109,138 @@ function spawnBridge(
   command,
   { timeoutMs = DEFAULT_TIMEOUT_MS, promptAccessibility = false } = {}
 ) {
-  return new Promise((resolve, reject) => {
-    const executable = resolveExecutablePath();
-    if (!executable) {
-      if (!didWarnMissing) {
-        console.warn(
-          'IrukaAutomation bridge executable not found. Swift automation features disabled.'
-        );
-        didWarnMissing = true;
-      }
-      logBridgeEvent('spawnBridge.notFound', {
-        command,
-        timeoutMs,
-        promptAccessibility,
-      });
-      reject(new Error('SWIFT_BRIDGE_NOT_AVAILABLE'));
-      return;
+  const { promise, resolve, reject } = Promise.withResolvers();
+
+  const executable = resolveExecutablePath();
+  if (!executable) {
+    if (!didWarnMissing) {
+      console.warn(
+        'IrukaAutomation bridge executable not found. Swift automation features disabled.'
+      );
+      didWarnMissing = true;
     }
-
-    const args = [command, '--timeout-ms', String(timeoutMs)];
-    if (promptAccessibility) args.push('--prompt-accessibility');
-
-    const child = spawn(executable, args, {
-      stdio: ['ignore', 'pipe', 'pipe'],
+    logBridgeEvent('spawnBridge.notFound', {
+      command,
+      timeoutMs,
+      promptAccessibility,
     });
+    reject(new Error('SWIFT_BRIDGE_NOT_AVAILABLE'));
+    return promise;
+  }
 
-    logBridgeEvent('spawnBridge.start', {
+  const args = [command, '--timeout-ms', String(timeoutMs)];
+  if (promptAccessibility) args.push('--prompt-accessibility');
+
+  const child = spawn(executable, args, {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  logBridgeEvent('spawnBridge.start', {
+    command,
+    timeoutMs,
+    promptAccessibility,
+    executable,
+    childPid: child.pid,
+  });
+
+  let stdout = '';
+  let stderr = '';
+  let finished = false;
+
+  const timer = setTimeout(
+    () => {
+      if (finished) return;
+      finished = true;
+      try {
+        child.kill('SIGKILL');
+      } catch {}
+      reject(new Error('SWIFT_BRIDGE_TIMEOUT'));
+    },
+    Math.max(timeoutMs + 250, timeoutMs * 1.5)
+  );
+
+  child.stdout.on('data', (chunk) => {
+    stdout += chunk.toString();
+  });
+
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk.toString();
+  });
+
+  child.once('error', (error) => {
+    if (finished) return;
+    finished = true;
+    clearTimeout(timer);
+    logBridgeEvent('spawnBridge.error', {
       command,
       timeoutMs,
       promptAccessibility,
       executable,
-      childPid: child.pid,
+      message: error?.message || '',
+      code: error?.code || '',
+      errno: error?.errno || '',
     });
+    reject(error);
+  });
 
-    let stdout = '';
-    let stderr = '';
-    let finished = false;
+  child.once('exit', (code, signal) => {
+    if (finished) return;
+    finished = true;
+    clearTimeout(timer);
 
-    const timer = setTimeout(
-      () => {
-        if (finished) return;
-        finished = true;
-        try {
-          child.kill('SIGKILL');
-        } catch {}
-        reject(new Error('SWIFT_BRIDGE_TIMEOUT'));
-      },
-      Math.max(timeoutMs + 250, timeoutMs * 1.5)
-    );
-
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk.toString();
-    });
-
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk.toString();
-    });
-
-    child.once('error', (error) => {
-      if (finished) return;
-      finished = true;
-      clearTimeout(timer);
-      logBridgeEvent('spawnBridge.error', {
-        command,
-        timeoutMs,
-        promptAccessibility,
-        executable,
-        message: error?.message || '',
-        code: error?.code || '',
-        errno: error?.errno || '',
-      });
-      reject(error);
-    });
-
-    child.once('exit', (code, signal) => {
-      if (finished) return;
-      finished = true;
-      clearTimeout(timer);
-
-      const payloadRaw = (stdout || '').trim();
-      if (!payloadRaw) {
-        const error = new Error('SWIFT_BRIDGE_EMPTY_OUTPUT');
-        error.meta = { code, signal, stderr: stderr.trim() };
-        logBridgeEvent('spawnBridge.emptyOutput', {
-          command,
-          timeoutMs,
-          promptAccessibility,
-          executable,
-          exitCode: code,
-          signal,
-          stderr: stderr.trim(),
-        });
-        reject(error);
-        return;
-      }
-
-      let payload = null;
-      try {
-        const lastLine = payloadRaw.split('\n').filter(Boolean).pop() || payloadRaw;
-        payload = JSON.parse(lastLine);
-      } catch (e) {
-        const error = new Error('SWIFT_BRIDGE_INVALID_JSON');
-        error.meta = { stdout: payloadRaw, stderr: stderr.trim(), cause: e };
-        logBridgeEvent('spawnBridge.invalidJson', {
-          command,
-          timeoutMs,
-          promptAccessibility,
-          executable,
-          exitCode: code,
-          signal,
-          stdout: payloadRaw,
-          stderr: stderr.trim(),
-          error: e?.message || '',
-        });
-        reject(error);
-        return;
-      }
-
-      logBridgeEvent('spawnBridge.exit', {
+    const payloadRaw = (stdout || '').trim();
+    if (!payloadRaw) {
+      const error = new Error('SWIFT_BRIDGE_EMPTY_OUTPUT');
+      error.meta = { code, signal, stderr: stderr.trim() };
+      logBridgeEvent('spawnBridge.emptyOutput', {
         command,
         timeoutMs,
         promptAccessibility,
         executable,
         exitCode: code,
         signal,
-        payload,
         stderr: stderr.trim(),
       });
-      resolve({ code, signal, payload, stderr: stderr.trim() });
+      reject(error);
+      return;
+    }
+
+    let payload = null;
+    try {
+      const lastLine = payloadRaw.split('\n').filter(Boolean).pop() || payloadRaw;
+      payload = JSON.parse(lastLine);
+    } catch (e) {
+      const error = new Error('SWIFT_BRIDGE_INVALID_JSON');
+      error.meta = { stdout: payloadRaw, stderr: stderr.trim(), cause: e };
+      logBridgeEvent('spawnBridge.invalidJson', {
+        command,
+        timeoutMs,
+        promptAccessibility,
+        executable,
+        exitCode: code,
+        signal,
+        stdout: payloadRaw,
+        stderr: stderr.trim(),
+        error: e?.message || '',
+      });
+      reject(error);
+      return;
+    }
+
+    logBridgeEvent('spawnBridge.exit', {
+      command,
+      timeoutMs,
+      promptAccessibility,
+      executable,
+      exitCode: code,
+      signal,
+      payload,
+      stderr: stderr.trim(),
     });
+    resolve({ code, signal, payload, stderr: stderr.trim() });
   });
+
+  return promise;
 }
 
 async function fetchSelectedText({ timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
@@ -356,110 +358,112 @@ function updateClipboardPopup(historyItems, options = {}) {
 }
 
 async function spawnClipboardPopup(historyItems, options = {}) {
-  return new Promise((resolve, reject) => {
-    const executable = resolveExecutablePath();
-    if (!executable) {
-      logBridgeEvent('spawnClipboardPopup.notFound');
-      reject(new Error('SWIFT_BRIDGE_NOT_AVAILABLE'));
-      return;
-    }
+  const { promise, resolve, reject } = Promise.withResolvers();
 
-    // Prepare items for Swift popup (max 60 items total)
-    // Swift separates them into History tab (30 text items) and HistoryImage tab (30 image items)
-    // Rich text data (RTF, HTML) is passed along with text items for format-preserving paste
-    const items = historyItems
-      .filter((item) => (item.text && typeof item.text === 'string') || item.imageData)
-      .slice(0, 60)
-      .map((item) => ({
-        text: item.text || null,
-        imageData: item.imageData || null,
-        imageDataOriginal: item.imageDataOriginal || null,
-        timestamp: item.timestamp || Date.now(),
-        richText: item.richText || null, // RTF, HTML, Markdown formats
-      }));
+  const executable = resolveExecutablePath();
+  if (!executable) {
+    logBridgeEvent('spawnClipboardPopup.notFound');
+    reject(new Error('SWIFT_BRIDGE_NOT_AVAILABLE'));
+    return promise;
+  }
 
-    if (items.length === 0) {
-      logBridgeEvent('spawnClipboardPopup.noItems');
-      reject(new Error('NO_CLIPBOARD_ITEMS'));
-      return;
-    }
+  // Prepare items for Swift popup (max 60 items total)
+  // Swift separates them into History tab (30 text items) and HistoryImage tab (30 image items)
+  // Rich text data (RTF, HTML) is passed along with text items for format-preserving paste
+  const items = historyItems
+    .filter((item) => (item.text && typeof item.text === 'string') || item.imageData)
+    .slice(0, 60)
+    .map((item) => ({
+      text: item.text || null,
+      imageData: item.imageData || null,
+      imageDataOriginal: item.imageDataOriginal || null,
+      timestamp: item.timestamp || Date.now(),
+      richText: item.richText || null, // RTF, HTML, Markdown formats
+    }));
 
-    const path = require('path');
-    const { app } = require('electron');
+  if (items.length === 0) {
+    logBridgeEvent('spawnClipboardPopup.noItems');
+    reject(new Error('NO_CLIPBOARD_ITEMS'));
+    return promise;
+  }
 
-    const input = {
-      items,
-      // Position is now automatically determined by Swift using cursor location
-      // No need to pass position from Electron
-      isDarkMode: options.isDarkMode || false,
-      opacity: options.opacity || 1.0,
-      activeTab: options.activeTab || 'history',
-      snippetDataPath: path.join(app.getPath('userData'), 'snippets.json'),
-    };
+  const path = require('path');
+  const { app } = require('electron');
 
-    const inputJSON = JSON.stringify(input);
+  const input = {
+    items,
+    // Position is now automatically determined by Swift using cursor location
+    // No need to pass position from Electron
+    isDarkMode: options.isDarkMode || false,
+    opacity: options.opacity || 1.0,
+    activeTab: options.activeTab || 'history',
+    snippetDataPath: path.join(app.getPath('userData'), 'snippets.json'),
+  };
 
-    const child = spawn(executable, ['clipboard-popup'], {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      detached: false,
-    });
+  const inputJSON = JSON.stringify(input);
 
-    // Store the process reference
-    clipboardPopupProcess = child;
-
-    logBridgeEvent('spawnClipboardPopup.start', {
-      itemCount: items.length,
-      childPid: child.pid,
-    });
-
-    let stdout = '';
-    let stderr = '';
-
-    child.stdin.write(inputJSON + '\n');
-
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk.toString();
-    });
-
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk.toString();
-    });
-
-    child.once('error', (error) => {
-      logBridgeEvent('spawnClipboardPopup.error', {
-        message: error?.message || '',
-        code: error?.code || '',
-      });
-      clipboardPopupProcess = null;
-      reject(error);
-    });
-
-    child.once('exit', (code, signal) => {
-      const payloadRaw = (stdout || '').trim();
-      let payload = null;
-
-      if (payloadRaw) {
-        try {
-          const lastLine = payloadRaw.split('\n').filter(Boolean).pop() || payloadRaw;
-          payload = JSON.parse(lastLine);
-        } catch (e) {
-          // Ignore JSON parse errors
-        }
-      }
-
-      logBridgeEvent('spawnClipboardPopup.exit', {
-        exitCode: code,
-        signal,
-        payload,
-        stderr: stderr.trim(),
-      });
-
-      clipboardPopupProcess = null;
-
-      // Return payload so caller can handle pasted item
-      resolve({ code, signal, payload, stderr: stderr.trim() });
-    });
+  const child = spawn(executable, ['clipboard-popup'], {
+    stdio: ['pipe', 'pipe', 'pipe'],
+    detached: false,
   });
+
+  // Store the process reference
+  clipboardPopupProcess = child;
+
+  logBridgeEvent('spawnClipboardPopup.start', {
+    itemCount: items.length,
+    childPid: child.pid,
+  });
+
+  let stdout = '';
+  let stderr = '';
+
+  child.stdin.write(inputJSON + '\n');
+
+  child.stdout.on('data', (chunk) => {
+    stdout += chunk.toString();
+  });
+
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk.toString();
+  });
+
+  child.once('error', (error) => {
+    logBridgeEvent('spawnClipboardPopup.error', {
+      message: error?.message || '',
+      code: error?.code || '',
+    });
+    clipboardPopupProcess = null;
+    reject(error);
+  });
+
+  child.once('exit', (code, signal) => {
+    const payloadRaw = (stdout || '').trim();
+    let payload = null;
+
+    if (payloadRaw) {
+      try {
+        const lastLine = payloadRaw.split('\n').filter(Boolean).pop() || payloadRaw;
+        payload = JSON.parse(lastLine);
+      } catch (e) {
+        // Ignore JSON parse errors
+      }
+    }
+
+    logBridgeEvent('spawnClipboardPopup.exit', {
+      exitCode: code,
+      signal,
+      payload,
+      stderr: stderr.trim(),
+    });
+
+    clipboardPopupProcess = null;
+
+    // Return payload so caller can handle pasted item
+    resolve({ code, signal, payload, stderr: stderr.trim() });
+  });
+
+  return promise;
 }
 
 function normalizeBridgePayload(payload) {

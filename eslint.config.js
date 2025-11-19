@@ -11,7 +11,7 @@ module.exports = [
   {
     files: ['**/*.js'],
     languageOptions: {
-      ecmaVersion: 2022,
+      ecmaVersion: 2024,
       sourceType: 'script',
       globals: {
         ...globals.node,
@@ -35,7 +35,7 @@ module.exports = [
   {
     files: ['src/renderer/**/*.js', 'src/prompt_*.js'],
     languageOptions: {
-      ecmaVersion: 2022,
+      ecmaVersion: 2024,
       sourceType: 'script',
       globals: {
         ...globals.browser,
@@ -49,7 +49,7 @@ module.exports = [
   {
     files: ['scripts/**/*.js'],
     languageOptions: {
-      ecmaVersion: 2022,
+      ecmaVersion: 2024,
       sourceType: 'script',
       globals: { ...globals.node },
     },
