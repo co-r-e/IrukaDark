@@ -131,6 +131,9 @@ async function ensureLangLoaded(lang) {
 }
 
 class IrukaDarkApp {
+  // Constants
+  static IME_DEBOUNCE_MS = 100; // Time to wait after IME composition ends before allowing Enter key
+
   constructor() {
     this.geminiService = new GeminiService();
     this.chatHistoryData = [];
@@ -147,6 +150,13 @@ class IrukaDarkApp {
     this.isGenerating = false;
     this.cancelRequested = false;
     this.isSending = false; // Prevent duplicate sendMessage() execution
+
+    // IME (Input Method Editor) state management for CJK languages
+    this.ime = {
+      isComposing: false,
+      compositionEndTime: 0,
+    };
+
     this.i18nElementsCache = null;
     this.historyContextCache = null;
     this.historyContextCacheTime = 0;
@@ -226,6 +236,47 @@ class IrukaDarkApp {
         const key = el.dataset.i18nPlaceholder;
         el.placeholder = getUIText(key);
       }
+    });
+  }
+
+  /**
+   * Check if an Enter key press should be blocked due to IME composition
+   * @param {KeyboardEvent} event - The keyboard event
+   * @returns {boolean} True if the Enter key should be blocked
+   */
+  isIMEComposing(event) {
+    // Check multiple indicators for IME composition
+    if (event.isComposing || this.ime.isComposing || event.keyCode === 229) {
+      return true;
+    }
+
+    // Block Enter key shortly after composition ends to prevent accidental submission
+    if (
+      this.ime.compositionEndTime &&
+      Date.now() - this.ime.compositionEndTime < IrukaDarkApp.IME_DEBOUNCE_MS
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Setup IME event listeners for an input element
+   * @param {HTMLElement} inputElement - The input or textarea element
+   */
+  setupIMEHandlers(inputElement) {
+    inputElement.addEventListener('compositionstart', () => {
+      this.ime.isComposing = true;
+    });
+
+    inputElement.addEventListener('compositionend', () => {
+      // Delay resetting isComposing to handle timing issues between
+      // compositionend and keydown events in some browsers
+      this.ime.compositionEndTime = Date.now();
+      setTimeout(() => {
+        this.ime.isComposing = false;
+      }, IrukaDarkApp.IME_DEBOUNCE_MS);
     });
   }
 
@@ -350,6 +401,9 @@ class IrukaDarkApp {
   }
 
   bindEvents() {
+    // Send button: Dual function - send message or stop generation
+    // - When AI is thinking (isGenerating=true): Acts as stop button
+    // - When idle (isGenerating=false): Acts as send button
     this.sendBtn.addEventListener('click', () => {
       if (this.isGenerating) {
         this.cancelGeneration();
@@ -411,26 +465,32 @@ class IrukaDarkApp {
       },
       { capture: true }
     );
-    this.isComposing = false;
-    this.messageInput.addEventListener('compositionstart', () => {
-      this.isComposing = true;
-    });
-    this.messageInput.addEventListener('compositionend', () => {
-      this.isComposing = false;
-    });
+
+    // Setup IME handling for message input
+    this.setupIMEHandlers(this.messageInput);
+
+    // Handle Enter key: Dual function - send message or stop generation
+    // - Enter: Send message / Stop generation
+    // - Shift+Enter: New line
+    // - During IME composition: Do nothing (prevents premature submission during CJK input)
     const onEnterToSend = (e) => {
       if (e.key !== 'Enter') return;
-      if (e.shiftKey) return;
-      if (e.isComposing || this.isComposing || e.keyCode === 229) return;
+      if (e.shiftKey) return; // Shift+Enter for new line
+      if (this.isIMEComposing(e)) return; // Ignore during IME composition
+
       e.preventDefault();
       e.stopPropagation();
+
+      // Clean up trailing newlines
       if (this.messageInput && /\n$/.test(this.messageInput.value)) {
         this.messageInput.value = this.messageInput.value.replace(/\n+$/, '');
       }
+
+      // Dual function: stop generation or send message
       if (this.isGenerating) {
-        this.cancelGeneration();
+        this.cancelGeneration(); // Stop button behavior
       } else {
-        this.sendMessage();
+        this.sendMessage(); // Send button behavior
       }
     };
     this.messageInput.addEventListener(
@@ -459,7 +519,7 @@ class IrukaDarkApp {
           e.preventDefault();
           return;
         }
-        if (e.key === 'Enter' && !e.shiftKey && !(e.isComposing || this.isComposing)) {
+        if (e.key === 'Enter' && !e.shiftKey && !this.isIMEComposing(e)) {
           if (this.messageInput) {
             this.messageInput.value = this.messageInput.value.replace(/\n+$/, '');
           }
@@ -2717,34 +2777,49 @@ class IrukaDarkApp {
     this.renderSlashSuggest(childItems);
   }
 
+  /**
+   * Set AI generation state and update UI accordingly
+   * @param {boolean} on - True when AI is generating, false when idle
+   *
+   * Effects:
+   * - Updates isGenerating flag
+   * - Resets cancelRequested flag when starting generation
+   * - Triggers send button icon update (send ↔ stop)
+   */
   setGenerating(on) {
     this.isGenerating = !!on;
-    if (on) this.cancelRequested = false;
+    if (on) this.cancelRequested = false; // Reset cancel flag when starting new generation
     try {
-      this.updateSendButtonIcon();
+      this.updateSendButtonIcon(); // Update button icon: send icon ↔ stop icon
     } catch {}
   }
 
+  /**
+   * Update send button icon based on generation state
+   * - During AI generation (thinking): Shows stop icon (square) to allow cancellation
+   * - When idle: Shows send icon (paper plane) to send message
+   */
   updateSendButtonIcon() {
     try {
       if (!this.sendBtn) return;
+
       if (this.isGenerating) {
-        // Stop icon (square)
+        // Stop icon (square) - clicking will cancel ongoing generation
         this.sendBtn.innerHTML = `
-                    <svg class="w-4 h-4 no-gradient" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <rect x="6" y="6" width="12" height="12"></rect>
-                    </svg>
-                `;
+          <svg class="w-4 h-4 no-gradient" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="6" y="6" width="12" height="12"></rect>
+          </svg>
+        `;
         this.sendBtn.title = getUIText('stop');
         this.sendBtn.setAttribute('aria-label', getUIText('stop'));
       } else {
-        // Send icon (paper plane)
+        // Send icon (paper plane) - clicking will send message
         this.sendBtn.innerHTML = `
-                    <svg class="w-4 h-4 no-gradient" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="M22 2L11 13"></path>
-                      <path d="M22 2L15 22L11 13L2 9L22 2Z"></path>
-                    </svg>
-                `;
+          <svg class="w-4 h-4 no-gradient" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M22 2L11 13"></path>
+            <path d="M22 2L15 22L11 13L2 9L22 2Z"></path>
+          </svg>
+        `;
         this.sendBtn.title = getUIText('send');
         this.sendBtn.setAttribute('aria-label', getUIText('send'));
       }
@@ -2867,20 +2942,42 @@ class IrukaDarkApp {
     // If no images, allow default paste behavior (text only)
   }
 
+  /**
+   * Cancel ongoing AI generation
+   * Called when user clicks stop button during thinking
+   *
+   * Cancellation strategy:
+   * 1. Set cancelRequested flag - ongoing operations check this and ignore results
+   * 2. Try to cancel on main process (best-effort, may not succeed)
+   * 3. Update UI immediately to show cancellation
+   *
+   * Note: Even if main process cancellation fails, the flag ensures
+   * the result will be ignored when it arrives.
+   */
   cancelGeneration() {
     try {
+      // Set cancel flag - ongoing operations will check this and abort
       this.cancelRequested = true;
       if (window?.electronAPI?.cancelAI) {
-        // Best-effort cancel on main process
+        // Best-effort cancel on main process (for shortcut operations)
         window.electronAPI.cancelAI().catch(() => {});
       }
     } catch {}
+
+    // Hide thinking indicator and restore send button
     this.hideTypingIndicator();
     this.setGenerating(false);
+
+    // Show cancellation message to user
     this.addMessage('system', getUIText('canceled'));
   }
 
+  /**
+   * Show typing indicator (thinking animation)
+   * Also changes send button to stop button to allow cancellation
+   */
   showTypingIndicator() {
+    // Set generating state - this triggers send button icon change to stop icon
     this.setGenerating(true);
 
     if (!this.chatHistory) return;
@@ -2911,12 +3008,16 @@ class IrukaDarkApp {
     }
   }
 
+  /**
+   * Hide typing indicator and restore send button
+   */
   hideTypingIndicator() {
     const typingIndicator = document.getElementById('typing-indicator');
     if (typingIndicator) {
       typingIndicator.remove();
     }
 
+    // Reset generating state - this triggers send button icon change back to send icon
     this.setGenerating(false);
   }
 

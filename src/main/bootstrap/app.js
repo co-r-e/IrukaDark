@@ -12,7 +12,6 @@ const {
   BrowserWindow,
   shell,
   screen,
-  powerMonitor,
   nativeImage,
 } = require('electron');
 const path = require('path');
@@ -44,6 +43,7 @@ const { setupAutoUpdates, manualCheckForUpdates } = require('../updates');
 const { AppScanner } = require('../services/appScanner');
 const { FileSearchService } = require('../services/fileSearch');
 const { SystemCommandsService } = require('../services/systemCommands');
+const TerminalService = require('../services/terminalService');
 const {
   spawnClipboardPopup,
   isClipboardPopupActive,
@@ -55,7 +55,6 @@ const { getClipboardHistoryService } = require('../services/clipboardHistory');
 // Import shared shortcut constants and validation functions
 const {
   DEFAULT_SHORTCUTS,
-  RESERVED_SHORTCUTS,
   isReservedShortcut,
   isValidShortcutFormat,
   isValidAction,
@@ -156,6 +155,7 @@ function bootstrapApp() {
   let appScanner = null;
   let fileSearch = null;
   let systemCommands = null;
+  let terminalService = null;
 
   async function getAppScanner() {
     if (!appScanner) {
@@ -182,6 +182,13 @@ function bootstrapApp() {
       systemCommands = new SystemCommandsService();
     }
     return systemCommands;
+  }
+
+  function getTerminalService() {
+    if (!terminalService) {
+      terminalService = new TerminalService();
+    }
+    return terminalService;
   }
 
   function getCurrentLanguage() {
@@ -1778,6 +1785,120 @@ function bootstrapApp() {
       return handleAIGeneration(payload, { imageBase64, mimeType });
     });
 
+    ipcMain.handle('ai:generate-command', async (_e, payload) => {
+      try {
+        const keys = resolveApiKeys();
+        if (!keys.length) {
+          return { error: 'API key is not set. Please set GEMINI_API_KEY.' };
+        }
+
+        const naturalLanguage = String(payload?.prompt ?? '');
+        if (!naturalLanguage) {
+          return { error: 'Prompt is required.' };
+        }
+
+        // Get shell type, OS info, and terminal context
+        const shell = payload?.shell || 'bash';
+        const os = payload?.os || process.platform;
+        const terminalContext = String(payload?.context || '');
+
+        // Construct command generation prompt with context
+        let prompt = `You are a terminal command expert. Convert natural language to shell commands.
+
+User request: ${naturalLanguage}
+
+Shell: ${shell}
+OS: ${os}`;
+
+        // Add terminal context if available
+        if (terminalContext && terminalContext.trim().length > 0) {
+          prompt += `
+
+Current terminal output (last 300 lines):
+\`\`\`
+${terminalContext}
+\`\`\`
+
+Based on the terminal output above, understand the current state (directory, errors, running processes, etc.) and generate the appropriate command.`;
+        }
+
+        prompt += `
+
+Rules:
+- Output ONLY the command, no explanations or markdown
+- Use common, safe commands appropriate for ${shell}
+- Consider the current terminal state shown above
+- If multiple commands needed, use && or ; separators
+- For dangerous operations, add --dry-run or similar flags when possible
+- Return a single line command ready to execute
+
+Command:`;
+
+        const generationConfig = {
+          temperature: 0.3, // Lower for more deterministic output
+          topK: 20,
+          topP: 0.8,
+          maxOutputTokens: 512, // Increased for context-aware responses
+        };
+
+        const result = await handleAIGeneration(
+          {
+            prompt,
+            generationConfig,
+            source: 'terminal',
+            model: 'gemini-3-pro-preview', // Use Gemini 3 Pro for terminal commands
+          },
+          null
+        );
+
+        // Clean up the response (remove any markdown or extra formatting)
+        const command =
+          typeof result === 'string'
+            ? result
+                .replace(/```[a-z]*\n?/g, '')
+                .replace(/`/g, '')
+                .trim()
+            : result?.text
+                ?.replace(/```[a-z]*\n?/g, '')
+                .replace(/`/g, '')
+                .trim() || '';
+
+        // Check for dangerous patterns
+        const dangerousPatterns = [
+          // System destruction
+          /:\(\)\{\s*:\|:&\s*\};:/, // Fork bomb
+          /(sudo\s+)?dd\s+if=/i, // Raw disk operations
+          /(sudo\s+)?mkfs/i, // Format filesystem
+          />\s*\/dev\/(sd[a-z]|hd[a-z]|nvme)/i, // Writing to disk devices
+
+          // Dangerous permissions and remote execution
+          /(sudo\s+)?chmod\s+(-R\s+)?777/i, // chmod 777
+          /(wget|curl).*\|\s*(sh|bash|python|perl)/i, // Piping remote scripts
+        ];
+
+        // Check for dangerous rm commands
+        // Any rm command is considered potentially dangerous
+        const hasRm = /\brm\b/i.test(command);
+
+        const isDangerous = dangerousPatterns.some((pattern) => pattern.test(command)) || hasRm;
+
+        // Debug logging
+        if (hasRm) {
+          console.log('[AI Command] Detected rm command:', {
+            command,
+            isDangerous,
+          });
+        }
+
+        return {
+          command,
+          warning: isDangerous ? 'dangerous' : null,
+        };
+      } catch (err) {
+        return { error: `Command generation error: ${err?.message || 'Unknown error'}` };
+      }
+    });
+
     ipcMain.handle('ai:generate-image-from-text', async (_e, payload) => {
       try {
         const keys = resolveApiKeys();
@@ -2060,6 +2181,9 @@ function bootstrapApp() {
     setupAiHandlers();
     setupRendererSync();
 
+    // Initialize Terminal Service
+    getTerminalService();
+
     // PERFORMANCE: Start periodic garbage collection
     setupPeriodicGC();
 
@@ -2138,6 +2262,11 @@ function bootstrapApp() {
     } catch {}
     try {
       globalShortcut.unregisterAll();
+    } catch {}
+    try {
+      if (terminalService) {
+        terminalService.cleanup();
+      }
     } catch {}
   });
 

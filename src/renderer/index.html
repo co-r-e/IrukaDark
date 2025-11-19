@@ -11,7 +11,11 @@
     <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg" />
     <link rel="apple-touch-icon" href="assets/icons/favicon.svg" />
     <link href="./styles.css" rel="stylesheet" />
+    <link rel="stylesheet" href="./vendor/xterm/xterm.css" />
     <script src="./vendor/lucide-lite.js"></script>
+    <script src="./vendor/xterm/xterm.js"></script>
+    <script src="./vendor/xterm/addon-fit.js"></script>
+    <script src="./vendor/xterm/addon-web-links.js"></script>
     <script src="./i18n/base.js"></script>
     <script src="./i18n/lang/en.js"></script>
     <script src="./i18n/lang/ja.js"></script>
@@ -1061,6 +1065,299 @@
         box-shadow: 0 0 4px rgba(217, 70, 239, 0.5);
       }
 
+      /* Terminal styles */
+      .terminal-container {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        background: rgba(10, 10, 26, 0.95);
+        overflow: hidden;
+      }
+
+      html:not(.theme-dark) .terminal-container {
+        background: rgba(255, 255, 255, 0.95);
+      }
+
+      .terminal-tabs {
+        display: flex;
+        gap: 0;
+        padding: 4px 8px;
+        background: rgba(0, 0, 0, 0.3);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        overflow-x: auto;
+        flex-shrink: 0;
+      }
+
+      html:not(.theme-dark) .terminal-tabs {
+        background: rgba(0, 0, 0, 0.05);
+        border-bottom-color: rgba(0, 0, 0, 0.1);
+      }
+
+      .terminal-tab {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 6px;
+        background: transparent;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        flex-shrink: 0;
+      }
+
+      html:not(.theme-dark) .terminal-tab {
+        background: transparent;
+      }
+
+      .terminal-tab:hover {
+        background: transparent;
+      }
+
+      html:not(.theme-dark) .terminal-tab:hover {
+        background: transparent;
+      }
+
+      .terminal-tab.active {
+        background: transparent;
+      }
+
+      .terminal-tab-name {
+        font-size: 10px;
+        color: #9ca3af;
+        font-weight: 500;
+        user-select: none;
+        transition: color 0.15s ease;
+      }
+
+      html:not(.theme-dark) .terminal-tab-name {
+        color: #9ca3af;
+      }
+
+      .terminal-tab:hover .terminal-tab-name {
+        color: #e5e7eb;
+      }
+
+      html:not(.theme-dark) .terminal-tab:hover .terminal-tab-name {
+        color: #374151;
+      }
+
+      .terminal-tab.active .terminal-tab-name {
+        color: #e5e7eb;
+      }
+
+      html:not(.theme-dark) .terminal-tab.active .terminal-tab-name {
+        color: #0b1220;
+      }
+
+      .terminal-tab-menu-btn {
+        appearance: none;
+        background: transparent;
+        border: none;
+        color: #6b7280;
+        font-size: 10px;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0;
+        transition: color 0.15s ease;
+        opacity: 0.6;
+      }
+
+      .terminal-tab:hover .terminal-tab-menu-btn,
+      .terminal-tab.active .terminal-tab-menu-btn {
+        opacity: 1;
+      }
+
+      .terminal-tab-menu-btn:hover {
+        color: #e5e7eb;
+      }
+
+      html:not(.theme-dark) .terminal-tab-menu-btn:hover {
+        color: #374151;
+      }
+
+      /* Terminal tab menu */
+      .terminal-tab-menu {
+        position: fixed;
+        background: rgba(10, 10, 26, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        padding: 4px;
+        min-width: 140px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        z-index: 10000;
+        backdrop-filter: blur(8px);
+      }
+
+      html:not(.theme-dark) .terminal-tab-menu {
+        background: rgba(255, 255, 255, 0.95);
+        border-color: rgba(0, 0, 0, 0.12);
+      }
+
+      .terminal-tab-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        color: #e5e7eb;
+        font-size: 9px;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background 0.15s ease;
+      }
+
+      html:not(.theme-dark) .terminal-tab-menu-item {
+        color: #374151;
+      }
+
+      .terminal-tab-menu-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      html:not(.theme-dark) .terminal-tab-menu-item:hover {
+        background: rgba(0, 0, 0, 0.05);
+      }
+
+      .terminal-tab-menu-item svg {
+        flex-shrink: 0;
+      }
+
+      .terminal-tab-menu-item-danger {
+        color: #ff4d6d;
+      }
+
+      .terminal-tab-menu-item-danger:hover {
+        background: rgba(255, 77, 109, 0.1);
+      }
+
+      .terminal-content {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+        min-height: 0;
+      }
+
+      .terminal-instance {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 8px 8px 0 8px;
+      }
+
+      .terminal-instance .xterm {
+        height: 100%;
+        padding-bottom: 8px;
+      }
+
+      /* Terminal Footer */
+      #terminalFooter {
+        position: relative;
+        background: rgba(10, 10, 26, 0.95);
+      }
+
+      html:not(.theme-dark) #terminalFooter {
+        background: rgba(255, 255, 255, 0.95);
+      }
+
+      /* ========================================
+         Terminal AI Command Input
+         ======================================== */
+
+      /* Footer container */
+      .terminal-ai-footer {
+        padding: 0 8px;
+        margin: 0;
+        width: 100%;
+      }
+
+      /* Input wrapper - centered with max-width */
+      .terminal-ai-input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        width: 100%;
+        margin: 0 auto;
+      }
+
+      /* Textarea input - auto-resizing with Enter/Shift+Enter support */
+      .terminal-ai-input {
+        width: 100%;
+        min-height: 28px;
+        max-height: 120px;
+        padding: 6px 32px 6px 8px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        color: #e5e7eb;
+        font-size: 10px;
+        font-family: inherit;
+        line-height: 1.4;
+        outline: none;
+        resize: none;
+        overflow-y: auto;
+        transition: all 0.2s;
+      }
+
+      html:not(.theme-dark) .terminal-ai-input {
+        background: rgba(0, 0, 0, 0.05);
+        border-color: rgba(0, 0, 0, 0.2);
+        color: #111827;
+      }
+
+      .terminal-ai-input:focus {
+        border-color: #ff4d6d;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      html:not(.theme-dark) .terminal-ai-input:focus {
+        background: rgba(0, 0, 0, 0.08);
+      }
+
+      .terminal-ai-input::placeholder {
+        color: #9ca3af;
+        white-space: nowrap;
+      }
+
+      html:not(.theme-dark) .terminal-ai-input::placeholder {
+        color: #6b7280;
+      }
+
+      /* Submit button - Lucide ArrowUp icon */
+      .terminal-ai-button {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 22px;
+        height: 22px;
+        padding: 0;
+        background: transparent;
+        border: none;
+        border-radius: 50%;
+        color: #ffffff;
+        font-size: 10px;
+        line-height: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+      }
+
+      .terminal-ai-button:hover:not(:disabled) {
+        transform: translateY(-50%) scale(1.1);
+      }
+
+      .terminal-ai-button:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+
+      html:not(.theme-dark) .terminal-ai-button {
+        color: #000000;
+      }
+
       /* Drop target for nesting inside folder */
       .drop-target-nest {
         background: rgba(217, 70, 239, 0.08);
@@ -1112,6 +1409,14 @@
           </button>
           <button id="memoTab" class="titlebar-tab" data-tab="memo" data-i18n="clipboard.tabMemo">
             Memo
+          </button>
+          <button
+            id="terminalTab"
+            class="titlebar-tab"
+            data-tab="terminal"
+            data-i18n="terminal.tab"
+          >
+            Terminal
           </button>
           <button
             id="settingsTab"
@@ -1199,6 +1504,12 @@
           placeholder="Write your notes here..."
           data-i18n-placeholder="clipboard.memoPlaceholder"
         ></textarea>
+      </div>
+
+      <!-- Terminal -->
+      <div id="terminalContainer" class="terminal-container" style="display: none">
+        <div id="terminalTabs" class="terminal-tabs"></div>
+        <div id="terminalContent" class="terminal-content"></div>
       </div>
 
       <!-- Launcher -->
@@ -1371,6 +1682,9 @@
           </button>
         </div>
       </div>
+
+      <!-- Terminal Footer -->
+      <div id="terminalFooter" class="tab-footer" style="display: none"></div>
 
       <!-- Launcher Footer -->
       <div id="launcherFooter" class="tab-footer" style="display: none">
@@ -1560,6 +1874,7 @@
 
     <script src="./clipboard_renderer.js"></script>
     <script src="./launcher_renderer.js"></script>
+    <script src="./terminal_renderer.js"></script>
     <script src="./settings_renderer.js"></script>
     <script>
       // Tab switching logic
@@ -1569,23 +1884,27 @@
         const snippetTab = document.getElementById('snippetTab');
         const launcherTab = document.getElementById('launcherTab');
         const memoTab = document.getElementById('memoTab');
+        const terminalTab = document.getElementById('terminalTab');
         const settingsTab = document.getElementById('settingsTab');
 
         const chatHistory = document.getElementById('chatHistory');
         const clipboardList = document.getElementById('clipboardList');
         const snippetList = document.getElementById('snippetList');
         const memoContainer = document.getElementById('memoContainer');
+        const terminalContainer = document.getElementById('terminalContainer');
         const launcherContainer = document.getElementById('launcherContainer');
         const settingsContainer = document.getElementById('settingsContainer');
         const historyFooter = document.getElementById('historyFooter');
         const snippetFooter = document.getElementById('snippetFooter');
         const memoFooter = document.getElementById('memoFooter');
+        const terminalFooter = document.getElementById('terminalFooter');
         const launcherFooter = document.getElementById('launcherFooter');
         const settingsFooter = document.getElementById('settingsFooter');
         const inputArea = document.getElementById('inputArea');
 
         let clipboardUI = null;
         let memoUI = null;
+        let terminalUI = null;
         let launcherUI = null;
         let settingsUI = null;
 
@@ -1612,6 +1931,7 @@
           snippetTab.classList.remove('active');
           launcherTab.classList.remove('active');
           memoTab.classList.remove('active');
+          terminalTab.classList.remove('active');
           settingsTab.classList.remove('active');
 
           // Hide all views
@@ -1621,11 +1941,13 @@
           clipboardList.style.display = 'none';
           snippetList.style.display = 'none';
           memoContainer.style.display = 'none';
+          terminalContainer.style.display = 'none';
           launcherContainer.style.display = 'none';
           settingsContainer.style.display = 'none';
           historyFooter.style.display = 'none';
           snippetFooter.style.display = 'none';
           memoFooter.style.display = 'none';
+          terminalFooter.style.display = 'none';
           launcherFooter.style.display = 'none';
           settingsFooter.style.display = 'none';
 
@@ -1708,6 +2030,26 @@
               if (!memoUI) {
                 memoUI = new MemoUI();
               }
+            } else if (tabName === 'terminal') {
+              terminalTab.classList.add('active');
+              terminalContainer.style.display = 'flex';
+              terminalFooter.style.display = 'flex';
+
+              // Initialize terminal UI if not already done
+              if (!terminalUI) {
+                terminalUI = new TerminalUI();
+              } else {
+                // Re-fit active terminal when switching to terminal tab
+                if (terminalUI.activeTerminalId) {
+                  const activeTerminal = terminalUI.terminals.get(terminalUI.activeTerminalId);
+                  if (activeTerminal && activeTerminal.fitAddon) {
+                    setTimeout(() => {
+                      activeTerminal.fitAddon.fit();
+                      activeTerminal.term.focus();
+                    }, 50);
+                  }
+                }
+              }
             } else if (tabName === 'settings') {
               settingsTab.classList.add('active');
               settingsContainer.style.display = 'block';
@@ -1726,10 +2068,11 @@
         snippetTab.addEventListener('click', () => switchTab('snippet'));
         launcherTab.addEventListener('click', () => switchTab('launcher'));
         memoTab.addEventListener('click', () => switchTab('memo'));
+        terminalTab.addEventListener('click', () => switchTab('terminal'));
         settingsTab.addEventListener('click', () => switchTab('settings'));
 
         // Keyboard navigation for tabs
-        const tabs = ['chat', 'history', 'snippet', 'launcher', 'memo', 'settings'];
+        const tabs = ['chat', 'history', 'snippet', 'launcher', 'memo', 'terminal', 'settings'];
 
         function getCurrentTabIndex() {
           if (chatTab.classList.contains('active')) return 0;
@@ -1737,7 +2080,8 @@
           if (snippetTab.classList.contains('active')) return 2;
           if (launcherTab.classList.contains('active')) return 3;
           if (memoTab.classList.contains('active')) return 4;
-          if (settingsTab.classList.contains('active')) return 5;
+          if (terminalTab.classList.contains('active')) return 5;
+          if (settingsTab.classList.contains('active')) return 6;
           return 0; // Default to chat
         }
 
@@ -1753,7 +2097,9 @@
                     ? launcherTab
                     : tabName === 'memo'
                       ? memoTab
-                      : settingsTab;
+                      : tabName === 'terminal'
+                        ? terminalTab
+                        : settingsTab;
 
           if (tabElement) {
             tabElement.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });

@@ -1104,11 +1104,7 @@ html.solid-window.theme-dark #messageInput {
 
 /* status indicator non-interactive styling */
 
-/* Remove focus ring specifically for chat input */
-#messageInput:focus {
-  box-shadow: none !important;
-  outline: none !important;
-}
+/* Chat input focus styles defined below */
 
 /* Ensure input area reserves space for button and stays tidy (stable across sizes) */
 #inputWrapper {
@@ -1208,10 +1204,15 @@ html[dir='rtl'] .toast-container {
   white-space: pre-wrap;
 }
 
-/* Higher specificity to re-introduce a subtle focus ring in dark mode */
-.theme-dark #messageInput:focus {
-  box-shadow: 0 0 0 2px rgba(217, 70, 239, 0.35) !important;
-  border-color: rgba(255, 255, 255, 0.2) !important;
+/* Focus ring for message input (same red color in both light and dark mode) */
+#messageInput:focus {
+  box-shadow: 0 0 0 2px rgba(255, 77, 109, 0.35) !important;
+  border-color: rgba(255, 77, 109, 0.4) !important;
+}
+
+html:not(.theme-dark) #messageInput:focus {
+  box-shadow: 0 0 0 2px rgba(255, 77, 109, 0.25) !important;
+  border-color: rgba(255, 77, 109, 0.4) !important;
 }
 
 /* Slash command suggest */
@@ -1484,7 +1485,7 @@ html[dir='rtl'] .slash-suggest {
 
 /* Search Footer Styles */
 .tab-footer {
-  padding: 6px 8px;
+  padding: 4px 8px;
   border-top: none;
   background: transparent;
 }
@@ -2182,4 +2183,354 @@ html:not(.theme-dark) .api-key-help-text {
   flex-shrink: 0;
   width: 14px;
   height: 14px;
+}
+
+/* ==========================================
+   Terminal AI Status Messages
+   ========================================== */
+
+/* Status message container above input */
+.terminal-ai-status {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+}
+
+.terminal-ai-status-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.terminal-ai-status-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Loading spinner */
+.terminal-ai-status-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: terminal-spin 0.8s linear infinite;
+}
+
+@keyframes terminal-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Status type variants */
+.terminal-ai-status-loading {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+html:not(.theme-dark) .terminal-ai-status-loading {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+.terminal-ai-status-info {
+  background: rgba(107, 114, 128, 0.15);
+  color: #6b7280;
+  border: 1px solid rgba(107, 114, 128, 0.3);
+}
+
+html:not(.theme-dark) .terminal-ai-status-info {
+  background: rgba(75, 85, 99, 0.1);
+  color: #4b5563;
+  border: 1px solid rgba(75, 85, 99, 0.2);
+}
+
+.terminal-ai-status-error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+html:not(.theme-dark) .terminal-ai-status-error {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.terminal-ai-status-success {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+html:not(.theme-dark) .terminal-ai-status-success {
+  background: rgba(5, 150, 105, 0.1);
+  color: #059669;
+  border: 1px solid rgba(5, 150, 105, 0.2);
+}
+
+/* Hide spinner for non-loading states */
+.terminal-ai-status-info .terminal-ai-status-spinner,
+.terminal-ai-status-error .terminal-ai-status-spinner,
+.terminal-ai-status-success .terminal-ai-status-spinner {
+  display: none;
+}
+
+/* ==========================================
+   Terminal AI Command Preview
+   ========================================== */
+
+/* Command preview popup */
+.terminal-ai-preview {
+  /* Positioning: Above input field */
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 16px);
+
+  /* Layout */
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 12px 16px;
+  border-radius: 8px;
+
+  /* Dark theme: Match terminal background exactly */
+  background: #0a0a1a;
+  border: 1px solid rgba(107, 114, 128, 0.25);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.2);
+}
+
+html:not(.theme-dark) .terminal-ai-preview {
+  /* Light theme: Match terminal background exactly */
+  background: #ffffff;
+  border: 1px solid rgba(55, 65, 81, 0.15);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Command code display */
+.terminal-ai-preview code {
+  display: block;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #e5e7eb;
+  background: #0a0a1a;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(107, 114, 128, 0.3);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+html:not(.theme-dark) .terminal-ai-preview code {
+  color: #111827;
+  background: #ffffff;
+  border: 1px solid rgba(55, 65, 81, 0.2);
+}
+
+/* Warning message */
+.terminal-ai-warning {
+  display: none;
+  padding: 8px 12px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  color: #ef4444;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+html:not(.theme-dark) .terminal-ai-warning {
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  color: #dc2626;
+}
+
+/* Preview action buttons */
+.terminal-ai-preview-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.terminal-ai-preview-button {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: none;
+  background: rgba(107, 114, 128, 0.15);
+  color: #e5e7eb;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+html:not(.theme-dark) .terminal-ai-preview-button {
+  border: none;
+  background: rgba(55, 65, 81, 0.1);
+  color: #374151;
+}
+
+.terminal-ai-preview-button:hover {
+  background: rgba(107, 114, 128, 0.25);
+}
+
+html:not(.theme-dark) .terminal-ai-preview-button:hover {
+  background: rgba(55, 65, 81, 0.18);
+}
+
+.terminal-ai-preview-button:active {
+  transform: scale(0.98);
+}
+
+/* Execute button (primary action) */
+.terminal-ai-preview-button:first-child {
+  border: none;
+  background: transparent;
+  background-image: linear-gradient(135deg, #ff4d6d, #d946ef);
+  color: #ffffff;
+}
+
+html:not(.theme-dark) .terminal-ai-preview-button:first-child {
+  border: none;
+  background: transparent;
+  background-image: linear-gradient(135deg, #ff4d6d, #d946ef);
+  color: #ffffff;
+}
+
+.terminal-ai-preview-button:first-child:hover {
+  filter: brightness(1.1);
+}
+
+html:not(.theme-dark) .terminal-ai-preview-button:first-child:hover {
+  filter: brightness(1.1);
+}
+
+/* ==========================================
+   Terminal AI Input Footer
+   ========================================== */
+
+/* AI command input footer container */
+.terminal-ai-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: #0a0a1a;
+}
+
+html:not(.theme-dark) .terminal-ai-footer {
+  background: #ffffff;
+}
+
+/* Input wrapper - positioned relative for absolute preview popup */
+.terminal-ai-input-wrapper {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+/* AI command input textarea */
+.terminal-ai-input {
+  flex: 1;
+  min-height: 36px;
+  max-height: 120px;
+  padding: 8px 12px;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #e5e7eb;
+  background: #0a0a1a;
+  border: 1px solid rgba(107, 114, 128, 0.3);
+  border-radius: 6px;
+  resize: none;
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+html:not(.theme-dark) .terminal-ai-input {
+  color: #111827;
+  background: #ffffff;
+  border: 1px solid rgba(55, 65, 81, 0.25);
+}
+
+.terminal-ai-input:focus {
+  border-color: rgba(255, 77, 109, 0.5);
+  box-shadow: 0 0 0 2px rgba(255, 77, 109, 0.2);
+}
+
+html:not(.theme-dark) .terminal-ai-input:focus {
+  border-color: rgba(255, 77, 109, 0.4);
+  box-shadow: 0 0 0 2px rgba(255, 77, 109, 0.15);
+}
+
+.terminal-ai-input::placeholder {
+  color: rgba(107, 114, 128, 0.6);
+}
+
+html:not(.theme-dark) .terminal-ai-input::placeholder {
+  color: rgba(55, 65, 81, 0.5);
+}
+
+/* AI generate/stop button */
+.terminal-ai-button {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  background-image: linear-gradient(135deg, #ff4d6d, #d946ef);
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+html:not(.theme-dark) .terminal-ai-button {
+  border: none;
+  background: transparent;
+  background-image: linear-gradient(135deg, #ff4d6d, #d946ef);
+  color: #ffffff;
+}
+
+.terminal-ai-button:hover {
+  opacity: 0.85;
+  transform: scale(1.05);
+}
+
+html:not(.theme-dark) .terminal-ai-button:hover {
+  opacity: 0.85;
+  transform: scale(1.05);
+}
+
+.terminal-ai-button:active {
+  transform: scale(0.95);
+}
+
+.terminal-ai-button svg {
+  width: 16px;
+  height: 16px;
 }

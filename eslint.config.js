@@ -6,12 +6,12 @@ const importPlugin = require('eslint-plugin-import');
 /** @type {import('eslint').Linter.FlatConfig[]} */
 module.exports = [
   {
-    ignores: ['dist/**', 'node_modules/**', 'build/**'],
+    ignores: ['dist/**', 'node_modules/**', 'build/**', 'src/renderer/vendor/**'],
   },
   {
     files: ['**/*.js'],
     languageOptions: {
-      ecmaVersion: 2021,
+      ecmaVersion: 2022,
       sourceType: 'script',
       globals: {
         ...globals.node,
@@ -35,7 +35,7 @@ module.exports = [
   {
     files: ['src/renderer/**/*.js', 'src/prompt_*.js'],
     languageOptions: {
-      ecmaVersion: 2021,
+      ecmaVersion: 2022,
       sourceType: 'script',
       globals: {
         ...globals.browser,
@@ -49,7 +49,7 @@ module.exports = [
   {
     files: ['scripts/**/*.js'],
     languageOptions: {
-      ecmaVersion: 2021,
+      ecmaVersion: 2022,
       sourceType: 'script',
       globals: { ...globals.node },
     },

@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   aiGenerate: (prompt, options = {}) => ipcRenderer.invoke('ai:generate', { prompt, ...options }),
   aiGenerateWithImage: (prompt, imageBase64, mimeType = 'image/png', options = {}) =>
     ipcRenderer.invoke('ai:generate-with-image', { prompt, imageBase64, mimeType, ...options }),
+  generateTerminalCommand: (prompt, options = {}) =>
+    ipcRenderer.invoke('ai:generate-command', { prompt, ...options }),
   generateImageFromText: (prompt, options = {}) =>
     ipcRenderer.invoke('ai:generate-image-from-text', { prompt, ...options }),
   generateVideoFromText: (prompt, options = {}) =>
@@ -111,4 +113,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Gemini API Key
   getGeminiApiKey: () => ipcRenderer.invoke('settings:get-gemini-api-key'),
   saveGeminiApiKey: (apiKey) => ipcRenderer.invoke('settings:save-gemini-api-key', apiKey),
+});
+
+// Terminal API
+contextBridge.exposeInMainWorld('api', {
+  invoke: (channel, data) => ipcRenderer.invoke(channel, data),
+  send: (channel, data) => ipcRenderer.send(channel, data),
+  receive: (channel, func) => {
+    ipcRenderer.on(channel, (event, ...args) => func(...args));
+  },
 });
