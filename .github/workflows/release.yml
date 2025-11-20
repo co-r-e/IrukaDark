@@ -53,11 +53,11 @@ jobs:
         with:
           ref: ${{ env.RELEASE_TAG }}
 
-      - name: Set up Python 3.12 for node-gyp
+      - name: Set up Python 3.11 for node-gyp
         id: setup-python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.11'
 
       - name: Pin Python for node-gyp
         run: |
