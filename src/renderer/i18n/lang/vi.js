@@ -158,6 +158,7 @@
         moveToCursor: 'Di chuyển popup đến con trỏ',
         resetPosition: 'Đặt lại vị trí popup',
         clipboardPopup: 'Lịch sử clipboard',
+        toggleMainWindow: 'Chuyển đổi cửa sổ chính',
       },
     },
     common: {

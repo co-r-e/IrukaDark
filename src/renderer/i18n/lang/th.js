@@ -158,6 +158,7 @@
         moveToCursor: 'ย้ายป๊อปอัปไปที่เคอร์เซอร์',
         resetPosition: 'รีเซ็ตตำแหน่งป๊อปอัป',
         clipboardPopup: 'ประวัติคลิปบอร์ด',
+        toggleMainWindow: 'สลับหน้าต่างหลัก',
       },
     },
     common: {

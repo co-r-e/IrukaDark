@@ -885,6 +885,32 @@ function bootstrapApp() {
       }
     }
 
+    // Toggle main window shortcut
+    if (shortcuts.toggleMainWindow) {
+      try {
+        const c = shortcuts.toggleMainWindow;
+        globalShortcut.register(c, () => {
+          logShortcutEvent('shortcut.trigger', { accel: c, kind: 'toggle_main_window' });
+          try {
+            const mainWindow = getMainWindow();
+            if (!mainWindow || mainWindow.isDestroyed()) return;
+
+            // Toggle window visibility
+            if (mainWindow.isVisible()) {
+              mainWindow.hide();
+            } else {
+              bringMainWindowToFront(mainWindow);
+            }
+          } catch (e) {
+            if (isDev) console.warn('Toggle main window shortcut failed:', e?.message);
+          }
+        });
+        if (isDev) console.log(`Toggle main window shortcut registered: ${c}`);
+      } catch (e) {
+        if (isDev) console.warn('Failed to register toggle main window shortcut:', e?.message);
+      }
+    }
+
     try {
       const mainWindow = getMainWindow();
       if (mainWindow && !mainWindow.isDestroyed() && !silent) {

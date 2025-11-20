@@ -158,6 +158,7 @@
         moveToCursor: "Pop-up'ı imlece taşı",
         resetPosition: 'Pop-up konumunu sıfırla',
         clipboardPopup: 'Pano geçmişi',
+        toggleMainWindow: 'Ana pencereyi değiştir',
       },
     },
     common: {

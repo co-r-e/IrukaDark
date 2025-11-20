@@ -159,6 +159,7 @@
         moveToCursor: 'Sposta popup al cursore',
         resetPosition: 'Ripristina posizione popup',
         clipboardPopup: 'Cronologia appunti',
+        toggleMainWindow: 'Attiva/Disattiva finestra principale',
       },
     },
     common: {

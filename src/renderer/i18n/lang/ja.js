@@ -196,6 +196,7 @@
         moveToCursor: 'ポップアップ移動',
         resetPosition: 'ポップアップリセット',
         clipboardPopup: 'クリップボード履歴',
+        toggleMainWindow: 'メインウィンドウ表示切替',
       },
     },
     apiKey: {

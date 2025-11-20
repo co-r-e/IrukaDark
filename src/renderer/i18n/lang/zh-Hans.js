@@ -154,6 +154,7 @@
         moveToCursor: '移动弹窗到光标',
         resetPosition: '重置弹窗位置',
         clipboardPopup: '剪贴板历史',
+        toggleMainWindow: '切换主窗口',
       },
     },
     common: {

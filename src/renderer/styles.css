@@ -76,7 +76,7 @@ body {
   --popup-bg-light: rgba(255, 255, 255, 0.95);
   --popup-border-dark: rgba(255, 255, 255, 0.12);
   --popup-border-light: rgba(0, 0, 0, 0.12);
-  --popup-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --popup-shadow: 0 7px 20px rgba(0, 0, 0, 0.4);
   --popup-blur: 8px;
   --popup-z-index: 10001;
   --popup-min-width: 200px;
@@ -1777,12 +1777,12 @@ html:not(.theme-dark) .settings-section-title {
 }
 
 .settings-item {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   padding: 8px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  gap: 12px;
+  gap: 2px;
   min-height: 32px;
 }
 
@@ -1810,6 +1810,7 @@ html:not(.theme-dark) .settings-item:hover {
   font-size: 10px;
   line-height: 1.5;
   font-weight: 500;
+  margin-bottom: 2px;
 }
 
 html:not(.theme-dark) .settings-item-label {
@@ -1820,7 +1821,8 @@ html:not(.theme-dark) .settings-item-label {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;
+  width: 100%;
+  justify-content: space-between;
 }
 
 .shortcut-key-display {
@@ -1831,8 +1833,8 @@ html:not(.theme-dark) .settings-item-label {
   border: 1px solid var(--border-overlay-light);
   border-radius: var(--radius-md);
   color: var(--text-primary-dark);
-  min-width: 80px;
-  text-align: center;
+  flex: 1;
+  text-align: left;
   white-space: nowrap;
   font-weight: 500;
   letter-spacing: 0.5px;

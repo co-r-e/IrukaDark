@@ -159,6 +159,7 @@
         moveToCursor: 'Mover popup al cursor',
         resetPosition: 'Restablecer posición del popup',
         clipboardPopup: 'Historial del portapapeles',
+        toggleMainWindow: 'Alternar ventana principal',
       },
     },
     common: {

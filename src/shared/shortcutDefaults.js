@@ -21,6 +21,7 @@ const DEFAULT_SHORTCUTS = {
   moveToCursor: 'Alt+Z',
   resetPosition: 'Alt+Shift+Z',
   clipboardPopup: 'Command+Shift+V',
+  toggleMainWindow: 'Alt+Space',
 };
 
 /**

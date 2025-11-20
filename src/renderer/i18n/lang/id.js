@@ -158,6 +158,7 @@
         moveToCursor: 'Pindahkan popup ke kursor',
         resetPosition: 'Atur ulang posisi popup',
         clipboardPopup: 'Riwayat clipboard',
+        toggleMainWindow: 'Alihkan jendela utama',
       },
     },
     common: {

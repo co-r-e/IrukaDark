@@ -195,6 +195,7 @@
         moveToCursor: 'Move Popup to Cursor',
         resetPosition: 'Reset Popup Position',
         clipboardPopup: 'Clipboard History',
+        toggleMainWindow: 'Toggle Main Window',
       },
     },
     apiKey: {
