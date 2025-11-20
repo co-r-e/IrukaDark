@@ -2762,7 +2762,10 @@ class IrukaDarkApp {
    */
   setGenerating(on) {
     this.isGenerating = !!on;
-    if (on) this.cancelRequested = false; // Reset cancel flag when starting new generation
+    if (on) {
+      this.cancelRequested = false; // Reset cancel flag when starting new generation
+      this.disableAutoScrollCount = 0; // Reset scroll lock counter to ensure scrolling works
+    }
     try {
       this.updateSendButtonIcon(); // Update button icon: send icon ↔ stop icon
     } catch {}
