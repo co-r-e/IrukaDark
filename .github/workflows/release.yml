@@ -71,29 +71,36 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies (npm)
-        shell: bash
-        run: |
-          set -euxo pipefail
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
-
-      - name: Build Swift automation bridge
-        shell: bash
-        run: |
-          set -euxo pipefail
-          npm run build:swift
-
-      - name: Cache Electron caches
+      - name: Cache Electron binaries
         uses: actions/cache@v4
         with:
           path: |
             ~/.cache/electron
             ~/.cache/electron-builder
           key: ${{ runner.os }}-${{ matrix.arch }}-electron-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Install dependencies (npm) with retry
+        uses: nick-fields/retry-action@v3
+        env:
+          # Fallback to China mirror if GitHub releases are unavailable
+          ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: |
+            set -euxo pipefail
+            if [ -f package-lock.json ]; then
+              npm ci
+            else
+              npm install
+            fi
+
+      - name: Build Swift automation bridge
+        shell: bash
+        run: |
+          set -euxo pipefail
+          npm run build:swift
 
       - name: Decode signing certs and Apple API key
         env:

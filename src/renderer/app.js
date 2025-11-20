@@ -2153,10 +2153,7 @@ class IrukaDarkApp {
     messageDiv.appendChild(videosContainer);
     this.chatHistory.appendChild(messageDiv);
 
-    // Scroll to bottom to show the new videos
-    if (this.disableAutoScrollCount === 0) {
-      this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
-    }
+    // Video generation result scroll disabled - only user/system messages should trigger scroll
   }
 
   addImagesMessage(results, altText = '') {
@@ -2187,10 +2184,7 @@ class IrukaDarkApp {
 
     this.chatHistory.appendChild(messageDiv);
 
-    // Scroll to bottom to show the new images
-    if (this.disableAutoScrollCount === 0) {
-      this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
-    }
+    // Image generation result scroll disabled - only user/system messages should trigger scroll
   }
 
   showImageOverlay(imageBase64, mimeType, altText, imgElement) {
@@ -2979,10 +2973,7 @@ class IrukaDarkApp {
     `;
 
     this.chatHistory.appendChild(typingDiv);
-    // Only auto-scroll if not disabled (consistent with addMessage behavior)
-    if (this.disableAutoScrollCount === 0) {
-      this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
-    }
+    // Typing indicator scroll disabled - only user/system messages should trigger scroll
   }
 
   /**
@@ -3203,7 +3194,8 @@ class IrukaDarkApp {
     }
 
     // Scroll after icon initialization (in next frame to ensure layout is complete)
-    if (this.disableAutoScrollCount === 0) {
+    // Only scroll for user messages, system messages, and system-question messages (NOT AI responses)
+    if (this.disableAutoScrollCount === 0 && type !== 'ai') {
       requestAnimationFrame(() => {
         if (this.chatHistory && this.chatHistory.isConnected) {
           this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
