@@ -25,6 +25,14 @@ class TerminalUI {
       return;
     }
 
+    // Performance optimization: Data buffering for terminal output
+    this.dataBuffers = new Map(); // terminalId -> { buffer: [], timeoutId: null }
+    this.BUFFER_FLUSH_INTERVAL = 16; // 16ms (~60fps)
+
+    // Performance optimization: Debounced resize handler
+    this.resizeDebounceMap = new Map(); // terminalId -> timeoutId
+    this.RESIZE_DEBOUNCE_DELAY = 150; // 150ms debounce
+
     this.init();
   }
 
@@ -49,32 +57,41 @@ class TerminalUI {
     // Setup theme change listener
     this.setupThemeListener();
 
-    // Window resize handler
-    window.addEventListener('resize', () => {
-      const activeTerminal = this.terminals.get(this.activeTerminalId);
-      if (activeTerminal && activeTerminal.fitAddon) {
-        setTimeout(() => {
-          activeTerminal.fitAddon.fit();
-        }, 100);
-      }
-    });
+    // Window resize handler with optimized debouncing
+    this.windowResizeTimeoutId = null;
+    window.addEventListener(
+      'resize',
+      () => {
+        if (this.windowResizeTimeoutId !== null) {
+          clearTimeout(this.windowResizeTimeoutId);
+        }
+        this.windowResizeTimeoutId = setTimeout(() => {
+          const activeTerminal = this.terminals.get(this.activeTerminalId);
+          if (activeTerminal && activeTerminal.fitAddon) {
+            activeTerminal.fitAddon.fit();
+          }
+          this.windowResizeTimeoutId = null;
+        }, this.RESIZE_DEBOUNCE_DELAY);
+      },
+      { passive: true }
+    ); // passive: true for better scroll performance
   }
 
   /**
    * Setup IPC listeners for terminal communication
    */
   setupIPCListeners() {
-    // Receive data from PTY
+    // Receive data from PTY with buffering for performance
     window.api.receive('terminal:data', ({ id, data }) => {
-      const terminal = this.terminals.get(id);
-      if (terminal) {
-        terminal.term.write(data);
-      }
+      this.bufferTerminalData(id, data);
     });
 
     // Handle terminal exit
     window.api.receive('terminal:exit', ({ id, exitCode }) => {
       console.log(`[TerminalUI] Terminal ${id} exited with code ${exitCode}`);
+      // Flush any pending buffered data before showing exit message
+      this.flushTerminalBuffer(id);
+
       const terminal = this.terminals.get(id);
       if (terminal) {
         const exitMessage = getUIText('terminal.processExited', exitCode);
@@ -85,6 +102,56 @@ class TerminalUI {
         }, 2000);
       }
     });
+  }
+
+  /**
+   * Buffer terminal data for performance optimization
+   * Batches multiple rapid writes into single operations
+   * @param {string} id - Terminal ID
+   * @param {string} data - Data to write
+   */
+  bufferTerminalData(id, data) {
+    const terminal = this.terminals.get(id);
+    if (!terminal) return;
+
+    // Initialize buffer if needed
+    if (!this.dataBuffers.has(id)) {
+      this.dataBuffers.set(id, { buffer: [], timeoutId: null });
+    }
+
+    const bufferData = this.dataBuffers.get(id);
+    bufferData.buffer.push(data);
+
+    // Clear existing timeout
+    if (bufferData.timeoutId !== null) {
+      clearTimeout(bufferData.timeoutId);
+    }
+
+    // Schedule flush using requestAnimationFrame for optimal timing
+    bufferData.timeoutId = setTimeout(() => {
+      requestAnimationFrame(() => {
+        this.flushTerminalBuffer(id);
+      });
+    }, this.BUFFER_FLUSH_INTERVAL);
+  }
+
+  /**
+   * Flush buffered terminal data
+   * @param {string} id - Terminal ID
+   */
+  flushTerminalBuffer(id) {
+    const terminal = this.terminals.get(id);
+    const bufferData = this.dataBuffers.get(id);
+
+    if (!terminal || !bufferData || bufferData.buffer.length === 0) return;
+
+    // Write all buffered data at once
+    const combinedData = bufferData.buffer.join('');
+    terminal.term.write(combinedData);
+
+    // Clear buffer
+    bufferData.buffer = [];
+    bufferData.timeoutId = null;
   }
 
   /**
@@ -215,7 +282,7 @@ class TerminalUI {
     // Get theme
     const isDark = document.documentElement.classList.contains('theme-dark');
 
-    // Create xterm.js instance
+    // Create xterm.js instance with performance optimizations
     const term = new Terminal({
       cursorBlink: true,
       fontSize: 10,
@@ -227,6 +294,13 @@ class TerminalUI {
       scrollback: 1000,
       tabStopWidth: 4,
       theme: this.getTerminalTheme(isDark),
+      // Performance optimizations
+      allowProposedApi: false,
+      allowTransparency: false,
+      fastScrollModifier: 'shift',
+      fastScrollSensitivity: 5,
+      scrollSensitivity: 1,
+      windowsMode: false,
     });
 
     // Add FitAddon for automatic sizing
@@ -386,14 +460,19 @@ class TerminalUI {
     });
 
     // Close menu when clicking outside
+    // Use AbortController for cleaner event listener cleanup
+    const abortController = new AbortController();
     const closeMenu = (e) => {
       if (!menu.contains(e.target) && e.target !== btnElement) {
         menu.remove();
-        document.removeEventListener('click', closeMenu);
+        abortController.abort(); // Automatically removes all listeners
       }
     };
     setTimeout(() => {
-      document.addEventListener('click', closeMenu);
+      document.addEventListener('click', closeMenu, {
+        signal: abortController.signal,
+        passive: true,
+      });
     }, 0);
 
     document.body.appendChild(menu);
@@ -437,7 +516,7 @@ class TerminalUI {
    * @param {string} id - Terminal ID
    */
   switchTerminal(id) {
-    // Hide all terminals
+    // Hide all terminals and update tabs in one pass
     this.terminals.forEach(({ element }, termId) => {
       element.style.display = 'none';
       const tab = this.tabsContainer.querySelector(`[data-terminal-id="${termId}"]`);
@@ -452,10 +531,8 @@ class TerminalUI {
       terminal.element.style.display = 'block';
       terminal.term.focus();
 
-      // Fit to container
-      setTimeout(() => {
-        terminal.fitAddon.fit();
-      }, 50);
+      // Debounced resize for smooth switching
+      this.debouncedTerminalFit(id);
 
       const tab = this.tabsContainer.querySelector(`[data-terminal-id="${id}"]`);
       if (tab) {
@@ -468,6 +545,31 @@ class TerminalUI {
   }
 
   /**
+   * Debounced fit operation for a terminal
+   * @param {string} id - Terminal ID
+   */
+  debouncedTerminalFit(id) {
+    // Clear existing timeout for this terminal
+    const existingTimeout = this.resizeDebounceMap.get(id);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    // Schedule new fit operation
+    const timeoutId = setTimeout(() => {
+      const terminal = this.terminals.get(id);
+      if (terminal && terminal.fitAddon) {
+        requestAnimationFrame(() => {
+          terminal.fitAddon.fit();
+        });
+      }
+      this.resizeDebounceMap.delete(id);
+    }, 50);
+
+    this.resizeDebounceMap.set(id, timeoutId);
+  }
+
+  /**
    * Close terminal
    * @param {string} id - Terminal ID
    */
@@ -476,6 +578,9 @@ class TerminalUI {
     if (!terminal) return;
 
     console.log(`[TerminalUI] Closing terminal ${id}`);
+
+    // Performance optimization: Clean up buffers and debounce timers
+    this.cleanupTerminalResources(id);
 
     // Kill PTY
     await window.api.invoke('terminal:kill', { id });
@@ -502,6 +607,28 @@ class TerminalUI {
         // Create new terminal if all closed
         this.createTerminal();
       }
+    }
+  }
+
+  /**
+   * Clean up terminal-specific resources to prevent memory leaks
+   * @param {string} id - Terminal ID
+   */
+  cleanupTerminalResources(id) {
+    // Clear and remove data buffer
+    const bufferData = this.dataBuffers.get(id);
+    if (bufferData) {
+      if (bufferData.timeoutId !== null) {
+        clearTimeout(bufferData.timeoutId);
+      }
+      this.dataBuffers.delete(id);
+    }
+
+    // Clear resize debounce timer
+    const resizeTimeout = this.resizeDebounceMap.get(id);
+    if (resizeTimeout) {
+      clearTimeout(resizeTimeout);
+      this.resizeDebounceMap.delete(id);
     }
   }
 
@@ -856,10 +983,19 @@ class TerminalUI {
       input.focus();
     };
 
-    // Auto-resize textarea based on content
+    // Auto-resize textarea based on content (with debouncing for better performance)
+    let autoResizeTimeoutId = null;
     const autoResize = () => {
-      input.style.height = 'auto';
-      input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+      if (autoResizeTimeoutId !== null) {
+        clearTimeout(autoResizeTimeoutId);
+      }
+      autoResizeTimeoutId = setTimeout(() => {
+        requestAnimationFrame(() => {
+          input.style.height = 'auto';
+          input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+          autoResizeTimeoutId = null;
+        });
+      }, 10);
     };
 
     // ========================================
@@ -907,13 +1043,25 @@ class TerminalUI {
   }
 
   /**
-   * Cleanup all terminals
+   * Cleanup all terminals and resources
    */
   cleanup() {
     console.log('[TerminalUI] Cleaning up all terminals');
+
+    // Close all terminals (which also cleans up their buffers)
     this.terminals.forEach((_, id) => {
       this.closeTerminal(id);
     });
+
+    // Clear window resize timeout
+    if (this.windowResizeTimeoutId !== null) {
+      clearTimeout(this.windowResizeTimeoutId);
+      this.windowResizeTimeoutId = null;
+    }
+
+    // Clear all remaining buffers and timeouts
+    this.dataBuffers.clear();
+    this.resizeDebounceMap.clear();
   }
 }
 

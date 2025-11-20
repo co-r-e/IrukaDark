@@ -13,6 +13,9 @@ const os = require('os');
 class TerminalService {
   constructor() {
     this.terminals = new Map(); // terminalId -> ptyProcess
+    // Performance optimization: Buffer outgoing data to renderer
+    this.outputBuffers = new Map(); // terminalId -> { buffer: [], timeoutId: null, webContents: WebContents }
+    this.BUFFER_FLUSH_INTERVAL = 16; // 16ms (~60fps)
     this.setupIPC();
     console.log('[TerminalService] Initialized');
   }
@@ -100,15 +103,18 @@ class TerminalService {
       },
     });
 
-    // Handle output data
+    // Handle output data with buffering for better performance
     ptyProcess.onData((data) => {
-      webContents.send('terminal:data', { id, data });
+      this.bufferOutputData(id, data, webContents);
     });
 
     // Handle process exit
     ptyProcess.onExit(({ exitCode, signal }) => {
       console.log(`[TerminalService] Terminal ${id} exited:`, { exitCode, signal });
+      // Flush any remaining buffered data before exit
+      this.flushOutputBuffer(id);
       this.terminals.delete(id);
+      this.outputBuffers.delete(id);
       webContents.send('terminal:exit', { id, exitCode, signal });
     });
 
@@ -116,6 +122,50 @@ class TerminalService {
     this.terminals.set(id, ptyProcess);
 
     return { success: true, shell, cwd: workingDir };
+  }
+
+  /**
+   * Buffer output data for performance optimization
+   * Batches multiple rapid outputs into single IPC messages
+   * @param {string} id - Terminal ID
+   * @param {string} data - Data to send
+   * @param {Electron.WebContents} webContents - Target webContents
+   */
+  bufferOutputData(id, data, webContents) {
+    // Initialize buffer if needed
+    if (!this.outputBuffers.has(id)) {
+      this.outputBuffers.set(id, { buffer: [], timeoutId: null, webContents });
+    }
+
+    const bufferData = this.outputBuffers.get(id);
+    bufferData.buffer.push(data);
+
+    // Clear existing timeout
+    if (bufferData.timeoutId !== null) {
+      clearTimeout(bufferData.timeoutId);
+    }
+
+    // Schedule flush
+    bufferData.timeoutId = setTimeout(() => {
+      this.flushOutputBuffer(id);
+    }, this.BUFFER_FLUSH_INTERVAL);
+  }
+
+  /**
+   * Flush buffered output data to renderer
+   * @param {string} id - Terminal ID
+   */
+  flushOutputBuffer(id) {
+    const bufferData = this.outputBuffers.get(id);
+    if (!bufferData || bufferData.buffer.length === 0) return;
+
+    // Send all buffered data at once
+    const combinedData = bufferData.buffer.join('');
+    bufferData.webContents.send('terminal:data', { id, data: combinedData });
+
+    // Clear buffer
+    bufferData.buffer = [];
+    bufferData.timeoutId = null;
   }
 
   /**
@@ -127,6 +177,9 @@ class TerminalService {
     const ptyProcess = this.terminals.get(id);
     if (ptyProcess) {
       console.log(`[TerminalService] Killing terminal ${id}`);
+      // Flush remaining buffer and clean up
+      this.flushOutputBuffer(id);
+      this.cleanupTerminalBuffer(id);
       ptyProcess.kill();
       this.terminals.delete(id);
       return { success: true };
@@ -135,18 +188,36 @@ class TerminalService {
   }
 
   /**
-   * Cleanup all terminals
+   * Clean up output buffer for a terminal
+   * @param {string} id - Terminal ID
+   */
+  cleanupTerminalBuffer(id) {
+    const bufferData = this.outputBuffers.get(id);
+    if (bufferData) {
+      if (bufferData.timeoutId !== null) {
+        clearTimeout(bufferData.timeoutId);
+      }
+      this.outputBuffers.delete(id);
+    }
+  }
+
+  /**
+   * Cleanup all terminals and buffers
    */
   cleanup() {
     console.log('[TerminalService] Cleaning up all terminals');
     this.terminals.forEach((ptyProcess, id) => {
       try {
+        // Flush and clean up buffer
+        this.flushOutputBuffer(id);
+        this.cleanupTerminalBuffer(id);
         ptyProcess.kill();
       } catch (error) {
         console.error(`[TerminalService] Error killing terminal ${id}:`, error);
       }
     });
     this.terminals.clear();
+    this.outputBuffers.clear();
   }
 
   /**
