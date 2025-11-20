@@ -1300,18 +1300,12 @@
       }
 
       html:not(.theme-dark) .terminal-ai-input {
-        background: rgba(0, 0, 0, 0.05);
         border-color: rgba(0, 0, 0, 0.2);
         color: #111827;
       }
 
       .terminal-ai-input:focus {
         border-color: #ff4d6d;
-        background: rgba(255, 255, 255, 0.08);
-      }
-
-      html:not(.theme-dark) .terminal-ai-input:focus {
-        background: rgba(0, 0, 0, 0.08);
       }
 
       .terminal-ai-input::placeholder {
@@ -1327,8 +1321,6 @@
       .terminal-ai-button {
         position: absolute;
         right: 6px;
-        top: 50%;
-        transform: translateY(-50%);
         width: 22px;
         height: 22px;
         padding: 0;
@@ -1346,7 +1338,7 @@
       }
 
       .terminal-ai-button:hover:not(:disabled) {
-        transform: translateY(-50%) scale(1.1);
+        transform: scale(1.1);
       }
 
       .terminal-ai-button:disabled {
@@ -1371,6 +1363,7 @@
       }
     </style>
   </head>
+
   <body class="glass-effect rounded-2xl shadow-2xl overflow-hidden">
     <div id="app" class="h-screen flex flex-col">
       <div class="titlebar" style="padding: 4px 8px">

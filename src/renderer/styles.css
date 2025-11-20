@@ -419,6 +419,7 @@ html.solid-window.theme-dark .glass-effect {
   -webkit-app-region: no-drag !important;
   pointer-events: auto;
 }
+
 /* Ensure text input is typeable/selectable */
 #messageInput {
   -webkit-user-select: text;
@@ -451,12 +452,15 @@ html:not(.theme-dark) .titlebar-title {
   overflow-x: auto;
   overflow-y: hidden;
   flex-wrap: nowrap;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
 }
 
 .titlebar-tabs::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
+  display: none;
+  /* Chrome, Safari, Opera */
 }
 
 .titlebar-tab {
@@ -637,6 +641,7 @@ html:not(.theme-dark) .titlebar-tab.active {
   font-size: 0.75rem;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 }
+
 /* Dark mode inline code override */
 .theme-dark .message-ai-content code {
   background-color: rgba(255, 255, 255, 0.1);
@@ -711,7 +716,8 @@ html:not(.theme-dark) .titlebar-tab.active {
 }
 
 .message-system-compact {
-  font-size: 0.6875rem; /* ~11px */
+  font-size: 0.6875rem;
+  /* ~11px */
   /* コンパクト版も上下をわずかに広げる */
   padding-top: 0.2rem;
   padding-bottom: 0.2rem;
@@ -720,7 +726,8 @@ html:not(.theme-dark) .titlebar-tab.active {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
-  white-space: normal; /* 折返しを有効にしてクランプ可能に */
+  white-space: normal;
+  /* 折返しを有効にしてクランプ可能に */
   cursor: pointer;
 }
 
@@ -852,8 +859,10 @@ button:disabled {
   -webkit-appearance: none;
   appearance: none;
   border-radius: 9999px !important;
-  width: 1.75rem; /* 28px */
-  height: 1.75rem; /* 28px */
+  width: 1.75rem;
+  /* 28px */
+  height: 1.75rem;
+  /* 28px */
   min-height: 1.75rem;
   padding: 0;
   display: inline-flex;
@@ -862,8 +871,10 @@ button:disabled {
   line-height: 0;
   cursor: pointer;
   align-self: flex-end !important;
-  margin-bottom: 0.5rem; /* 8px */
-  margin-left: -0.5rem; /* -8px */
+  margin-bottom: 0.5rem;
+  /* 8px */
+  margin-left: -0.5rem;
+  /* -8px */
   flex-shrink: 0;
   /* Optimize for smooth position changes */
   will-change: transform;
@@ -891,8 +902,10 @@ button:disabled {
 /* Send button explicit styles for consistency */
 #sendBtn {
   position: absolute !important;
-  right: 0.5rem !important; /* match right-2 */
-  bottom: calc(0.5rem + 1px) !important; /* nudge up by 1px from bottom */
+  right: 0.5rem !important;
+  /* match right-2 */
+  bottom: calc(0.5rem + 1px) !important;
+  /* nudge up by 1px from bottom */
   background-color: transparent !important;
   background-image: linear-gradient(135deg, var(--primary), var(--primary-2)) !important;
   background-repeat: no-repeat !important;
@@ -902,13 +915,16 @@ button:disabled {
   -webkit-appearance: none;
   appearance: none;
   border-radius: 9999px !important;
-  width: 1.625rem; /* 26px */
-  height: 1.625rem; /* 26px */
+  width: 1.625rem;
+  /* 26px */
+  height: 1.625rem;
+  /* 26px */
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  line-height: 0; /* ensure perfect visual centering */
+  line-height: 0;
+  /* ensure perfect visual centering */
   z-index: 1;
   /* Optimize for smooth position changes (absolute positioned) */
   will-change: transform;
@@ -928,6 +944,7 @@ button:disabled {
 .source-badge-wrap {
   margin-top: 6px;
 }
+
 .source-badge {
   display: inline-block;
   font-size: 10px;
@@ -939,27 +956,33 @@ button:disabled {
   background: rgba(255, 255, 255, 0.7);
   color: #111827;
 }
+
 .theme-dark .source-badge {
   background: rgba(255, 255, 255, 0.12);
   color: #e5e7eb;
 }
+
 .source-accordion {
   margin-top: 6px;
 }
+
 .source-list {
   list-style: none;
   padding-left: 0;
   margin: 0;
 }
+
 .source-list li {
   margin: 2px 0;
 }
+
 .source-list a {
   color: inherit;
   text-decoration: underline;
   opacity: 0.9;
   font-size: 10px;
 }
+
 .source-list a:hover {
   opacity: 1;
 }
@@ -976,6 +999,7 @@ button:disabled {
   margin: 6px 0;
   border-radius: 8px;
 }
+
 .message-ai-content table {
   border-collapse: collapse;
   table-layout: auto;
@@ -983,6 +1007,7 @@ button:disabled {
   font-size: 10px;
   border: 1px solid rgba(17, 24, 39, 0.14);
 }
+
 .message-ai-content th,
 .message-ai-content td {
   border: 1px solid rgba(17, 24, 39, 0.14);
@@ -990,18 +1015,25 @@ button:disabled {
   text-align: left;
   background: transparent;
   /* Respect content newlines; prefer semantic wraps */
-  white-space: pre-wrap; /* keep \n as line breaks */
-  word-break: normal; /* do not break mid-word by default */
-  overflow-wrap: break-word; /* allow break on long tokens if needed */
-  hyphens: auto; /* hyphenate long English words when possible */
+  white-space: pre-wrap;
+  /* keep \n as line breaks */
+  word-break: normal;
+  /* do not break mid-word by default */
+  overflow-wrap: break-word;
+  /* allow break on long tokens if needed */
+  hyphens: auto;
+  /* hyphenate long English words when possible */
 }
+
 .theme-dark .message-ai-content table {
   border-color: rgba(255, 255, 255, 0.18);
 }
+
 .theme-dark .message-ai-content th,
 .theme-dark .message-ai-content td {
   border-color: rgba(255, 255, 255, 0.18);
 }
+
 /* Japanese: use stricter CJK line breaking rules */
 html[lang='ja'] .message-ai-content th,
 html[lang='ja'] .message-ai-content td {
@@ -1013,10 +1045,14 @@ html[lang='ja'] .message-ai-content td {
 html[lang='en'] .message-ai-content th,
 html[lang='en'] .message-ai-content td {
   line-height: 1.45;
-  word-break: normal; /* keep words intact when possible */
-  overflow-wrap: break-word; /* break very long tokens at safe points */
-  hyphens: auto; /* hyphenate long words politely */
-  text-wrap: pretty; /* prefer aesthetically pleasing breaks (Chromium) */
+  word-break: normal;
+  /* keep words intact when possible */
+  overflow-wrap: break-word;
+  /* break very long tokens at safe points */
+  hyphens: auto;
+  /* hyphenate long words politely */
+  text-wrap: pretty;
+  /* prefer aesthetically pleasing breaks (Chromium) */
 }
 
 /* Long URLs/code within table cells (English): allow more aggressive breaking */
@@ -1027,6 +1063,7 @@ html[lang='en'] .message-ai-content th code {
   word-break: break-all;
   overflow-wrap: anywhere;
 }
+
 .message-ai-content thead th {
   font-weight: 600;
 }
@@ -1052,6 +1089,7 @@ html[lang='en'] .message-ai-content th code {
 html.solid-window:not(.theme-dark) #messageInput {
   background: #ffffff !important;
 }
+
 html.solid-window.theme-dark #messageInput {
   background: linear-gradient(145deg, #1a1446, #0b1021) !important;
 }
@@ -1075,27 +1113,35 @@ html.solid-window.theme-dark #messageInput {
   gap: 8px;
   z-index: 9999;
 }
+
 .toast {
   background: rgba(17, 24, 39, 0.92);
   color: #fff;
-  padding: 6px 10px; /* smaller */
-  border-radius: 8px; /* smaller */
+  padding: 6px 10px;
+  /* smaller */
+  border-radius: 8px;
+  /* smaller */
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-  font-size: 11px; /* smaller */
+  font-size: 11px;
+  /* smaller */
   border: 1px solid rgba(255, 255, 255, 0.12);
   animation: toastIn 0.16s ease-out;
 }
+
 .toast.info {
   background: rgba(17, 24, 39, 0.92);
 }
+
 .toast.error {
   background: rgba(190, 24, 93, 0.95);
 }
+
 @keyframes toastIn {
   from {
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1112,6 +1158,7 @@ html.solid-window.theme-dark #messageInput {
   /* Optimize for height changes */
   contain: layout style;
 }
+
 #messageInput {
   padding-right: 44px;
   line-height: 1.35;
@@ -1122,12 +1169,14 @@ html[dir='rtl'] #messageInput {
   padding-left: 44px;
   padding-right: 12px;
 }
+
 /* In RTL, force the send/stop button to the left.
    Needs !important to override the base #sendBtn right: 0.5rem !important; */
 html[dir='rtl'] #sendBtn {
   left: 0.5rem !important;
   right: auto !important;
 }
+
 /* Mirror paper-plane icon to face the logical end side in RTL */
 html[dir='rtl'] #sendBtn svg {
   transform: scaleX(-1);
@@ -1137,32 +1186,38 @@ html[dir='rtl'] #sendBtn svg {
 html[dir='rtl'] .message-system {
   text-align: right;
 }
+
 html[dir='rtl'] .message-ai-content th,
 html[dir='rtl'] .message-ai-content td {
   text-align: right;
 }
+
 /* Right-align general chat text in RTL, but keep code blocks/table code LTR for readability */
 html[dir='rtl'] .message-ai-content,
 html[dir='rtl'] .message-user-content {
   text-align: right;
 }
+
 html[dir='rtl'] .message-ai-content pre,
 html[dir='rtl'] .message-ai-content code {
   direction: ltr;
   text-align: left;
 }
+
 /* Lists and blockquotes logical flips for RTL */
 html[dir='rtl'] .message-ai-content ul,
 html[dir='rtl'] .message-ai-content ol {
   margin-right: 1rem;
   margin-left: 0;
 }
+
 html[dir='rtl'] .message-ai-content blockquote {
   border-right: 4px solid #d1d5db;
   border-left: none;
   padding-right: 1rem;
   padding-left: 0;
 }
+
 /* Toast placement on logical start/end */
 html[dir='rtl'] .toast-container {
   left: 12px;
@@ -1219,11 +1274,15 @@ html:not(.theme-dark) #messageInput:focus {
 #inputWrapper {
   position: relative;
 }
+
 .slash-suggest {
   position: absolute;
-  left: 0.25rem; /* 4px */
-  right: 0.75rem; /* wider than before; still leaves a margin */
-  bottom: 2.75rem; /* sit above input */
+  left: 0.25rem;
+  /* 4px */
+  right: 0.75rem;
+  /* wider than before; still leaves a margin */
+  bottom: 2.75rem;
+  /* sit above input */
   background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 10px;
@@ -1231,19 +1290,23 @@ html:not(.theme-dark) #messageInput:focus {
   padding: 4px;
   z-index: 10;
 }
+
 /* Mirror margins around slash suggest to avoid overlapping send button in RTL */
 html[dir='rtl'] .slash-suggest {
   left: 0.75rem;
   right: 0.25rem;
 }
+
 .theme-dark .slash-suggest {
   background: linear-gradient(145deg, #1a1446, #0b1021);
   border-color: rgba(255, 255, 255, 0.12);
 }
+
 .slash-suggest-list {
   max-height: 200px;
   overflow-y: auto;
 }
+
 .slash-suggest-item {
   display: flex;
   flex-direction: column;
@@ -1253,39 +1316,48 @@ html[dir='rtl'] .slash-suggest {
   border-radius: 8px;
   cursor: pointer;
 }
+
 .slash-suggest-item .slash-line {
   display: flex;
   align-items: center;
   gap: 6px;
 }
+
 .slash-suggest-item .cmd {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
   color: #111827;
 }
+
 .slash-suggest-item .desc {
   display: block;
   font-size: 9px;
   color: #6b7280;
   margin-top: 0;
 }
+
 .slash-suggest-item .child-indicator {
   font-size: 11px;
   color: #9ca3af;
   margin-left: 4px;
 }
+
 .theme-dark .slash-suggest-item .cmd {
   color: #e5e7eb;
 }
+
 .theme-dark .slash-suggest-item .desc {
   color: #a0a7bb;
 }
+
 .theme-dark .slash-suggest-item .child-indicator {
   color: #cbd5f5;
 }
+
 .slash-suggest-item.active {
   background: rgba(0, 0, 0, 0.06);
 }
+
 .theme-dark .slash-suggest-item.active {
   background: rgba(255, 255, 255, 0.08);
 }
@@ -1294,7 +1366,8 @@ html[dir='rtl'] .slash-suggest {
 #messageInput {
   line-height: 1.4;
   font-size: 12px;
-  min-height: 2.25rem; /* ~36px */
+  min-height: 2.25rem;
+  /* ~36px */
   max-height: 10rem;
   overflow-y: auto;
   resize: none;
@@ -1788,6 +1861,7 @@ html:not(.theme-dark) .shortcut-key-display {
       0 2px 8px rgba(255, 77, 109, 0.4),
       0 0 0 0 rgba(255, 77, 109, 0.4);
   }
+
   50% {
     box-shadow:
       0 2px 8px rgba(255, 77, 109, 0.6),
@@ -2431,7 +2505,7 @@ html:not(.theme-dark) .terminal-ai-preview-button:first-child:hover {
 .terminal-ai-footer {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: px;
   padding: 12px;
   background: #0a0a1a;
 }
@@ -2476,12 +2550,10 @@ html:not(.theme-dark) .terminal-ai-input {
 
 .terminal-ai-input:focus {
   border-color: rgba(255, 77, 109, 0.5);
-  box-shadow: 0 0 0 2px rgba(255, 77, 109, 0.2);
 }
 
 html:not(.theme-dark) .terminal-ai-input:focus {
   border-color: rgba(255, 77, 109, 0.4);
-  box-shadow: 0 0 0 2px rgba(255, 77, 109, 0.15);
 }
 
 .terminal-ai-input::placeholder {
@@ -2512,8 +2584,8 @@ html:not(.theme-dark) .terminal-ai-input::placeholder {
 html:not(.theme-dark) .terminal-ai-button {
   border: none;
   background: transparent;
-  background-image: linear-gradient(135deg, #ff4d6d, #d946ef);
-  color: #ffffff;
+  background-image: none;
+  color: #374151;
 }
 
 .terminal-ai-button:hover {
@@ -2522,7 +2594,7 @@ html:not(.theme-dark) .terminal-ai-button {
 }
 
 html:not(.theme-dark) .terminal-ai-button:hover {
-  opacity: 0.85;
+  opacity: 1;
   transform: scale(1.05);
 }
 

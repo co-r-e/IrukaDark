@@ -1711,6 +1711,49 @@ class IrukaDarkApp {
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
+  /**
+   * Execute a slash command with consistent scrolling behavior:
+   * 1. Show system message (trigger scroll)
+   * 2. Lock scroll
+   * 3. Generate content
+   * 4. Show content (scroll locked)
+   * 5. Unlock scroll
+   */
+  async executeSlashCommandWrapper(startMessage, action) {
+    let scrollLocked = false;
+    try {
+      // 1. Add system message (scrolls to bottom)
+      this.addMessage('system', startMessage);
+
+      // 2. Lock scrolling
+      this.disableAutoScrollCount++;
+      scrollLocked = true;
+
+      this.showTypingIndicator();
+      const result = await action();
+      this.hideTypingIndicator();
+
+      if (this.cancelRequested) return null;
+
+      // 3. Add AI message (scrolling is locked)
+      if (result) {
+        this.addMessage('ai', result);
+      }
+      return result;
+    } catch (e) {
+      this.hideTypingIndicator();
+      if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
+        return null;
+      }
+      this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
+      return null;
+    } finally {
+      if (scrollLocked) {
+        this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
+      }
+    }
+  }
+
   async handleSlashCommand(input) {
     const cmd = (input || '').trim();
     const lower = cmd.toLowerCase();
@@ -1763,133 +1806,76 @@ class IrukaDarkApp {
     }
 
     if (lower === '/compact') {
-      try {
-        this.disableAutoScrollCount++;
+      const summary = await this.executeSlashCommandWrapper('Executing /compact...', async () => {
         const historyText = this.buildHistoryContext(8000, 30);
-        this.showTypingIndicator();
-        const summary = await this.geminiService.generateHistorySummary(
-          historyText,
-          this.webSearchEnabled
-        );
-        this.hideTypingIndicator();
-        if (this.cancelRequested) {
-          return;
-        }
+        return this.geminiService.generateHistorySummary(historyText, this.webSearchEnabled);
+      });
+
+      if (summary) {
         this.chatHistoryData = [{ role: 'assistant', content: summary }];
-        this.addMessage('ai', summary);
         this.addMessage('system', getUIText('historyCompacted'));
-      } catch (e) {
-        this.hideTypingIndicator();
-        if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
-          return;
-        }
-        this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
-      } finally {
-        this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
       }
       return;
     }
 
     if (lower === '/next') {
-      try {
-        this.disableAutoScrollCount++;
-        const lastAI = [...(this.chatHistoryData || [])]
-          .reverse()
-          .find((m) => m && m.role === 'assistant' && m.content);
-        if (!lastAI) {
-          this.addMessage('system', getUIText('noPreviousAI'));
-          return;
-        }
+      const lastAI = [...(this.chatHistoryData || [])]
+        .reverse()
+        .find((m) => m && m.role === 'assistant' && m.content);
+      if (!lastAI) {
+        this.addMessage('system', getUIText('noPreviousAI'));
+        return;
+      }
+
+      await this.executeSlashCommandWrapper('Executing /next...', async () => {
         const historyText = this.buildHistoryContext(8000, 30);
-        this.showTypingIndicator();
-        const cont = await this.geminiService.generateContinuation(
+        return this.geminiService.generateContinuation(
           String(lastAI.content || ''),
           historyText,
           this.webSearchEnabled
         );
-        this.hideTypingIndicator();
-        if (this.cancelRequested) {
-          return;
-        }
-        this.addMessage('ai', cont);
-      } catch (e) {
-        this.hideTypingIndicator();
-        if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
-          return;
-        }
-        this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
-      } finally {
-        this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
-      }
+      });
       return;
     }
 
     if (lower === '/table') {
-      try {
-        this.disableAutoScrollCount++;
-        const lastAI = [...(this.chatHistoryData || [])]
-          .reverse()
-          .find((m) => m && m.role === 'assistant' && m.content);
-        if (!lastAI) {
-          this.addMessage('system', getUIText('noPreviousAI'));
-          return;
-        }
+      const lastAI = [...(this.chatHistoryData || [])]
+        .reverse()
+        .find((m) => m && m.role === 'assistant' && m.content);
+      if (!lastAI) {
+        this.addMessage('system', getUIText('noPreviousAI'));
+        return;
+      }
+
+      await this.executeSlashCommandWrapper('Executing /table...', async () => {
         const historyText = this.buildHistoryContext(8000, 30);
-        this.showTypingIndicator();
-        const table = await this.geminiService.generateTableFromText(
+        return this.geminiService.generateTableFromText(
           String(lastAI.content || ''),
           historyText,
           this.webSearchEnabled
         );
-        this.hideTypingIndicator();
-        if (this.cancelRequested) {
-          return;
-        }
-        this.addMessage('ai', table);
-      } catch (e) {
-        this.hideTypingIndicator();
-        if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
-          return;
-        }
-        this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
-      } finally {
-        this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
-      }
+      });
       return;
     }
 
     // Clarify last AI output: /What do you mean?
     if (lower === '/what do you mean?') {
-      try {
-        this.disableAutoScrollCount++;
-        const lastAI = [...(this.chatHistoryData || [])]
-          .reverse()
-          .find((m) => m && m.role === 'assistant' && m.content);
-        if (!lastAI) {
-          this.addMessage('system', getUIText('noPreviousAI'));
-          return;
-        }
+      const lastAI = [...(this.chatHistoryData || [])]
+        .reverse()
+        .find((m) => m && m.role === 'assistant' && m.content);
+      if (!lastAI) {
+        this.addMessage('system', getUIText('noPreviousAI'));
+        return;
+      }
+
+      await this.executeSlashCommandWrapper('Executing /what do you mean?...', async () => {
         const historyText = this.buildHistoryContext(8000, 30);
-        this.showTypingIndicator();
-        const clarified = await this.geminiService.generateClarificationFromText(
+        return this.geminiService.generateClarificationFromText(
           String(lastAI.content || ''),
           historyText,
           this.webSearchEnabled
         );
-        this.hideTypingIndicator();
-        if (this.cancelRequested) {
-          return;
-        }
-        this.addMessage('ai', clarified);
-      } catch (e) {
-        this.hideTypingIndicator();
-        if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
-          return;
-        }
-        this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
-      } finally {
-        this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
-      }
+      });
       return;
     }
 
@@ -2028,36 +2014,24 @@ class IrukaDarkApp {
   }
 
   async runSlashTranslation(targetCode, meta = null) {
-    try {
-      this.disableAutoScrollCount++;
-      const lastAI = [...(this.chatHistoryData || [])]
-        .reverse()
-        .find((m) => m && m.role === 'assistant' && m.content);
-      if (!lastAI) {
-        this.addMessage('system', getUIText('noPreviousAI'));
-        return;
-      }
-      const code = normalizeTranslateCode(meta?.target || targetCode) || 'en';
-      this.showTypingIndicator();
-      const translation = await this.geminiService.generateTargetedTranslation(
+    const lastAI = [...(this.chatHistoryData || [])]
+      .reverse()
+      .find((m) => m && m.role === 'assistant' && m.content);
+    if (!lastAI) {
+      this.addMessage('system', getUIText('noPreviousAI'));
+      return;
+    }
+
+    const code = normalizeTranslateCode(meta?.target || targetCode) || 'en';
+    const langName = getLanguageDisplayName(code);
+
+    await this.executeSlashCommandWrapper(`Executing /translate (${langName})...`, async () => {
+      return this.geminiService.generateTargetedTranslation(
         String(lastAI.content || ''),
         code,
         this.translateMode
       );
-      this.hideTypingIndicator();
-      if (this.cancelRequested) {
-        return;
-      }
-      this.addMessage('ai', translation);
-    } catch (e) {
-      this.hideTypingIndicator();
-      if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
-        return;
-      }
-      this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
-    } finally {
-      this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
-    }
+    });
   }
 
   async handleImageGeneration(prompt, attachments = []) {
