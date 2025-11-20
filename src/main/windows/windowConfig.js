@@ -14,8 +14,8 @@ const WINDOW_DIMENSIONS = {
     MIN_HEIGHT: 140,
   },
   POPUP: {
-    WIDTH: 84,
-    HEIGHT: 84,
+    WIDTH: 70,
+    HEIGHT: 70,
   },
 };
 
