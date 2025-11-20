@@ -80,7 +80,7 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.arch }}-electron-${{ hashFiles('**/package-lock.json') }}
 
       - name: Install dependencies (npm) with retry
-        uses: nick-fields/retry-action@v3
+        uses: nick-fields/retry@v3
         env:
           # Fallback to China mirror if GitHub releases are unavailable
           ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
