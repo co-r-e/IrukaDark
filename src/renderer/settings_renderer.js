@@ -38,6 +38,7 @@ class SettingsUI {
     this.popupAbortController = null; // For automatic event listener cleanup
     this.lastKeyTime = 0; // For keyboard event debouncing
     this.hiddenShortcutActions = new Set(['reply']);
+    this.languageChangeHandler = null; // Language change event handler
 
     // Default shortcut assignments (internal format uses "Alt")
     // Note: These are defined in src/shared/shortcutDefaults.js as well
@@ -64,6 +65,7 @@ class SettingsUI {
     await this.loadShortcuts();
     this.render();
     this.bindEvents();
+    this.setupLanguageChangeListener();
   }
 
   async initI18n() {
@@ -691,9 +693,49 @@ class SettingsUI {
     }, TOAST_DISPLAY_DURATION);
   }
 
+  /**
+   * Setup language change listener for real-time UI updates
+   */
+  setupLanguageChangeListener() {
+    if (window.electronAPI && window.electronAPI.onLanguageChanged) {
+      // Store the listener reference for cleanup
+      this.languageChangeHandler = async (lang) => {
+        await this.updateLanguage(lang);
+      };
+      window.electronAPI.onLanguageChanged(this.languageChangeHandler);
+    }
+  }
+
+  /**
+   * Update UI language when language changes
+   * @param {string} lang - New language code
+   */
+  async updateLanguage(lang) {
+    try {
+      // Update current language
+      this.currentLang = lang || 'en';
+
+      // Update i18n data
+      if (window.IRUKADARK_I18N && window.IRUKADARK_I18N[this.currentLang]) {
+        this.i18n = window.IRUKADARK_I18N[this.currentLang];
+      } else {
+        // Fallback to English
+        this.i18n = window.IRUKADARK_I18N['en'] || {};
+      }
+
+      // Re-render the UI with new language
+      this.render();
+      this.bindEvents();
+    } catch (err) {
+      console.error('Error updating language:', err);
+    }
+  }
+
   destroy() {
     this.unbindEvents();
     this.stopListening();
+    // Clean up language change listener
+    this.languageChangeHandler = null;
   }
 }
 
