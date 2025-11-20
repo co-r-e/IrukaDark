@@ -2401,7 +2401,7 @@ html:not(.theme-dark) .terminal-ai-preview {
 .terminal-ai-preview code {
   display: block;
   font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-  font-size: 13px;
+  font-size: 10px;
   line-height: 1.5;
   color: #e5e7eb;
   background: #0a0a1a;
@@ -2441,12 +2441,12 @@ html:not(.theme-dark) .terminal-ai-warning {
 .terminal-ai-preview-buttons {
   display: flex;
   gap: 8px;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
 .terminal-ai-preview-button {
-  padding: 6px 14px;
-  font-size: 13px;
+  padding: 4px 10px;
+  font-size: 10px;
   font-weight: 500;
   border-radius: 6px;
   border: none;

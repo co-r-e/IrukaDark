@@ -221,6 +221,7 @@
       newTab: 'New Tab',
       restart: 'Restart',
       close: 'Close',
+      menuButton: 'Terminal menu',
       failedToCreate: 'Failed to create terminal:',
       failedToRestart: 'Failed to restart terminal:',
       processExited: (exitCode) => `[Process exited with code ${exitCode}]`,

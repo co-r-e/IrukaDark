@@ -222,6 +222,7 @@
       newTab: '新しいタブ',
       restart: '再起動',
       close: '閉じる',
+      menuButton: 'ターミナルメニュー',
       failedToCreate: 'ターミナルの作成に失敗しました:',
       failedToRestart: 'ターミナルの再起動に失敗しました:',
       processExited: (exitCode) => `[プロセスが終了しました (終了コード: ${exitCode})]`,

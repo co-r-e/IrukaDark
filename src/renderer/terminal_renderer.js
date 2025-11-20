@@ -3,34 +3,8 @@
   License: AGPL-3.0-only. See https://github.com/co-r-e/IrukaDark/blob/HEAD/LICENSE
 */
 
-/* global Terminal, FitAddon, WebLinksAddon */
+/* global Terminal, FitAddon, WebLinksAddon, getUIText */
 /* exported TerminalUI */
-
-/**
- * Get translated text for terminal UI
- * @param {string} key - Translation key (e.g., 'terminal.newTab')
- * @param  {...any} args - Arguments for function-based translations
- * @returns {string} Translated text
- */
-function getTerminalText(key, ...args) {
-  // Get current language from localStorage or default to 'en'
-  const lang = (typeof localStorage !== 'undefined' && localStorage.getItem('uiLanguage')) || 'en';
-  const strings =
-    (typeof window !== 'undefined' && window.IRUKADARK_I18N && window.IRUKADARK_I18N[lang]) ||
-    (typeof window !== 'undefined' && window.IRUKADARK_I18N && window.IRUKADARK_I18N.en) ||
-    {};
-
-  let value = strings;
-  for (const k of key.split('.')) {
-    value = value?.[k];
-  }
-
-  if (typeof value === 'function') {
-    return value(...args);
-  }
-
-  return value || key;
-}
 
 /**
  * TerminalUI - Manages terminal UI and xterm.js instances
@@ -69,6 +43,9 @@ class TerminalUI {
     // Initialize AI command input
     this.initAICommandInput();
 
+    // Refresh i18n cache to include newly added terminal elements
+    this.refreshI18nCache();
+
     // Window resize handler
     window.addEventListener('resize', () => {
       const activeTerminal = this.terminals.get(this.activeTerminalId);
@@ -97,7 +74,7 @@ class TerminalUI {
       console.log(`[TerminalUI] Terminal ${id} exited with code ${exitCode}`);
       const terminal = this.terminals.get(id);
       if (terminal) {
-        const exitMessage = getTerminalText('terminal.processExited', exitCode);
+        const exitMessage = getUIText('terminal.processExited', exitCode);
         terminal.term.write(`\r\n\x1b[1;31m${exitMessage}\x1b[0m\r\n`);
         // Auto-close after 2 seconds
         setTimeout(() => {
@@ -105,6 +82,30 @@ class TerminalUI {
         }, 2000);
       }
     });
+  }
+
+  /**
+   * Refresh i18n elements cache to include newly added terminal elements
+   */
+  refreshI18nCache() {
+    try {
+      // Access the main app's i18n cache and refresh it
+      if (
+        typeof window !== 'undefined' &&
+        window.app &&
+        window.app.i18nElementsCache !== undefined
+      ) {
+        // Clear the cache to force rebuild on next update
+        window.app.i18nElementsCache = null;
+        // Trigger immediate update to refresh with current language
+        if (typeof window.app.updateStaticHTMLText === 'function') {
+          window.app.updateStaticHTMLText();
+        }
+        console.log('[TerminalUI] I18n cache refreshed successfully');
+      }
+    } catch (error) {
+      console.warn('[TerminalUI] Failed to refresh i18n cache:', error);
+    }
   }
 
   /**
@@ -207,7 +208,7 @@ class TerminalUI {
 
     if (!result.success) {
       console.error('[TerminalUI] Failed to create terminal:', result.error);
-      this.showError(term, getTerminalText('terminal.failedToCreate') + ' ' + result.error);
+      this.showError(term, getUIText('terminal.failedToCreate') + ' ' + result.error);
       return;
     }
 
@@ -247,7 +248,7 @@ class TerminalUI {
     tab.dataset.terminalId = id;
     tab.innerHTML = `
       <span class="terminal-tab-name">${shellName}</span>
-      <button class="terminal-tab-menu-btn" aria-label="Terminal menu">⋯</button>
+      <button class="terminal-tab-menu-btn" data-i18n-title="terminal.menuButton">⋯</button>
     `;
 
     // Click to switch
@@ -263,6 +264,12 @@ class TerminalUI {
     });
 
     this.tabsContainer.appendChild(tab);
+
+    // Refresh i18n cache to include the new tab's menu button
+    this.refreshI18nCache();
+
+    // Switch to new tab
+    this.switchTerminal(id);
   }
 
   /**
@@ -271,7 +278,7 @@ class TerminalUI {
    * @param {HTMLElement} btnElement - Menu button element
    */
   showTabMenu(id, btnElement) {
-    // Remove existing menu if any
+    // Remove any existing menu
     const existingMenu = document.querySelector('.terminal-tab-menu');
     if (existingMenu) {
       existingMenu.remove();
@@ -286,20 +293,20 @@ class TerminalUI {
           <line x1="12" y1="5" x2="12" y2="19"></line>
           <line x1="5" y1="12" x2="19" y2="12"></line>
         </svg>
-        <span>${getTerminalText('terminal.newTab')}</span>
+        <span>${getUIText('terminal.newTab')}</span>
       </div>
       <div class="terminal-tab-menu-item" data-action="restart">
         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
         </svg>
-        <span>${getTerminalText('terminal.restart')}</span>
+        <span>${getUIText('terminal.restart')}</span>
       </div>
       <div class="terminal-tab-menu-item terminal-tab-menu-item-danger" data-action="close">
         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
-        <span>${getTerminalText('terminal.close')}</span>
+        <span>${getUIText('terminal.close')}</span>
       </div>
     `;
 
@@ -368,10 +375,7 @@ class TerminalUI {
 
     if (!result.success) {
       console.error('[TerminalUI] Failed to restart terminal:', result.error);
-      this.showError(
-        terminal.term,
-        getTerminalText('terminal.failedToRestart') + ' ' + result.error
-      );
+      this.showError(terminal.term, getUIText('terminal.failedToRestart') + ' ' + result.error);
     } else {
       terminal.term.focus();
     }
@@ -567,22 +571,23 @@ class TerminalUI {
       </div>
       <div class="terminal-ai-input-wrapper">
         <div id="terminalAiPreview" class="terminal-ai-preview" style="display: none;">
-          <div id="terminalAiWarning" class="terminal-ai-warning" style="display: none;">
-            ${getTerminalText('terminal.aiDangerousWarning')}
+          <div id="terminalAiWarning" class="terminal-ai-warning" style="display: none;" data-i18n="terminal.aiDangerousWarning">
+            ${getUIText('terminal.aiDangerousWarning')}
           </div>
           <code id="terminalAiPreviewCommand"></code>
           <div class="terminal-ai-preview-buttons">
-            <button id="terminalAiExecute" class="terminal-ai-preview-button">${getTerminalText('terminal.aiExecute')}</button>
-            <button id="terminalAiCancel" class="terminal-ai-preview-button">${getTerminalText('terminal.aiCancel')}</button>
+            <button id="terminalAiExecute" class="terminal-ai-preview-button" data-i18n="terminal.aiExecute">${getUIText('terminal.aiExecute')}</button>
+            <button id="terminalAiCancel" class="terminal-ai-preview-button" data-i18n="terminal.aiCancel">${getUIText('terminal.aiCancel')}</button>
           </div>
         </div>
         <textarea
           id="terminalAiInput"
           class="terminal-ai-input"
-          placeholder="${getTerminalText('terminal.aiCommandPlaceholder')}"
+          data-i18n-placeholder="terminal.aiCommandPlaceholder"
+          placeholder="${getUIText('terminal.aiCommandPlaceholder')}"
           rows="1"
         ></textarea>
-        <button id="terminalAiGenerate" class="terminal-ai-button" title="${getTerminalText('terminal.aiGenerated')}">
+        <button id="terminalAiGenerate" class="terminal-ai-button" data-i18n-title="terminal.aiGenerated" title="${getUIText('terminal.aiGenerated')}">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="m5 12 7-7 7 7"/>
             <path d="M12 19V5"/>
@@ -663,7 +668,7 @@ class TerminalUI {
             <rect x="6" y="6" width="12" height="12"></rect>
           </svg>
         `;
-        generateBtn.title = getTerminalText('terminal.aiStop') || 'Stop';
+        generateBtn.title = getUIText('terminal.aiStop') || 'Stop';
       } else {
         // Generate icon (arrow up)
         generateBtn.innerHTML = `
@@ -672,7 +677,7 @@ class TerminalUI {
             <path d="M12 19V5"/>
           </svg>
         `;
-        generateBtn.title = getTerminalText('terminal.aiGenerated');
+        generateBtn.title = getUIText('terminal.aiGenerated');
       }
     };
 
@@ -694,7 +699,7 @@ class TerminalUI {
       generatedCommand = '';
 
       // Show cancellation status
-      showStatus(getTerminalText('terminal.aiCancelled') || 'Cancelled', 'info');
+      showStatus(getUIText('terminal.aiCancelled') || 'Cancelled', 'info');
       setTimeout(() => hideStatus(), 2000);
     };
 
@@ -713,7 +718,7 @@ class TerminalUI {
         updateButtonIcon();
 
         // Show loading status
-        showStatus(getTerminalText('terminal.aiGenerating') || 'Analyzing command...', 'loading');
+        showStatus(getUIText('terminal.aiGenerating') || 'Analyzing command...', 'loading');
 
         const terminal = this.terminals.get(this.activeTerminalId);
 
@@ -733,7 +738,7 @@ class TerminalUI {
 
         if (result.error) {
           hideStatus();
-          alert(`${getTerminalText('terminal.aiError')} ${result.error}`);
+          alert(`${getUIText('terminal.aiError')} ${result.error}`);
           return;
         }
 
@@ -756,9 +761,9 @@ class TerminalUI {
           return; // Silent return on cancellation
         }
         hideStatus();
-        showStatus(getTerminalText('terminal.aiError') || 'Error', 'error');
+        showStatus(getUIText('terminal.aiError') || 'Error', 'error');
         setTimeout(() => hideStatus(), 3000);
-        alert(`${getTerminalText('terminal.aiError')} ${err.message}`);
+        alert(`${getUIText('terminal.aiError')} ${err.message}`);
       } finally {
         // Reset state only if not already cancelled (cancel button already reset it)
         if (!cancelRequested) {
