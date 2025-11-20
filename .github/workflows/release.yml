@@ -4,6 +4,15 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build/publish (e.g. v1.2.6)'
+        required: true
+        type: string
+
+env:
+  RELEASE_TAG: ${{ inputs.tag != '' && inputs.tag || github.ref_name }}
 
 permissions:
   contents: write   # リリース作成・アセットアップロードに必要
@@ -14,10 +23,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Create release for ${{ github.ref_name }}
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_TAG }}
           draft: false
           generate_release_notes: true
         env:
@@ -40,6 +50,20 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Set up Python 3.12 for node-gyp
+        id: setup-python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Pin Python for node-gyp
+        run: |
+          set -euxo pipefail
+          echo "PYTHON=${{ steps.setup-python.outputs.python-path }}" >> "$GITHUB_ENV"
+          echo "npm_config_python=${{ steps.setup-python.outputs.python-path }}" >> "$GITHUB_ENV"
 
       - name: Set up Node.js 20 (npm cache enabled)
         uses: actions/setup-node@v4
@@ -130,7 +154,7 @@ jobs:
       - name: Upload DMG and checksums to Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
           files: |
             dist/*.dmg
             dist/*.sha256
