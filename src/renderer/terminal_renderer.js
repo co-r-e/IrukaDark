@@ -46,6 +46,9 @@ class TerminalUI {
     // Refresh i18n cache to include newly added terminal elements
     this.refreshI18nCache();
 
+    // Setup theme change listener
+    this.setupThemeListener();
+
     // Window resize handler
     window.addEventListener('resize', () => {
       const activeTerminal = this.terminals.get(this.activeTerminalId);
@@ -109,6 +112,100 @@ class TerminalUI {
   }
 
   /**
+   * Get terminal theme based on current appearance mode
+   * @param {boolean} isDark - Whether dark mode is active
+   * @returns {Object} Terminal theme configuration
+   */
+  getTerminalTheme(isDark) {
+    return isDark
+      ? {
+          background: '#0a0a1a',
+          foreground: '#e5e7eb',
+          cursor: '#ff4d6d',
+          cursorAccent: '#0a0a1a',
+          selection: 'rgba(255, 77, 109, 0.3)',
+          black: '#000000',
+          red: '#ff4d6d',
+          green: '#10b981',
+          yellow: '#fbbf24',
+          blue: '#3b82f6',
+          magenta: '#d946ef',
+          cyan: '#06b6d4',
+          white: '#e5e7eb',
+          brightBlack: '#6b7280',
+          brightRed: '#ff6b82',
+          brightGreen: '#34d399',
+          brightYellow: '#fcd34d',
+          brightBlue: '#60a5fa',
+          brightMagenta: '#e879f9',
+          brightCyan: '#22d3ee',
+          brightWhite: '#f9fafb',
+        }
+      : {
+          background: '#ffffff',
+          foreground: '#111827',
+          cursor: '#ff4d6d',
+          cursorAccent: '#ffffff',
+          selection: 'rgba(255, 77, 109, 0.3)',
+          black: '#000000',
+          red: '#dc2626',
+          green: '#059669',
+          yellow: '#d97706',
+          blue: '#2563eb',
+          magenta: '#c026d3',
+          cyan: '#0891b2',
+          white: '#6b7280',
+          brightBlack: '#374151',
+          brightRed: '#ef4444',
+          brightGreen: '#10b981',
+          brightYellow: '#f59e0b',
+          brightBlue: '#3b82f6',
+          brightMagenta: '#d946ef',
+          brightCyan: '#06b6d4',
+          brightWhite: '#f9fafb',
+        };
+  }
+
+  /**
+   * Update theme for all active terminals
+   */
+  updateAllTerminalsTheme() {
+    const isDark = document.documentElement.classList.contains('theme-dark');
+    const theme = this.getTerminalTheme(isDark);
+
+    console.log(`[TerminalUI] Updating theme for all terminals (isDark: ${isDark})`);
+
+    this.terminals.forEach(({ term }, id) => {
+      if (term) {
+        // Update terminal theme using xterm.js options API
+        term.options.theme = theme;
+        console.log(`[TerminalUI] Updated theme for terminal ${id}`);
+      }
+    });
+  }
+
+  /**
+   * Setup theme change listener to update terminals in real-time
+   */
+  setupThemeListener() {
+    try {
+      // Listen for theme changes from the main process
+      if (window.electronAPI && window.electronAPI.onThemeChanged) {
+        window.electronAPI.onThemeChanged((theme) => {
+          console.log(`[TerminalUI] Theme changed to: ${theme}`);
+          // Update all terminals with new theme
+          this.updateAllTerminalsTheme();
+        });
+        console.log('[TerminalUI] Theme change listener registered');
+      } else {
+        console.warn('[TerminalUI] onThemeChanged API not available');
+      }
+    } catch (error) {
+      console.error('[TerminalUI] Failed to setup theme listener:', error);
+    }
+  }
+
+  /**
    * Create a new terminal session
    */
   async createTerminal() {
@@ -129,53 +226,7 @@ class TerminalUI {
       letterSpacing: 0,
       scrollback: 1000,
       tabStopWidth: 4,
-      theme: isDark
-        ? {
-            background: '#0a0a1a',
-            foreground: '#e5e7eb',
-            cursor: '#ff4d6d',
-            cursorAccent: '#0a0a1a',
-            selection: 'rgba(255, 77, 109, 0.3)',
-            black: '#000000',
-            red: '#ff4d6d',
-            green: '#10b981',
-            yellow: '#fbbf24',
-            blue: '#3b82f6',
-            magenta: '#d946ef',
-            cyan: '#06b6d4',
-            white: '#e5e7eb',
-            brightBlack: '#6b7280',
-            brightRed: '#ff6b82',
-            brightGreen: '#34d399',
-            brightYellow: '#fcd34d',
-            brightBlue: '#60a5fa',
-            brightMagenta: '#e879f9',
-            brightCyan: '#22d3ee',
-            brightWhite: '#f9fafb',
-          }
-        : {
-            background: '#ffffff',
-            foreground: '#111827',
-            cursor: '#ff4d6d',
-            cursorAccent: '#ffffff',
-            selection: 'rgba(255, 77, 109, 0.3)',
-            black: '#000000',
-            red: '#dc2626',
-            green: '#059669',
-            yellow: '#d97706',
-            blue: '#2563eb',
-            magenta: '#c026d3',
-            cyan: '#0891b2',
-            white: '#6b7280',
-            brightBlack: '#374151',
-            brightRed: '#ef4444',
-            brightGreen: '#10b981',
-            brightYellow: '#f59e0b',
-            brightBlue: '#3b82f6',
-            brightMagenta: '#d946ef',
-            brightCyan: '#06b6d4',
-            brightWhite: '#f9fafb',
-          },
+      theme: this.getTerminalTheme(isDark),
     });
 
     // Add FitAddon for automatic sizing
