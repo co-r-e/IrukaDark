@@ -15,15 +15,16 @@ env:
   RELEASE_TAG: ${{ inputs.tag != '' && inputs.tag || github.ref_name }}
 
 permissions:
-  contents: write   # リリース作成・アセットアップロードに必要
+  contents: write
 
 jobs:
   create_release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
+    # workflow_dispatch ではスキップ（既存リリースへの追加を想定）
+    if: github.event_name == 'push'
     steps:
       - name: Create release for ${{ github.ref_name }}
-        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
@@ -35,15 +36,15 @@ jobs:
 
   build_macos:
     name: Build macOS (${{ matrix.arch }})
+    # push 時は create_release 完了を待つ、workflow_dispatch 時は即座に開始
     needs: create_release
+    if: always() && (needs.create_release.result == 'success' || needs.create_release.result == 'skipped')
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Apple Silicon
           - arch: arm64
             runs_on: macos-15
-          # Intel（必要に応じて macos-15-intel 等へ切替可）
           - arch: x64
             runs_on: macos-13
     runs-on: ${{ matrix.runs_on }}
@@ -59,13 +60,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Pin Python for node-gyp
-        run: |
-          set -euxo pipefail
-          echo "PYTHON=${{ steps.setup-python.outputs.python-path }}" >> "$GITHUB_ENV"
-          echo "npm_config_python=${{ steps.setup-python.outputs.python-path }}" >> "$GITHUB_ENV"
-
-      - name: Set up Node.js 20 (npm cache enabled)
+      - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -77,88 +72,83 @@ jobs:
           path: |
             ~/.cache/electron
             ~/.cache/electron-builder
-          key: ${{ runner.os }}-${{ matrix.arch }}-electron-${{ hashFiles('**/package-lock.json') }}
+          key: electron-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            electron-${{ runner.os }}-${{ matrix.arch }}-
 
-      - name: Install dependencies (npm) with retry
+      - name: Cache Swift build
+        uses: actions/cache@v4
+        with:
+          path: |
+            native/macos/IrukaAutomation/.build
+            native/macos/IrukaAutomation/.cache
+            native/macos/IrukaAutomation/.swift-cache
+          key: swift-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('native/macos/IrukaAutomation/**/*.swift', 'native/macos/IrukaAutomation/Package.swift') }}
+          restore-keys: |
+            swift-${{ runner.os }}-${{ matrix.arch }}-
+
+      - name: Install dependencies
         uses: nick-fields/retry@v3
         env:
-          # Fallback to China mirror if GitHub releases are unavailable
           ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+          npm_config_arch: ${{ matrix.arch }}
+          npm_config_python: ${{ steps.setup-python.outputs.python-path }}
         with:
           timeout_minutes: 10
           max_attempts: 3
           retry_wait_seconds: 30
-          command: |
-            set -euxo pipefail
-            if [ -f package-lock.json ]; then
-              npm ci
-            else
-              npm install
-            fi
+          command: npm ci
+
+      - name: Rebuild native modules for Electron
+        env:
+          npm_config_arch: ${{ matrix.arch }}
+        run: npx electron-rebuild --arch ${{ matrix.arch }}
 
       - name: Build Swift automation bridge
-        shell: bash
-        run: |
-          set -euxo pipefail
-          npm run build:swift
+        env:
+          ELECTRON_BUILDER_ARCH: ${{ matrix.arch }}
+        run: npm run build:swift
 
-      - name: Decode signing certs and Apple API key
+      - name: Decode signing certificates
         env:
           CSC_LINK_BASE64: ${{ secrets.CSC_LINK_BASE64 }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
-        shell: bash
         run: |
-          set -euxo pipefail
           CERT_PATH="$RUNNER_TEMP/cert.p12"
           API_KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
-          # Developer ID (.p12)
           echo "$CSC_LINK_BASE64" | base64 --decode > "$CERT_PATH"
+          echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$API_KEY_PATH"
           {
             echo "CSC_LINK=$CERT_PATH"
             echo "CSC_KEY_PASSWORD=$CSC_KEY_PASSWORD"
+            echo "APPLE_API_KEY=$API_KEY_PATH"
           } >> "$GITHUB_ENV"
-          # App Store Connect API Key (.p8)
-          echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$API_KEY_PATH"
-          echo "APPLE_API_KEY=$API_KEY_PATH" >> "$GITHUB_ENV"
 
-      - name: Build DMG (${{ matrix.arch }}) with electron-builder
+      # DMG + ZIP を1回のビルドで生成し、公証後に publish
+      - name: Build and publish (${{ matrix.arch }})
         env:
-          # notarize 用（electron-builder が自動で notarytool を利用）
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          # electron-builder が GitHub API を叩く際のトークン（安全側で渡しておく）
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # 詳細ログを出して codesign/notarize の状況を可視化
-          DEBUG: electron-builder,electron-notarize,electron-osx-sign*
-          ELECTRON_BUILDER_DEBUG: 'true'
-        run: |
-          set -euxo pipefail
-          npx electron-builder --mac dmg --${{ matrix.arch }} --publish=never
-
-      - name: Publish ZIP for auto‑update (GitHub provider)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DEBUG: electron-builder
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          # コード署名 (CSC_LINK, CSC_KEY_PASSWORD は $GITHUB_ENV 経由で自動設定)
+          # 公証 (notarization) - App Store Connect API Key
           APPLE_API_KEY: ${{ env.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          # GitHub Release への publish
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # ネイティブモジュールのアーキテクチャ
+          npm_config_arch: ${{ matrix.arch }}
         run: |
-          set -euxo pipefail
-          # Build and publish only ZIP + update YAML to the GitHub Release
-          npx electron-builder --mac zip --${{ matrix.arch }} --publish=always
+          # Build both DMG and ZIP in a single run, publish ZIP for auto-update
+          npx electron-builder --mac dmg zip --${{ matrix.arch }} --publish=always
 
       - name: Generate SHA256 checksums
-        shell: bash
         run: |
-          set -euxo pipefail
-          shopt -s nullglob
           cd dist
-          for f in *.dmg; do
-            shasum -a 256 "$f" > "$f.sha256"
+          for f in *.dmg *.zip; do
+            [ -f "$f" ] && shasum -a 256 "$f" > "$f.sha256"
           done
 
-      - name: Upload DMG and checksums to Release
+      - name: Upload artifacts to Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}

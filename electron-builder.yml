@@ -25,6 +25,8 @@ mac:
   target:
     - target: dmg
       arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
   # Electron 38+ requires macOS 12 (Monterey) or later
   # macOS 11 (Big Sur) support was dropped in Electron 38
   minimumSystemVersion: '12.0.0'
@@ -34,6 +36,8 @@ mac:
   icon: src/renderer/assets/icons/icon.png
 dmg:
   artifactName: '${productName}-${version}-mac-${arch}.dmg'
+zip:
+  artifactName: '${productName}-${version}-mac-${arch}.zip'
 publish:
   - provider: github
     releaseType: release
