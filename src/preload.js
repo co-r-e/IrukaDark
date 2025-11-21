@@ -86,6 +86,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   clearClipboardHistory: () => ipcRenderer.invoke('clipboard:clear-history'),
   copyToClipboard: (text) => ipcRenderer.invoke('clipboard:copy', text),
   deleteClipboardItem: (id) => ipcRenderer.invoke('clipboard:delete-item', id),
+  startClipboardMonitoring: () => ipcRenderer.invoke('clipboard:start-monitoring'),
+  stopClipboardMonitoring: () => ipcRenderer.invoke('clipboard:stop-monitoring'),
+  getClipboardMonitoringStatus: () => ipcRenderer.invoke('clipboard:get-status'),
   onClipboardHistoryUpdated: (cb) =>
     ipcRenderer.on('clipboard:history-updated', (_e, history) => cb(history)),
   getTheme: () => ipcRenderer.invoke('get-ui-theme'),

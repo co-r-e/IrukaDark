@@ -4,7 +4,6 @@
 */
 
 const pty = require('node-pty');
-const { ipcMain } = require('electron');
 const os = require('os');
 
 /**
@@ -16,57 +15,11 @@ class TerminalService {
     // Performance optimization: Buffer outgoing data to renderer
     this.outputBuffers = new Map(); // terminalId -> { buffer: [], timeoutId: null, webContents: WebContents }
     this.BUFFER_FLUSH_INTERVAL = 16; // 16ms (~60fps)
-    this.setupIPC();
     console.log('[TerminalService] Initialized');
   }
 
-  /**
-   * Setup IPC handlers for terminal operations
-   */
-  setupIPC() {
-    // Create new terminal session
-    ipcMain.handle('terminal:create', (event, { id, cols, rows, cwd }) => {
-      try {
-        return this.createTerminal(event.sender, id, cols, rows, cwd);
-      } catch (error) {
-        console.error('[TerminalService] Error creating terminal:', error);
-        return { success: false, error: error.message };
-      }
-    });
-
-    // Send input data to terminal
-    ipcMain.on('terminal:input', (event, { id, data }) => {
-      try {
-        const ptyProcess = this.terminals.get(id);
-        if (ptyProcess) {
-          ptyProcess.write(data);
-        }
-      } catch (error) {
-        console.error('[TerminalService] Error writing to terminal:', error);
-      }
-    });
-
-    // Resize terminal
-    ipcMain.on('terminal:resize', (event, { id, cols, rows }) => {
-      try {
-        const ptyProcess = this.terminals.get(id);
-        if (ptyProcess) {
-          ptyProcess.resize(cols, rows);
-        }
-      } catch (error) {
-        console.error('[TerminalService] Error resizing terminal:', error);
-      }
-    });
-
-    // Kill terminal session
-    ipcMain.handle('terminal:kill', (event, { id }) => {
-      try {
-        return this.killTerminal(id);
-      } catch (error) {
-        console.error('[TerminalService] Error killing terminal:', error);
-        return { success: false, error: error.message };
-      }
-    });
+  isWebContentsAlive(webContents) {
+    return !!(webContents && !webContents.isDestroyed());
   }
 
   /**
@@ -115,13 +68,40 @@ class TerminalService {
       this.flushOutputBuffer(id);
       this.terminals.delete(id);
       this.outputBuffers.delete(id);
-      webContents.send('terminal:exit', { id, exitCode, signal });
+      if (webContents && !webContents.isDestroyed()) {
+        webContents.send('terminal:exit', { id, exitCode, signal });
+      }
     });
 
     // Store terminal
     this.terminals.set(id, ptyProcess);
 
     return { success: true, shell, cwd: workingDir };
+  }
+
+  /**
+   * Write data into a terminal session
+   * @param {string} id
+   * @param {string} data
+   */
+  writeInput(id, data) {
+    const ptyProcess = this.terminals.get(id);
+    if (ptyProcess) {
+      ptyProcess.write(data);
+    }
+  }
+
+  /**
+   * Resize a terminal session
+   * @param {string} id
+   * @param {number} cols
+   * @param {number} rows
+   */
+  resizeTerminal(id, cols, rows) {
+    const ptyProcess = this.terminals.get(id);
+    if (ptyProcess) {
+      ptyProcess.resize(cols, rows);
+    }
   }
 
   /**
@@ -138,6 +118,14 @@ class TerminalService {
     }
 
     const bufferData = this.outputBuffers.get(id);
+
+    // If renderer has gone away, clean up and skip
+    if (!this.isWebContentsAlive(bufferData?.webContents)) {
+      this.cleanupTerminalBuffer(id);
+      this.terminals.delete(id);
+      return;
+    }
+
     bufferData.buffer.push(data);
 
     // Clear existing timeout
@@ -159,9 +147,20 @@ class TerminalService {
     const bufferData = this.outputBuffers.get(id);
     if (!bufferData || bufferData.buffer.length === 0) return;
 
+    // Drop output if renderer is gone
+    if (!this.isWebContentsAlive(bufferData.webContents)) {
+      this.cleanupTerminalBuffer(id);
+      this.terminals.delete(id);
+      return;
+    }
+
     // Send all buffered data at once
     const combinedData = bufferData.buffer.join('');
-    bufferData.webContents.send('terminal:data', { id, data: combinedData });
+    try {
+      bufferData.webContents.send('terminal:data', { id, data: combinedData });
+    } catch (err) {
+      console.error('[TerminalService] Failed to send terminal data:', err);
+    }
 
     // Clear buffer
     bufferData.buffer = [];
@@ -177,10 +176,14 @@ class TerminalService {
     const ptyProcess = this.terminals.get(id);
     if (ptyProcess) {
       console.log(`[TerminalService] Killing terminal ${id}`);
-      // Flush remaining buffer and clean up
+      // Flush remaining buffer (safe when renderer alive)
       this.flushOutputBuffer(id);
       this.cleanupTerminalBuffer(id);
-      ptyProcess.kill();
+      try {
+        ptyProcess.kill();
+      } catch (err) {
+        console.error('[TerminalService] Error killing PTY:', err);
+      }
       this.terminals.delete(id);
       return { success: true };
     }

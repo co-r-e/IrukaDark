@@ -33,14 +33,17 @@ class TerminalUI {
     this.resizeDebounceMap = new Map(); // terminalId -> timeoutId
     this.RESIZE_DEBOUNCE_DELAY = 150; // 150ms debounce
 
-    this.init();
+    this.init().catch((err) => console.error('[TerminalUI] Failed to initialize:', err));
   }
 
   /**
    * Initialize terminal UI
    */
-  init() {
+  async init() {
     console.log('[TerminalUI] Initializing');
+
+    // Load xterm resources on demand
+    await this.ensureXterm();
 
     // IPC listeners
     this.setupIPCListeners();
@@ -75,6 +78,62 @@ class TerminalUI {
       },
       { passive: true }
     ); // passive: true for better scroll performance
+  }
+
+  static loadScriptOnce(src) {
+    if (!this.scriptPromises) this.scriptPromises = new Map();
+    if (this.scriptPromises.has(src)) return this.scriptPromises.get(src);
+
+    const p = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.async = true;
+      s.onload = () => resolve(true);
+      s.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+      document.head.appendChild(s);
+    });
+
+    this.scriptPromises.set(src, p);
+    return p;
+  }
+
+  static loadStyleOnce(href) {
+    if (!this.stylePromises) this.stylePromises = new Map();
+    if (this.stylePromises.has(href)) return this.stylePromises.get(href);
+
+    const p = new Promise((resolve, reject) => {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = href;
+      link.onload = () => resolve(true);
+      link.onerror = () => reject(new Error(`Failed to load stylesheet: ${href}`));
+      document.head.appendChild(link);
+    });
+
+    this.stylePromises.set(href, p);
+    return p;
+  }
+
+  ensureXterm() {
+    if (this.xtermReady) return this.xtermReady;
+
+    this.xtermReady = (async () => {
+      await TerminalUI.loadStyleOnce('./vendor/xterm/xterm.css');
+      await TerminalUI.loadScriptOnce('./vendor/xterm/xterm.js');
+      await TerminalUI.loadScriptOnce('./vendor/xterm/addon-fit.js');
+      await TerminalUI.loadScriptOnce('./vendor/xterm/addon-web-links.js');
+
+      if (
+        typeof Terminal === 'undefined' ||
+        typeof FitAddon === 'undefined' ||
+        typeof WebLinksAddon === 'undefined'
+      ) {
+        throw new Error('xterm resources failed to load');
+      }
+      return true;
+    })();
+
+    return this.xtermReady;
   }
 
   /**

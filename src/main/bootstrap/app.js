@@ -1253,15 +1253,56 @@ function bootstrapApp() {
     });
   }
 
+  function setupTerminalHandlers() {
+    ipcMain.handle('terminal:create', (event, { id, cols, rows, cwd }) => {
+      try {
+        return getTerminalService().createTerminal(event.sender, id, cols, rows, cwd);
+      } catch (error) {
+        console.error('[TerminalService] Error creating terminal:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.on('terminal:input', (event, { id, data }) => {
+      try {
+        getTerminalService().writeInput(id, data);
+      } catch (error) {
+        console.error('[TerminalService] Error writing to terminal:', error);
+      }
+    });
+
+    ipcMain.on('terminal:resize', (_event, { id, cols, rows }) => {
+      try {
+        getTerminalService().resizeTerminal(id, cols, rows);
+      } catch (error) {
+        console.error('[TerminalService] Error resizing terminal:', error);
+      }
+    });
+
+    ipcMain.handle('terminal:kill', (_event, { id }) => {
+      try {
+        return getTerminalService().killTerminal(id);
+      } catch (error) {
+        console.error('[TerminalService] Error killing terminal:', error);
+        return { success: false, error: error.message };
+      }
+    });
+  }
+
   function setupClipboardHandlers() {
     const { getClipboardHistoryService } = require('../services/clipboardHistory');
     const clipboardService = getClipboardHistoryService();
 
     // Debounce popup updates to avoid excessive IPC
     let popupUpdateTimeout = null;
-
-    // Start monitoring clipboard on app start
-    clipboardService.startMonitoring();
+    // Lazy開始: 初回アクセスまで監視を開始しない
+    const ensureMonitoring = () => {
+      try {
+        clipboardService.startMonitoring();
+      } catch (err) {
+        console.error('Error starting clipboard monitoring:', err);
+      }
+    };
 
     // Listen for history updates and notify main window
     clipboardService.on('history-updated', (history) => {
@@ -1285,6 +1326,7 @@ function bootstrapApp() {
               const theme = getPref('UI_THEME') || 'dark';
               const isDarkMode = theme === 'dark';
               const opacity = parseFloat(getPref('WINDOW_OPACITY') || '1');
+              if (!isClipboardPopupActive()) return;
               updateClipboardPopup(history, { isDarkMode, opacity });
             } catch (err) {
               console.error('Error updating clipboard popup:', err);
@@ -1297,6 +1339,7 @@ function bootstrapApp() {
     });
 
     ipcMain.handle('clipboard:get-history', () => {
+      ensureMonitoring();
       return clipboardService.getHistory();
     });
 
@@ -1324,6 +1367,20 @@ function bootstrapApp() {
         },
       ]);
       menu.popup(BrowserWindow.fromWebContents(event.sender));
+    });
+
+    ipcMain.handle('clipboard:start-monitoring', () => {
+      ensureMonitoring();
+      return { monitoring: clipboardService.isMonitoringActive() };
+    });
+
+    ipcMain.handle('clipboard:stop-monitoring', () => {
+      clipboardService.stopMonitoring();
+      return { monitoring: clipboardService.isMonitoringActive() };
+    });
+
+    ipcMain.handle('clipboard:get-status', () => {
+      return { monitoring: clipboardService.isMonitoringActive() };
     });
 
     // Snippet data persistence
@@ -1950,7 +2007,7 @@ Command:`;
         const hasReferenceImages =
           referenceImages && Array.isArray(referenceImages) && referenceImages.length > 0;
 
-        const modelName = 'gemini-2.5-flash-image';
+        const modelName = 'gemini-3-pro-image-preview';
         const errorLog = [];
 
         // Create AbortController for cancellation and timeout
@@ -2136,7 +2193,10 @@ Command:`;
     };
     const send = () => {
       try {
-        mainWindow.webContents.send('app-config', payload);
+        if (!mainWindow || mainWindow.isDestroyed()) return;
+        if (mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+          mainWindow.webContents.send('app-config', payload);
+        }
       } catch {}
     };
     try {
@@ -2149,6 +2209,19 @@ Command:`;
       send();
     }
   }
+
+  // Clean shutdown hooks
+  app.on('before-quit', () => {
+    try {
+      const { getClipboardHistoryService } = require('../services/clipboardHistory');
+      const svc = getClipboardHistoryService();
+      if (svc && typeof svc.stopMonitoring === 'function') {
+        svc.stopMonitoring();
+      }
+    } catch (err) {
+      console.error('Error stopping clipboard monitoring on quit:', err);
+    }
+  });
 
   app.whenReady().then(async () => {
     try {
@@ -2202,13 +2275,11 @@ Command:`;
     setupUiHandlers();
     setupUrlContentHandlers();
     setupClipboardHandlers();
+    setupTerminalHandlers();
     setupLauncherHandlers();
     setupSettingsHandlers();
     setupAiHandlers();
     setupRendererSync();
-
-    // Initialize Terminal Service
-    getTerminalService();
 
     // PERFORMANCE: Start periodic garbage collection
     setupPeriodicGC();

@@ -153,7 +153,7 @@ class SystemCommandsService {
     const lowerQuery = query.toLowerCase();
     const allResults = [];
 
-    for (const [key, cmd] of Object.entries(this.commands)) {
+    for (const cmd of Object.values(this.commands)) {
       // Check if query matches any keyword
       const matches = cmd.keywords.some((keyword) => keyword.toLowerCase().includes(lowerQuery));
 

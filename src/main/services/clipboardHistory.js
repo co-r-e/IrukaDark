@@ -20,6 +20,7 @@ class ClipboardHistoryService extends EventEmitter {
     this.lastClipboard = '';
     this.lastImageHash = '';
     this.monitoringInterval = null;
+    this.isMonitoring = false;
     this.pollInterval = options.pollInterval || 1000; // Check every second
     this.saveTimeout = null;
     this.historyFilePath = path.join(app.getPath('userData'), 'clipboard-history.json');
@@ -160,6 +161,8 @@ class ClipboardHistoryService extends EventEmitter {
     if (this.monitoringInterval) {
       return; // Already monitoring
     }
+
+    this.isMonitoring = true;
 
     this.monitoringInterval = setInterval(() => {
       try {
@@ -302,6 +305,11 @@ class ClipboardHistoryService extends EventEmitter {
       clearInterval(this.monitoringInterval);
       this.monitoringInterval = null;
     }
+    this.isMonitoring = false;
+  }
+
+  isMonitoringActive() {
+    return !!this.monitoringInterval;
   }
 
   /**

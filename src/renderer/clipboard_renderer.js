@@ -2011,13 +2011,8 @@ class ClipboardHistoryUI {
     // Move snippet to the same parent as the target folder
     snippet.folderId = targetFolder.parentId;
 
-    // Find all snippets in the same level
-    const snippetsInSameLevel = this.snippets.filter(
-      (s) => (s.folderId || null) === (targetFolder.parentId || null)
-    );
-
-    // For now, just move to the folder (simple implementation)
-    // In a more complex implementation, you'd reorder based on folder position
+    // For now, just move to the folder (simple実装)
+    // 将来的にはフォルダ位置に基づく並び替えをここに追加
     this.saveSnippets();
     this.renderSnippets();
   }
@@ -2038,7 +2033,6 @@ class ClipboardHistoryUI {
       return;
     }
 
-    const draggedSnippet = this.snippets[draggedIndex];
     const targetSnippet = this.snippets[targetIndex];
 
     // Don't allow moving snippets to root level

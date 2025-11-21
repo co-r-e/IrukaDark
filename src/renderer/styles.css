@@ -1781,17 +1781,8 @@ html:not(.theme-dark) .settings-section-title {
   flex-direction: column;
   align-items: stretch;
   padding: 8px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   gap: 2px;
   min-height: 32px;
-}
-
-html:not(.theme-dark) .settings-item {
-  border-bottom-color: rgba(0, 0, 0, 0.06);
-}
-
-.settings-item:last-child {
-  border-bottom: none;
 }
 
 .settings-item:hover {

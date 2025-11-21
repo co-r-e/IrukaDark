@@ -1021,7 +1021,11 @@ class IrukaDarkApp {
     try {
       if (window.electronAPI && window.electronAPI.getUILanguage) {
         const lang = await window.electronAPI.getUILanguage();
-        setCurrentUILanguage(lang || 'en');
+        const targetLang = lang || 'en';
+        if (targetLang !== 'en') {
+          await ensureLangLoaded(targetLang);
+        }
+        setCurrentUILanguage(targetLang);
         this.updateUILanguage();
       }
     } catch {}
