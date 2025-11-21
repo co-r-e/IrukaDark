@@ -36,8 +36,6 @@ mac:
   icon: src/renderer/assets/icons/icon.png
 dmg:
   artifactName: '${productName}-${version}-mac-${arch}.dmg'
-zip:
-  artifactName: '${productName}-${version}-mac-${arch}.zip'
 publish:
   - provider: github
     releaseType: release
