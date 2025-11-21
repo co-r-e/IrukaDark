@@ -990,6 +990,29 @@ function bootstrapApp() {
       return value;
     });
 
+    ipcMain.handle('set-model', (_e, model) => {
+      const value = String(model || 'gemini-flash-lite-latest').trim();
+      setPref('GEMINI_MODEL', value);
+      prefCache.invalidate('GEMINI_MODEL');
+      return value;
+    });
+
+    ipcMain.handle('get-web-search-model', () => {
+      const cached = prefCache.get('WEB_SEARCH_MODEL');
+      if (cached !== null) return cached || 'gemini-flash-latest';
+
+      const value = getPref('WEB_SEARCH_MODEL') || 'gemini-flash-latest';
+      prefCache.set('WEB_SEARCH_MODEL', value);
+      return value;
+    });
+
+    ipcMain.handle('set-web-search-model', (_e, model) => {
+      const value = String(model || 'gemini-flash-latest').trim();
+      setPref('WEB_SEARCH_MODEL', value);
+      prefCache.invalidate('WEB_SEARCH_MODEL');
+      return value;
+    });
+
     ipcMain.handle('get-tone', () => {
       const cached = prefCache.get('TONE');
       if (cached !== null) return cached || 'casual';
@@ -1072,8 +1095,70 @@ function bootstrapApp() {
       }
     });
 
+    ipcMain.handle('check-for-updates', async () => {
+      try {
+        await manualCheckForUpdates();
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err?.message || 'Unknown error' };
+      }
+    });
+
     ipcMain.handle('get-ui-language', () => {
       return getPref('MENU_LANGUAGE') || 'en';
+    });
+
+    ipcMain.handle('set-ui-language', (_e, lang) => {
+      const validLangs = [
+        'en',
+        'ja',
+        'es',
+        'es-419',
+        'zh-Hans',
+        'zh-Hant',
+        'hi',
+        'pt-BR',
+        'fr',
+        'de',
+        'ar',
+        'ru',
+        'ko',
+        'id',
+        'vi',
+        'th',
+        'it',
+        'tr',
+      ];
+      const normalized = validLangs.includes(lang) ? lang : 'en';
+      settingsController.handleLanguageChange(normalized);
+      prefCache.invalidate('MENU_LANGUAGE');
+      return normalized;
+    });
+
+    ipcMain.handle('set-ui-theme', (_e, theme) => {
+      const normalized = theme === 'light' ? 'light' : 'dark';
+      settingsController.handleThemeChange(normalized);
+      prefCache.invalidate('UI_THEME');
+      return normalized;
+    });
+
+    ipcMain.handle('set-window-opacity', (_e, opacity) => {
+      const num = parseFloat(opacity);
+      const normalized = isNaN(num) ? 1 : Math.max(0.1, Math.min(1, num));
+      settingsController.handleWindowOpacityChange(normalized);
+      prefCache.invalidate('WINDOW_OPACITY');
+      return normalized;
+    });
+
+    ipcMain.handle('get-pin-all-spaces', () => {
+      const v = String(getPref('PIN_ALL_SPACES') || '0');
+      return v === '1' || v.toLowerCase() === 'true';
+    });
+
+    ipcMain.handle('set-pin-all-spaces', (_e, enabled) => {
+      settingsController.handlePinAllSpacesChange(!!enabled);
+      prefCache.invalidate('PIN_ALL_SPACES');
+      return !!enabled;
     });
 
     ipcMain.handle('save-web-search-setting', (_e, enabled) => {

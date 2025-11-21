@@ -39,6 +39,48 @@ class SettingsUI {
     this.lastKeyTime = 0; // For keyboard event debouncing
     this.hiddenShortcutActions = new Set(['reply']);
     this.languageChangeHandler = null; // Language change event handler
+    this.themeChangeHandler = null; // Theme change event handler
+    this.opacityChangeHandler = null; // Opacity change event handler
+
+    // Appearance settings
+    this.currentTheme = 'dark';
+    this.currentOpacity = 1;
+
+    // AI settings
+    this.currentGeminiModel = 'gemini-flash-lite-latest';
+    this.currentWebSearchModel = 'gemini-flash-latest';
+
+    // Language list for settings
+    this.languageList = [
+      { code: 'en', label: 'English' },
+      { code: 'ja', label: '日本語' },
+      { code: 'es', label: 'Español' },
+      { code: 'es-419', label: 'Español (Latinoamérica)' },
+      { code: 'zh-Hans', label: '简体中文' },
+      { code: 'zh-Hant', label: '繁體中文' },
+      { code: 'hi', label: 'हिन्दी' },
+      { code: 'pt-BR', label: 'Português (Brasil)' },
+      { code: 'fr', label: 'Français' },
+      { code: 'de', label: 'Deutsch' },
+      { code: 'ar', label: 'العربية' },
+      { code: 'ru', label: 'Русский' },
+      { code: 'ko', label: '한국어' },
+      { code: 'id', label: 'Bahasa Indonesia' },
+      { code: 'vi', label: 'Tiếng Việt' },
+      { code: 'th', label: 'ไทย' },
+      { code: 'it', label: 'Italiano' },
+      { code: 'tr', label: 'Türkçe' },
+    ];
+
+    // Opacity options (50% to 100%)
+    this.opacityOptions = [
+      { value: 0.5, label: '50%' },
+      { value: 0.6, label: '60%' },
+      { value: 0.7, label: '70%' },
+      { value: 0.8, label: '80%' },
+      { value: 0.9, label: '90%' },
+      { value: 1.0, label: '100%' },
+    ];
 
     // Default shortcut assignments (internal format uses "Alt")
     // Note: These are defined in src/shared/shortcutDefaults.js as well
@@ -63,9 +105,12 @@ class SettingsUI {
   async init() {
     await this.initI18n();
     await this.loadShortcuts();
+    await this.loadAppearanceSettings();
     this.render();
     this.bindEvents();
     this.setupLanguageChangeListener();
+    this.setupThemeChangeListener();
+    this.setupOpacityChangeListener();
   }
 
   async initI18n() {
@@ -104,6 +149,33 @@ class SettingsUI {
       if (this.i18n && this.i18n.settings && this.i18n.settings.loadError) {
         this.showToast(this.i18n.settings.loadError, 'error');
       }
+    }
+  }
+
+  async loadAppearanceSettings() {
+    try {
+      if (window.electronAPI) {
+        // Load theme
+        if (window.electronAPI.getUITheme) {
+          this.currentTheme = (await window.electronAPI.getUITheme()) || 'dark';
+        }
+        // Load opacity
+        if (window.electronAPI.getWindowOpacity) {
+          const opacity = await window.electronAPI.getWindowOpacity();
+          this.currentOpacity = parseFloat(opacity) || 1;
+        }
+        // Load AI settings
+        if (window.electronAPI.getModel) {
+          this.currentGeminiModel =
+            (await window.electronAPI.getModel()) || 'gemini-flash-lite-latest';
+        }
+        if (window.electronAPI.getWebSearchModel) {
+          this.currentWebSearchModel =
+            (await window.electronAPI.getWebSearchModel()) || 'gemini-flash-latest';
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load appearance settings:', err);
     }
   }
 
@@ -157,6 +229,10 @@ class SettingsUI {
     const t = this.i18n.settings;
 
     const html = `
+      ${this.renderUpdatesSection()}
+      ${this.renderAISettingsSection()}
+      ${this.renderAppearanceSection()}
+      ${this.renderLanguageSection()}
       <div class="settings-section">
         <div class="settings-section-title" data-i18n="settings.shortcuts">
           ${t.shortcuts || 'Keyboard Shortcuts'}
@@ -166,6 +242,132 @@ class SettingsUI {
     `;
 
     this.container.innerHTML = html;
+  }
+
+  renderUpdatesSection() {
+    const t = this.i18n.settings;
+
+    return `
+      <div class="settings-section">
+        <div class="settings-section-title">
+          ${this.escapeHtml(t.updates || 'Updates')}
+        </div>
+
+        <div class="settings-item">
+          <div class="settings-item-controls">
+            <button id="checkForUpdatesBtn" class="settings-btn">
+              ${this.escapeHtml(t.startUpdate || 'Start Update')}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  renderAISettingsSection() {
+    const t = this.i18n.settings;
+
+    return `
+      <div class="settings-section">
+        <div class="settings-section-title">
+          ${this.escapeHtml(t.aiSettings || 'AI Settings')}
+        </div>
+
+        <!-- Gemini Model -->
+        <div class="settings-item">
+          <div class="settings-item-label">${this.escapeHtml(t.geminiModel || 'Gemini Model')}</div>
+          <div class="settings-item-controls">
+            <input type="text" id="geminiModelInput" class="settings-input"
+              value="${this.escapeHtml(this.currentGeminiModel || '')}"
+              placeholder="gemini-flash-lite-latest">
+          </div>
+        </div>
+
+        <!-- Web Search Model -->
+        <div class="settings-item">
+          <div class="settings-item-label">${this.escapeHtml(t.webSearchModel || 'Web Search Model')}</div>
+          <div class="settings-item-controls">
+            <input type="text" id="webSearchModelInput" class="settings-input"
+              value="${this.escapeHtml(this.currentWebSearchModel || '')}"
+              placeholder="gemini-flash-latest">
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  renderAppearanceSection() {
+    const t = this.i18n.settings;
+
+    return `
+      <div class="settings-section">
+        <div class="settings-section-title">
+          ${this.escapeHtml(t.appearance || 'Appearance')}
+        </div>
+
+        <!-- Theme -->
+        <div class="settings-item">
+          <div class="settings-item-label">${this.escapeHtml(t.theme || 'Theme')}</div>
+          <div class="settings-item-controls">
+            <select id="themeSelect" class="settings-select">
+              <option value="light" ${this.currentTheme === 'light' ? 'selected' : ''}>
+                ${this.escapeHtml(t.themeLight || 'Light')}
+              </option>
+              <option value="dark" ${this.currentTheme === 'dark' ? 'selected' : ''}>
+                ${this.escapeHtml(t.themeDark || 'Dark')}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Window Opacity -->
+        <div class="settings-item">
+          <div class="settings-item-label">${this.escapeHtml(t.windowOpacity || 'Window Opacity')}</div>
+          <div class="settings-item-controls">
+            <select id="opacitySelect" class="settings-select">
+              ${this.opacityOptions
+                .map(
+                  (opt) => `
+                <option value="${opt.value}" ${Math.abs(this.currentOpacity - opt.value) < 0.05 ? 'selected' : ''}>
+                  ${this.escapeHtml(opt.label)}
+                </option>
+              `
+                )
+                .join('')}
+            </select>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  renderLanguageSection() {
+    const t = this.i18n.settings;
+
+    return `
+      <div class="settings-section">
+        <div class="settings-section-title">
+          ${this.escapeHtml(t.language || 'Language')}
+        </div>
+
+        <div class="settings-item">
+          <div class="settings-item-label">${this.escapeHtml(t.language || 'Language')}</div>
+          <div class="settings-item-controls">
+            <select id="languageSelect" class="settings-select">
+              ${this.languageList
+                .map(
+                  (lang) => `
+                <option value="${lang.code}" ${this.currentLang === lang.code ? 'selected' : ''}>
+                  ${this.escapeHtml(lang.label)}
+                </option>
+              `
+                )
+                .join('')}
+            </select>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   renderShortcutItems() {
@@ -234,6 +436,48 @@ class SettingsUI {
     const resetBtn = document.getElementById('resetAllShortcutsBtn');
     if (resetBtn) {
       resetBtn.addEventListener('click', () => this.resetAllShortcuts());
+    }
+
+    // Check for updates button
+    const checkUpdatesBtn = document.getElementById('checkForUpdatesBtn');
+    if (checkUpdatesBtn) {
+      checkUpdatesBtn.addEventListener('click', () => this.handleCheckForUpdates());
+    }
+
+    // Gemini Model input
+    const geminiModelInput = document.getElementById('geminiModelInput');
+    if (geminiModelInput) {
+      geminiModelInput.addEventListener('change', (e) =>
+        this.handleGeminiModelChange(e.target.value)
+      );
+    }
+
+    // Web Search Model input
+    const webSearchModelInput = document.getElementById('webSearchModelInput');
+    if (webSearchModelInput) {
+      webSearchModelInput.addEventListener('change', (e) =>
+        this.handleWebSearchModelChange(e.target.value)
+      );
+    }
+
+    // Theme select
+    const themeSelect = document.getElementById('themeSelect');
+    if (themeSelect) {
+      themeSelect.addEventListener('change', (e) => this.handleThemeSelect(e.target.value));
+    }
+
+    // Opacity select
+    const opacitySelect = document.getElementById('opacitySelect');
+    if (opacitySelect) {
+      opacitySelect.addEventListener('change', (e) =>
+        this.handleOpacitySelect(parseFloat(e.target.value))
+      );
+    }
+
+    // Language select
+    const languageSelect = document.getElementById('languageSelect');
+    if (languageSelect) {
+      languageSelect.addEventListener('change', (e) => this.handleLanguageSelect(e.target.value));
     }
   }
 
@@ -731,11 +975,164 @@ class SettingsUI {
     }
   }
 
+  /**
+   * Setup theme change listener for real-time UI updates
+   */
+  setupThemeChangeListener() {
+    if (window.electronAPI && window.electronAPI.onThemeChanged) {
+      this.themeChangeHandler = (theme) => {
+        this.currentTheme = theme || 'dark';
+        const themeSelect = document.getElementById('themeSelect');
+        if (themeSelect) {
+          themeSelect.value = this.currentTheme;
+        }
+      };
+      window.electronAPI.onThemeChanged(this.themeChangeHandler);
+    }
+  }
+
+  /**
+   * Setup opacity change listener for real-time UI updates
+   */
+  setupOpacityChangeListener() {
+    if (window.electronAPI && window.electronAPI.onWindowOpacityChanged) {
+      this.opacityChangeHandler = (opacity) => {
+        this.currentOpacity = parseFloat(opacity) || 1;
+        const opacitySelect = document.getElementById('opacitySelect');
+        if (opacitySelect) {
+          // Find the closest option value
+          const closest = this.opacityOptions.find(
+            (opt) => Math.abs(opt.value - this.currentOpacity) < 0.05
+          );
+          if (closest) {
+            opacitySelect.value = closest.value;
+          }
+        }
+      };
+      window.electronAPI.onWindowOpacityChanged(this.opacityChangeHandler);
+    }
+  }
+
+  /**
+   * Handle check for updates button click
+   */
+  async handleCheckForUpdates() {
+    const btn = document.getElementById('checkForUpdatesBtn');
+    const t = this.i18n.settings;
+
+    try {
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = t.checking || 'Checking...';
+      }
+
+      if (window.electronAPI && window.electronAPI.checkForUpdates) {
+        await window.electronAPI.checkForUpdates();
+      }
+    } catch (err) {
+      console.error('Failed to check for updates:', err);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = t.startUpdate || 'Start Update';
+      }
+    }
+  }
+
+  /**
+   * Handle Gemini Model change
+   * @param {string} model - Model name
+   */
+  async handleGeminiModelChange(model) {
+    try {
+      if (window.electronAPI && window.electronAPI.setModel) {
+        const value = model.trim() || 'gemini-flash-lite-latest';
+        await window.electronAPI.setModel(value);
+        this.currentGeminiModel = value;
+        this.showToast(this.i18n.settings.settingSaved || 'Setting saved', 'success');
+      }
+    } catch (err) {
+      console.error('Failed to set Gemini model:', err);
+      this.showToast(this.i18n.errorOccurred || 'An error occurred', 'error');
+    }
+  }
+
+  /**
+   * Handle Web Search Model change
+   * @param {string} model - Model name
+   */
+  async handleWebSearchModelChange(model) {
+    try {
+      if (window.electronAPI && window.electronAPI.setWebSearchModel) {
+        const value = model.trim() || 'gemini-flash-latest';
+        await window.electronAPI.setWebSearchModel(value);
+        this.currentWebSearchModel = value;
+        this.showToast(this.i18n.settings.settingSaved || 'Setting saved', 'success');
+      }
+    } catch (err) {
+      console.error('Failed to set Web Search model:', err);
+      this.showToast(this.i18n.errorOccurred || 'An error occurred', 'error');
+    }
+  }
+
+  /**
+   * Handle theme selection change
+   * @param {string} theme - Selected theme ('light' or 'dark')
+   */
+  async handleThemeSelect(theme) {
+    try {
+      if (window.electronAPI && window.electronAPI.setUITheme) {
+        await window.electronAPI.setUITheme(theme);
+        this.currentTheme = theme;
+        this.showToast(this.i18n.settings.settingSaved || 'Setting saved', 'success');
+      }
+    } catch (err) {
+      console.error('Failed to set theme:', err);
+      this.showToast(this.i18n.errorOccurred || 'An error occurred', 'error');
+    }
+  }
+
+  /**
+   * Handle opacity selection change
+   * @param {number} opacity - Selected opacity (0.1 to 1.0)
+   */
+  async handleOpacitySelect(opacity) {
+    try {
+      if (window.electronAPI && window.electronAPI.setWindowOpacity) {
+        await window.electronAPI.setWindowOpacity(opacity);
+        this.currentOpacity = opacity;
+        this.showToast(this.i18n.settings.settingSaved || 'Setting saved', 'success');
+      }
+    } catch (err) {
+      console.error('Failed to set opacity:', err);
+      this.showToast(this.i18n.errorOccurred || 'An error occurred', 'error');
+    }
+  }
+
+  /**
+   * Handle language selection change
+   * @param {string} lang - Selected language code
+   */
+  async handleLanguageSelect(lang) {
+    try {
+      if (window.electronAPI && window.electronAPI.setUILanguage) {
+        await window.electronAPI.setUILanguage(lang);
+        // Note: updateLanguage will be triggered by the language-changed event
+        this.showToast(this.i18n.settings.settingSaved || 'Setting saved', 'success');
+      }
+    } catch (err) {
+      console.error('Failed to set language:', err);
+      this.showToast(this.i18n.errorOccurred || 'An error occurred', 'error');
+    }
+  }
+
   destroy() {
     this.unbindEvents();
     this.stopListening();
-    // Clean up language change listener
+    // Clean up event listeners
     this.languageChangeHandler = null;
+    this.themeChangeHandler = null;
+    this.opacityChangeHandler = null;
   }
 }
 

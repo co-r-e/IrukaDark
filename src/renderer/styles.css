@@ -1816,6 +1816,197 @@ html:not(.theme-dark) .settings-item-label {
   justify-content: space-between;
 }
 
+/* Settings Select (dropdown) */
+.settings-select {
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-xs) var(--spacing-md);
+  padding-right: 28px;
+  background: var(--bg-overlay-light);
+  border: 1px solid var(--border-overlay-medium);
+  border-radius: var(--radius-md);
+  color: var(--text-primary-dark);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  min-width: 120px;
+}
+
+.settings-select:hover {
+  background-color: var(--bg-overlay-medium);
+  border-color: var(--border-overlay-strong);
+}
+
+.settings-select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(255, 77, 109, 0.2);
+}
+
+html:not(.theme-dark) .settings-select {
+  background-color: var(--bg-overlay-light-mode);
+  border-color: var(--border-overlay-light-mode-medium);
+  color: var(--text-primary-light);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+html:not(.theme-dark) .settings-select:hover {
+  background-color: var(--bg-overlay-light-mode-strong);
+  border-color: var(--border-overlay-light-mode-strong);
+}
+
+html:not(.theme-dark) .settings-select:focus {
+  box-shadow: 0 0 0 2px rgba(255, 77, 109, 0.15);
+}
+
+/* Settings Toggle (checkbox switch) */
+.settings-toggle {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.settings-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.settings-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-overlay-medium);
+  border: 1px solid var(--border-overlay-medium);
+  border-radius: 24px;
+  transition: all 0.3s ease;
+}
+
+.settings-toggle-slider:before {
+  position: absolute;
+  content: '';
+  height: 18px;
+  width: 18px;
+  left: 2px;
+  bottom: 2px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.settings-toggle input:checked + .settings-toggle-slider {
+  background: var(--primary-gradient);
+  border-color: transparent;
+}
+
+.settings-toggle input:checked + .settings-toggle-slider:before {
+  transform: translateX(20px);
+}
+
+.settings-toggle input:focus + .settings-toggle-slider {
+  box-shadow: 0 0 0 2px rgba(255, 77, 109, 0.2);
+}
+
+html:not(.theme-dark) .settings-toggle-slider {
+  background: var(--bg-overlay-light-mode-strong);
+  border-color: var(--border-overlay-light-mode-medium);
+}
+
+html:not(.theme-dark) .settings-toggle-slider:before {
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+html:not(.theme-dark) .settings-toggle input:focus + .settings-toggle-slider {
+  box-shadow: 0 0 0 2px rgba(255, 77, 109, 0.15);
+}
+
+/* Settings Button */
+.settings-btn {
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--primary-gradient);
+  border: none;
+  border-radius: var(--radius-md);
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  min-width: 140px;
+}
+
+.settings-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.settings-btn:active {
+  transform: translateY(0);
+}
+
+.settings-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+html:not(.theme-dark) .settings-btn {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Settings Input (text field) */
+.settings-input {
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--bg-overlay-light);
+  border: 1px solid var(--border-overlay-medium);
+  border-radius: var(--radius-md);
+  color: var(--text-primary-dark);
+  transition: all 0.2s ease;
+  font-weight: 500;
+  min-width: 200px;
+  flex: 1;
+}
+
+.settings-input:hover {
+  background-color: var(--bg-overlay-medium);
+  border-color: var(--border-overlay-strong);
+}
+
+.settings-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(255, 77, 109, 0.2);
+}
+
+.settings-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+html:not(.theme-dark) .settings-input {
+  background-color: var(--bg-overlay-light-mode);
+  border-color: var(--border-overlay-light-mode-medium);
+  color: var(--text-primary-light);
+}
+
+html:not(.theme-dark) .settings-input:hover {
+  background-color: var(--bg-overlay-light-mode-strong);
+  border-color: var(--border-overlay-light-mode-strong);
+}
+
+html:not(.theme-dark) .settings-input:focus {
+  box-shadow: 0 0 0 2px rgba(255, 77, 109, 0.15);
+}
+
 .shortcut-key-display {
   font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
   font-size: var(--font-size-sm);
