@@ -40,7 +40,6 @@ function showWindowNonActivating(win) {
       }
     } catch (focusError) {
       if (isDev) {
-        console.warn('[showWindowNonActivating] Failed to focus window:', focusError);
       }
     }
 
@@ -53,17 +52,12 @@ function showWindowNonActivating(win) {
           }
         } catch (restoreError) {
           if (isDev) {
-            console.warn(
-              '[showWindowNonActivating] Failed to restore always-on-top state:',
-              restoreError
-            );
           }
         }
       }, WINDOW_ALWAYS_ON_TOP_DELAY_MS);
     }
   } catch (error) {
     if (isDev) {
-      console.error('[showWindowNonActivating] Unexpected error:', error);
     }
   }
 }
@@ -96,11 +90,6 @@ async function tryCopySelectedText() {
   }
 
   if (isDev) {
-    console.warn(
-      '[tryCopySelectedText] Swift automation bridge failed to retrieve selected text:',
-      response.code || response.status,
-      response.message || ''
-    );
   }
 
   return '';
@@ -132,7 +121,6 @@ async function captureInteractiveArea() {
         }
       } catch (cleanupError) {
         if (isDev) {
-          console.warn('[captureInteractiveArea] Failed to clean up temporary file:', cleanupError);
         }
       }
       return { data: '', mimeType: '' };
@@ -147,20 +135,17 @@ async function captureInteractiveArea() {
         fs.unlinkSync(file);
       } catch (cleanupError) {
         if (isDev) {
-          console.warn('[captureInteractiveArea] Failed to delete temporary file:', cleanupError);
         }
       }
 
       return { data: buf.toString('base64'), mimeType: 'image/png' };
     } catch (readError) {
       if (isDev) {
-        console.error('[captureInteractiveArea] Failed to read captured image:', readError);
       }
       return { data: '', mimeType: '' };
     }
   } catch (error) {
     if (isDev) {
-      console.error('[captureInteractiveArea] Unexpected error:', error);
     }
     return { data: '', mimeType: '' };
   }

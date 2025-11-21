@@ -120,7 +120,6 @@ class ClipboardHistoryService extends EventEmitter {
 
       return richText;
     } catch (err) {
-      console.error('Error reading rich text from clipboard:', err);
       return null;
     }
   }
@@ -145,9 +144,7 @@ class ClipboardHistoryService extends EventEmitter {
       if (richText.rtf) {
         try {
           formats.rtf = Buffer.from(richText.rtf, 'base64').toString('utf-8');
-        } catch (err) {
-          console.error('Error decoding RTF data:', err);
-        }
+        } catch (err) {}
       }
       if (richText.html) {
         formats.html = richText.html;
@@ -255,9 +252,7 @@ class ClipboardHistoryService extends EventEmitter {
           this.lastClipboard = hasText ? currentText : '';
           this.lastImageHash = hasImage ? imageHash : '';
         }
-      } catch (err) {
-        console.error('Error reading clipboard:', err);
-      }
+      } catch (err) {}
     }, this.pollInterval);
 
     // Initialize with current clipboard content
@@ -295,9 +290,7 @@ class ClipboardHistoryService extends EventEmitter {
         this.lastClipboard = hasText ? currentText : '';
         this.lastImageHash = hasImage ? imageHash : '';
       }
-    } catch (err) {
-      console.error('Error initializing clipboard history:', err);
-    }
+    } catch (err) {}
   }
 
   stopMonitoring() {
@@ -542,7 +535,6 @@ class ClipboardHistoryService extends EventEmitter {
       }
       return true;
     } catch (err) {
-      console.error('Error writing to clipboard:', err);
       return false;
     }
   }
@@ -581,11 +573,8 @@ class ClipboardHistoryService extends EventEmitter {
             }
           }
         });
-
-        console.log(`Loaded ${this.history.length} clipboard items from file`);
       }
     } catch (err) {
-      console.error('Error loading clipboard history from file:', err);
       this.history = [];
     }
   }
@@ -609,7 +598,6 @@ class ClipboardHistoryService extends EventEmitter {
         const data = JSON.stringify(this.history, null, 2);
         await fs.writeFile(this.historyFilePath, data, 'utf8');
       } catch (err) {
-        console.error('Error saving clipboard history to file:', err);
       } finally {
         this.isSaving = false;
       }

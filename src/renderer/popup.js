@@ -60,7 +60,6 @@ class DragController {
    */
   log(...args) {
     if (DEBUG_MODE) {
-      console.log('[DragController]', ...args);
     }
   }
 
@@ -320,13 +319,11 @@ function setupLogoErrorHandling() {
   try {
     const api = window.electronAPI;
     if (!api) {
-      console.error('Electron API not available');
       return;
     }
 
     const container = document.getElementById('logoContainer');
     if (!container) {
-      console.error('Logo container not found');
       return;
     }
 
@@ -349,7 +346,5 @@ function setupLogoErrorHandling() {
       },
       { once: true }
     );
-  } catch (error) {
-    console.error('Failed to initialize popup drag:', error);
-  }
+  } catch (error) {}
 })();

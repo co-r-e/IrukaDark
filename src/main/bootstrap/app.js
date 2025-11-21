@@ -77,11 +77,8 @@ function setupPeriodicGC() {
         // Only run GC if heap usage exceeds 300MB
         if (memUsage.heapUsed > 300 * 1024 * 1024) {
           global.gc();
-          console.log('[GC] Manual garbage collection executed');
         }
-      } catch (err) {
-        console.error('[GC] Error during garbage collection:', err);
-      }
+      } catch (err) {}
     }, 60000); // Every 60 seconds
   }
 }
@@ -163,9 +160,7 @@ function bootstrapApp() {
       // Start background scanning only when first accessed
       try {
         await appScanner.scanApplications();
-      } catch (err) {
-        console.error('Error scanning applications:', err);
-      }
+      } catch (err) {}
     }
     return appScanner;
   }
@@ -325,7 +320,6 @@ function bootstrapApp() {
       };
       createAppMenu(ctx);
     } catch (error) {
-      if (isDev) console.warn('Failed to create menu:', error?.message);
       try {
         const fallback = Menu.buildFromTemplate([{ role: 'editMenu' }, { role: 'windowMenu' }]);
         Menu.setApplicationMenu(fallback);
@@ -373,9 +367,7 @@ function bootstrapApp() {
             // Update tray menu after hiding to show "Show" option
             updateTrayMenu();
           }
-        } catch (err) {
-          if (isDev) console.error('Failed to hide main window:', err);
-        }
+        } catch (err) {}
       },
       isMainWindowVisible: () => {
         try {
@@ -398,18 +390,14 @@ function bootstrapApp() {
 
       // Removed automatic window showing on tray click
       // Users can use the tray menu to show/hide the window
-    } catch (error) {
-      if (isDev) console.warn('Failed to create tray:', error?.message);
-    }
+    } catch (error) {}
   }
 
   function updateTrayMenu() {
     try {
       if (!tray || tray.isDestroyed()) return;
       tray.setContextMenu(createTrayMenu(buildTrayMenuContext()));
-    } catch (error) {
-      if (isDev) console.warn('Failed to update tray menu:', error?.message);
-    }
+    } catch (error) {}
   }
 
   function resolveApiKeys() {
@@ -544,7 +532,6 @@ function bootstrapApp() {
       mainWindow.focus();
       return true;
     } catch (err) {
-      if (isDev) console.warn('Failed to bring main window to front:', err?.message);
       return false;
     }
   }
@@ -581,9 +568,7 @@ function bootstrapApp() {
               } else {
                 mainWindow.webContents.send('explain-clipboard-error', '');
               }
-            } catch (e) {
-              if (isDev) console.warn('Clipboard explain failed:', e?.message);
-            }
+            } catch (e) {}
           })();
         });
         return ok;
@@ -617,9 +602,7 @@ function bootstrapApp() {
               } else {
                 mainWindow.webContents.send('explain-clipboard-error', 'INVALID_URL_SELECTION');
               }
-            } catch (e) {
-              if (isDev) console.warn('URL context shortcut failed:', e?.message);
-            }
+            } catch (e) {}
           })();
         });
         return ok;
@@ -649,9 +632,7 @@ function bootstrapApp() {
               } else {
                 mainWindow.webContents.send('explain-clipboard-error', '');
               }
-            } catch (e) {
-              if (isDev) console.warn('Reply variations shortcut failed:', e?.message);
-            }
+            } catch (e) {}
           })();
         });
         return ok;
@@ -700,9 +681,7 @@ function bootstrapApp() {
               } else {
                 mainWindow.webContents.send('explain-clipboard-error', '');
               }
-            } catch (e) {
-              if (isDev) console.warn('Clipboard translate failed:', e?.message);
-            }
+            } catch (e) {}
           })();
         });
         if (ok) translateUsed = c;
@@ -728,9 +707,7 @@ function bootstrapApp() {
                 bringMainWindowToFront(mainWindow);
                 mainWindow.webContents.send('explain-screenshot', { data, mimeType });
               }
-            } catch (e) {
-              if (isDev) console.warn('Screenshot explain failed:', e?.message);
-            }
+            } catch (e) {}
           })();
         });
       } catch {}
@@ -752,9 +729,7 @@ function bootstrapApp() {
                 bringMainWindowToFront(mainWindow);
                 mainWindow.webContents.send('explain-screenshot-detailed', { data, mimeType });
               }
-            } catch (e) {
-              if (isDev) console.warn('Screenshot detailed explain failed:', e?.message);
-            }
+            } catch (e) {}
           })();
         });
       } catch {}
@@ -788,9 +763,7 @@ function bootstrapApp() {
               popupWindow.show();
             }
             popupWindow.focus();
-          } catch (e) {
-            if (isDev) console.warn('Move popup to cursor failed:', e?.message);
-          }
+          } catch (e) {}
         });
       } catch {}
     }
@@ -803,9 +776,7 @@ function bootstrapApp() {
           logShortcutEvent('shortcut.trigger', { accel: c, kind: 'reset_to_initial' });
           try {
             windowManager.resetPopupToInitialPosition();
-          } catch (e) {
-            if (isDev) console.warn('Reset popup to initial position failed:', e?.message);
-          }
+          } catch (e) {}
         });
       } catch {}
     }
@@ -825,7 +796,6 @@ function bootstrapApp() {
               if (isClipboardPopupActive()) {
                 // Close the popup
                 closeClipboardPopup();
-                if (isDev) console.log('Clipboard popup closed');
                 return;
               }
 
@@ -834,7 +804,6 @@ function bootstrapApp() {
               const history = clipboardService.getHistory();
 
               if (!history || history.length === 0) {
-                if (isDev) console.log('No clipboard history to show');
                 return;
               }
 
@@ -865,24 +834,11 @@ function bootstrapApp() {
                 }
 
                 clipboardService.programmaticSetTime = Date.now();
-                if (isDev) {
-                  console.log('Tracked pasted item to prevent re-adding to history', {
-                    text: !!pastedText,
-                    image: !!pastedImageOriginal,
-                  });
-                }
               }
-
-              if (isDev) console.log('Clipboard popup opened');
-            } catch (e) {
-              if (isDev) console.warn('Clipboard popup failed:', e?.message);
-            }
+            } catch (e) {}
           })();
         });
-        if (isDev) console.log(`Clipboard popup shortcut registered: ${c}`);
-      } catch (e) {
-        if (isDev) console.warn('Failed to register clipboard popup shortcut:', e?.message);
-      }
+      } catch (e) {}
     }
 
     // Toggle main window shortcut
@@ -901,14 +857,9 @@ function bootstrapApp() {
             } else {
               bringMainWindowToFront(mainWindow);
             }
-          } catch (e) {
-            if (isDev) console.warn('Toggle main window shortcut failed:', e?.message);
-          }
+          } catch (e) {}
         });
-        if (isDev) console.log(`Toggle main window shortcut registered: ${c}`);
-      } catch (e) {
-        if (isDev) console.warn('Failed to register toggle main window shortcut:', e?.message);
-      }
+      } catch (e) {}
     }
 
     try {
@@ -932,11 +883,8 @@ function bootstrapApp() {
     } catch {}
 
     if (!baseUsed && !detailedUsed) {
-      if (isDev) console.warn('Failed to register any global shortcut');
     } else if (!baseUsed) {
-      if (isDev) console.warn('Base shortcut registration failed; detailed only');
     } else if (!detailedUsed) {
-      if (isDev) console.warn('Detailed shortcut registration failed; base only');
     }
   }
 
@@ -1072,7 +1020,6 @@ function bootstrapApp() {
         }
         return false;
       } catch (err) {
-        console.error('Error setting dragging state:', err);
         return false;
       }
     });
@@ -1343,7 +1290,6 @@ function bootstrapApp() {
       try {
         return getTerminalService().createTerminal(event.sender, id, cols, rows, cwd);
       } catch (error) {
-        console.error('[TerminalService] Error creating terminal:', error);
         return { success: false, error: error.message };
       }
     });
@@ -1351,24 +1297,19 @@ function bootstrapApp() {
     ipcMain.on('terminal:input', (event, { id, data }) => {
       try {
         getTerminalService().writeInput(id, data);
-      } catch (error) {
-        console.error('[TerminalService] Error writing to terminal:', error);
-      }
+      } catch (error) {}
     });
 
     ipcMain.on('terminal:resize', (_event, { id, cols, rows }) => {
       try {
         getTerminalService().resizeTerminal(id, cols, rows);
-      } catch (error) {
-        console.error('[TerminalService] Error resizing terminal:', error);
-      }
+      } catch (error) {}
     });
 
     ipcMain.handle('terminal:kill', (_event, { id }) => {
       try {
         return getTerminalService().killTerminal(id);
       } catch (error) {
-        console.error('[TerminalService] Error killing terminal:', error);
         return { success: false, error: error.message };
       }
     });
@@ -1384,9 +1325,7 @@ function bootstrapApp() {
     const ensureMonitoring = () => {
       try {
         clipboardService.startMonitoring();
-      } catch (err) {
-        console.error('Error starting clipboard monitoring:', err);
-      }
+      } catch (err) {}
     };
 
     // Listen for history updates and notify main window
@@ -1396,9 +1335,7 @@ function bootstrapApp() {
         if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
           mainWindow.webContents.send('clipboard:history-updated', history);
         }
-      } catch (err) {
-        console.error('Error notifying main window:', err);
-      }
+      } catch (err) {}
 
       // Debounce popup updates (only update every 500ms max)
       try {
@@ -1413,14 +1350,10 @@ function bootstrapApp() {
               const opacity = parseFloat(getPref('WINDOW_OPACITY') || '1');
               if (!isClipboardPopupActive()) return;
               updateClipboardPopup(history, { isDarkMode, opacity });
-            } catch (err) {
-              console.error('Error updating clipboard popup:', err);
-            }
+            } catch (err) {}
           }, 500);
         }
-      } catch (err) {
-        console.error('Error scheduling clipboard popup update:', err);
-      }
+      } catch (err) {}
     });
 
     ipcMain.handle('clipboard:get-history', () => {
@@ -1479,7 +1412,6 @@ function bootstrapApp() {
         }
         return null;
       } catch (err) {
-        console.error('Error loading snippet data:', err);
         return null;
       }
     });
@@ -1489,7 +1421,6 @@ function bootstrapApp() {
         fs.writeFileSync(snippetDataPath, JSON.stringify(data, null, 2), 'utf8');
         return true;
       } catch (err) {
-        console.error('Error saving snippet data:', err);
         return false;
       }
     });
@@ -1502,7 +1433,6 @@ function bootstrapApp() {
         const scanner = await getAppScanner();
         return scanner.searchApps(query, limit, offset);
       } catch (err) {
-        console.error('App search error:', err);
         return { results: [], total: 0, hasMore: false };
       }
     });
@@ -1513,12 +1443,10 @@ function bootstrapApp() {
         const { exec } = require('child_process');
         exec(`open -a "${appPath}"`, (error) => {
           if (error) {
-            console.error('Error launching app:', error);
           }
         });
         return { success: true };
       } catch (err) {
-        console.error('Launch app error:', err);
         return { success: false, error: err.message };
       }
     });
@@ -1528,7 +1456,6 @@ function bootstrapApp() {
       try {
         return await getFileSearch().searchFiles(query, { limit, offset });
       } catch (err) {
-        console.error('File search error:', err);
         return { results: [], total: 0, hasMore: false };
       }
     });
@@ -1539,7 +1466,6 @@ function bootstrapApp() {
         await shell.openPath(filePath);
         return { success: true };
       } catch (err) {
-        console.error('Open file error:', err);
         return { success: false, error: err.message };
       }
     });
@@ -1549,7 +1475,6 @@ function bootstrapApp() {
       try {
         return getSystemCommands().searchCommands(query, limit, offset);
       } catch (err) {
-        console.error('System command search error:', err);
         return { results: [], total: 0, hasMore: false };
       }
     });
@@ -1559,7 +1484,6 @@ function bootstrapApp() {
       try {
         return await getSystemCommands().executeCommand(commandId);
       } catch (err) {
-        console.error('Execute system command error:', err);
         return { success: false, error: err.message };
       }
     });
@@ -1575,7 +1499,6 @@ function bootstrapApp() {
         }
         return DEFAULT_SHORTCUTS;
       } catch (err) {
-        console.error('Error getting shortcut assignments:', err);
         return DEFAULT_SHORTCUTS;
       }
     });
@@ -1630,13 +1553,11 @@ function bootstrapApp() {
           globalShortcut.unregisterAll();
           registerGlobalShortcuts(true);
         } catch (regErr) {
-          console.error('Error re-registering shortcuts:', regErr);
           // Even if re-registration partially fails, the preference was saved
         }
 
         return { success: true };
       } catch (err) {
-        console.error('Error saving shortcut assignment:', err);
         return { success: false, error: err.message };
       }
     });
@@ -1656,7 +1577,6 @@ function bootstrapApp() {
 
         return null; // No conflict
       } catch (err) {
-        console.error('Error validating shortcut:', err);
         return null;
       }
     });
@@ -1671,13 +1591,11 @@ function bootstrapApp() {
           globalShortcut.unregisterAll();
           registerGlobalShortcuts(true);
         } catch (regErr) {
-          console.error('Error re-registering shortcuts:', regErr);
           // Even if re-registration partially fails, the preference was cleared
         }
 
         return { success: true };
       } catch (err) {
-        console.error('Error resetting shortcut assignments:', err);
         return { success: false, error: err.message };
       }
     });
@@ -1688,7 +1606,6 @@ function bootstrapApp() {
         const apiKey = getPref('GEMINI_API_KEY') || '';
         return { success: true, apiKey };
       } catch (err) {
-        console.error('Error getting Gemini API key:', err);
         return { success: false, error: err.message, apiKey: '' };
       }
     });
@@ -1707,7 +1624,6 @@ function bootstrapApp() {
         setPref('GEMINI_API_KEY', trimmedKey);
         return { success: true };
       } catch (err) {
-        console.error('Error saving Gemini API key:', err);
         return { success: false, error: err.message };
       }
     });
@@ -1785,9 +1701,7 @@ function bootstrapApp() {
           let client = null;
           try {
             client = await getGenAIClientForKey(key);
-          } catch (e) {
-            if (isDev) console.log('SDK client creation failed:', e?.message);
-          }
+          } catch (e) {}
 
           const controller = new AbortController();
           const cancelFlag = { user: false };
@@ -1827,7 +1741,6 @@ function bootstrapApp() {
                     method: 'SDK',
                     error: e?.message || 'Unknown',
                   });
-                  if (isDev) console.log(`SDK failed for ${modelName}:`, e?.message);
                 }
               }
 
@@ -1863,7 +1776,6 @@ function bootstrapApp() {
                   throw new Error('Request timed out');
                 }
                 errorLog.push({ model: modelName, method: 'REST', error: m });
-                if (isDev) console.log(`REST failed for ${modelName}:`, m);
               }
             }
 
@@ -2049,14 +1961,6 @@ Command:`;
         const hasRm = /\brm\b/i.test(command);
 
         const isDangerous = dangerousPatterns.some((pattern) => pattern.test(command)) || hasRm;
-
-        // Debug logging
-        if (hasRm) {
-          console.log('[AI Command] Detected rm command:', {
-            command,
-            isDangerous,
-          });
-        }
 
         return {
           command,
@@ -2303,9 +2207,7 @@ Command:`;
       if (svc && typeof svc.stopMonitoring === 'function') {
         svc.stopMonitoring();
       }
-    } catch (err) {
-      console.error('Error stopping clipboard monitoring on quit:', err);
-    }
+    } catch (err) {}
   });
 
   app.whenReady().then(async () => {
@@ -2327,9 +2229,7 @@ Command:`;
         openAtLogin: autoStartEnabled,
         openAsHidden: false,
       });
-    } catch (err) {
-      if (isDev) console.warn('Failed to apply auto-start setting:', err?.message);
-    }
+    } catch (err) {}
 
     windowManager.createMainWindow();
     buildAppMenu();
@@ -2341,16 +2241,12 @@ Command:`;
       mainWindow.on('show', () => {
         try {
           updateTrayMenu();
-        } catch (err) {
-          if (isDev) console.error('Failed to update tray menu on show:', err);
-        }
+        } catch (err) {}
       });
       mainWindow.on('hide', () => {
         try {
           updateTrayMenu();
-        } catch (err) {
-          if (isDev) console.error('Failed to update tray menu on hide:', err);
-        }
+        } catch (err) {}
       });
     }
 

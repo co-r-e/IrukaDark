@@ -28,7 +28,6 @@ class WindowPositioner {
       const nearest = screen.getDisplayNearestPoint({ x: point.x, y: point.y });
       return nearest.workArea;
     } catch (error) {
-      console.warn('[WindowPositioner] Failed to get display, using fallback:', error);
       return FALLBACK_SCREEN;
     }
   }
@@ -42,7 +41,6 @@ class WindowPositioner {
       const primary = screen.getPrimaryDisplay();
       return primary && primary.workArea ? primary.workArea : FALLBACK_SCREEN;
     } catch (error) {
-      console.warn('[WindowPositioner] Failed to get primary display, using fallback:', error);
       return FALLBACK_SCREEN;
     }
   }

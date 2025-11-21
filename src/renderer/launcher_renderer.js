@@ -67,7 +67,6 @@ class LauncherUI {
 
   init() {
     if (!this.searchInput || !this.resultsContainer) {
-      console.error('Launcher UI elements not found');
       return;
     }
 
@@ -232,7 +231,6 @@ class LauncherUI {
       if (currentSearchId !== this.searchId) {
         return;
       }
-      console.error('Search error:', err);
       this.renderError();
     }
   }
@@ -336,9 +334,7 @@ class LauncherUI {
           await window.electronAPI.launcher.executeSystemCommand(result.id);
           break;
       }
-    } catch (err) {
-      console.error('Execute error:', err);
-    }
+    } catch (err) {}
   }
 
   showConfirmation(result) {
@@ -714,7 +710,6 @@ class LauncherUI {
       // Re-render with new results (use differential update)
       this.applyFilters(true);
     } catch (err) {
-      console.error('Load more error:', err);
     } finally {
       this.isLoadingMore = false;
       this.hideLoadingIndicator();
@@ -745,7 +740,6 @@ class LauncherUI {
       const saved = localStorage.getItem('irukadark_launcher_favorites');
       return saved ? JSON.parse(saved) : [];
     } catch (err) {
-      console.error('Error loading favorites:', err);
       return [];
     }
   }
@@ -753,9 +747,7 @@ class LauncherUI {
   saveFavorites() {
     try {
       localStorage.setItem('irukadark_launcher_favorites', JSON.stringify(this.favorites));
-    } catch (err) {
-      console.error('Error saving favorites:', err);
-    }
+    } catch (err) {}
   }
 
   getResultKey(result) {

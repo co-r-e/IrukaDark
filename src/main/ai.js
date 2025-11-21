@@ -567,7 +567,6 @@ async function restGenerateImageFromText(
   }
 
   // Debug: Log request body
-  console.log('[DEBUG] Image generation request body:', JSON.stringify(body, null, 2));
 
   const res = await fetch(url, {
     method: 'POST',
@@ -582,24 +581,18 @@ async function restGenerateImageFromText(
   const data = await res.json();
 
   // Debug: Log response structure
-  console.log('[DEBUG] Image generation API response:', JSON.stringify(data, null, 2));
 
   // Extract image data from response
   const candidates = data?.candidates || [];
   if (candidates.length === 0) {
-    console.error('[DEBUG] No candidates in response');
     throw new Error('No candidates in API response.');
   }
 
   for (const candidate of candidates) {
     const parts = candidate?.content?.parts || [];
-    console.log('[DEBUG] Candidate parts count:', parts.length);
 
     for (const part of parts) {
-      console.log('[DEBUG] Part keys:', Object.keys(part));
-
       if (part.inline_data && part.inline_data.data) {
-        console.log('[DEBUG] Found image in inline_data (snake_case)');
         return {
           imageData: part.inline_data.data,
           mimeType: part.inline_data.mimeType || 'image/png',
@@ -607,7 +600,6 @@ async function restGenerateImageFromText(
       }
       // Also check for inlineData (camelCase)
       if (part.inlineData && part.inlineData.data) {
-        console.log('[DEBUG] Found image in inlineData (camelCase)');
         return {
           imageData: part.inlineData.data,
           mimeType: part.inlineData.mimeType || 'image/png',
@@ -618,7 +610,6 @@ async function restGenerateImageFromText(
 
   // Check for safety or other finish reasons
   const finishReason = candidates[0]?.finishReason || candidates[0]?.finish_reason || '';
-  console.log('[DEBUG] Finish reason:', finishReason);
 
   if (String(finishReason).toUpperCase().includes('SAFETY')) {
     throw new Error('The API blocked the image generation for safety reasons.');
@@ -648,10 +639,8 @@ async function restGenerateImageFromTextWithReference(
 
   // Add reference images if provided (support multiple images)
   if (referenceImages && Array.isArray(referenceImages)) {
-    console.log('[DEBUG] Number of reference images:', referenceImages.length);
     for (const refImage of referenceImages) {
       if (refImage.base64 && refImage.mimeType) {
-        console.log('[DEBUG] Adding reference image with mimeType:', refImage.mimeType);
         parts.push({
           inlineData: {
             data: String(refImage.base64),
@@ -672,19 +661,6 @@ async function restGenerateImageFromTextWithReference(
     body.generationConfig.imageConfig = { aspectRatio };
   }
 
-  console.log('[DEBUG] Image generation with reference request, parts count:', parts.length);
-  console.log(
-    '[DEBUG] Request body structure:',
-    JSON.stringify(
-      {
-        partsCount: parts.length,
-        generationConfig: body.generationConfig,
-      },
-      null,
-      2
-    )
-  );
-
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': String(apiKey || '').trim() },
@@ -697,33 +673,23 @@ async function restGenerateImageFromTextWithReference(
   }
   const data = await res.json();
 
-  console.log('[DEBUG] Image generation with reference API response received');
-  console.log('[DEBUG] Response structure:', JSON.stringify(data, null, 2));
-
   // Extract image data from response
   const candidates = data?.candidates || [];
   if (candidates.length === 0) {
-    console.error('[DEBUG] No candidates in response');
     throw new Error('No candidates in API response.');
   }
 
-  console.log('[DEBUG] Number of candidates:', candidates.length);
-
   for (const candidate of candidates) {
     const parts = candidate?.content?.parts || [];
-    console.log('[DEBUG] Candidate parts count:', parts.length);
-    console.log('[DEBUG] Parts structure:', JSON.stringify(parts, null, 2));
 
     for (const part of parts) {
       if (part.inline_data && part.inline_data.data) {
-        console.log('[DEBUG] Found image in inline_data (snake_case)');
         return {
           imageData: part.inline_data.data,
           mimeType: part.inline_data.mimeType || 'image/png',
         };
       }
       if (part.inlineData && part.inlineData.data) {
-        console.log('[DEBUG] Found image in inlineData (camelCase)');
         return {
           imageData: part.inlineData.data,
           mimeType: part.inlineData.mimeType || 'image/png',
@@ -734,15 +700,9 @@ async function restGenerateImageFromTextWithReference(
 
   // Check for safety or other finish reasons
   const finishReason = candidates[0]?.finishReason || candidates[0]?.finish_reason || '';
-  console.log('[DEBUG] Finish reason:', finishReason);
   if (String(finishReason).toUpperCase().includes('SAFETY')) {
     throw new Error('The API blocked the image generation for safety reasons.');
   }
-
-  console.error(
-    '[DEBUG] No image data found in response. Full response:',
-    JSON.stringify(data, null, 2)
-  );
   throw new Error('No image data found in API response.');
 }
 
@@ -766,7 +726,6 @@ async function restGenerateVideoFromText(
 
   // Add reference image if provided (Image-to-Video)
   if (referenceImage && referenceImage.base64 && referenceImage.mimeType) {
-    console.log('[DEBUG] Adding reference image for Image-to-Video');
     instance.image = {
       bytesBase64Encoded: referenceImage.base64,
       mimeType: referenceImage.mimeType,
@@ -783,13 +742,6 @@ async function restGenerateVideoFromText(
     },
   };
 
-  console.log(
-    '[DEBUG] Video generation request with',
-    referenceImage ? 'reference image' : 'text only',
-    '- Resolution:',
-    resolution
-  );
-
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': String(apiKey || '').trim() },
@@ -803,7 +755,6 @@ async function restGenerateVideoFromText(
   }
 
   const data = await res.json();
-  console.log('[DEBUG] Video generation initial response:', JSON.stringify(data, null, 2));
 
   // Extract operation name from response
   const operationName = data?.name;
@@ -820,8 +771,6 @@ async function pollVideoOperation(apiKey, operationName, signal, maxWaitMs = 600
   const pollUrl = `${baseUrl}/${operationName}`;
   const pollIntervalMs = 10000; // 10 seconds
   const startTime = Date.now();
-
-  console.log('[DEBUG] Starting operation polling:', operationName);
 
   while (true) {
     // Check timeout
@@ -850,7 +799,6 @@ async function pollVideoOperation(apiKey, operationName, signal, maxWaitMs = 600
     }
 
     const data = await res.json();
-    console.log('[DEBUG] Poll response:', JSON.stringify(data, null, 2));
 
     // Check if done
     if (data?.done === true) {
@@ -859,8 +807,6 @@ async function pollVideoOperation(apiKey, operationName, signal, maxWaitMs = 600
       if (!videoUri) {
         throw new Error('No video URI in completed response.');
       }
-
-      console.log('[DEBUG] Video generation completed:', videoUri);
 
       // Download video data
       return downloadVideoFromUri(videoUri, signal, apiKey);
@@ -873,13 +819,10 @@ async function pollVideoOperation(apiKey, operationName, signal, maxWaitMs = 600
     }
 
     // Continue polling
-    console.log('[DEBUG] Operation not done yet, continuing to poll...');
   }
 }
 
 async function downloadVideoFromUri(uri, signal, apiKey) {
-  console.log('[DEBUG] Downloading video from URI:', uri);
-
   // Try with API key in header
   const headers = {};
   if (apiKey) {
@@ -899,8 +842,6 @@ async function downloadVideoFromUri(uri, signal, apiKey) {
   // Get video as buffer
   const buffer = await res.arrayBuffer();
   const base64 = Buffer.from(buffer).toString('base64');
-
-  console.log('[DEBUG] Video downloaded, size:', buffer.byteLength, 'bytes');
 
   return {
     videoData: base64,

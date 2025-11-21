@@ -21,7 +21,6 @@ class TerminalUI {
     this.tabsContainer = document.getElementById('terminalTabs');
 
     if (!this.container || !this.tabsContainer) {
-      console.error('[TerminalUI] Required DOM elements not found');
       return;
     }
 
@@ -33,15 +32,13 @@ class TerminalUI {
     this.resizeDebounceMap = new Map(); // terminalId -> timeoutId
     this.RESIZE_DEBOUNCE_DELAY = 150; // 150ms debounce
 
-    this.init().catch((err) => console.error('[TerminalUI] Failed to initialize:', err));
+    this.init().catch(() => {});
   }
 
   /**
    * Initialize terminal UI
    */
   async init() {
-    console.log('[TerminalUI] Initializing');
-
     // Load xterm resources on demand
     await this.ensureXterm();
 
@@ -147,7 +144,6 @@ class TerminalUI {
 
     // Handle terminal exit
     window.api.receive('terminal:exit', ({ id, exitCode }) => {
-      console.log(`[TerminalUI] Terminal ${id} exited with code ${exitCode}`);
       // Flush any pending buffered data before showing exit message
       this.flushTerminalBuffer(id);
 
@@ -230,11 +226,8 @@ class TerminalUI {
         if (typeof window.app.updateStaticHTMLText === 'function') {
           window.app.updateStaticHTMLText();
         }
-        console.log('[TerminalUI] I18n cache refreshed successfully');
       }
-    } catch (error) {
-      console.warn('[TerminalUI] Failed to refresh i18n cache:', error);
-    }
+    } catch (error) {}
   }
 
   /**
@@ -299,13 +292,10 @@ class TerminalUI {
     const isDark = document.documentElement.classList.contains('theme-dark');
     const theme = this.getTerminalTheme(isDark);
 
-    console.log(`[TerminalUI] Updating theme for all terminals (isDark: ${isDark})`);
-
-    this.terminals.forEach(({ term }, id) => {
+    this.terminals.forEach(({ term }) => {
       if (term) {
         // Update terminal theme using xterm.js options API
         term.options.theme = theme;
-        console.log(`[TerminalUI] Updated theme for terminal ${id}`);
       }
     });
   }
@@ -318,17 +308,12 @@ class TerminalUI {
       // Listen for theme changes from the main process
       if (window.electronAPI && window.electronAPI.onThemeChanged) {
         window.electronAPI.onThemeChanged((theme) => {
-          console.log(`[TerminalUI] Theme changed to: ${theme}`);
           // Update all terminals with new theme
           this.updateAllTerminalsTheme();
         });
-        console.log('[TerminalUI] Theme change listener registered');
       } else {
-        console.warn('[TerminalUI] onThemeChanged API not available');
       }
-    } catch (error) {
-      console.error('[TerminalUI] Failed to setup theme listener:', error);
-    }
+    } catch (error) {}
   }
 
   /**
@@ -336,7 +321,6 @@ class TerminalUI {
    */
   async createTerminal() {
     const id = `term-${Date.now()}`;
-    console.log(`[TerminalUI] Creating terminal ${id}`);
 
     // Get theme
     const isDark = document.documentElement.classList.contains('theme-dark');
@@ -391,7 +375,6 @@ class TerminalUI {
     });
 
     if (!result.success) {
-      console.error('[TerminalUI] Failed to create terminal:', result.error);
       this.showError(term, getUIText('terminal.failedToCreate') + ' ' + result.error);
       return;
     }
@@ -417,8 +400,6 @@ class TerminalUI {
 
     // Activate terminal
     this.switchTerminal(id);
-
-    console.log(`[TerminalUI] Terminal ${id} (${shellName}) created successfully`);
   }
 
   /**
@@ -545,8 +526,6 @@ class TerminalUI {
     const terminal = this.terminals.get(id);
     if (!terminal) return;
 
-    console.log(`[TerminalUI] Restarting terminal ${id}`);
-
     // Kill current PTY
     await window.api.invoke('terminal:kill', { id });
 
@@ -563,7 +542,6 @@ class TerminalUI {
     });
 
     if (!result.success) {
-      console.error('[TerminalUI] Failed to restart terminal:', result.error);
       this.showError(terminal.term, getUIText('terminal.failedToRestart') + ' ' + result.error);
     } else {
       terminal.term.focus();
@@ -599,7 +577,6 @@ class TerminalUI {
       }
 
       this.activeTerminalId = id;
-      console.log(`[TerminalUI] Switched to terminal ${id}`);
     }
   }
 
@@ -635,8 +612,6 @@ class TerminalUI {
   async closeTerminal(id) {
     const terminal = this.terminals.get(id);
     if (!terminal) return;
-
-    console.log(`[TerminalUI] Closing terminal ${id}`);
 
     // Performance optimization: Clean up buffers and debounce timers
     this.cleanupTerminalResources(id);
@@ -728,7 +703,6 @@ class TerminalUI {
 
       return lines.join('\n').trim();
     } catch (err) {
-      console.error('[TerminalUI] Failed to get terminal context:', err);
       return '';
     }
   }
@@ -788,7 +762,6 @@ class TerminalUI {
   initAICommandInput() {
     const terminalFooter = document.getElementById('terminalFooter');
     if (!terminalFooter) {
-      console.error('[TerminalUI] Terminal footer not found');
       return;
     }
 
@@ -1097,16 +1070,12 @@ class TerminalUI {
     // Preview action buttons
     executeBtn.addEventListener('click', handleExecute);
     cancelBtn.addEventListener('click', handleCancel);
-
-    console.log('[TerminalUI] AI command input initialized');
   }
 
   /**
    * Cleanup all terminals and resources
    */
   cleanup() {
-    console.log('[TerminalUI] Cleaning up all terminals');
-
     // Close all terminals (which also cleans up their buffers)
     this.terminals.forEach((_, id) => {
       this.closeTerminal(id);

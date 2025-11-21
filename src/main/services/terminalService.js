@@ -15,7 +15,6 @@ class TerminalService {
     // Performance optimization: Buffer outgoing data to renderer
     this.outputBuffers = new Map(); // terminalId -> { buffer: [], timeoutId: null, webContents: WebContents }
     this.BUFFER_FLUSH_INTERVAL = 16; // 16ms (~60fps)
-    console.log('[TerminalService] Initialized');
   }
 
   isWebContentsAlive(webContents) {
@@ -35,13 +34,6 @@ class TerminalService {
     // Get default shell (zsh, bash, etc.)
     const shell = process.env.SHELL || '/bin/zsh';
     const workingDir = cwd || process.env.HOME || os.homedir();
-
-    console.log(`[TerminalService] Creating terminal ${id}:`, {
-      shell,
-      cols,
-      rows,
-      cwd: workingDir,
-    });
 
     // Spawn PTY process
     const ptyProcess = pty.spawn(shell, [], {
@@ -63,7 +55,6 @@ class TerminalService {
 
     // Handle process exit
     ptyProcess.onExit(({ exitCode, signal }) => {
-      console.log(`[TerminalService] Terminal ${id} exited:`, { exitCode, signal });
       // Flush any remaining buffered data before exit
       this.flushOutputBuffer(id);
       this.terminals.delete(id);
@@ -158,9 +149,7 @@ class TerminalService {
     const combinedData = bufferData.buffer.join('');
     try {
       bufferData.webContents.send('terminal:data', { id, data: combinedData });
-    } catch (err) {
-      console.error('[TerminalService] Failed to send terminal data:', err);
-    }
+    } catch (err) {}
 
     // Clear buffer
     bufferData.buffer = [];
@@ -175,15 +164,12 @@ class TerminalService {
   killTerminal(id) {
     const ptyProcess = this.terminals.get(id);
     if (ptyProcess) {
-      console.log(`[TerminalService] Killing terminal ${id}`);
       // Flush remaining buffer (safe when renderer alive)
       this.flushOutputBuffer(id);
       this.cleanupTerminalBuffer(id);
       try {
         ptyProcess.kill();
-      } catch (err) {
-        console.error('[TerminalService] Error killing PTY:', err);
-      }
+      } catch (err) {}
       this.terminals.delete(id);
       return { success: true };
     }
@@ -208,16 +194,13 @@ class TerminalService {
    * Cleanup all terminals and buffers
    */
   cleanup() {
-    console.log('[TerminalService] Cleaning up all terminals');
     this.terminals.forEach((ptyProcess, id) => {
       try {
         // Flush and clean up buffer
         this.flushOutputBuffer(id);
         this.cleanupTerminalBuffer(id);
         ptyProcess.kill();
-      } catch (error) {
-        console.error(`[TerminalService] Error killing terminal ${id}:`, error);
-      }
+      } catch (error) {}
     });
     this.terminals.clear();
     this.outputBuffers.clear();

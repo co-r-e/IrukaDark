@@ -135,7 +135,6 @@ class ClipboardHistoryUI {
       // Apply translations to static elements
       this.applyTranslations();
     } catch (err) {
-      console.error('Error initializing i18n:', err);
       this.i18n = window.IRUKADARK_I18N['en'] || {};
     }
   }
@@ -422,9 +421,7 @@ class ClipboardHistoryUI {
 
       const html = document.documentElement;
       html.classList.toggle('theme-dark', theme === 'dark');
-    } catch (err) {
-      console.error('Error applying theme:', err);
-    }
+    } catch (err) {}
   }
 
   switchTab(tabName) {
@@ -464,7 +461,6 @@ class ClipboardHistoryUI {
       const history = await window.electronAPI.getClipboardHistory();
       this.renderHistory(history || []);
     } catch (err) {
-      console.error('Error loading clipboard history:', err);
       this.renderEmpty();
     }
   }
@@ -495,9 +491,7 @@ class ClipboardHistoryUI {
           await this.saveSnippets();
         }
       }
-    } catch (err) {
-      console.error('Error loading snippets:', err);
-    }
+    } catch (err) {}
   }
 
   async saveSnippets() {
@@ -514,9 +508,7 @@ class ClipboardHistoryUI {
       };
 
       await window.electronAPI.saveSnippetData(data);
-    } catch (err) {
-      console.error('Error saving snippets:', err);
-    }
+    } catch (err) {}
   }
 
   renderHistory(items) {
@@ -1201,7 +1193,6 @@ class ClipboardHistoryUI {
       await window.electronAPI.copyToClipboard(item);
       return true;
     } catch (err) {
-      console.error('Error copying to clipboard:', err);
       return false;
     }
   }
@@ -1931,9 +1922,7 @@ class ClipboardHistoryUI {
           this.reorderOrNestFolders(this.drag.id, targetFolder.dataset.id, dropType);
         }
       }
-    } catch (err) {
-      console.error('Error performing drop operation:', err);
-    }
+    } catch (err) {}
   }
 
   /**
@@ -1977,7 +1966,6 @@ class ClipboardHistoryUI {
   moveSnippetToFolder(snippetId, targetFolderId) {
     const snippet = this.snippets.find((s) => s.id === snippetId);
     if (!snippet) {
-      console.error(`Snippet not found: ${snippetId}`);
       return;
     }
 
@@ -1997,14 +1985,12 @@ class ClipboardHistoryUI {
     const targetFolder = this.snippetFolders.find((f) => f.id === targetFolderId);
 
     if (!snippet || !targetFolder) {
-      console.error('Snippet or folder not found');
       return;
     }
 
     // Don't allow moving snippets to root level
     // Snippets must always be inside a folder
     if (!targetFolder.parentId) {
-      console.warn('Cannot move snippet to root level');
       return;
     }
 
@@ -2029,7 +2015,6 @@ class ClipboardHistoryUI {
     const targetIndex = this.snippets.findIndex((s) => s.id === targetId);
 
     if (draggedIndex === -1 || targetIndex === -1) {
-      console.error('Snippet not found for reordering');
       return;
     }
 
@@ -2037,7 +2022,6 @@ class ClipboardHistoryUI {
 
     // Don't allow moving snippets to root level
     if (!targetSnippet.folderId) {
-      console.warn('Cannot move snippet to root level');
       return;
     }
 
@@ -2075,7 +2059,6 @@ class ClipboardHistoryUI {
     const targetIndex = this.snippetFolders.findIndex((f) => f.id === targetId);
 
     if (draggedIndex === -1 || targetIndex === -1) {
-      console.error('Folder not found for reordering');
       return;
     }
 
@@ -2084,7 +2067,6 @@ class ClipboardHistoryUI {
 
     // Prevent nesting a folder inside itself or its descendants
     if (dropType === 'nest-inside' && this.isFolderDescendant(targetFolder, draggedFolder)) {
-      console.warn('Cannot nest a folder inside itself or its descendants');
       this.renderSnippets();
       return;
     }
@@ -2164,7 +2146,6 @@ class MemoUI {
         this.i18n = window.IRUKADARK_I18N['en'] || {};
       }
     } catch (err) {
-      console.error('Error initializing i18n:', err);
       this.i18n = window.IRUKADARK_I18N['en'] || {};
     }
   }
@@ -2198,9 +2179,7 @@ class MemoUI {
       if (savedContent && this.memoTextarea) {
         this.memoTextarea.value = savedContent;
       }
-    } catch (err) {
-      console.error('Error loading memo content:', err);
-    }
+    } catch (err) {}
   }
 
   saveMemoContent() {
@@ -2208,9 +2187,7 @@ class MemoUI {
       if (this.memoTextarea) {
         localStorage.setItem(this.storageKey, this.memoTextarea.value);
       }
-    } catch (err) {
-      console.error('Error saving memo content:', err);
-    }
+    } catch (err) {}
   }
 
   async copyMemoContent() {
@@ -2247,9 +2224,7 @@ class MemoUI {
         this.memoTextarea.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
         setTimeout(() => (this.memoTextarea.style.backgroundColor = ''), 500);
       }
-    } catch (err) {
-      console.error('Error copying memo content:', err);
-    }
+    } catch (err) {}
   }
 
   showConfirmation() {
@@ -2332,9 +2307,7 @@ class MemoUI {
         this.memoResetBtn.style.transition = 'transform 0.3s ease';
         setTimeout(() => (this.memoResetBtn.style.transform = 'rotate(0deg)'), 300);
       }
-    } catch (err) {
-      console.error('Error resetting memo content:', err);
-    }
+    } catch (err) {}
   }
 }
 

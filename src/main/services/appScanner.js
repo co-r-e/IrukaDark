@@ -40,13 +40,10 @@ class AppScanner {
               if (appInfo) apps.push(appInfo);
             }
           }
-        } catch (err) {
-          console.error(`Error scanning ${dir}:`, err.message);
-        }
+        } catch (err) {}
       }
 
       this.apps = apps;
-      console.log(`Scanned ${apps.length} applications`);
       return apps;
     } finally {
       this.isScanning = false;
@@ -104,7 +101,6 @@ class AppScanner {
       this.iconCache.set(cacheKey, iconData);
       return iconData;
     } catch (err) {
-      console.warn(`Failed to extract icon for ${appName}:`, err.message);
       // Fallback to emoji
       const fallbackIcon = this.getEmojiFallback(appName);
       this.iconCache.set(cacheKey, fallbackIcon);
@@ -144,9 +140,7 @@ class AppScanner {
       if (!fs.existsSync(this.tempDir)) {
         fs.mkdirSync(this.tempDir, { recursive: true });
       }
-    } catch (err) {
-      console.warn('Failed to create temp directory:', err.message);
-    }
+    } catch (err) {}
   }
 
   async extractIconWithSips(appPath, appName) {

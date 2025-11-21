@@ -297,7 +297,6 @@ class IrukaDarkApp {
         this.showApiKeyForm();
       }
     } catch (err) {
-      console.error('Error checking API key:', err);
       this.showApiKeyForm();
     }
   }
@@ -369,7 +368,6 @@ class IrukaDarkApp {
         alert(errorMsg);
       }
     } catch (err) {
-      console.error('Error saving API key:', err);
       alert(getUIText('apiKey.errorSaving'));
     } finally {
       if (this.saveApiKeyBtn) {
@@ -561,9 +559,7 @@ class IrukaDarkApp {
           this.translateMode = cfg.translateMode === 'free' ? 'free' : 'literal';
           this.pendingTranslateModeAck = null;
         }
-      } catch (error) {
-        console.error('Failed to apply app-config payload', error);
-      }
+      } catch (error) {}
     });
     on('onThemeChanged', (theme) => this.applyTheme(theme));
     on('onTranslateModeChanged', (mode) => {
@@ -704,7 +700,6 @@ class IrukaDarkApp {
         this.webSearchEnabled = !!enabled;
       }
     } catch (error) {
-      console.error('Failed to load web search setting:', error);
       this.webSearchEnabled = false;
     }
   }
@@ -717,7 +712,6 @@ class IrukaDarkApp {
         this.pendingTranslateModeAck = null;
       }
     } catch (error) {
-      console.error('Failed to load translate mode:', error);
       this.translateMode = 'literal';
       this.pendingTranslateModeAck = null;
     }
@@ -731,7 +725,6 @@ class IrukaDarkApp {
         this.imageSize = validSizes.includes(size) ? size : '1:1';
       }
     } catch (error) {
-      console.error('Failed to load image size:', error);
       this.imageSize = '1:1';
     }
   }
@@ -744,7 +737,6 @@ class IrukaDarkApp {
         this.imageCount = validCounts.includes(count) ? count : 1;
       }
     } catch (error) {
-      console.error('Failed to load image count:', error);
       this.imageCount = 1;
     }
   }
@@ -757,7 +749,6 @@ class IrukaDarkApp {
         this.videoAspectRatio = validRatios.includes(ratio) ? ratio : '16:9';
       }
     } catch (error) {
-      console.error('Failed to load video aspect ratio:', error);
       this.videoAspectRatio = '16:9';
     }
   }
@@ -770,7 +761,6 @@ class IrukaDarkApp {
         this.videoDuration = validDurations.includes(duration) ? duration : 4;
       }
     } catch (error) {
-      console.error('Failed to load video duration:', error);
       this.videoDuration = 4;
     }
   }
@@ -783,7 +773,6 @@ class IrukaDarkApp {
         this.videoCount = validCounts.includes(count) ? count : 1;
       }
     } catch (error) {
-      console.error('Failed to load video count:', error);
       this.videoCount = 1;
     }
   }
@@ -796,7 +785,6 @@ class IrukaDarkApp {
         this.videoResolution = validResolutions.includes(resolution) ? resolution : '720p';
       }
     } catch (error) {
-      console.error('Failed to load video resolution:', error);
       this.videoResolution = '720p';
     }
   }
@@ -813,9 +801,7 @@ class IrukaDarkApp {
       if (window.electronAPI && window.electronAPI.saveTranslateMode) {
         await window.electronAPI.saveTranslateMode(mode);
       }
-    } catch (error) {
-      console.error('Failed to save translate mode:', error);
-    }
+    } catch (error) {}
   }
 
   async setTranslateMode(mode, { silentIfSame = false } = {}) {
@@ -853,9 +839,7 @@ class IrukaDarkApp {
       if (window.electronAPI && window.electronAPI.saveImageSize) {
         await window.electronAPI.saveImageSize(size);
       }
-    } catch (error) {
-      console.error('Failed to save image size:', error);
-    }
+    } catch (error) {}
   }
 
   async setImageSize(size) {
@@ -884,9 +868,7 @@ class IrukaDarkApp {
       if (window.electronAPI && window.electronAPI.saveImageCount) {
         await window.electronAPI.saveImageCount(count);
       }
-    } catch (error) {
-      console.error('Failed to save image count:', error);
-    }
+    } catch (error) {}
   }
 
   async setImageCount(count) {
@@ -915,9 +897,7 @@ class IrukaDarkApp {
       if (window.electronAPI && window.electronAPI.saveVideoAspectRatio) {
         await window.electronAPI.saveVideoAspectRatio(ratio);
       }
-    } catch (error) {
-      console.error('Failed to save video aspect ratio:', error);
-    }
+    } catch (error) {}
   }
 
   async setVideoAspectRatio(ratio) {
@@ -939,9 +919,7 @@ class IrukaDarkApp {
       if (window.electronAPI && window.electronAPI.saveVideoResolution) {
         await window.electronAPI.saveVideoResolution(resolution);
       }
-    } catch (error) {
-      console.error('Failed to save video resolution:', error);
-    }
+    } catch (error) {}
   }
 
   async setVideoResolution(resolution) {
@@ -974,9 +952,7 @@ class IrukaDarkApp {
       if (window.electronAPI && window.electronAPI.saveVideoDuration) {
         await window.electronAPI.saveVideoDuration(duration);
       }
-    } catch (error) {
-      console.error('Failed to save video duration:', error);
-    }
+    } catch (error) {}
   }
 
   async setVideoDuration(duration) {
@@ -998,9 +974,7 @@ class IrukaDarkApp {
       if (window.electronAPI && window.electronAPI.saveVideoCount) {
         await window.electronAPI.saveVideoCount(count);
       }
-    } catch (error) {
-      console.error('Failed to save video count:', error);
-    }
+    } catch (error) {}
   }
 
   async setVideoCount(count) {
@@ -1664,7 +1638,6 @@ class IrukaDarkApp {
       }
     } catch (outerError) {
       // Outer catch for slash commands and special commands
-      console.error('sendMessage error:', outerError);
       this.isSending = false;
     }
   }
@@ -2303,7 +2276,6 @@ class IrukaDarkApp {
       // Clean up
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Failed to download image:', error);
       this.addMessage('system', `${getUIText('errorOccurred')}: Failed to download image`);
     }
   }
@@ -2356,7 +2328,6 @@ class IrukaDarkApp {
       // Join with underscore
       return words.join('_').substring(0, 50);
     } catch (error) {
-      console.error('Failed to generate filename:', error);
       return 'image';
     }
   }
@@ -3542,12 +3513,9 @@ class GeminiService {
   async generateImageFromTextWithReference(prompt, aspectRatio = '1:1', referenceFiles) {
     try {
       if (window.electronAPI && window.electronAPI.generateImageFromText) {
-        console.log('[DEBUG] Reference files count:', referenceFiles.length);
-
         // 複数のファイルをbase64に変換
         const referenceImages = await Promise.all(
           referenceFiles.map(async (file) => {
-            console.log('[DEBUG] Converting file to base64:', file.name, file.type);
             return {
               base64: await this.fileToBase64(file),
               mimeType: file.type,
@@ -3555,17 +3523,10 @@ class GeminiService {
           })
         );
 
-        console.log('[DEBUG] Reference images prepared:', referenceImages.length);
-
         const options = {
           aspectRatio,
           referenceImages,
         };
-
-        console.log('[DEBUG] Sending image generation request with options:', {
-          aspectRatio,
-          referenceImagesCount: referenceImages.length,
-        });
 
         const result = await window.electronAPI.generateImageFromText(prompt, options);
 
@@ -3611,7 +3572,6 @@ class GeminiService {
 
         // Add reference image if provided (Image-to-Video)
         if (referenceImage) {
-          console.log('[DEBUG] Converting reference image to base64 for video generation');
           const base64 = await this.fileToBase64(referenceImage);
           options.referenceImage = {
             base64,

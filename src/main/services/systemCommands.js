@@ -184,7 +184,6 @@ class SystemCommandsService {
       await cmd.execute();
       return { success: true, command: cmd.name };
     } catch (error) {
-      console.error(`Error executing command ${commandId}:`, error);
       throw error;
     }
   }

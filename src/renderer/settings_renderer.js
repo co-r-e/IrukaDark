@@ -128,7 +128,6 @@ class SettingsUI {
         this.i18n = window.IRUKADARK_I18N['en'] || {};
       }
     } catch (err) {
-      console.error('Error initializing i18n:', err);
       this.i18n = window.IRUKADARK_I18N['en'] || {};
     }
   }
@@ -142,7 +141,6 @@ class SettingsUI {
         throw new Error('Invalid shortcuts data received');
       }
     } catch (err) {
-      console.error('Failed to load shortcut assignments:', err);
       this.shortcuts = { ...this.defaultShortcuts };
 
       // Notify user if i18n is available
@@ -174,9 +172,7 @@ class SettingsUI {
             (await window.electronAPI.getWebSearchModel()) || 'gemini-flash-latest';
         }
       }
-    } catch (err) {
-      console.error('Failed to load appearance settings:', err);
-    }
+    } catch (err) {}
   }
 
   /**
@@ -222,7 +218,6 @@ class SettingsUI {
 
   render() {
     if (!this.i18n || !this.i18n.settings) {
-      console.error('i18n not loaded properly');
       return;
     }
 
@@ -780,7 +775,6 @@ class SettingsUI {
 
     // Prevent concurrent assignments (Race condition protection)
     if (this.assignmentInProgress) {
-      console.warn('Assignment already in progress, ignoring request');
       return;
     }
 
@@ -818,7 +812,6 @@ class SettingsUI {
       // Stop listening
       this.stopListening();
     } catch (err) {
-      console.error('Failed to assign shortcut:', err);
       this.showToast(err.message || this.i18n.settings.invalidKey || 'Invalid key', 'error');
       this.stopListening();
     } finally {
@@ -859,8 +852,6 @@ class SettingsUI {
 
           this.showToast(this.i18n.settings.saved || 'Settings saved', 'success');
         } catch (err) {
-          console.error('Failed to reset shortcuts:', err);
-
           // Rollback to previous state on failure
           this.shortcuts = previousShortcuts;
           this.render();
@@ -970,9 +961,7 @@ class SettingsUI {
       // Re-render the UI with new language
       this.render();
       this.bindEvents();
-    } catch (err) {
-      console.error('Error updating language:', err);
-    }
+    } catch (err) {}
   }
 
   /**
@@ -1030,7 +1019,6 @@ class SettingsUI {
         await window.electronAPI.checkForUpdates();
       }
     } catch (err) {
-      console.error('Failed to check for updates:', err);
     } finally {
       if (btn) {
         btn.disabled = false;
@@ -1052,7 +1040,6 @@ class SettingsUI {
         this.showToast(this.i18n.settings.settingSaved || 'Setting saved', 'success');
       }
     } catch (err) {
-      console.error('Failed to set Gemini model:', err);
       this.showToast(this.i18n.errorOccurred || 'An error occurred', 'error');
     }
   }
@@ -1070,7 +1057,6 @@ class SettingsUI {
         this.showToast(this.i18n.settings.settingSaved || 'Setting saved', 'success');
       }
     } catch (err) {
-      console.error('Failed to set Web Search model:', err);
       this.showToast(this.i18n.errorOccurred || 'An error occurred', 'error');
     }
   }
@@ -1087,7 +1073,6 @@ class SettingsUI {
         this.showToast(this.i18n.settings.settingSaved || 'Setting saved', 'success');
       }
     } catch (err) {
-      console.error('Failed to set theme:', err);
       this.showToast(this.i18n.errorOccurred || 'An error occurred', 'error');
     }
   }
@@ -1104,7 +1089,6 @@ class SettingsUI {
         this.showToast(this.i18n.settings.settingSaved || 'Setting saved', 'success');
       }
     } catch (err) {
-      console.error('Failed to set opacity:', err);
       this.showToast(this.i18n.errorOccurred || 'An error occurred', 'error');
     }
   }
@@ -1121,7 +1105,6 @@ class SettingsUI {
         this.showToast(this.i18n.settings.settingSaved || 'Setting saved', 'success');
       }
     } catch (err) {
-      console.error('Failed to set language:', err);
       this.showToast(this.i18n.errorOccurred || 'An error occurred', 'error');
     }
   }

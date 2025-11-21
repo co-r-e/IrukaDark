@@ -70,7 +70,6 @@ class FileSearchService {
 
       return { results, total, hasMore };
     } catch (err) {
-      console.error('File search error:', err.message);
       return { results: [], total: 0, hasMore: false };
     }
   }

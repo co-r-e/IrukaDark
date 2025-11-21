@@ -42,7 +42,6 @@ class WindowManager {
     try {
       return fn();
     } catch (error) {
-      console.error(`[WindowManager] ${context}:`, error);
       return defaultValue;
     }
   }
@@ -190,7 +189,7 @@ class WindowManager {
    * @example
    * const popupWindow = windowManager.createPopupWindow();
    * if (popupWindow) {
-   *   console.log('Popup created successfully');
+   *
    * }
    */
   createPopupWindow() {
@@ -304,7 +303,7 @@ class WindowManager {
    *
    * @example
    * if (windowManager.hasPopupWindow()) {
-   *   console.log('Popup is active');
+   *
    * }
    */
   hasPopupWindow() {
@@ -400,9 +399,7 @@ class WindowManager {
           mainWindow.setAlwaysOnTop(true, level);
         }
       }
-    } catch (err) {
-      console.error('Error setting dragging state:', err);
-    }
+    } catch (err) {}
   }
 
   /**
@@ -528,7 +525,7 @@ class WindowManager {
    * @example
    * const bounds = windowManager.getPopupBounds();
    * if (bounds) {
-   *   console.log(`Popup is at (${bounds.x}, ${bounds.y})`);
+   *
    * }
    */
   getPopupBounds() {
@@ -654,9 +651,7 @@ class WindowManager {
       const [w, h] = mainWindow.getSize();
       const position = this.positioner.calculateMainWindowPosition(w, h);
       mainWindow.setPosition(position.x, position.y);
-    } catch (error) {
-      console.error('[WindowManager] Failed to position main window:', error);
-    }
+    } catch (error) {}
   }
 
   /**
@@ -696,7 +691,6 @@ class WindowManager {
         this.mainInitiallyShown = true;
       }
     } catch (error) {
-      console.error('[WindowManager] Error positioning main window above popup:', error);
     } finally {
       this.isRepositioning = false;
 

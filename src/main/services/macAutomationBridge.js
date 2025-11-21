@@ -114,9 +114,6 @@ function spawnBridge(
   const executable = resolveExecutablePath();
   if (!executable) {
     if (!didWarnMissing) {
-      console.warn(
-        'IrukaAutomation bridge executable not found. Swift automation features disabled.'
-      );
       didWarnMissing = true;
     }
     logBridgeEvent('spawnBridge.notFound', {
@@ -270,7 +267,6 @@ async function fetchSelectedText({ timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
       return { status: 'error', code: 'timeout', text: '' };
     }
     if (process.env.DEBUG || process.argv.includes('--dev')) {
-      console.warn('Swift bridge invocation failed:', error);
     }
     return { status: 'error', code: 'invoke_failed', text: '' };
   }
