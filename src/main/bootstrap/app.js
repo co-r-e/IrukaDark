@@ -60,27 +60,36 @@ const {
   isValidAction,
 } = require('../../shared/shortcutDefaults');
 
-const isDev = process.env.NODE_ENV === 'development';
+const isDev = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
 
-// PERFORMANCE: V8 optimization flags for better memory management
-app.commandLine.appendSwitch('js-flags', '--expose-gc --max-old-space-size=512');
+// PERFORMANCE: V8 optimization flags
+// - In production: larger heap for smoother operation, no --expose-gc overhead
+// - In development: expose-gc for debugging memory issues
+if (isDev) {
+  app.commandLine.appendSwitch('js-flags', '--expose-gc --max-old-space-size=2048');
+} else {
+  // Production: faster startup, no GC exposure overhead
+  app.commandLine.appendSwitch('js-flags', '--max-old-space-size=2048');
+}
 app.commandLine.appendSwitch('disable-renderer-backgrounding'); // Keep renderer active
 app.commandLine.appendSwitch('disable-background-timer-throttling'); // No throttling
 
-// PERFORMANCE: Periodic garbage collection to prevent memory leaks
+// PERFORMANCE: Periodic garbage collection to prevent memory leaks (dev only)
 let gcInterval = null;
 function setupPeriodicGC() {
-  if (global.gc && !gcInterval) {
-    gcInterval = setInterval(() => {
-      try {
-        const memUsage = process.memoryUsage();
-        // Only run GC if heap usage exceeds 300MB
-        if (memUsage.heapUsed > 300 * 1024 * 1024) {
-          global.gc();
-        }
-      } catch (err) {}
-    }, 60000); // Every 60 seconds
-  }
+  // Only run periodic GC in development mode when --expose-gc is available
+  if (!isDev || !global.gc) return;
+  if (gcInterval) return;
+
+  gcInterval = setInterval(() => {
+    try {
+      const memUsage = process.memoryUsage();
+      // Only run GC if heap usage exceeds 500MB
+      if (memUsage.heapUsed > 500 * 1024 * 1024) {
+        global.gc();
+      }
+    } catch (err) {}
+  }, 120000); // Every 2 minutes (less aggressive)
 }
 
 function resolveAppLogPath() {

@@ -6,8 +6,9 @@ asar: true
 asarUnpack:
   - '**/*.node'
   - 'native/**/*'
-# PERFORMANCE: Compress asar archive for smaller size
-compression: maximum
+# PERFORMANCE: Use normal compression for faster load times
+# (maximum compression saves space but slows down asar extraction)
+compression: normal
 files:
   - 'src/**/*'
   - '!**/*.map'
