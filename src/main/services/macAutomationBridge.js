@@ -7,10 +7,8 @@ const fs = require('fs');
 const path = require('path');
 
 const DEFAULT_TIMEOUT_MS = 1500;
-const PROMPT_BACKOFF_MS = 60_000;
 
 let cachedExecutablePath = null;
-let lastPromptAttempt = 0;
 let didWarnMissing = false;
 let bridgeLogPath = null;
 let clipboardPopupProcess = null;
@@ -246,11 +244,8 @@ async function fetchSelectedText({ timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
     const result = normalizeBridgePayload(first.payload);
     if (result.status === 'ok') return result;
 
-    if (
-      result.code === 'accessibility_permission_denied' &&
-      Date.now() - lastPromptAttempt > PROMPT_BACKOFF_MS
-    ) {
-      lastPromptAttempt = Date.now();
+    // If permission denied, immediately retry with prompt
+    if (result.code === 'accessibility_permission_denied') {
       const retry = await spawnBridge('selected-text', {
         timeoutMs,
         promptAccessibility: true,
