@@ -395,7 +395,9 @@ class IrukaDarkApp {
     this.apiKeyInput = document.getElementById('apiKeyInput');
     this.saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
     this.inputArea = document.getElementById('inputArea');
+    this.inputCommandBadge = document.getElementById('inputCommandBadge');
     this.attachedFiles = [];
+    this.currentCommandMode = null; // 'image' | 'video' | null
   }
 
   bindEvents() {
@@ -528,11 +530,29 @@ class IrukaDarkApp {
     this.messageInput.addEventListener('input', () => {
       this.autosizeMessageInput();
       this.maybeShowSlashSuggest();
+      this.updateInputCommandBadge();
     });
     this.messageInput.addEventListener('paste', (e) => {
       this.handlePaste(e);
     });
     this.autosizeMessageInput();
+
+    // Click on input command badge to remove it
+    if (this.inputCommandBadge) {
+      this.inputCommandBadge.addEventListener('click', () => {
+        this.clearInputCommandBadge();
+        this.messageInput.focus();
+      });
+    }
+
+    // Backspace on empty input clears command badge
+    this.messageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && this.currentCommandMode && this.messageInput.value === '') {
+        e.preventDefault();
+        this.clearInputCommandBadge();
+      }
+    });
+
     const on = (name, cb) => {
       try {
         return window.electronAPI && window.electronAPI[name]
@@ -1544,8 +1564,17 @@ class IrukaDarkApp {
     // Prevent duplicate execution (e.g., Enter key spam, button click spam)
     if (this.isSending) return;
 
-    const message = this.messageInput.value.trim();
-    if (!message) return;
+    let message = this.messageInput.value.trim();
+    if (!message && !this.currentCommandMode) return;
+
+    // If command badge is active, prepend the command
+    if (this.currentCommandMode === 'image') {
+      message = `@image ${message}`;
+    } else if (this.currentCommandMode === 'video') {
+      message = `@video ${message}`;
+    }
+
+    if (!message.trim()) return;
 
     // Acquire lock to prevent concurrent execution
     this.isSending = true;
@@ -1556,6 +1585,7 @@ class IrukaDarkApp {
       this.messageInput.value = '';
       this.autosizeMessageInput(true);
       this.clearAttachments();
+      this.clearInputCommandBadge();
       this.messageInput.focus();
 
       if (message.startsWith('/')) {
@@ -2245,38 +2275,32 @@ class IrukaDarkApp {
   }
 
   downloadImage(imageBase64, mimeType, description) {
-    try {
-      // Convert base64 to blob
-      const byteString = atob(imageBase64);
-      const arrayBuffer = new ArrayBuffer(byteString.length);
-      const uint8Array = new Uint8Array(arrayBuffer);
-
-      for (let i = 0; i < byteString.length; i++) {
-        uint8Array[i] = byteString.charCodeAt(i);
-      }
-
-      const blob = new Blob([arrayBuffer], { type: mimeType });
-
-      // Create download link
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-
-      // Generate filename from English words in description
-      const fileName = this.generateImageFileName(description);
-
-      const extension = mimeType === 'image/jpeg' ? 'jpg' : 'png';
-      link.download = `irukadark_${fileName}.${extension}`;
-      link.href = url;
-
-      // Trigger download
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      // Clean up
-      URL.revokeObjectURL(url);
-    } catch (error) {
+    const showError = () => {
       this.addMessage('system', `${getUIText('errorOccurred')}: Failed to download image`);
+    };
+
+    try {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+
+        canvas.toBlob((blob) => {
+          if (!blob) return showError();
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.download = `irukadark_${this.generateImageFileName(description)}.png`;
+          link.href = url;
+          link.click();
+          URL.revokeObjectURL(url);
+        }, 'image/png');
+      };
+      img.onerror = showError;
+      img.src = `data:${mimeType};base64,${imageBase64}`;
+    } catch (e) {
+      showError();
     }
   }
 
@@ -2936,14 +2960,7 @@ class IrukaDarkApp {
     typingDiv.setAttribute('aria-label', getUIText('thinking'));
     typingDiv.innerHTML = `
       <div class="typing-indicator-content">
-        <div class="flex items-center gap-2">
-          <div class="flex gap-1" aria-hidden="true">
-            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
-            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
-            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
-          </div>
-          <span class="thinking-small text-gray-500" data-role="typing-label">${getUIText('thinking')}</span>
-        </div>
+        <div class="thinking-bar" aria-hidden="true"></div>
       </div>
     `;
 
@@ -4385,6 +4402,71 @@ IrukaDarkApp.prototype.autosizeMessageInput = function (reset = false) {
     void el.offsetHeight; // Force reflow
     const next = Math.min(Math.max(el.scrollHeight, min), max);
     el.style.height = `${next}px`;
+  } catch (e) {}
+};
+
+// Command badge configuration
+IrukaDarkApp.prototype.COMMAND_BADGES = [
+  { mode: 'image', pattern: /^@image\s/i, label: '@image', length: 7 },
+  { mode: 'video', pattern: /^@video\s/i, label: '@video', length: 7 },
+];
+
+// Update input command badge (realtime badge display)
+IrukaDarkApp.prototype.updateInputCommandBadge = function () {
+  try {
+    if (!this.inputCommandBadge || !this.messageInput) return;
+
+    const value = this.messageInput.value;
+
+    // Check for command patterns
+    for (const cmd of this.COMMAND_BADGES) {
+      if (cmd.pattern.test(value)) {
+        this.showCommandBadge(cmd.mode, cmd.label);
+        this.stripCommandPrefix(cmd.pattern, cmd.length);
+        return;
+      }
+    }
+
+    // No command detected - hide badge if not in command mode
+    if (!this.currentCommandMode) {
+      this.inputCommandBadge.classList.add('hidden');
+      this.messageInput.classList.remove('has-command-badge');
+    }
+  } catch (e) {}
+};
+
+// Show command badge with specified mode and label
+IrukaDarkApp.prototype.showCommandBadge = function (mode, label) {
+  this.inputCommandBadge.textContent = label;
+  this.inputCommandBadge.classList.remove('hidden');
+  this.messageInput.classList.add('has-command-badge');
+  this.currentCommandMode = mode;
+};
+
+// Strip command prefix from input and adjust cursor
+IrukaDarkApp.prototype.stripCommandPrefix = function (pattern, length) {
+  const value = this.messageInput.value;
+  const newValue = value.replace(pattern, '');
+  if (newValue !== value) {
+    const cursorPos = this.messageInput.selectionStart;
+    this.messageInput.value = newValue;
+    this.messageInput.setSelectionRange(
+      Math.max(0, cursorPos - length),
+      Math.max(0, cursorPos - length)
+    );
+  }
+};
+
+// Clear input command badge
+IrukaDarkApp.prototype.clearInputCommandBadge = function () {
+  try {
+    if (this.inputCommandBadge) {
+      this.inputCommandBadge.classList.add('hidden');
+    }
+    if (this.messageInput) {
+      this.messageInput.classList.remove('has-command-badge');
+    }
+    this.currentCommandMode = null;
   } catch (e) {}
 };
 

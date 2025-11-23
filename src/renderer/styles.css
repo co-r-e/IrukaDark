@@ -987,9 +987,30 @@ button:disabled {
   opacity: 1;
 }
 
-/* Typing indicator text size */
-.thinking-small {
-  font-size: 10px;
+/* Thinking animation - shimmer bar */
+.thinking-bar {
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--primary) 25%,
+    var(--primary-2) 50%,
+    var(--primary) 75%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: thinking-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes thinking-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* Markdown tables: horizontally scrollable, border-separated, wrapping */
@@ -1432,6 +1453,53 @@ html[dir='rtl'] .slash-suggest {
   color: #ffffff;
   background: linear-gradient(135deg, var(--primary), var(--primary-2));
   box-shadow: 0 2px 8px rgba(255, 77, 109, 0.3);
+}
+
+/* Input command badge (realtime badge in input field) */
+.input-command-badge {
+  position: absolute;
+  left: 12px;
+  top: 8px;
+  z-index: 10;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--primary), var(--primary-2));
+  border-radius: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.input-command-badge:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(255, 77, 109, 0.3);
+}
+
+.input-command-badge.hidden {
+  display: none;
+}
+
+.theme-dark .input-command-badge {
+  box-shadow: 0 1px 4px rgba(255, 77, 109, 0.2);
+}
+
+.theme-dark .input-command-badge:hover {
+  box-shadow: 0 2px 10px rgba(255, 77, 109, 0.4);
+}
+
+/* Textarea with command badge active */
+#messageInput.has-command-badge {
+  padding-left: 70px;
+}
+
+#messageInput.has-command-badge::placeholder {
+  color: transparent;
 }
 
 /* Attachment area styles */
@@ -1945,11 +2013,6 @@ html:not(.theme-dark) .settings-toggle input:focus + .settings-toggle-slider {
 
 .settings-btn:hover {
   opacity: 0.9;
-  transform: translateY(-1px);
-}
-
-.settings-btn:active {
-  transform: translateY(0);
 }
 
 .settings-btn:disabled {

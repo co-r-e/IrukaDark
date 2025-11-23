@@ -46,10 +46,6 @@ class SettingsUI {
     this.currentTheme = 'dark';
     this.currentOpacity = 1;
 
-    // AI settings
-    this.currentGeminiModel = 'gemini-flash-lite-latest';
-    this.currentWebSearchModel = 'gemini-flash-latest';
-
     // Language list for settings
     this.languageList = [
       { code: 'en', label: 'English' },
@@ -162,15 +158,6 @@ class SettingsUI {
           const opacity = await window.electronAPI.getWindowOpacity();
           this.currentOpacity = parseFloat(opacity) || 1;
         }
-        // Load AI settings
-        if (window.electronAPI.getModel) {
-          this.currentGeminiModel =
-            (await window.electronAPI.getModel()) || 'gemini-flash-lite-latest';
-        }
-        if (window.electronAPI.getWebSearchModel) {
-          this.currentWebSearchModel =
-            (await window.electronAPI.getWebSearchModel()) || 'gemini-flash-latest';
-        }
       }
     } catch (err) {}
   }
@@ -225,7 +212,6 @@ class SettingsUI {
 
     const html = `
       ${this.renderUpdatesSection()}
-      ${this.renderAISettingsSection()}
       ${this.renderAppearanceSection()}
       ${this.renderLanguageSection()}
       <div class="settings-section">
@@ -253,38 +239,6 @@ class SettingsUI {
             <button id="checkForUpdatesBtn" class="settings-btn">
               ${this.escapeHtml(t.startUpdate || 'Start Update')}
             </button>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  renderAISettingsSection() {
-    const t = this.i18n.settings;
-
-    return `
-      <div class="settings-section">
-        <div class="settings-section-title">
-          ${this.escapeHtml(t.aiSettings || 'AI Settings')}
-        </div>
-
-        <!-- Gemini Model -->
-        <div class="settings-item">
-          <div class="settings-item-label">${this.escapeHtml(t.geminiModel || 'Gemini Model')}</div>
-          <div class="settings-item-controls">
-            <input type="text" id="geminiModelInput" class="settings-input"
-              value="${this.escapeHtml(this.currentGeminiModel || '')}"
-              placeholder="gemini-flash-lite-latest">
-          </div>
-        </div>
-
-        <!-- Web Search Model -->
-        <div class="settings-item">
-          <div class="settings-item-label">${this.escapeHtml(t.webSearchModel || 'Web Search Model')}</div>
-          <div class="settings-item-controls">
-            <input type="text" id="webSearchModelInput" class="settings-input"
-              value="${this.escapeHtml(this.currentWebSearchModel || '')}"
-              placeholder="gemini-flash-latest">
           </div>
         </div>
       </div>
@@ -437,22 +391,6 @@ class SettingsUI {
     const checkUpdatesBtn = document.getElementById('checkForUpdatesBtn');
     if (checkUpdatesBtn) {
       checkUpdatesBtn.addEventListener('click', () => this.handleCheckForUpdates());
-    }
-
-    // Gemini Model input
-    const geminiModelInput = document.getElementById('geminiModelInput');
-    if (geminiModelInput) {
-      geminiModelInput.addEventListener('change', (e) =>
-        this.handleGeminiModelChange(e.target.value)
-      );
-    }
-
-    // Web Search Model input
-    const webSearchModelInput = document.getElementById('webSearchModelInput');
-    if (webSearchModelInput) {
-      webSearchModelInput.addEventListener('change', (e) =>
-        this.handleWebSearchModelChange(e.target.value)
-      );
     }
 
     // Theme select
@@ -1024,40 +962,6 @@ class SettingsUI {
         btn.disabled = false;
         btn.textContent = t.startUpdate || 'Start Update';
       }
-    }
-  }
-
-  /**
-   * Handle Gemini Model change
-   * @param {string} model - Model name
-   */
-  async handleGeminiModelChange(model) {
-    try {
-      if (window.electronAPI && window.electronAPI.setModel) {
-        const value = model.trim() || 'gemini-flash-lite-latest';
-        await window.electronAPI.setModel(value);
-        this.currentGeminiModel = value;
-        this.showToast(this.i18n.settings.settingSaved || 'Setting saved', 'success');
-      }
-    } catch (err) {
-      this.showToast(this.i18n.errorOccurred || 'An error occurred', 'error');
-    }
-  }
-
-  /**
-   * Handle Web Search Model change
-   * @param {string} model - Model name
-   */
-  async handleWebSearchModelChange(model) {
-    try {
-      if (window.electronAPI && window.electronAPI.setWebSearchModel) {
-        const value = model.trim() || 'gemini-flash-latest';
-        await window.electronAPI.setWebSearchModel(value);
-        this.currentWebSearchModel = value;
-        this.showToast(this.i18n.settings.settingSaved || 'Setting saved', 'success');
-      }
-    } catch (err) {
-      this.showToast(this.i18n.errorOccurred || 'An error occurred', 'error');
     }
   }
 
