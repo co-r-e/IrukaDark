@@ -7,9 +7,12 @@ const { exec } = require('child_process');
 
 function preflightAccessibility() {
   try {
-    // Only check status, do NOT prompt. Prompts should only appear when user
-    // actually triggers an action that needs the permission.
-    systemPreferences.isTrustedAccessibilityClient(false);
+    const trusted = systemPreferences.isTrustedAccessibilityClient(false);
+    if (!trusted) {
+      try {
+        systemPreferences.isTrustedAccessibilityClient(true);
+      } catch {}
+    }
   } catch {}
 }
 
@@ -22,9 +25,7 @@ function preflightAutomationHelper() {
     } catch {
       return; // Helper not present; nothing to prompt
     }
-    // Fire-and-forget a short ensure-accessibility to register helper with OS permissions.
-    // Do NOT pass --prompt-accessibility here - prompts should only appear when user
-    // actually triggers an action (Option+A, Option+S) that needs the permission.
+    // Fire-and-forget a short ensure-accessibility to trigger OS prompt for the helper process.
     const child = spawn(helper, ['ensure-accessibility', '--timeout-ms', '200'], {
       stdio: 'ignore',
       detached: true,
