@@ -596,6 +596,7 @@
         flex: 1;
         overflow-y: auto;
         padding: 8px;
+        position: relative;
       }
 
       .launcher-result-item {
@@ -617,6 +618,27 @@
       html:not(.theme-dark) .launcher-result-item:hover,
       html:not(.theme-dark) .launcher-result-item.selected {
         background: rgba(0, 0, 0, 0.05);
+      }
+
+      .launcher-result-item.dragging {
+        opacity: 0.5;
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      html:not(.theme-dark) .launcher-result-item.dragging {
+        background: rgba(0, 0, 0, 0.1);
+      }
+
+      .launcher-insertion-line {
+        position: absolute;
+        left: 8px;
+        right: 8px;
+        height: 2px;
+        background: linear-gradient(90deg, #ff4d6d, #d946ef);
+        pointer-events: none;
+        z-index: 100;
+        border-radius: 1px;
+        box-shadow: 0 0 4px rgba(217, 70, 239, 0.5);
       }
 
       .launcher-result-icon {

@@ -30,19 +30,20 @@ class LauncherUI {
     this.searchId = 0; // Track search requests to prevent race conditions
     this.activeFilters = new Set(['application', 'file', 'system-command']); // All active by default
 
-    // PERFORMANCE: Favorites optimization
+    // Favorites with O(1) lookup optimization
     this.favorites = this.loadFavorites();
-    this.favoritesSet = new Set(); // O(1) lookup for isFavorite()
-    this.favoritesMap = new Map(); // O(1) lookup for favorite data
+    this.favoritesSet = new Set();
+    this.favoritesMap = new Map();
     this.rebuildFavoritesIndex();
+    this.isShowingFavorites = false;
 
-    // PERFORMANCE: Search cache (LRU)
+    // Drag & drop state for favorites reordering
+    this.drag = this.createInitialDragState();
+    this.currentInsertionLine = null;
+
+    // Search cache (LRU)
     this.searchCache = new Map();
     this.searchCacheMaxSize = 50;
-    this.searchCacheKeys = []; // Track insertion order for LRU
-
-    // PERFORMANCE: Rendered items tracking for diff updates
-    this.renderedResultIds = new Set();
 
     // Infinite scroll state
     this.currentQuery = '';
@@ -55,14 +56,26 @@ class LauncherUI {
     this.init();
   }
 
-  // PERFORMANCE: Build Set and Map from favorites array for O(1) lookup
+  createInitialDragState() {
+    return {
+      element: null,
+      index: null,
+      startX: 0,
+      startY: 0,
+      isActive: false,
+      threshold: 5,
+      target: null,
+      dropType: null,
+    };
+  }
+
   rebuildFavoritesIndex() {
     this.favoritesSet.clear();
     this.favoritesMap.clear();
-    this.favorites.forEach((fav) => {
+    for (const fav of this.favorites) {
       this.favoritesSet.add(fav.key);
       this.favoritesMap.set(fav.key, fav);
-    });
+    }
   }
 
   init() {
@@ -123,6 +136,10 @@ class LauncherUI {
     if (!this.searchInput.value.trim()) {
       this.showFavorites();
     }
+
+    // Drag & drop event listeners for favorites reordering
+    document.addEventListener('mousemove', (e) => this.handleFavoriteMouseMove(e));
+    document.addEventListener('mouseup', (e) => this.handleFavoriteMouseUp(e));
   }
 
   // PERFORMANCE: Event delegation handler for all result item clicks
@@ -248,6 +265,7 @@ class LauncherUI {
   renderResults(results) {
     // Store all results before filtering
     this.allResults = results;
+    this.isShowingFavorites = false;
 
     // Apply filters
     this.applyFilters();
@@ -529,23 +547,17 @@ class LauncherUI {
     }
   }
 
-  // PERFORMANCE: Use RequestAnimationFrame for smooth rendering
   applyFilters(isAppending = false) {
-    // Filter results based on active filters
     const filteredResults = this.allResults.filter((result) => this.activeFilters.has(result.type));
-
     const previousResultsLength = this.results.length;
     this.results = filteredResults;
 
-    // Only reset selectedIndex when not appending or when starting fresh
     if (!isAppending || previousResultsLength === 0) {
       this.selectedIndex = 0;
     } else {
-      // Clamp selectedIndex to valid range when appending
       this.selectedIndex = Math.min(this.selectedIndex, this.results.length - 1);
     }
 
-    // Use requestAnimationFrame for smooth rendering
     requestAnimationFrame(() => {
       if (!filteredResults.length) {
         this.resultsContainer.innerHTML = `
@@ -554,12 +566,10 @@ class LauncherUI {
         return;
       }
 
-      // If appending, only render new items
       if (isAppending && previousResultsLength > 0) {
         const fragment = document.createDocumentFragment();
         const tempDiv = document.createElement('div');
 
-        // Only render new items starting from previousResultsLength
         for (let index = previousResultsLength; index < filteredResults.length; index++) {
           const result = filteredResults[index];
           const isFavorite = this.isFavorite(result);
@@ -581,10 +591,8 @@ class LauncherUI {
           fragment.appendChild(tempDiv.firstElementChild);
         }
 
-        // Append only new items
         this.resultsContainer.appendChild(fragment);
       } else {
-        // Full render for initial load or filter change
         const fragment = document.createDocumentFragment();
         const tempDiv = document.createElement('div');
 
@@ -608,16 +616,12 @@ class LauncherUI {
           fragment.appendChild(tempDiv.firstElementChild);
         });
 
-        // Single DOM update
         this.resultsContainer.innerHTML = '';
         this.resultsContainer.appendChild(fragment);
       }
     });
-
-    // PERFORMANCE: Event listeners removed - handled by event delegation in init()
   }
 
-  // Infinite scroll handler
   handleScroll() {
     if (this.isLoadingMore || !this.currentQuery) return;
 
@@ -632,7 +636,6 @@ class LauncherUI {
     }
   }
 
-  // Load more results
   async loadMore() {
     if (this.isLoadingMore || !this.currentQuery) return;
 
@@ -734,7 +737,6 @@ class LauncherUI {
     }
   }
 
-  // Favorite management methods
   loadFavorites() {
     try {
       const saved = localStorage.getItem('irukadark_launcher_favorites');
@@ -751,11 +753,9 @@ class LauncherUI {
   }
 
   getResultKey(result) {
-    // Create unique key for each result
     return `${result.type}:${result.path || result.id || result.name}`;
   }
 
-  // PERFORMANCE: O(1) lookup using Set instead of O(n) array search
   isFavorite(result) {
     const key = this.getResultKey(result);
     return this.favoritesSet.has(key);
@@ -764,9 +764,7 @@ class LauncherUI {
   toggleFavorite(result) {
     const key = this.getResultKey(result);
 
-    // PERFORMANCE: Use Set for O(1) lookup
     if (this.favoritesSet.has(key)) {
-      // Remove from favorites
       const index = this.favorites.findIndex((fav) => fav.key === key);
       if (index >= 0) {
         this.favorites.splice(index, 1);
@@ -774,7 +772,6 @@ class LauncherUI {
       this.favoritesSet.delete(key);
       this.favoritesMap.delete(key);
     } else {
-      // Add to favorites
       const favorite = {
         key,
         type: result.type,
@@ -802,14 +799,128 @@ class LauncherUI {
       }
     }
 
-    // If currently showing favorites, refresh the view
     if (!this.searchInput.value.trim()) {
       this.showFavorites();
     }
   }
 
-  // PERFORMANCE: Use RequestAnimationFrame for smooth rendering
+  handleFavoriteMouseDown(e, index) {
+    if (!this.isShowingFavorites) return;
+    if (e.target.closest('.launcher-favorite-btn')) return;
+
+    const element = e.target.closest('.launcher-result-item');
+    if (!element) return;
+
+    this.drag.element = element;
+    this.drag.index = index;
+    this.drag.startX = e.clientX;
+    this.drag.startY = e.clientY;
+    this.drag.isActive = false;
+
+    e.preventDefault();
+  }
+
+  handleFavoriteMouseMove(e) {
+    if (!this.drag.element) return;
+
+    if (!this.drag.isActive) {
+      const dx = Math.abs(e.clientX - this.drag.startX);
+      const dy = Math.abs(e.clientY - this.drag.startY);
+      if (dx < this.drag.threshold && dy < this.drag.threshold) {
+        return;
+      }
+      this.drag.isActive = true;
+      this.drag.element.classList.add('dragging');
+    }
+
+    const target = this.findDropTarget(e.clientY);
+    if (target && target.element !== this.drag.element) {
+      this.drag.target = target.element;
+      this.drag.dropType = this.determineFavoriteDropType(target.element, e.clientY);
+      this.showFavoriteInsertionLine(target.element, this.drag.dropType);
+    } else {
+      this.hideFavoriteInsertionLine();
+      this.drag.target = null;
+      this.drag.dropType = null;
+    }
+  }
+
+  handleFavoriteMouseUp() {
+    if (!this.drag.element) return;
+
+    if (this.drag.isActive && this.drag.target && this.drag.dropType) {
+      const targetIndex = parseInt(this.drag.target.dataset.index);
+      this.reorderFavorites(this.drag.index, targetIndex, this.drag.dropType);
+    }
+
+    this.drag.element.classList.remove('dragging');
+    this.hideFavoriteInsertionLine();
+    this.drag = this.createInitialDragState();
+  }
+
+  findDropTarget(mouseY) {
+    const items = this.resultsContainer.querySelectorAll('.launcher-result-item');
+    for (const item of items) {
+      const rect = item.getBoundingClientRect();
+      if (mouseY >= rect.top && mouseY <= rect.bottom) {
+        return { element: item };
+      }
+    }
+    return null;
+  }
+
+  determineFavoriteDropType(element, mouseY) {
+    const rect = element.getBoundingClientRect();
+    const relativeY = mouseY - rect.top;
+    return relativeY < rect.height * 0.5 ? 'insert-before' : 'insert-after';
+  }
+
+  showFavoriteInsertionLine(element, dropType) {
+    this.hideFavoriteInsertionLine();
+
+    const line = document.createElement('div');
+    line.className = 'launcher-insertion-line';
+
+    const elementRect = element.getBoundingClientRect();
+    const containerRect = this.resultsContainer.getBoundingClientRect();
+    const scrollTop = this.resultsContainer.scrollTop;
+
+    let topPosition;
+    if (dropType === 'insert-before') {
+      topPosition = elementRect.top - containerRect.top + scrollTop - 1;
+    } else {
+      topPosition = elementRect.bottom - containerRect.top + scrollTop - 1;
+    }
+
+    line.style.top = `${topPosition}px`;
+    this.resultsContainer.appendChild(line);
+    this.currentInsertionLine = line;
+  }
+
+  hideFavoriteInsertionLine() {
+    if (this.currentInsertionLine) {
+      this.currentInsertionLine.remove();
+      this.currentInsertionLine = null;
+    }
+  }
+
+  reorderFavorites(draggedIndex, targetIndex, dropType) {
+    if (draggedIndex === targetIndex) return;
+
+    const [removed] = this.favorites.splice(draggedIndex, 1);
+    let newTargetIndex = targetIndex;
+    if (draggedIndex < targetIndex) newTargetIndex -= 1;
+    if (dropType === 'insert-after') newTargetIndex += 1;
+
+    this.favorites.splice(newTargetIndex, 0, removed);
+    this.saveFavorites();
+    this.rebuildFavoritesIndex();
+    this.showFavorites();
+  }
+
   showFavorites() {
+    this.isShowingFavorites = true;
+
     if (!this.favorites.length) {
       this.resultsContainer.innerHTML = '';
       this.results = [];
@@ -817,7 +928,6 @@ class LauncherUI {
       return;
     }
 
-    // Convert favorites to results format
     this.results = this.favorites.map((fav) => ({
       type: fav.type,
       name: fav.name,
@@ -828,9 +938,7 @@ class LauncherUI {
     this.allResults = [...this.results];
     this.selectedIndex = 0;
 
-    // Use requestAnimationFrame for smooth rendering
     requestAnimationFrame(() => {
-      // PERFORMANCE: Use Document Fragment for batch DOM updates
       const fragment = document.createDocumentFragment();
       const tempDiv = document.createElement('div');
 
@@ -850,15 +958,14 @@ class LauncherUI {
           </button>
         </div>
       `;
-        fragment.appendChild(tempDiv.firstElementChild);
+        const item = tempDiv.firstElementChild;
+        item.addEventListener('mousedown', (e) => this.handleFavoriteMouseDown(e, index));
+        fragment.appendChild(item);
       });
 
-      // Single DOM update
       this.resultsContainer.innerHTML = '';
       this.resultsContainer.appendChild(fragment);
     });
-
-    // PERFORMANCE: Event listeners removed - handled by event delegation in init()
   }
 }
 
