@@ -2500,7 +2500,7 @@ struct IrukaAutomationCLI {
   }
 
   private static func runEnsureAccessibility(arguments: [String]) {
-    let shouldPrompt = true
+    let shouldPrompt = arguments.contains("--prompt-accessibility")
     if SelectedTextStateMachine.ensureAccessibility(prompt: shouldPrompt) {
       let output = BridgeOutput(
         status: .ok,

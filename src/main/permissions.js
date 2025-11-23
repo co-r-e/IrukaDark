@@ -26,10 +26,15 @@ function preflightAutomationHelper() {
       return; // Helper not present; nothing to prompt
     }
     // Fire-and-forget a short ensure-accessibility to trigger OS prompt for the helper process.
-    const child = spawn(helper, ['ensure-accessibility', '--timeout-ms', '200'], {
-      stdio: 'ignore',
-      detached: true,
-    });
+    // Pass --prompt-accessibility to show OS prompt on first launch.
+    const child = spawn(
+      helper,
+      ['ensure-accessibility', '--timeout-ms', '200', '--prompt-accessibility'],
+      {
+        stdio: 'ignore',
+        detached: true,
+      }
+    );
     child.unref();
   } catch {}
 }
