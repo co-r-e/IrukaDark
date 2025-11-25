@@ -341,11 +341,12 @@ class IrukaDarkApp {
    * Shortcut actions to display in hints
    */
   static HINT_ACTIONS = [
+    'screenshot',
     'explain',
     'urlSummary',
     'translate',
-    'screenshot',
     'moveToCursor',
+    'clipboardPopup',
     'toggleMainWindow',
   ];
 
@@ -395,6 +396,7 @@ class IrukaDarkApp {
       translate: 'Alt+R',
       screenshot: 'Alt+S',
       moveToCursor: 'Alt+Z',
+      clipboardPopup: 'Command+Shift+V',
       toggleMainWindow: 'Alt+Space',
     };
     try {
@@ -432,6 +434,11 @@ class IrukaDarkApp {
     const container = document.createElement('div');
     container.className = 'shortcut-hints';
 
+    const title = document.createElement('div');
+    title.className = 'shortcut-hints-title';
+    title.textContent = getUIText('shortcutHints.title') || 'Shortcut Keys';
+    container.appendChild(title);
+
     const grid = document.createElement('div');
     grid.className = 'shortcut-hints-grid';
 
@@ -460,6 +467,60 @@ class IrukaDarkApp {
     }
 
     container.appendChild(grid);
+
+    const shortcutDesc = document.createElement('div');
+    shortcutDesc.className = 'shortcut-hints-desc';
+    shortcutDesc.textContent =
+      getUIText('shortcutHints.shortcutDesc') ||
+      'Shortcut key assignments can be changed in the Settings tab.';
+    container.appendChild(shortcutDesc);
+
+    // @ Actions section
+    const atTitle = document.createElement('div');
+    atTitle.className = 'shortcut-hints-title';
+    atTitle.textContent = getUIText('shortcutHints.atTitle') || '@ Actions';
+    container.appendChild(atTitle);
+
+    const atGrid = document.createElement('div');
+    atGrid.className = 'shortcut-hints-grid';
+
+    const atActions = [
+      { key: '@image', label: getUIText('shortcutHints.atImage') || 'Generate image' },
+      { key: '@video', label: getUIText('shortcutHints.atVideo') || 'Generate video' },
+    ];
+
+    for (const { key, label } of atActions) {
+      const hint = document.createElement('div');
+      hint.className = 'shortcut-hint';
+
+      const keySpan = document.createElement('span');
+      keySpan.className = 'shortcut-hint-key';
+      keySpan.textContent = key;
+
+      const labelSpan = document.createElement('span');
+      labelSpan.className = 'shortcut-hint-label';
+      labelSpan.textContent = label;
+
+      hint.appendChild(keySpan);
+      hint.appendChild(labelSpan);
+      atGrid.appendChild(hint);
+    }
+
+    container.appendChild(atGrid);
+
+    // Slash commands section
+    const slashTitle = document.createElement('div');
+    slashTitle.className = 'shortcut-hints-title';
+    slashTitle.textContent = getUIText('shortcutHints.slashTitle') || 'Chat: Slash Commands';
+    container.appendChild(slashTitle);
+
+    const slashDesc = document.createElement('div');
+    slashDesc.className = 'shortcut-hints-desc';
+    slashDesc.textContent =
+      getUIText('shortcutHints.slashDesc') ||
+      'Use slash commands to explore chat content and configure settings.';
+    container.appendChild(slashDesc);
+
     return container;
   }
 

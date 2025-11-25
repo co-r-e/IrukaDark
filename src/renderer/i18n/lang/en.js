@@ -69,6 +69,16 @@
     invalidUrlSelection: 'No valid URL detected. Select one HTTP(S) URL and try again.',
     updateAvailable: (v) => `A new version (${v}) is available. Open downloads page?`,
     upToDate: 'You are up to date.',
+    shortcutHints: {
+      title: 'Shortcut Keys',
+      shortcutDesc:
+        'Add Shift to explanation shortcuts for detailed analysis. Shortcut key assignments can be changed in the Settings tab.',
+      atTitle: 'Chat: @ Actions',
+      atImage: 'Generate image',
+      atVideo: 'Generate video',
+      slashTitle: 'Chat: Slash Commands',
+      slashDesc: 'Use slash commands to explore chat content and configure settings.',
+    },
     slashDescriptions: {
       what: 'Clarify the last AI output',
       next: 'Continue the last AI output',

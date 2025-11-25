@@ -71,6 +71,16 @@
     updateAvailable: (v) =>
       `新しいバージョン（${v}）が利用可能です。ダウンロードページを開きますか？`,
     upToDate: '最新の状態です。',
+    shortcutHints: {
+      title: 'ショートカットキー',
+      shortcutDesc:
+        '説明系のショートカットキーは、Shiftキーを加えると詳細説明になります。各種ショートカットキーの割り当ては設定タブで変更できます。',
+      atTitle: 'チャット機能：@アクション',
+      atImage: '画像を生成',
+      atVideo: '動画を生成',
+      slashTitle: 'チャット機能：スラッシュコマンド',
+      slashDesc: '各種スラッシュコマンドでチャット内容の深掘りや設定ができます。',
+    },
     slashDescriptions: {
       what: '直前のAI出力をわかりやすく説明',
       next: '直前のAI回答の続きを生成',

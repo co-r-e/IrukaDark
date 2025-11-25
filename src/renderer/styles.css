@@ -2858,20 +2858,42 @@ html:not(.theme-dark) .terminal-ai-button:hover {
 .shortcut-hints {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
+  align-items: flex-start;
   color: var(--text-muted);
   font-size: 11px;
   user-select: none;
-  padding: 0 16px;
+  padding: 16px;
+  gap: 10px;
+}
+
+.shortcut-hints-title {
+  font-size: 11px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #ff4d6d, #d946ef);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-top: 8px;
+}
+
+.shortcut-hints-title:first-child {
+  margin-top: 0;
+}
+
+.shortcut-hints-desc {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+html:not(.theme-dark) .shortcut-hints-desc {
+  color: rgba(0, 0, 0, 0.5);
 }
 
 .shortcut-hints-grid {
   display: grid;
-  grid-template-columns: repeat(2, auto);
-  gap: 4px 16px;
-  max-width: 320px;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
 }
 
 .shortcut-hint {
@@ -2882,8 +2904,8 @@ html:not(.theme-dark) .terminal-ai-button:hover {
   text-align: right;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 10px;
-  color: var(--text-tertiary-dark);
-  background: var(--bg-overlay-subtle);
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.1);
   padding: 2px 6px;
   border-radius: 3px;
   white-space: nowrap;
@@ -2891,14 +2913,14 @@ html:not(.theme-dark) .terminal-ai-button:hover {
 
 .shortcut-hint-label {
   text-align: left;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.6);
   padding-left: 4px;
   white-space: nowrap;
 }
 
 html:not(.theme-dark) .shortcut-hint-key {
   color: var(--text-tertiary-light);
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(0, 0, 0, 0.06);
 }
 
 html:not(.theme-dark) .shortcut-hint-label {
