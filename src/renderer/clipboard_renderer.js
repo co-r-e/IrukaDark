@@ -16,6 +16,8 @@ const ICONS = {
   EDIT: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>',
   TRASH:
     '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>',
+  IMAGE:
+    '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>',
 };
 
 class ClipboardHistoryUI {
@@ -822,132 +824,183 @@ class ClipboardHistoryUI {
   createSnippetElement(snippet) {
     const snippetEl = document.createElement('div');
     snippetEl.className = 'snippet-item';
-    if (snippet.editing) {
-      snippetEl.classList.add('editing');
-    }
     snippetEl.dataset.id = snippet.id;
 
     if (snippet.editing) {
-      // Editing mode
-      const nameInput = document.createElement('input');
-      nameInput.type = 'text';
-      nameInput.className = 'snippet-item-name-input';
-      nameInput.placeholder = this.t('snippetNamePlaceholder');
-      nameInput.value = snippet.name;
-
-      const contentInput = document.createElement('textarea');
-      contentInput.className = 'snippet-item-content-input';
-      contentInput.placeholder = this.t('snippetContentPlaceholder');
-      contentInput.value = snippet.content;
-
-      let blurTimeout = null;
-
-      // Save when either input loses focus (unless moving between them)
-      const saveHandler = () => {
-        blurTimeout = setTimeout(() => {
-          const activeElement = document.activeElement;
-          // Save only if focus moved outside of both inputs
-          if (activeElement !== nameInput && activeElement !== contentInput) {
-            this.finishEditingSnippet(snippet.id, nameInput.value, contentInput.value);
-          }
-        }, 100);
-      };
-
-      const cancelBlurTimeout = () => {
-        if (blurTimeout) {
-          clearTimeout(blurTimeout);
-          blurTimeout = null;
-        }
-      };
-
-      // Name input: save on blur
-      nameInput.addEventListener('blur', saveHandler);
-      nameInput.addEventListener('focus', cancelBlurTimeout);
-      nameInput.addEventListener('click', (e) => {
-        e.stopPropagation();
-      });
-      nameInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          e.stopPropagation();
-          // Delay focus to ensure Enter key doesn't affect contentInput
-          setTimeout(() => {
-            contentInput.focus();
-          }, 0);
-        } else if (e.key === 'Escape') {
-          this.cancelEditingSnippet(snippet.id);
-        }
-      });
-
-      // Content input: save on blur
-      contentInput.addEventListener('blur', saveHandler);
-      contentInput.addEventListener('focus', cancelBlurTimeout);
-      contentInput.addEventListener('click', (e) => {
-        e.stopPropagation();
-      });
-      contentInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-          this.cancelEditingSnippet(snippet.id);
-        }
-      });
-
-      snippetEl.appendChild(nameInput);
-      snippetEl.appendChild(contentInput);
-
-      // Stop propagation on the entire snippet element when editing
-      snippetEl.addEventListener('click', (e) => {
-        e.stopPropagation();
-      });
-
-      setTimeout(() => {
-        nameInput.focus();
-        nameInput.select();
-      }, 0);
+      snippetEl.classList.add('editing');
+      this._buildSnippetEditingView(snippetEl, snippet);
     } else {
-      // Display mode
-      const contentWrapper = document.createElement('div');
-      contentWrapper.className = 'snippet-item-content-wrapper';
-
-      const nameDiv = document.createElement('div');
-      nameDiv.className = 'snippet-item-name';
-      nameDiv.textContent = snippet.name;
-
-      contentWrapper.appendChild(nameDiv);
-
-      // Icon for copy status
-      const iconDiv = document.createElement('div');
-      iconDiv.className = 'snippet-item-icon';
-      iconDiv.innerHTML = ''; // Empty by default
-
-      const moreBtn = document.createElement('div');
-      moreBtn.className = 'snippet-item-more';
-      moreBtn.textContent = '⋯';
-
-      snippetEl.appendChild(contentWrapper);
-      snippetEl.appendChild(iconDiv);
-      snippetEl.appendChild(moreBtn);
+      this._buildSnippetDisplayView(snippetEl, snippet);
     }
 
     return snippetEl;
   }
 
-  // ========== Snippet Operations ==========
+  /** Build snippet editing view with name input and optional content input */
+  _buildSnippetEditingView(snippetEl, snippet) {
+    const isImageSnippet = snippet.type === 'image';
 
-  addNewSnippet(folderId) {
-    const parentFolder = this.snippetFolders.find((f) => f.id === folderId);
-    if (parentFolder && !parentFolder.expanded) {
-      parentFolder.expanded = true;
+    // Name input
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'snippet-item-name-input';
+    nameInput.placeholder = this.t('snippetNamePlaceholder');
+    nameInput.value = snippet.name;
+
+    // Content input (text snippets only)
+    let contentInput = null;
+    if (!isImageSnippet) {
+      contentInput = document.createElement('textarea');
+      contentInput.className = 'snippet-item-content-input';
+      contentInput.placeholder = this.t('snippetContentPlaceholder');
+      contentInput.value = snippet.content || '';
     }
 
-    const newSnippet = {
+    // Blur handling with timeout to allow focus switching between inputs
+    let blurTimeout = null;
+    const saveHandler = () => {
+      blurTimeout = setTimeout(() => {
+        if (
+          document.activeElement !== nameInput &&
+          (!contentInput || document.activeElement !== contentInput)
+        ) {
+          this.finishEditingSnippet(snippet.id, nameInput.value, contentInput?.value ?? null);
+        }
+      }, 100);
+    };
+    const cancelBlurTimeout = () => {
+      if (blurTimeout) {
+        clearTimeout(blurTimeout);
+        blurTimeout = null;
+      }
+    };
+
+    // Name input events
+    nameInput.addEventListener('blur', saveHandler);
+    nameInput.addEventListener('focus', cancelBlurTimeout);
+    nameInput.addEventListener('click', (e) => e.stopPropagation());
+    nameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (contentInput) {
+          setTimeout(() => contentInput.focus(), 0);
+        } else {
+          this.finishEditingSnippet(snippet.id, nameInput.value, null);
+        }
+      } else if (e.key === 'Escape') {
+        this.cancelEditingSnippet(snippet.id);
+      }
+    });
+
+    snippetEl.appendChild(nameInput);
+
+    // Image preview (image snippets only)
+    if (isImageSnippet && snippet.thumbnailData) {
+      snippetEl.classList.add('image-snippet');
+      const imgPreview = document.createElement('img');
+      imgPreview.className = 'snippet-item-image-preview';
+      imgPreview.src = `data:image/png;base64,${snippet.thumbnailData}`;
+      imgPreview.alt = snippet.name;
+      snippetEl.appendChild(imgPreview);
+    }
+
+    // Content input events (text snippets only)
+    if (contentInput) {
+      contentInput.addEventListener('blur', saveHandler);
+      contentInput.addEventListener('focus', cancelBlurTimeout);
+      contentInput.addEventListener('click', (e) => e.stopPropagation());
+      contentInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') this.cancelEditingSnippet(snippet.id);
+      });
+      snippetEl.appendChild(contentInput);
+    }
+
+    snippetEl.addEventListener('click', (e) => e.stopPropagation());
+    setTimeout(() => {
+      nameInput.focus();
+      nameInput.select();
+    }, 0);
+  }
+
+  /** Build snippet display view with name, thumbnail, and action buttons */
+  _buildSnippetDisplayView(snippetEl, snippet) {
+    const contentWrapper = document.createElement('div');
+    contentWrapper.className = 'snippet-item-content-wrapper';
+
+    // Thumbnail (image snippets only)
+    if (snippet.type === 'image' && snippet.thumbnailData) {
+      snippetEl.classList.add('image-snippet');
+      const imgEl = document.createElement('img');
+      imgEl.className = 'snippet-item-image';
+      imgEl.src = `data:image/png;base64,${snippet.thumbnailData}`;
+      imgEl.alt = snippet.name;
+      contentWrapper.appendChild(imgEl);
+    }
+
+    const nameDiv = document.createElement('div');
+    nameDiv.className = 'snippet-item-name';
+    nameDiv.textContent = snippet.name;
+    contentWrapper.appendChild(nameDiv);
+
+    const iconDiv = document.createElement('div');
+    iconDiv.className = 'snippet-item-icon';
+
+    const moreBtn = document.createElement('div');
+    moreBtn.className = 'snippet-item-more';
+    moreBtn.textContent = '⋯';
+
+    snippetEl.appendChild(contentWrapper);
+    snippetEl.appendChild(iconDiv);
+    snippetEl.appendChild(moreBtn);
+  }
+
+  // ========== Snippet Operations ==========
+
+  /** Expand parent folder if collapsed */
+  _expandParentFolder(folderId) {
+    const folder = this.snippetFolders.find((f) => f.id === folderId);
+    if (folder && !folder.expanded) folder.expanded = true;
+  }
+
+  /** Add new text snippet */
+  addNewSnippet(folderId) {
+    this._expandParentFolder(folderId);
+    this.snippets.push({
       id: `snippet-${this.nextSnippetId++}`,
       name: 'New Snippet',
       content: '',
       folderId,
       timestamp: Date.now(),
       editing: true,
-    };
-    this.snippets.push(newSnippet);
+    });
+    this.saveSnippets();
+    this.renderSnippets();
+  }
+
+  /** Add new image snippet via file picker */
+  async addImageSnippet(folderId) {
+    if (!window.electronAPI?.selectImageFile) return;
+
+    const result = await window.electronAPI.selectImageFile();
+    if (!result.success || result.canceled) return;
+
+    this._expandParentFolder(folderId);
+
+    const snippetId = `snippet-${this.nextSnippetId++}`;
+    const saveResult = await window.electronAPI.saveSnippetImage(snippetId, result.imageBase64);
+    if (!saveResult.success) return;
+
+    this.snippets.push({
+      id: snippetId,
+      name: (result.fileName || 'Image').replace(/\.[^.]+$/, ''),
+      type: 'image',
+      imagePath: saveResult.imagePath,
+      thumbnailData: saveResult.thumbnailBase64,
+      folderId,
+      timestamp: Date.now(),
+      editing: true,
+    });
     this.saveSnippets();
     this.renderSnippets();
   }
@@ -970,36 +1023,53 @@ class ClipboardHistoryUI {
   }
 
   cancelEditingSnippet(snippetId) {
-    const snippetIndex = this.snippets.findIndex((s) => s.id === snippetId);
-    if (snippetIndex === -1) return;
+    const index = this.snippets.findIndex((s) => s.id === snippetId);
+    if (index === -1) return;
 
-    const snippet = this.snippets[snippetIndex];
-    if (snippet.editing && !snippet.content && snippet.name === 'New Snippet') {
-      this.snippets.splice(snippetIndex, 1);
+    const snippet = this.snippets[index];
+    const isNewEmptyTextSnippet =
+      snippet.editing &&
+      !snippet.content &&
+      snippet.name === 'New Snippet' &&
+      snippet.type !== 'image';
+
+    if (isNewEmptyTextSnippet) {
+      this.snippets.splice(index, 1);
     } else {
       snippet.editing = false;
     }
     this.renderSnippets();
   }
 
-  deleteSnippet(snippetId) {
-    const snippetIndex = this.snippets.findIndex((s) => s.id === snippetId);
-    if (snippetIndex === -1) return;
-    this.snippets.splice(snippetIndex, 1);
+  async deleteSnippet(snippetId) {
+    const index = this.snippets.findIndex((s) => s.id === snippetId);
+    if (index === -1) return;
+
+    const snippet = this.snippets[index];
+    if (snippet.type === 'image' && snippet.imagePath && window.electronAPI?.deleteSnippetImage) {
+      await window.electronAPI.deleteSnippetImage(snippet.imagePath);
+    }
+
+    this.snippets.splice(index, 1);
     this.saveSnippets();
     this.renderSnippets();
   }
 
-  copySnippet(snippet, iconDiv, moreBtn, snippetEl) {
-    if (!window.electronAPI?.copyToClipboard) return;
+  /** Copy snippet content to clipboard and show visual feedback */
+  async copySnippet(snippet, iconDiv, moreBtn, snippetEl) {
+    if (snippet.type === 'image' && snippet.imagePath) {
+      if (!window.electronAPI?.copySnippetImage) return;
+      await window.electronAPI.copySnippetImage(snippet.imagePath);
+    } else {
+      if (!window.electronAPI?.copyToClipboard) return;
+      window.electronAPI.copyToClipboard({ type: 'text', text: snippet.content });
+    }
 
-    window.electronAPI.copyToClipboard({ type: 'text', text: snippet.content });
-
+    // Visual feedback
     if (iconDiv && moreBtn) {
       iconDiv.innerHTML = ICONS.CHECK;
       iconDiv.style.opacity = '1';
       moreBtn.style.opacity = '0';
-
       setTimeout(() => {
         iconDiv.style.opacity = '0';
         moreBtn.style.opacity = '1';
@@ -1084,6 +1154,15 @@ class ClipboardHistoryUI {
       this.hideContextMenu();
     });
     this.contextMenu.appendChild(addSnippetItem);
+
+    const addImageItem = document.createElement('div');
+    addImageItem.className = 'context-menu-item';
+    addImageItem.innerHTML = `${ICONS.IMAGE}<span>${this.t('addImage')}</span>`;
+    addImageItem.addEventListener('click', () => {
+      this.addImageSnippet(folderId);
+      this.hideContextMenu();
+    });
+    this.contextMenu.appendChild(addImageItem);
 
     const editItem = document.createElement('div');
     editItem.className = 'context-menu-item';

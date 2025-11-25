@@ -1410,27 +1410,126 @@ function bootstrapApp() {
       return { monitoring: clipboardService.isMonitoringActive() };
     });
 
-    // Snippet data persistence
+    // ========== Snippet Handlers ==========
     const snippetDataPath = path.join(app.getPath('userData'), 'snippets.json');
+    const snippetImagesDir = path.join(app.getPath('userData'), 'snippet-images');
 
+    /** Create thumbnail from image (max 200x200, preserving aspect ratio) */
+    function createSnippetThumbnail(image) {
+      if (!image || image.isEmpty()) return null;
+      const size = image.getSize();
+      const maxSize = 200;
+      if (size.width <= maxSize && size.height <= maxSize) {
+        return image.toDataURL();
+      }
+      const aspectRatio = size.width / size.height;
+      const [newWidth, newHeight] =
+        aspectRatio > 1
+          ? [maxSize, Math.round(maxSize / aspectRatio)]
+          : [Math.round(maxSize * aspectRatio), maxSize];
+      return image.resize({ width: newWidth, height: newHeight, quality: 'good' }).toDataURL();
+    }
+
+    // Get snippet data from JSON file
     ipcMain.handle('snippet:get-data', () => {
       try {
         if (fs.existsSync(snippetDataPath)) {
-          const data = fs.readFileSync(snippetDataPath, 'utf8');
-          return JSON.parse(data);
+          return JSON.parse(fs.readFileSync(snippetDataPath, 'utf8'));
         }
         return null;
-      } catch (err) {
+      } catch {
         return null;
       }
     });
 
+    // Save snippet data to JSON file
     ipcMain.handle('snippet:save-data', (_e, data) => {
       try {
         fs.writeFileSync(snippetDataPath, JSON.stringify(data, null, 2), 'utf8');
         return true;
-      } catch (err) {
+      } catch {
         return false;
+      }
+    });
+
+    // Open file dialog to select an image
+    ipcMain.handle('snippet:select-image-file', async () => {
+      const { dialog, BrowserWindow } = require('electron');
+      try {
+        const focusedWindow = BrowserWindow.getFocusedWindow();
+        const result = await dialog.showOpenDialog(focusedWindow, {
+          properties: ['openFile'],
+          filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'] }],
+        });
+        if (result.canceled || !result.filePaths.length) {
+          return { success: false, canceled: true };
+        }
+        const filePath = result.filePaths[0];
+        const buffer = fs.readFileSync(filePath);
+        return {
+          success: true,
+          imageBase64: buffer.toString('base64'),
+          fileName: path.basename(filePath),
+        };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    });
+
+    // Save image file and generate thumbnail
+    ipcMain.handle('snippet:save-image', async (_e, { snippetId, imageBase64 }) => {
+      try {
+        if (!fs.existsSync(snippetImagesDir)) {
+          fs.mkdirSync(snippetImagesDir, { recursive: true });
+        }
+        const imagePath = `${snippetId}.png`;
+        const buffer = Buffer.from(imageBase64, 'base64');
+        fs.writeFileSync(path.join(snippetImagesDir, imagePath), buffer);
+        const thumbnailDataUrl = createSnippetThumbnail(nativeImage.createFromBuffer(buffer));
+        return {
+          success: true,
+          imagePath,
+          thumbnailBase64: thumbnailDataUrl?.split(',')[1] ?? null,
+        };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    });
+
+    // Delete image file
+    ipcMain.handle('snippet:delete-image', async (_e, imagePath) => {
+      try {
+        const fullPath = path.join(snippetImagesDir, imagePath);
+        if (fs.existsSync(fullPath)) {
+          fs.unlinkSync(fullPath);
+        }
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    });
+
+    // Copy image to clipboard (excluded from clipboard history)
+    ipcMain.handle('snippet:copy-image', async (_e, imagePath) => {
+      const { clipboard } = require('electron');
+      try {
+        const fullPath = path.join(snippetImagesDir, imagePath);
+        if (!fs.existsSync(fullPath)) {
+          return { success: false, error: 'Image not found' };
+        }
+        const image = nativeImage.createFromPath(fullPath);
+        clipboard.writeImage(image);
+        // Prevent adding to clipboard history
+        const { getClipboardHistoryService } = require('../services/clipboardHistory');
+        const clipboardService = getClipboardHistoryService();
+        clipboardService.lastProgrammaticText = null;
+        clipboardService.lastProgrammaticImageHash = clipboardService.getImageHash(
+          image.toDataURL()
+        );
+        clipboardService.programmaticSetTime = Date.now();
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err.message };
       }
     });
   }

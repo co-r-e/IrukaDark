@@ -140,6 +140,7 @@
       searchSnippets: 'Search snippets...',
       addFolder: 'Add Folder',
       addSnippet: 'Add Snippet',
+      addImage: 'Add Image',
       edit: 'Edit',
       delete: 'Delete',
       copy: 'Copy',

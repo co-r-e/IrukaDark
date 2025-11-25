@@ -142,6 +142,7 @@
       searchSnippets: 'スニペットを検索...',
       addFolder: 'フォルダーを追加',
       addSnippet: 'スニペットを追加',
+      addImage: '画像を追加',
       edit: '編集',
       delete: '削除',
       copy: 'コピー',

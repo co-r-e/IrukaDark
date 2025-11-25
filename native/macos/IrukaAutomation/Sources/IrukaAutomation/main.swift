@@ -272,14 +272,18 @@ final class WindowPositionManager {
 /// Protocol for providing tooltip content from row data
 protocol TooltipDataSource: AnyObject {
   func tooltipText(forRow row: Int, inView view: NSView) -> String?
+  func tooltipImage(forRow row: Int, inView view: NSView) -> NSImage?
   func getTooltipDarkMode() -> Bool
 }
 
 /// Floating tooltip window that displays item content
 final class TooltipWindow: NSPanel {
   private let contentLabel = NSTextField(wrappingLabelWithString: "")
+  private let contentImageView = NSImageView()
   private let minWidth: CGFloat = 120
   private let maxWidth: CGFloat = 320
+  private let maxImageWidth: CGFloat = 240
+  private let maxImageHeight: CGFloat = 180
   private let maxLines: Int = 10
 
   init() {
@@ -290,7 +294,7 @@ final class TooltipWindow: NSPanel {
       defer: false
     )
 
-    self.level = .popUpMenu + 1  // Above the main popup window
+    self.level = .screenSaver + 1  // Above the main popup window
     self.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
     self.isOpaque = false
     self.backgroundColor = .clear
@@ -327,11 +331,21 @@ final class TooltipWindow: NSPanel {
       cell.wraps = true
     }
 
+    // Image view setup
+    contentImageView.imageScaling = .scaleProportionallyUpOrDown
+    contentImageView.imageAlignment = .alignCenter
+    contentImageView.isHidden = true
+
     containerView.addSubview(contentLabel)
+    containerView.addSubview(contentImageView)
     contentView = containerView
   }
 
   func show(with text: String, at position: NSPoint, isDarkMode: Bool) {
+    // Hide image view, show text
+    contentImageView.isHidden = true
+    contentLabel.isHidden = false
+
     // Format text to max 10 lines
     let lines = text.components(separatedBy: .newlines)
     let displayLines = Array(lines.prefix(maxLines))
@@ -399,6 +413,55 @@ final class TooltipWindow: NSPanel {
 
     setFrame(tooltipFrame, display: true)
     contentLabel.frame = NSRect(x: padding, y: padding, width: width - padding * 2, height: contentHeight)
+
+    orderFrontRegardless()
+  }
+
+  func showImage(_ image: NSImage, at position: NSPoint, isDarkMode: Bool) {
+    // Hide text label, show image
+    contentLabel.isHidden = true
+    contentImageView.isHidden = false
+
+    contentImageView.image = image
+
+    // Apply theme colors
+    if isDarkMode {
+      contentView?.layer?.backgroundColor = NSColor(red: 0x1a/255.0, green: 0x1a/255.0, blue: 0x2e/255.0, alpha: 0.95).cgColor
+    } else {
+      contentView?.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.95).cgColor
+    }
+
+    // Calculate display size preserving aspect ratio
+    let padding: CGFloat = 8
+    let imageSize = image.size
+
+    var displayWidth = imageSize.width
+    var displayHeight = imageSize.height
+
+    // Scale down if larger than max dimensions
+    if displayWidth > maxImageWidth {
+      let scale = maxImageWidth / displayWidth
+      displayWidth = maxImageWidth
+      displayHeight = displayHeight * scale
+    }
+    if displayHeight > maxImageHeight {
+      let scale = maxImageHeight / displayHeight
+      displayHeight = displayHeight * scale
+      displayWidth = displayWidth * scale
+    }
+
+    let width = displayWidth + padding * 2
+    let height = displayHeight + padding * 2
+
+    // Calculate optimal tooltip position with screen boundary checks
+    let tooltipSize = NSSize(width: width, height: height)
+    let tooltipFrame = calculateTooltipPosition(
+      anchorPoint: position,
+      tooltipSize: tooltipSize
+    )
+
+    setFrame(tooltipFrame, display: true)
+    contentImageView.frame = NSRect(x: padding, y: padding, width: displayWidth, height: displayHeight)
 
     orderFrontRegardless()
   }
@@ -475,6 +538,15 @@ final class TooltipManager {
     }
   }
 
+  func scheduleShowImage(_ image: NSImage, at position: NSPoint, isDarkMode: Bool) {
+    // Cancel any pending show
+    cancelShow()
+
+    showTimer = Timer.scheduledTimer(withTimeInterval: showDelay, repeats: false) { [weak self] _ in
+      self?.showImageTooltip(image: image, at: position, isDarkMode: isDarkMode)
+    }
+  }
+
   func cancelShow() {
     showTimer?.invalidate()
     showTimer = nil
@@ -490,6 +562,13 @@ final class TooltipManager {
       tooltipWindow = TooltipWindow()
     }
     tooltipWindow?.show(with: text, at: position, isDarkMode: isDarkMode)
+  }
+
+  private func showImageTooltip(image: NSImage, at position: NSPoint, isDarkMode: Bool) {
+    if tooltipWindow == nil {
+      tooltipWindow = TooltipWindow()
+    }
+    tooltipWindow?.showImage(image, at: position, isDarkMode: isDarkMode)
   }
 }
 
@@ -534,7 +613,10 @@ struct SnippetFolder: Decodable {
 struct SnippetItem: Decodable {
   let id: String
   let name: String
-  let content: String
+  let content: String?
+  let type: String?  // "text" or "image"
+  let imagePath: String?
+  let thumbnailData: String?
   let folderId: String?
   let editing: Bool?
 }
@@ -543,7 +625,7 @@ struct SnippetItem: Decodable {
 final class SnippetTreeNode {
   enum NodeType {
     case folder(id: String, name: String)
-    case snippet(id: String, name: String, contentRef: String)
+    case snippet(id: String, name: String, contentRef: String, imagePath: String?)
   }
 
   let type: NodeType
@@ -556,7 +638,7 @@ final class SnippetTreeNode {
 
   var id: String {
     switch type {
-    case .folder(let id, _), .snippet(let id, _, _):
+    case .folder(let id, _), .snippet(let id, _, _, _):
       return id
     }
   }
@@ -675,14 +757,19 @@ final class HoverableTableRowView: NSTableRowView {
   }
 
   private func showTooltip() {
-    // Get row index
-    guard let tableView = superview as? NSTableView else { return }
-    let row = tableView.row(for: self)
-    guard row >= 0 else { return }
+    // Get row index - support both NSTableView and NSOutlineView
+    var row: Int = -1
+    var targetView: NSView?
 
-    // Get tooltip text from data source
-    guard let text = tooltipDataSource?.tooltipText(forRow: row, inView: tableView),
-          !text.isEmpty else { return }
+    if let tableView = superview as? NSTableView {
+      row = tableView.row(for: self)
+      targetView = tableView
+    } else if let outlineView = superview as? NSOutlineView {
+      row = outlineView.row(for: self)
+      targetView = outlineView
+    }
+
+    guard row >= 0, let view = targetView else { return }
 
     // Calculate tooltip position (right side of the row)
     guard let window = window else { return }
@@ -695,6 +782,16 @@ final class HoverableTableRowView: NSTableRowView {
 
     let tooltipPosition = NSPoint(x: tooltipX, y: tooltipY)
     let isDark = tooltipDataSource?.getTooltipDarkMode() ?? false
+
+    // Check for image tooltip first
+    if let image = tooltipDataSource?.tooltipImage(forRow: row, inView: view) {
+      TooltipManager.shared.scheduleShowImage(image, at: tooltipPosition, isDarkMode: isDark)
+      return
+    }
+
+    // Fall back to text tooltip
+    guard let text = tooltipDataSource?.tooltipText(forRow: row, inView: view),
+          !text.isEmpty else { return }
 
     // Schedule tooltip display
     TooltipManager.shared.scheduleShow(text: text, at: tooltipPosition, isDarkMode: isDark)
@@ -1051,6 +1148,7 @@ final class ClipboardPopupWindow: NSPanel {
   private var snippetContentMap: [String: String] = [:]
   private var snippetFolders: [SnippetFolder] = []
   private var snippets: [SnippetItem] = []
+  private var snippetImagesDir: String?
 
   // PERFORMANCE: Enhanced caches with LRU and row info
   private struct CachedRowInfo {
@@ -1083,7 +1181,7 @@ final class ClipboardPopupWindow: NSPanel {
       defer: false
     )
 
-    self.level = .popUpMenu
+    self.level = .screenSaver  // Above Electron windows
     self.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
     self.isOpaque = false
     self.backgroundColor = .clear
@@ -1098,6 +1196,10 @@ final class ClipboardPopupWindow: NSPanel {
 
     // PERFORMANCE: Load snippet data asynchronously if path provided
     if let path = snippetDataPath {
+      // Calculate snippet-images directory path from snippetDataPath
+      let parentDir = (path as NSString).deletingLastPathComponent
+      self.snippetImagesDir = (parentDir as NSString).appendingPathComponent("snippet-images")
+
       DispatchQueue.global(qos: .userInitiated).async { [weak self] in
         self?.loadSnippetsFromFile(path)
       }
@@ -1129,6 +1231,10 @@ final class ClipboardPopupWindow: NSPanel {
 
     // Load snippet data if path provided (asynchronously)
     if let path = snippetDataPath {
+      // Calculate snippet-images directory path from snippetDataPath
+      let parentDir = (path as NSString).deletingLastPathComponent
+      self.snippetImagesDir = (parentDir as NSString).appendingPathComponent("snippet-images")
+
       DispatchQueue.global(qos: .userInitiated).async { [weak self] in
         self?.loadSnippetsFromFile(path)
       }
@@ -1138,6 +1244,7 @@ final class ClipboardPopupWindow: NSPanel {
       self.snippets = []
       self.snippetContentMap = [:]
       self.snippetTreeRoot = nil
+      self.snippetImagesDir = nil
     }
 
     // Recalculate position based on cursor
@@ -1943,9 +2050,11 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
       self.snippetFolders = decoded.folders
       self.snippets = decoded.snippets
 
-      // Build content map (ID -> content)
+      // Build content map (ID -> content) - only for text snippets
       for snippet in decoded.snippets {
-        self.snippetContentMap[snippet.id] = snippet.content
+        if snippet.type != "image", let content = snippet.content {
+          self.snippetContentMap[snippet.id] = content
+        }
       }
 
       // Build tree structure
@@ -1983,7 +2092,8 @@ extension ClipboardPopupWindow: NSTableViewDelegate {
       let snippetNode = SnippetTreeNode(type: .snippet(
         id: snippet.id,
         name: snippet.name,
-        contentRef: snippet.id
+        contentRef: snippet.id,
+        imagePath: snippet.type == "image" ? snippet.imagePath : nil
       ))
       folderNode.children.append(snippetNode)
       snippetNode.parent = folderNode
@@ -2061,7 +2171,7 @@ extension ClipboardPopupWindow: NSOutlineViewDelegate {
       cell?.configure(name: name, isExpanded: isExpanded, level: level, isDarkMode: isDarkMode)
       return cell
 
-    case .snippet(_, let name, _):
+    case .snippet(_, let name, _, _):
       let identifier = NSUserInterfaceItemIdentifier("SnippetCell")
       var cell = outlineView.makeView(withIdentifier: identifier, owner: self) as? SnippetItemCell
       if cell == nil {
@@ -2093,9 +2203,14 @@ extension ClipboardPopupWindow: NSOutlineViewDelegate {
       outlineView.reloadItem(node)
       return false
 
-    case .snippet(_, _, let contentRef):
-      // Paste snippet
-      if let content = snippetContentMap[contentRef] {
+    case .snippet(_, _, let contentRef, let imagePath):
+      // Handle image snippet
+      if let imagePath = imagePath, let imagesDir = snippetImagesDir {
+        let fullPath = (imagesDir as NSString).appendingPathComponent(imagePath)
+        pasteSnippetImage(fullPath)
+      }
+      // Handle text snippet
+      else if let content = snippetContentMap[contentRef] {
         pasteSnippetContent(content)
       }
       return false
@@ -2168,6 +2283,60 @@ extension ClipboardPopupWindow: NSOutlineViewDelegate {
       self.close()
     }
   }
+
+  private func pasteSnippetImage(_ imagePath: String) {
+    // Load image from file
+    guard let image = NSImage(contentsOfFile: imagePath) else { return }
+
+    // Update clipboard with image
+    let pasteboard = NSPasteboard.general
+    pasteboard.clearContents()
+    pasteboard.writeObjects([image])
+
+    // Ensure accessibility permission
+    guard SelectedTextStateMachine.ensureAccessibility(prompt: false) else {
+      return
+    }
+
+    // Activate target app (prefer current frontmost, fallback to previous)
+    let targetApp: NSRunningApplication?
+    if let frontmost = NSWorkspace.shared.frontmostApplication,
+       frontmost.bundleIdentifier != Bundle.main.bundleIdentifier {
+      targetApp = frontmost
+    } else {
+      targetApp = previousApp
+    }
+
+    if let app = targetApp {
+      app.activate(options: [.activateIgnoringOtherApps])
+      usleep(150_000) // 150ms
+    }
+
+    // Send Command+V
+    guard let source = CGEventSource(stateID: .hidSystemState) else { return }
+
+    if let keyDown = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: true),
+       let keyUp = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: false) {
+      keyDown.flags = [.maskCommand]
+      keyDown.post(tap: .cghidEventTap)
+      usleep(10_000) // 10ms
+      keyUp.flags = [.maskCommand]
+      keyUp.post(tap: .cghidEventTap)
+    }
+
+    // Close window after a short delay
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+      let output = BridgeOutput(
+        status: .ok,
+        text: nil,
+        source: nil,
+        code: "image_snippet_pasted",
+        message: "Image snippet pasted successfully"
+      )
+      print(output.encoded())
+      self.close()
+    }
+  }
 }
 
 // MARK: - TooltipDataSource Implementation
@@ -2199,10 +2368,14 @@ extension ClipboardPopupWindow: TooltipDataSource {
       guard let item = outlineView.item(atRow: row) as? SnippetTreeNode else { return nil }
 
       switch item.type {
-      case .folder(_, let name):
-        return name
-      case .snippet(_, let name, let contentRef):
-        // Return snippet content for tooltip
+      case .folder:
+        return nil  // No tooltip for folders
+      case .snippet(_, let name, let contentRef, let imagePath):
+        // Image snippet - no text tooltip (will show image tooltip instead)
+        if imagePath != nil {
+          return nil
+        }
+        // Text snippet - return snippet content for tooltip
         if let content = snippetContentMap[contentRef], !content.isEmpty {
           return content
         }
@@ -2211,6 +2384,22 @@ extension ClipboardPopupWindow: TooltipDataSource {
     }
 
     return nil
+  }
+
+  func tooltipImage(forRow row: Int, inView view: NSView) -> NSImage? {
+    // Only for snippet outline view
+    guard let outlineView = outlineView, view == outlineView else { return nil }
+    guard let item = outlineView.item(atRow: row) as? SnippetTreeNode else { return nil }
+
+    switch item.type {
+    case .folder:
+      return nil
+    case .snippet(_, _, _, let imagePath):
+      // Load image for image snippets
+      guard let imagePath = imagePath, let imagesDir = snippetImagesDir else { return nil }
+      let fullPath = (imagesDir as NSString).appendingPathComponent(imagePath)
+      return NSImage(contentsOfFile: fullPath)
+    }
   }
 
   func getTooltipDarkMode() -> Bool {

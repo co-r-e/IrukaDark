@@ -102,9 +102,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('clipboard:history-updated', (_e, history) => cb(history)),
   getTheme: () => ipcRenderer.invoke('get-ui-theme'),
   showClipboardContextMenu: () => ipcRenderer.invoke('clipboard:show-context-menu'),
-  // Snippet data persistence
+  // Snippet operations
   getSnippetData: () => ipcRenderer.invoke('snippet:get-data'),
   saveSnippetData: (data) => ipcRenderer.invoke('snippet:save-data', data),
+  selectImageFile: () => ipcRenderer.invoke('snippet:select-image-file'),
+  saveSnippetImage: (snippetId, imageBase64) =>
+    ipcRenderer.invoke('snippet:save-image', { snippetId, imageBase64 }),
+  deleteSnippetImage: (imagePath) => ipcRenderer.invoke('snippet:delete-image', imagePath),
+  copySnippetImage: (imagePath) => ipcRenderer.invoke('snippet:copy-image', imagePath),
   // Launcher
   launcher: {
     searchApps: (query) => ipcRenderer.invoke('launcher:search-apps', query),
