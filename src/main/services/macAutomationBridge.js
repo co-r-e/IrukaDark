@@ -9,11 +9,24 @@ const path = require('path');
 const DEFAULT_TIMEOUT_MS = 1500;
 const PROMPT_BACKOFF_MS = 60_000;
 
+// Daemon mode constants
+const DAEMON_HEALTH_CHECK_INTERVAL_MS = 30000;
+const DAEMON_HEALTH_CHECK_TIMEOUT_MS = 3000;
+const DAEMON_MAX_RESTART_COUNT = 3;
+const DAEMON_RESTART_WINDOW_MS = 300000;
+
 let cachedExecutablePath = null;
 let lastPromptAttempt = 0;
 let didWarnMissing = false;
 let bridgeLogPath = null;
 let clipboardPopupProcess = null;
+
+// Daemon mode state
+let clipboardDaemonProcess = null;
+let daemonState = 'stopped';
+let daemonRestartHistory = [];
+let healthCheckTimer = null;
+let pendingHealthCheck = null;
 
 function resolveLogPath() {
   if (bridgeLogPath !== null) return bridgeLogPath;
@@ -483,10 +496,238 @@ function normalizeBridgePayload(payload) {
   };
 }
 
+// Daemon Mode Functions
+
+function startClipboardDaemon() {
+  if (daemonState !== 'stopped' && daemonState !== 'error') return;
+
+  const executable = resolveExecutablePath();
+  if (!executable) {
+    logBridgeEvent('daemon.start.notFound');
+    return;
+  }
+
+  daemonState = 'starting';
+
+  clipboardDaemonProcess = spawn(executable, ['daemon'], {
+    stdio: ['pipe', 'pipe', 'pipe'],
+    detached: false,
+  });
+
+  logBridgeEvent('daemon.start', { pid: clipboardDaemonProcess.pid });
+
+  let stdoutBuffer = '';
+
+  clipboardDaemonProcess.stdout.on('data', (chunk) => {
+    stdoutBuffer += chunk.toString();
+    const lines = stdoutBuffer.split('\n');
+    stdoutBuffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const event = JSON.parse(line);
+        handleDaemonEvent(event);
+      } catch (e) {
+        logBridgeEvent('daemon.stdout.parseError', { line, error: e.message });
+      }
+    }
+  });
+
+  clipboardDaemonProcess.stderr.on('data', (chunk) => {
+    logBridgeEvent('daemon.stderr', { data: chunk.toString() });
+  });
+
+  clipboardDaemonProcess.on('exit', (code, signal) => {
+    logBridgeEvent('daemon.exit', { code, signal });
+    daemonState = 'stopped';
+    clipboardDaemonProcess = null;
+    stopHealthCheck();
+    maybeRestartDaemon();
+  });
+
+  clipboardDaemonProcess.on('error', (error) => {
+    logBridgeEvent('daemon.error', { message: error.message });
+    daemonState = 'error';
+  });
+}
+
+function stopClipboardDaemon() {
+  stopHealthCheck();
+  if (clipboardDaemonProcess) {
+    sendDaemonCommand('shutdown');
+    setTimeout(() => {
+      if (clipboardDaemonProcess) {
+        try {
+          clipboardDaemonProcess.kill('SIGTERM');
+        } catch {}
+      }
+    }, 1000);
+  }
+  daemonState = 'stopped';
+  clipboardDaemonProcess = null;
+}
+
+function handleDaemonEvent(event) {
+  logBridgeEvent('daemon.event', { event: event.event });
+
+  switch (event.event) {
+    case 'ready':
+      daemonState = 'ready';
+      startHealthCheck();
+      break;
+
+    case 'pong':
+      if (pendingHealthCheck) {
+        clearTimeout(pendingHealthCheck.timeout);
+        pendingHealthCheck = null;
+      }
+      break;
+
+    case 'item_pasted':
+      logBridgeEvent('daemon.itemPasted', {
+        hasText: !!event.text,
+        hasImage: !!event.imageDataOriginal,
+      });
+      daemonState = 'ready';
+      break;
+
+    case 'hidden':
+      daemonState = 'ready';
+      break;
+
+    case 'error':
+      logBridgeEvent('daemon.event.error', { code: event.code, message: event.message });
+      break;
+  }
+}
+
+function startHealthCheck() {
+  stopHealthCheck();
+  healthCheckTimer = setInterval(() => {
+    if (daemonState !== 'ready' && daemonState !== 'showing') return;
+    pendingHealthCheck = {
+      timeout: setTimeout(() => {
+        logBridgeEvent('daemon.healthCheck.timeout');
+        if (clipboardDaemonProcess) {
+          try {
+            clipboardDaemonProcess.kill('SIGKILL');
+          } catch {}
+        }
+      }, DAEMON_HEALTH_CHECK_TIMEOUT_MS),
+    };
+    sendDaemonCommand('ping');
+  }, DAEMON_HEALTH_CHECK_INTERVAL_MS);
+}
+
+function stopHealthCheck() {
+  if (healthCheckTimer) {
+    clearInterval(healthCheckTimer);
+    healthCheckTimer = null;
+  }
+  if (pendingHealthCheck) {
+    clearTimeout(pendingHealthCheck.timeout);
+    pendingHealthCheck = null;
+  }
+}
+
+function maybeRestartDaemon() {
+  const now = Date.now();
+  daemonRestartHistory = daemonRestartHistory.filter((t) => now - t < DAEMON_RESTART_WINDOW_MS);
+
+  if (daemonRestartHistory.length >= DAEMON_MAX_RESTART_COUNT) {
+    logBridgeEvent('daemon.restart.tooMany');
+    daemonState = 'error';
+    return;
+  }
+
+  daemonRestartHistory.push(now);
+  setTimeout(() => {
+    startClipboardDaemon();
+  }, 1000);
+}
+
+function sendDaemonCommand(command, payload = null) {
+  if (!clipboardDaemonProcess || daemonState === 'stopped') {
+    return false;
+  }
+  const message = payload ? { command, payload } : { command };
+  try {
+    clipboardDaemonProcess.stdin.write(JSON.stringify(message) + '\n');
+    return true;
+  } catch (e) {
+    logBridgeEvent('daemon.send.error', { command, error: e.message });
+    return false;
+  }
+}
+
+function isDaemonReady() {
+  return daemonState === 'ready';
+}
+
+function getDaemonState() {
+  return daemonState;
+}
+
+async function showClipboardPopupFast(historyItems, options = {}) {
+  if (daemonState === 'ready') {
+    const items = historyItems
+      .filter((item) => (item.text && typeof item.text === 'string') || item.imageData)
+      .slice(0, 60)
+      .map((item) => ({
+        text: item.text || null,
+        imageData: item.imageData || null,
+        imageDataOriginal: item.imageDataOriginal || null,
+        timestamp: item.timestamp || Date.now(),
+        richText: item.richText || null,
+      }));
+
+    if (items.length === 0) {
+      return { error: 'NO_CLIPBOARD_ITEMS' };
+    }
+
+    const sent = sendDaemonCommand('show', {
+      items,
+      isDarkMode: options.isDarkMode || false,
+      opacity: options.opacity || 1.0,
+      activeTab: options.activeTab || 'history',
+      snippetDataPath: path.join(app.getPath('userData'), 'snippets.json'),
+    });
+
+    if (sent) {
+      daemonState = 'showing';
+      logBridgeEvent('showClipboardPopupFast.sent', { itemCount: items.length });
+      return { fast: true };
+    }
+  }
+
+  logBridgeEvent('showClipboardPopupFast.fallback', { state: daemonState });
+  return spawnClipboardPopup(historyItems, options);
+}
+
+function hideClipboardPopupFast() {
+  if (daemonState === 'showing') {
+    sendDaemonCommand('hide');
+    return true;
+  }
+  return closeClipboardPopup();
+}
+
+function isDaemonPopupShowing() {
+  return daemonState === 'showing';
+}
+
 module.exports = {
   fetchSelectedText,
   spawnClipboardPopup,
   isClipboardPopupActive,
   closeClipboardPopup,
   updateClipboardPopup,
+  startClipboardDaemon,
+  stopClipboardDaemon,
+  isDaemonReady,
+  getDaemonState,
+  showClipboardPopupFast,
+  hideClipboardPopupFast,
+  isDaemonPopupShowing,
 };

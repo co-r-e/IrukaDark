@@ -1247,19 +1247,23 @@ final class ClipboardPopupWindow: NSPanel {
       self.snippetImagesDir = nil
     }
 
-    // Recalculate position based on cursor
     let positionManager = WindowPositionManager()
     let contentRect = positionManager.calculateOptimalPosition()
     self.setFrame(contentRect, display: false)
 
-    // Reload active view
-    if activeTab == "history" || activeTab == "historyImage" {
-      tableView?.reloadData()
-    } else if activeTab == "snippet" {
-      outlineView?.reloadData()
+    switch activeTab {
+    case "history", "historyImage":
+      let view = ensureTableViewExists()
+      scrollView.documentView = view
+      view.reloadData()
+    case "snippet":
+      let view = ensureOutlineViewExists()
+      scrollView.documentView = view
+      view.reloadData()
+    default:
+      break
     }
 
-    // Update tab styles
     updateTabStyles()
   }
 
@@ -1732,7 +1736,6 @@ final class ClipboardPopupWindow: NSPanel {
 
     // Close window after a short delay and report the pasted item
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-      // Output the pasted item info so Electron can track it
       let output = BridgeOutput(
         status: .ok,
         text: item.text,
@@ -1742,6 +1745,7 @@ final class ClipboardPopupWindow: NSPanel {
         imageDataOriginal: item.imageDataOriginal
       )
       print(output.encoded())
+      TooltipManager.shared.hideTooltip()
       self.close()
     }
   }
@@ -2280,6 +2284,7 @@ extension ClipboardPopupWindow: NSOutlineViewDelegate {
         message: "Snippet pasted successfully"
       )
       print(output.encoded())
+      TooltipManager.shared.hideTooltip()
       self.close()
     }
   }
@@ -2334,6 +2339,7 @@ extension ClipboardPopupWindow: NSOutlineViewDelegate {
         message: "Image snippet pasted successfully"
       )
       print(output.encoded())
+      TooltipManager.shared.hideTooltip()
       self.close()
     }
   }
@@ -2395,10 +2401,18 @@ extension ClipboardPopupWindow: TooltipDataSource {
     case .folder:
       return nil
     case .snippet(_, _, _, let imagePath):
-      // Load image for image snippets
       guard let imagePath = imagePath, let imagesDir = snippetImagesDir else { return nil }
       let fullPath = (imagesDir as NSString).appendingPathComponent(imagePath)
-      return NSImage(contentsOfFile: fullPath)
+      let cacheKey = "snippet:\(fullPath)"
+      if let cached = imageCache.get(cacheKey) {
+        return cached
+      }
+
+      if let image = NSImage(contentsOfFile: fullPath) {
+        imageCache.set(cacheKey, value: image)
+        return image
+      }
+      return nil
     }
   }
 
@@ -2648,8 +2662,48 @@ enum Command: String {
   case selectedText = "selected-text"
   case ensureAccessibility = "ensure-accessibility"
   case clipboardPopup = "clipboard-popup"
+  case daemon = "daemon"
   case help = "help"
   case version = "version"
+}
+
+// MARK: - Daemon IPC Structures
+
+struct DaemonCommand: Decodable {
+  let command: String
+  let payload: DaemonPayload?
+}
+
+struct DaemonPayload: Decodable {
+  let items: [ClipboardItem]?
+  let isDarkMode: Bool?
+  let opacity: Double?
+  let activeTab: String?
+  let snippetDataPath: String?
+}
+
+struct DaemonEvent: Encodable {
+  let event: String
+  let code: String?
+  let message: String?
+  let text: String?
+  let imageDataOriginal: String?
+
+  init(event: String, code: String? = nil, message: String? = nil, text: String? = nil, imageDataOriginal: String? = nil) {
+    self.event = event
+    self.code = code
+    self.message = message
+    self.text = text
+    self.imageDataOriginal = imageDataOriginal
+  }
+
+  func encoded() -> String {
+    let encoder = JSONEncoder()
+    if let data = try? encoder.encode(self), let str = String(data: data, encoding: .utf8) {
+      return str
+    }
+    return #"{"event":"error","code":"serialization_failed"}"#
+  }
 }
 
 // PERFORMANCE: Window pool - reuse windows instead of recreating
@@ -2673,6 +2727,8 @@ struct IrukaAutomationCLI {
       runEnsureAccessibility(arguments: Array(args.dropFirst(2)))
     case .clipboardPopup:
       runClipboardPopup()
+    case .daemon:
+      runDaemon()
     case .help:
       printUsageAndExit(code: nil, message: nil, exitCode: EXIT_SUCCESS)
     case .version:
@@ -2886,5 +2942,113 @@ struct IrukaAutomationCLI {
 
     print(output)
     exit(exitCode)
+  }
+
+  // MARK: - Daemon Mode
+
+  private static func runDaemon() {
+    let app = NSApplication.shared
+    app.setActivationPolicy(.accessory)
+
+    let readyEvent = DaemonEvent(event: "ready")
+    print(readyEvent.encoded())
+    fflush(stdout)
+
+    var windowCloseObserver: NSObjectProtocol?
+    func setupWindowCloseHandler(for window: ClipboardPopupWindow) {
+      if let observer = windowCloseObserver {
+        NotificationCenter.default.removeObserver(observer)
+      }
+      windowCloseObserver = NotificationCenter.default.addObserver(
+        forName: NSWindow.willCloseNotification,
+        object: window,
+        queue: .main
+      ) { _ in
+        let hiddenEvent = DaemonEvent(event: "hidden")
+        print(hiddenEvent.encoded())
+        fflush(stdout)
+      }
+    }
+
+    DispatchQueue.global(qos: .userInitiated).async {
+      let decoder = JSONDecoder()
+
+      while let line = readLine() {
+        guard let lineData = line.data(using: .utf8),
+              let cmd = try? decoder.decode(DaemonCommand.self, from: lineData) else {
+          continue
+        }
+
+        DispatchQueue.main.async {
+          switch cmd.command {
+          case "show":
+            guard let payload = cmd.payload,
+                  let items = payload.items,
+                  !items.isEmpty else {
+              let errorEvent = DaemonEvent(event: "error", code: "invalid_payload", message: "No items provided")
+              print(errorEvent.encoded())
+              fflush(stdout)
+              return
+            }
+
+            let isDarkMode = payload.isDarkMode ?? false
+            let opacity = payload.opacity ?? 1.0
+            let activeTab = payload.activeTab ?? "history"
+
+            if let window = cachedPopupWindow, !window.isVisible {
+              window.reset(
+                items: items,
+                isDarkMode: isDarkMode,
+                opacity: opacity,
+                activeTab: activeTab,
+                snippetDataPath: payload.snippetDataPath
+              )
+              window.makeKeyAndOrderFront(nil)
+              setupWindowCloseHandler(for: window)
+            } else {
+              let window = ClipboardPopupWindow(
+                items: items,
+                isDarkMode: isDarkMode,
+                opacity: opacity,
+                activeTab: activeTab,
+                snippetDataPath: payload.snippetDataPath
+              )
+              cachedPopupWindow = window
+              window.makeKeyAndOrderFront(nil)
+              setupWindowCloseHandler(for: window)
+            }
+
+          case "hide":
+            if let window = cachedPopupWindow {
+              TooltipManager.shared.hideTooltip()
+              window.orderOut(nil)
+            }
+            let hiddenEvent = DaemonEvent(event: "hidden")
+            print(hiddenEvent.encoded())
+            fflush(stdout)
+
+          case "update":
+            guard let payload = cmd.payload,
+                  let items = payload.items else { return }
+            cachedPopupWindow?.updateHistory(items: items)
+
+          case "ping":
+            let pongEvent = DaemonEvent(event: "pong")
+            print(pongEvent.encoded())
+            fflush(stdout)
+
+          case "shutdown":
+            app.terminate(nil)
+
+          default:
+            let errorEvent = DaemonEvent(event: "error", code: "unknown_command", message: "Unknown command: \(cmd.command)")
+            print(errorEvent.encoded())
+            fflush(stdout)
+          }
+        }
+      }
+    }
+
+    app.run()
   }
 }

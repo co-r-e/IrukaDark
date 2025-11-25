@@ -45,10 +45,14 @@ const { FileSearchService } = require('../services/fileSearch');
 const { SystemCommandsService } = require('../services/systemCommands');
 const TerminalService = require('../services/terminalService');
 const {
-  spawnClipboardPopup,
   isClipboardPopupActive,
   closeClipboardPopup,
   updateClipboardPopup,
+  startClipboardDaemon,
+  stopClipboardDaemon,
+  getDaemonState,
+  showClipboardPopupFast,
+  hideClipboardPopupFast,
 } = require('../services/macAutomationBridge');
 const { getClipboardHistoryService } = require('../services/clipboardHistory');
 
@@ -801,7 +805,15 @@ function bootstrapApp() {
               // Only on macOS
               if (process.platform !== 'darwin') return;
 
-              // Check if popup is already active
+              const daemonState = getDaemonState();
+
+              // Toggle behavior: if daemon popup is showing, hide it
+              if (daemonState === 'showing') {
+                hideClipboardPopupFast();
+                return;
+              }
+
+              // Check if legacy popup is already active
               if (isClipboardPopupActive()) {
                 // Close the popup
                 closeClipboardPopup();
@@ -821,13 +833,12 @@ function bootstrapApp() {
               const isDarkMode = theme === 'dark';
               const opacity = parseFloat(getPref('WINDOW_OPACITY') || '1');
 
-              // Spawn clipboard popup (position determined by Swift using cursor location)
-              const result = await spawnClipboardPopup(history, {
+              const result = await showClipboardPopupFast(history, {
                 isDarkMode,
                 opacity,
               });
 
-              // If an item was pasted, track it to prevent re-adding to history
+              // If an item was pasted (from legacy spawn), track it to prevent re-adding to history
               if (result && result.payload && result.payload.code === 'item_pasted') {
                 const pastedText = result.payload.text;
                 const pastedImageOriginal = result.payload.imageDataOriginal;
@@ -2380,6 +2391,15 @@ Command:`;
       setupAutoUpdates();
     } catch {}
 
+    // Start clipboard daemon for fast popup display
+    if (process.platform === 'darwin') {
+      setTimeout(() => {
+        try {
+          startClipboardDaemon();
+        } catch {}
+      }, 2000);
+    }
+
     try {
       const { preflightPermissionsOnce } = require('../permissions');
       setTimeout(() => {
@@ -2453,6 +2473,9 @@ Command:`;
       if (terminalService) {
         terminalService.cleanup();
       }
+    } catch {}
+    try {
+      stopClipboardDaemon();
     } catch {}
   });
 

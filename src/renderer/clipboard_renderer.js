@@ -1157,7 +1157,7 @@ class ClipboardHistoryUI {
 
     const addImageItem = document.createElement('div');
     addImageItem.className = 'context-menu-item';
-    addImageItem.innerHTML = `${ICONS.IMAGE}<span>${this.t('addImage')}</span>`;
+    addImageItem.innerHTML = `${ICONS.PLUS}<span>${this.t('addImage')}</span>`;
     addImageItem.addEventListener('click', () => {
       this.addImageSnippet(folderId);
       this.hideContextMenu();
