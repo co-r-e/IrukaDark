@@ -563,7 +563,7 @@ class IrukaDarkApp {
           this.apiKeyInput.value = '';
         }
         this.showChat();
-        this.addMessage('system', getUIText('apiKey.successSaved'));
+        this.addMessage('system', getUIText('apiKey.successSaved'), [], { noScroll: true });
       } else {
         const errorMsg = result?.error || getUIText('apiKey.errorSaving');
         alert(errorMsg);
@@ -3185,7 +3185,7 @@ class IrukaDarkApp {
     this.setGenerating(false);
   }
 
-  addMessage(type, content, attachments = []) {
+  addMessage(type, content, attachments = [], options = {}) {
     // Hide shortcut hints when a message is added
     this.hideShortcutHints();
 
@@ -3394,7 +3394,8 @@ class IrukaDarkApp {
 
     // Scroll after icon initialization (in next frame to ensure layout is complete)
     // Only scroll for user messages, system messages, and system-question messages (NOT AI responses)
-    if (this.disableAutoScrollCount === 0 && type !== 'ai') {
+    // Skip scrolling if noScroll option is set (e.g., API key saved message)
+    if (this.disableAutoScrollCount === 0 && type !== 'ai' && !options.noScroll) {
       requestAnimationFrame(() => {
         if (this.chatHistory && this.chatHistory.isConnected) {
           this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
