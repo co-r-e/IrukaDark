@@ -1990,6 +1990,11 @@
             if (window.app && window.app.checkApiKey) {
               window.app.checkApiKey().catch(() => {});
             }
+
+            // Refresh shortcut hints (in case user changed shortcuts in settings)
+            if (window.app && window.app.showShortcutHints) {
+              window.app.showShortcutHints(true);
+            }
           } else {
             inputArea.style.display = 'none';
             inputArea.classList.remove('invisible');

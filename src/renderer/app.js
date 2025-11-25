@@ -324,13 +324,153 @@ class IrukaDarkApp {
    * Show chat interface
    */
   showChat() {
-    // Only change display if not already in the correct state
     if (this.apiKeyForm && this.apiKeyForm.style.display !== 'none') {
       this.apiKeyForm.style.display = 'none';
     }
-    const chatHistory = this.chatHistory;
-    if (chatHistory && chatHistory.isConnected && chatHistory.style.display !== 'block') {
+    if (
+      this.chatHistory &&
+      this.chatHistory.isConnected &&
+      this.chatHistory.style.display !== 'block'
+    ) {
       this.chatHistory.style.display = 'block';
+    }
+    this.showShortcutHints();
+  }
+
+  /**
+   * Shortcut actions to display in hints
+   */
+  static HINT_ACTIONS = [
+    'explain',
+    'urlSummary',
+    'translate',
+    'screenshot',
+    'moveToCursor',
+    'toggleMainWindow',
+  ];
+
+  /**
+   * Display keyboard shortcut hints when chat is empty
+   * @param {boolean} forceRefresh - If true, refresh hints even if already displayed
+   */
+  async showShortcutHints(forceRefresh = false) {
+    if (!this.chatHistory || this._shortcutHintsLoading) return;
+    if (this.apiKeyForm && this.apiKeyForm.style.display === 'flex') return;
+
+    const hintsEl = this.chatHistory.querySelector('.shortcut-hints');
+    const hasMessages = Array.from(this.chatHistory.children).some(
+      (el) => !el.classList.contains('shortcut-hints')
+    );
+
+    if (hasMessages) {
+      if (hintsEl) hintsEl.remove();
+      return;
+    }
+    if (hintsEl && !forceRefresh) return;
+
+    this._shortcutHintsLoading = true;
+    try {
+      if (hintsEl) hintsEl.remove();
+
+      // Load shortcuts and language
+      const [shortcuts, lang] = await Promise.all([this._loadShortcuts(), this._loadUILanguage()]);
+      await ensureLangLoaded(lang);
+
+      // Build and append hints element
+      const element = this._buildShortcutHintsElement(shortcuts);
+      this.chatHistory.appendChild(element);
+    } finally {
+      this._shortcutHintsLoading = false;
+    }
+  }
+
+  /**
+   * Load shortcut assignments from system
+   * @returns {Promise<Object>}
+   */
+  async _loadShortcuts() {
+    const defaults = window.SHORTCUT_DEFAULTS?.DEFAULT_SHORTCUTS || {
+      explain: 'Alt+A',
+      urlSummary: 'Alt+Q',
+      translate: 'Alt+R',
+      screenshot: 'Alt+S',
+      moveToCursor: 'Alt+Z',
+      toggleMainWindow: 'Alt+Space',
+    };
+    try {
+      const assignments = await window.electronAPI?.getShortcutAssignments?.();
+      return { ...defaults, ...assignments };
+    } catch {
+      return defaults;
+    }
+  }
+
+  /**
+   * Load UI language, updating state if needed
+   * @returns {Promise<string>}
+   */
+  async _loadUILanguage() {
+    let lang = getCurrentUILanguage();
+    try {
+      const systemLang = await window.electronAPI?.getUILanguage?.();
+      if (systemLang) {
+        lang = systemLang;
+        setCurrentUILanguage(lang);
+      }
+    } catch {
+      // Use current language on error
+    }
+    return lang;
+  }
+
+  /**
+   * Build shortcut hints DOM element
+   * @param {Object} shortcuts - Shortcut assignments
+   * @returns {HTMLElement}
+   */
+  _buildShortcutHintsElement(shortcuts) {
+    const container = document.createElement('div');
+    container.className = 'shortcut-hints';
+
+    const grid = document.createElement('div');
+    grid.className = 'shortcut-hints-grid';
+
+    for (const action of IrukaDarkApp.HINT_ACTIONS) {
+      const key = shortcuts[action];
+      if (!key) continue;
+
+      const hint = document.createElement('div');
+      hint.className = 'shortcut-hint';
+
+      const keySpan = document.createElement('span');
+      keySpan.className = 'shortcut-hint-key';
+      keySpan.textContent = key
+        .replace(/\bAlt\b/g, '⌥')
+        .replace(/\bShift\b/g, '⇧')
+        .replace(/\bCommand\b/g, '⌘')
+        .replace(/\+/g, '');
+
+      const labelSpan = document.createElement('span');
+      labelSpan.className = 'shortcut-hint-label';
+      labelSpan.textContent = getUIText(`settings.actions.${action}`) || action;
+
+      hint.appendChild(keySpan);
+      hint.appendChild(labelSpan);
+      grid.appendChild(hint);
+    }
+
+    container.appendChild(grid);
+    return container;
+  }
+
+  /**
+   * Hide keyboard shortcut hints
+   */
+  hideShortcutHints() {
+    if (!this.chatHistory) return;
+    const hintsEl = this.chatHistory.querySelector('.shortcut-hints');
+    if (hintsEl) {
+      hintsEl.remove();
     }
   }
 
@@ -1806,6 +1946,9 @@ class IrukaDarkApp {
 
         // Clear history context cache
         this.clearHistoryContextCache();
+
+        // Show shortcut hints after clearing chat
+        this.showShortcutHints();
       } catch (e) {
         this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown'}`);
       }
@@ -2982,6 +3125,9 @@ class IrukaDarkApp {
   }
 
   addMessage(type, content, attachments = []) {
+    // Hide shortcut hints when a message is added
+    this.hideShortcutHints();
+
     const messageDiv = document.createElement('div');
     messageDiv.className = `message-${type}`;
 

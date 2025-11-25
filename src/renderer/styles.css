@@ -2853,3 +2853,54 @@ html:not(.theme-dark) .terminal-ai-button:hover {
   width: 16px;
   height: 16px;
 }
+
+/* Shortcut Hints (Empty Chat State) */
+.shortcut-hints {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 11px;
+  user-select: none;
+  padding: 0 16px;
+}
+
+.shortcut-hints-grid {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 4px 16px;
+  max-width: 320px;
+}
+
+.shortcut-hint {
+  display: contents;
+}
+
+.shortcut-hint-key {
+  text-align: right;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  color: var(--text-tertiary-dark);
+  background: var(--bg-overlay-subtle);
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.shortcut-hint-label {
+  text-align: left;
+  color: var(--text-muted);
+  padding-left: 4px;
+  white-space: nowrap;
+}
+
+html:not(.theme-dark) .shortcut-hint-key {
+  color: var(--text-tertiary-light);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+html:not(.theme-dark) .shortcut-hint-label {
+  color: var(--text-tertiary-light);
+}
