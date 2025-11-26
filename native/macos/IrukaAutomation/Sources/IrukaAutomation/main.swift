@@ -1235,30 +1235,27 @@ final class ClipboardPopupWindow: NSPanel {
 
   // PERFORMANCE: Window reuse - reset state for next use
   func reset(items: [ClipboardItem], isDarkMode: Bool, opacity: Double, activeTab: String, snippetDataPath: String?) {
-    // Hide tooltip
     TooltipManager.shared.hideTooltip()
 
-    // Update basic properties
+    if let activeApp = NSWorkspace.shared.frontmostApplication,
+       activeApp.bundleIdentifier != Bundle.main.bundleIdentifier {
+      self.previousApp = activeApp
+    }
+
     self.classifyItems(items)
     self.isDarkMode = isDarkMode
     self.opacity = opacity
     self.activeTab = activeTab
-
-    // Clear caches
     self.rowInfoCache.removeAll()
     self.imageCache.clear()
 
-    // Load snippet data if path provided (asynchronously)
     if let path = snippetDataPath {
-      // Calculate snippet-images directory path from snippetDataPath
       let parentDir = (path as NSString).deletingLastPathComponent
       self.snippetImagesDir = (parentDir as NSString).appendingPathComponent("snippet-images")
-
       DispatchQueue.global(qos: .userInitiated).async { [weak self] in
         self?.loadSnippetsFromFile(path)
       }
     } else {
-      // Clear existing snippet data
       self.snippetFolders = []
       self.snippets = []
       self.snippetContentMap = [:]
@@ -1743,15 +1740,7 @@ final class ClipboardPopupWindow: NSPanel {
     guard index >= 0 && index < items.count else { return }
     let item = items[index]
 
-    // Visual feedback (only if tableView exists)
-    if let rowView = tableView?.rowView(atRow: index, makeIfNecessary: false) {
-      rowView.backgroundColor = NSColor.systemGreen.withAlphaComponent(0.15)
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-        rowView.backgroundColor = .clear
-      }
-    }
-
-    // Copy to clipboard and paste
+    self.orderOut(nil)
     pasteItem(item: item)
 
     // Close window after a short delay and report the pasted item
@@ -2228,13 +2217,11 @@ extension ClipboardPopupWindow: NSOutlineViewDelegate {
       return false
 
     case .snippet(_, _, let contentRef, let imagePath):
-      // Handle image snippet
+      self.orderOut(nil)
       if let imagePath = imagePath, let imagesDir = snippetImagesDir {
         let fullPath = (imagesDir as NSString).appendingPathComponent(imagePath)
         pasteSnippetImage(fullPath)
-      }
-      // Handle text snippet
-      else if let content = snippetContentMap[contentRef] {
+      } else if let content = snippetContentMap[contentRef] {
         pasteSnippetContent(content)
       }
       return false
