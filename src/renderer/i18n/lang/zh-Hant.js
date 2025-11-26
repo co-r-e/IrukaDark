@@ -154,6 +154,7 @@
         moveToCursor: '移動彈出視窗到游標',
         resetPosition: '重設彈出視窗位置',
         clipboardPopup: '剪貼簿歷史',
+        snippetPopup: '片段',
         toggleMainWindow: '切換主視窗',
       },
     },

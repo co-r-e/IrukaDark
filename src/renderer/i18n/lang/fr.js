@@ -160,6 +160,7 @@
         moveToCursor: 'Déplacer popup vers curseur',
         resetPosition: 'Réinitialiser position popup',
         clipboardPopup: 'Historique presse-papiers',
+        snippetPopup: 'Extraits',
         toggleMainWindow: 'Basculer fenêtre principale',
       },
     },

@@ -161,6 +161,7 @@
         moveToCursor: 'Popup zum Cursor bewegen',
         resetPosition: 'Popup-Position zurücksetzen',
         clipboardPopup: 'Zwischenablage-Verlauf',
+        snippetPopup: 'Snippets',
         toggleMainWindow: 'Hauptfenster umschalten',
       },
     },

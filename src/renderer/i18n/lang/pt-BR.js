@@ -158,6 +158,7 @@
         moveToCursor: 'Mover popup para o cursor',
         resetPosition: 'Restaurar posição do popup',
         clipboardPopup: 'Histórico da área de transferência',
+        snippetPopup: 'Trechos',
         toggleMainWindow: 'Alternar janela principal',
       },
     },

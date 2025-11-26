@@ -157,6 +157,7 @@
         moveToCursor: '팝업을 커서로 이동',
         resetPosition: '팝업 위치 재설정',
         clipboardPopup: '클립보드 기록',
+        snippetPopup: '스니펫',
         toggleMainWindow: '메인 윈도우 전환',
       },
     },

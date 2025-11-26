@@ -158,6 +158,7 @@
         moveToCursor: "Pop-up'ı imlece taşı",
         resetPosition: 'Pop-up konumunu sıfırla',
         clipboardPopup: 'Pano geçmişi',
+        snippetPopup: 'Kod parçacıkları',
         toggleMainWindow: 'Ana pencereyi değiştir',
       },
     },

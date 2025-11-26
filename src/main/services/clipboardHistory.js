@@ -14,7 +14,7 @@ class ClipboardHistoryService extends EventEmitter {
     super();
     // History limits: separate counts for text and image items
     // Mixed items (containing both) count toward both limits
-    this.maxTextItems = options.maxTextItems || 30;
+    this.maxTextItems = options.maxTextItems || 1000;
     this.maxImageItems = options.maxImageItems || 30;
     this.history = [];
     this.lastClipboard = '';
@@ -553,12 +553,13 @@ class ClipboardHistoryService extends EventEmitter {
         const data = fsSync.readFileSync(this.historyFilePath, 'utf8');
         const loaded = JSON.parse(data);
         // Load items with text and/or image
-        this.history = (loaded || [])
-          .filter((item) => {
-            // Valid if it has text, image, or both
-            return item.text || item.imageData;
-          })
-          .slice(0, this.maxItems);
+        this.history = (loaded || []).filter((item) => {
+          // Valid if it has text, image, or both
+          return item.text || item.imageData;
+        });
+
+        // Apply limits after loading
+        this.trimHistory();
 
         // Rebuild hash cache from loaded items
         this.history.forEach((item) => {

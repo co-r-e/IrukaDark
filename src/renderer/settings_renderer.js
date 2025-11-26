@@ -92,6 +92,7 @@ class SettingsUI {
       moveToCursor: 'Alt+Z',
       resetPosition: 'Alt+Shift+Z',
       clipboardPopup: 'Command+Shift+V',
+      snippetPopup: 'Alt+Shift+V',
       toggleMainWindow: 'Alt+Space',
     };
 

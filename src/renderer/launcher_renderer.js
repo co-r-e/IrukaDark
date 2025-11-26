@@ -28,7 +28,7 @@ class LauncherUI {
     this.allResults = []; // Store unfiltered results
     this.searchTimeout = null;
     this.searchId = 0; // Track search requests to prevent race conditions
-    this.activeFilters = new Set(['application', 'file', 'system-command']); // All active by default
+    this.activeFilters = new Set(['application', 'system-command']); // File search off by default
 
     // Favorites with O(1) lookup optimization
     this.favorites = this.loadFavorites();
@@ -79,14 +79,11 @@ class LauncherUI {
   }
 
   init() {
-    if (!this.searchInput || !this.resultsContainer) {
-      return;
-    }
+    if (!this.searchInput || !this.resultsContainer) return;
 
     this.searchInput.addEventListener('input', (e) => this.handleSearch(e));
     this.searchInput.addEventListener('keydown', (e) => this.handleKeydown(e));
 
-    // Filter button click
     if (this.filterBtn) {
       this.filterBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -94,10 +91,8 @@ class LauncherUI {
       });
     }
 
-    // Filter menu items
     if (this.filterMenu) {
-      const filterItems = this.filterMenu.querySelectorAll('.filter-menu-item');
-      filterItems.forEach((item) => {
+      this.filterMenu.querySelectorAll('.filter-menu-item').forEach((item) => {
         item.addEventListener('click', (e) => {
           e.stopPropagation();
           this.toggleFilter(item.dataset.filter);
@@ -105,11 +100,9 @@ class LauncherUI {
       });
     }
 
-    // Close filter menu when clicking outside
     document.addEventListener('click', (e) => {
       if (
-        this.filterMenu &&
-        this.filterMenu.style.display === 'block' &&
+        this.filterMenu?.style.display === 'block' &&
         !this.filterMenu.contains(e.target) &&
         e.target !== this.filterBtn
       ) {
@@ -117,29 +110,25 @@ class LauncherUI {
       }
     });
 
-    // PERFORMANCE: Event delegation for result items
-    if (this.resultsContainer) {
-      this.resultsContainer.addEventListener('click', (e) => {
-        this.handleResultsClick(e);
-      });
+    this.resultsContainer.addEventListener('click', (e) => this.handleResultsClick(e));
+    this.resultsContainer.addEventListener('scroll', () => this.handleScroll());
 
-      // Infinite scroll listener
-      this.resultsContainer.addEventListener('scroll', () => {
-        this.handleScroll();
-      });
-    }
+    document.addEventListener('mousemove', (e) => this.handleFavoriteMouseMove(e));
+    document.addEventListener('mouseup', (e) => this.handleFavoriteMouseUp(e));
 
-    // Focus search input when launcher tab is opened
+    const launcherContainer = document.getElementById('launcherContainer');
+    const launcherFooter = document.getElementById('launcherFooter');
+    const refocusSearch = (e) => {
+      if (e.target.closest('button, input, .launcher-result-item, .filter-menu')) return;
+      this.searchInput.focus();
+    };
+    launcherContainer?.addEventListener('click', refocusSearch);
+    launcherFooter?.addEventListener('click', refocusSearch);
+
     this.searchInput.focus();
-
-    // Show favorites if search is empty on init
     if (!this.searchInput.value.trim()) {
       this.showFavorites();
     }
-
-    // Drag & drop event listeners for favorites reordering
-    document.addEventListener('mousemove', (e) => this.handleFavoriteMouseMove(e));
-    document.addEventListener('mouseup', (e) => this.handleFavoriteMouseUp(e));
   }
 
   // PERFORMANCE: Event delegation handler for all result item clicks
@@ -178,14 +167,15 @@ class LauncherUI {
     // Show favorites if search box is empty
     if (!rawValue || !query) {
       this.currentQuery = ''; // Clear query to prevent loadMore() during favorites
+      this.searchId++; // Cancel any pending search results
       this.showFavorites();
       return;
     }
 
-    // PERFORMANCE: Increased debounce from 150ms to 300ms (reduces search frequency by 50%)
+    // PERFORMANCE: Reduced debounce from 300ms to 100ms for snappier response
     this.searchTimeout = setTimeout(async () => {
       await this.performSearch(query);
-    }, 300);
+    }, 100);
   }
 
   async performSearch(query) {
@@ -197,52 +187,55 @@ class LauncherUI {
     this.offsets = { application: 0, file: 0, 'system-command': 0 };
     this.hasMore = { application: false, file: false, 'system-command': false };
 
-    // PERFORMANCE: Check cache first (LRU cache) - cache disabled for pagination
-    // TODO: Implement pagination-aware cache
-    // if (this.searchCache.has(query)) {
-    //   const cachedResults = this.searchCache.get(query);
-    //   this.searchCache.delete(query);
-    //   this.searchCache.set(query, cachedResults);
-    //   this.renderResults(cachedResults);
-    //   return;
-    // }
-
     try {
-      // Search all sources in parallel with pagination
-      const [appsData, filesData, systemCmdsData] = await Promise.all([
+      // PERFORMANCE: Progressive loading - show fast results first (apps & system commands)
+      // then add file results when they arrive
+      const [appsData, systemCmdsData] = await Promise.all([
         window.electronAPI.launcher.searchApps(query, this.pageSize, 0),
-        window.electronAPI.launcher.searchFiles(query, this.pageSize, 0),
         window.electronAPI.launcher.searchSystemCommands(query, this.pageSize, 0),
       ]);
 
       // Only render if this is still the latest search
       if (currentSearchId !== this.searchId) {
-        return; // Ignore outdated search results
+        return;
       }
 
-      // Update offsets and hasMore flags based on actual results received
       const appsResults = appsData.results || [];
-      const filesResults = filesData.results || [];
       const systemCmdsResults = systemCmdsData.results || [];
 
       this.offsets.application = appsResults.length;
-      this.offsets.file = filesResults.length;
       this.offsets['system-command'] = systemCmdsResults.length;
       this.hasMore.application = appsData.hasMore || false;
-      this.hasMore.file = filesData.hasMore || false;
       this.hasMore['system-command'] = systemCmdsData.hasMore || false;
 
-      // Combine and sort results
-      const allResults = [
+      // Show apps and system commands immediately
+      const fastResults = [
         ...appsResults.map((app) => ({ ...app, type: 'application' })),
         ...systemCmdsResults.map((cmd) => ({ ...cmd, type: 'system-command' })),
-        ...filesResults.map((file) => ({ ...file, type: 'file' })),
       ];
 
-      // PERFORMANCE: Cache disabled for pagination
-      // this.addToSearchCache(query, allResults);
+      this.renderResults(fastResults);
 
-      this.renderResults(allResults);
+      // Fetch file results in background (only if query is long enough)
+      if (query.length >= 2) {
+        const filesData = await window.electronAPI.launcher.searchFiles(query, this.pageSize, 0);
+
+        // Only append if this is still the latest search
+        if (currentSearchId !== this.searchId) {
+          return;
+        }
+
+        const filesResults = filesData.results || [];
+        this.offsets.file = filesResults.length;
+        this.hasMore.file = filesData.hasMore || false;
+
+        if (filesResults.length > 0) {
+          // Append file results to existing results
+          const fileResultsMapped = filesResults.map((file) => ({ ...file, type: 'file' }));
+          this.allResults = [...this.allResults, ...fileResultsMapped];
+          this.applyFilters();
+        }
+      }
     } catch (err) {
       // Only show error if this is still the latest search
       if (currentSearchId !== this.searchId) {
@@ -310,7 +303,16 @@ class LauncherUI {
   moveSelection(delta) {
     if (!this.results.length) return;
 
-    this.selectedIndex = Math.max(0, Math.min(this.results.length - 1, this.selectedIndex + delta));
+    // Handle initial focus when selectedIndex is -1 (no selection)
+    if (this.selectedIndex === -1) {
+      // Down arrow: select first item, Up arrow: select last item
+      this.selectedIndex = delta > 0 ? 0 : this.results.length - 1;
+    } else {
+      this.selectedIndex = Math.max(
+        0,
+        Math.min(this.results.length - 1, this.selectedIndex + delta)
+      );
+    }
     this.updateSelectionUI();
   }
 
@@ -326,7 +328,7 @@ class LauncherUI {
   }
 
   executeSelected() {
-    if (this.results[this.selectedIndex]) {
+    if (this.selectedIndex >= 0 && this.results[this.selectedIndex]) {
       this.executeResult(this.results[this.selectedIndex]);
     }
   }
@@ -936,7 +938,7 @@ class LauncherUI {
       icon: fav.icon,
     }));
     this.allResults = [...this.results];
-    this.selectedIndex = 0;
+    this.selectedIndex = -1; // No initial focus for favorites
 
     requestAnimationFrame(() => {
       const fragment = document.createDocumentFragment();
@@ -944,7 +946,7 @@ class LauncherUI {
 
       this.results.forEach((result, index) => {
         tempDiv.innerHTML = `
-        <div class="launcher-result-item ${index === 0 ? 'selected' : ''}" data-index="${index}">
+        <div class="launcher-result-item" data-index="${index}">
           <span class="launcher-result-icon">${this.renderIcon(result.icon, result.type)}</span>
           <div class="launcher-result-content">
             <div class="launcher-result-title">${this.escapeHtml(result.name)}</div>

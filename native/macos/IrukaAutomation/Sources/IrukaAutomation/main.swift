@@ -1206,12 +1206,31 @@ final class ClipboardPopupWindow: NSPanel {
     }
   }
 
-  override var canBecomeKey: Bool { false }
+  override var canBecomeKey: Bool { true }
   override var canBecomeMain: Bool { false }
 
   deinit {
     // Clean up tooltip when window is deallocated
     TooltipManager.shared.hideTooltip()
+  }
+
+  /// Focus the appropriate view based on active tab
+  func focusActiveTabView() {
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self else { return }
+      switch self.activeTab {
+      case "snippet":
+        if let view = self.outlineView {
+          self.makeFirstResponder(view)
+        }
+      case "history", "historyImage":
+        if let view = self.tableView {
+          self.makeFirstResponder(view)
+        }
+      default:
+        break
+      }
+    }
   }
 
   // PERFORMANCE: Window reuse - reset state for next use
@@ -1270,15 +1289,16 @@ final class ClipboardPopupWindow: NSPanel {
   // MARK: - Helper Methods
 
   /// Classify and limit items for display in tabs
-  /// - History tab: Items with text (max 30)
+  /// - History tab: Items with text (max 1000)
   /// - HistoryImage tab: Items with image data only (no text) (max 30)
   private func classifyItems(_ items: [ClipboardItem]) {
-    let maxHistoryItems = 30
+    let maxTextItems = 1000
+    let maxImageItems = 30
 
     // History tab: Items containing non-empty text
     historyTextItems = Array(items
       .filter { item in item.text?.isEmpty == false }
-      .prefix(maxHistoryItems))
+      .prefix(maxTextItems))
 
     // HistoryImage tab: Items containing image data but no text
     historyImageItems = Array(items
@@ -1286,7 +1306,7 @@ final class ClipboardPopupWindow: NSPanel {
         guard let imageData = item.imageData, !imageData.isEmpty else { return false }
         return item.text?.isEmpty ?? true
       }
-      .prefix(maxHistoryItems))
+      .prefix(maxImageItems))
   }
 
   /// Get items array for the currently active tab
@@ -2872,6 +2892,7 @@ struct IrukaAutomationCLI {
     }
 
     window.makeKeyAndOrderFront(nil)
+    window.focusActiveTabView()
 
     // Run event loop to keep window alive
     let app = NSApplication.shared
@@ -3004,6 +3025,7 @@ struct IrukaAutomationCLI {
                 snippetDataPath: payload.snippetDataPath
               )
               window.makeKeyAndOrderFront(nil)
+              window.focusActiveTabView()
               setupWindowCloseHandler(for: window)
             } else {
               let window = ClipboardPopupWindow(
@@ -3015,6 +3037,7 @@ struct IrukaAutomationCLI {
               )
               cachedPopupWindow = window
               window.makeKeyAndOrderFront(nil)
+              window.focusActiveTabView()
               setupWindowCloseHandler(for: window)
             }
 

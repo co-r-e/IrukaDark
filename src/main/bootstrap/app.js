@@ -861,6 +861,71 @@ function bootstrapApp() {
       } catch (e) {}
     }
 
+    // Snippet popup shortcut (toggle behavior, opens snippet tab)
+    if (shortcuts.snippetPopup) {
+      try {
+        const c = shortcuts.snippetPopup;
+        globalShortcut.register(c, () => {
+          logShortcutEvent('shortcut.trigger', { accel: c, kind: 'snippet_popup_toggle' });
+          (async () => {
+            try {
+              // Only on macOS
+              if (process.platform !== 'darwin') return;
+
+              const daemonState = getDaemonState();
+
+              // Toggle behavior: if daemon popup is showing, hide it
+              if (daemonState === 'showing') {
+                hideClipboardPopupFast();
+                return;
+              }
+
+              // Check if legacy popup is already active
+              if (isClipboardPopupActive()) {
+                // Close the popup
+                closeClipboardPopup();
+                return;
+              }
+
+              // Get clipboard history
+              const clipboardService = getClipboardHistoryService();
+              const history = clipboardService.getHistory();
+
+              // Get theme and opacity settings
+              const theme = getPref('UI_THEME') || 'dark';
+              const isDarkMode = theme === 'dark';
+              const opacity = parseFloat(getPref('WINDOW_OPACITY') || '1');
+
+              // Show popup with snippet tab active and focused
+              const result = await showClipboardPopupFast(history, {
+                isDarkMode,
+                opacity,
+                activeTab: 'snippet',
+              });
+
+              // If an item was pasted (from legacy spawn), track it to prevent re-adding to history
+              if (result && result.payload && result.payload.code === 'item_pasted') {
+                const pastedText = result.payload.text;
+                const pastedImageOriginal = result.payload.imageDataOriginal;
+
+                clipboardService.lastProgrammaticText = pastedText || null;
+
+                // Calculate image hash if image was pasted
+                if (pastedImageOriginal) {
+                  clipboardService.lastProgrammaticImageHash =
+                    clipboardService.getImageHash(pastedImageOriginal);
+                } else {
+                  clipboardService.lastProgrammaticImageHash = null;
+                }
+
+                clipboardService.programmaticSetTime = Date.now();
+              }
+            } catch (e) {}
+          })();
+        });
+      } catch (e) {}
+    }
+
     // Toggle main window shortcut
     if (shortcuts.toggleMainWindow) {
       try {

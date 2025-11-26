@@ -1758,7 +1758,7 @@
               data-i18n-placeholder="launcher.searchPlaceholder"
             />
           </div>
-          <button id="launcherFilterBtn" class="filter-btn" title="Filter">
+          <button id="launcherFilterBtn" class="filter-btn active" title="Filter">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="12"
@@ -1798,7 +1798,7 @@
             </div>
             <span data-i18n="launcher.filterApp">App</span>
           </div>
-          <div class="filter-menu-item active" data-filter="file">
+          <div class="filter-menu-item" data-filter="file">
             <div class="filter-checkbox">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -2090,13 +2090,12 @@
               if (!terminalUI) {
                 terminalUI = new TerminalUI();
               } else {
-                // Re-fit active terminal when switching to terminal tab
+                // Re-fit active terminal when switching to terminal tab (without focusing)
                 if (terminalUI.activeTerminalId) {
                   const activeTerminal = terminalUI.terminals.get(terminalUI.activeTerminalId);
                   if (activeTerminal && activeTerminal.fitAddon) {
                     setTimeout(() => {
                       activeTerminal.fitAddon.fit();
-                      activeTerminal.term.focus();
                     }, 50);
                   }
                 }

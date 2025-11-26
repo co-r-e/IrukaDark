@@ -206,6 +206,7 @@
         moveToCursor: 'Move Popup to Cursor',
         resetPosition: 'Reset Popup Position',
         clipboardPopup: 'Clipboard History',
+        snippetPopup: 'Snippets',
         toggleMainWindow: 'Toggle Main Window',
       },
       appearance: 'Appearance',

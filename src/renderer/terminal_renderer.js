@@ -416,9 +416,9 @@ class TerminalUI {
       <button class="terminal-tab-menu-btn" data-i18n-title="terminal.menuButton">⋯</button>
     `;
 
-    // Click to switch
+    // Click to switch (with focus since user explicitly clicked)
     tab.querySelector('.terminal-tab-name').addEventListener('click', () => {
-      this.switchTerminal(id);
+      this.switchTerminal(id, { shouldFocus: true });
     });
 
     // Menu button
@@ -551,8 +551,12 @@ class TerminalUI {
   /**
    * Switch active terminal
    * @param {string} id - Terminal ID
+   * @param {Object} options - Options
+   * @param {boolean} options.shouldFocus - Whether to focus the terminal (default: false)
    */
-  switchTerminal(id) {
+  switchTerminal(id, options = {}) {
+    const { shouldFocus = false } = options;
+
     // Hide all terminals and update tabs in one pass
     this.terminals.forEach(({ element }, termId) => {
       element.style.display = 'none';
@@ -566,7 +570,9 @@ class TerminalUI {
     const terminal = this.terminals.get(id);
     if (terminal) {
       terminal.element.style.display = 'block';
-      terminal.term.focus();
+      if (shouldFocus) {
+        terminal.term.focus();
+      }
 
       // Debounced resize for smooth switching
       this.debouncedTerminalFit(id);
@@ -636,7 +642,7 @@ class TerminalUI {
     if (this.activeTerminalId === id) {
       if (this.terminals.size > 0) {
         const firstId = this.terminals.keys().next().value;
-        this.switchTerminal(firstId);
+        this.switchTerminal(firstId, { shouldFocus: true });
       } else {
         // Create new terminal if all closed
         this.createTerminal();

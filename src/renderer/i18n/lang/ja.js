@@ -207,6 +207,7 @@
         moveToCursor: 'ポップアップ移動',
         resetPosition: 'ポップアップリセット',
         clipboardPopup: 'クリップボード履歴',
+        snippetPopup: 'スニペット',
         toggleMainWindow: 'メインウィンドウ表示切替',
       },
       appearance: '外観',

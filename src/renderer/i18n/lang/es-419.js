@@ -158,6 +158,7 @@
         moveToCursor: 'Mover popup al cursor',
         resetPosition: 'Restablecer posición del popup',
         clipboardPopup: 'Historial del portapapeles',
+        snippetPopup: 'Fragmentos',
         toggleMainWindow: 'Alternar ventana principal',
       },
     },
