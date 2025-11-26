@@ -389,6 +389,67 @@
     },
   ];
 
+  const SLASH_SLIDE_SIZE_TARGETS = [
+    {
+      key: '/slide size 16:9',
+      match: '/slide size 16:9',
+      label: '/slide size 16:9',
+      descKey: 'slashDescriptions.slideSize16_9',
+      size: '16:9',
+    },
+    {
+      key: '/slide size 9:16',
+      match: '/slide size 9:16',
+      label: '/slide size 9:16',
+      descKey: 'slashDescriptions.slideSize9_16',
+      size: '9:16',
+    },
+    {
+      key: '/slide size 4:3',
+      match: '/slide size 4:3',
+      label: '/slide size 4:3',
+      descKey: 'slashDescriptions.slideSize4_3',
+      size: '4:3',
+    },
+    {
+      key: '/slide size 3:4',
+      match: '/slide size 3:4',
+      label: '/slide size 3:4',
+      descKey: 'slashDescriptions.slideSize3_4',
+      size: '3:4',
+    },
+    {
+      key: '/slide size 1:1',
+      match: '/slide size 1:1',
+      label: '/slide size 1:1',
+      descKey: 'slashDescriptions.slideSize1_1',
+      size: '1:1',
+    },
+  ];
+
+  const SLASH_SLIDE_TARGETS = [
+    {
+      key: '/slide status',
+      match: '/slide status',
+      label: '/slide status',
+      descKey: 'slashDescriptions.slideStatus',
+    },
+    {
+      key: '/slide size',
+      match: '/slide size',
+      label: '/slide size',
+      descKey: 'slashDescriptions.slideSize',
+      children: SLASH_SLIDE_SIZE_TARGETS,
+      childSeparator: ' ',
+    },
+    {
+      key: '/slide prompt',
+      match: '/slide prompt',
+      label: '/slide prompt',
+      descKey: 'slashDescriptions.slidePrompt',
+    },
+  ];
+
   function getLangMeta(code) {
     const lang = String(code || 'en');
     const name = LANG_NAMES[lang] || 'English';
@@ -433,6 +494,8 @@
     SLASH_VIDEO_QUALITY_TARGETS,
     SLASH_VIDEO_DURATION_TARGETS,
     SLASH_VIDEO_COUNT_TARGETS,
+    SLASH_SLIDE_TARGETS,
+    SLASH_SLIDE_SIZE_TARGETS,
     getLangMeta,
     normalizeTranslateCode,
     getLanguageDisplayName,

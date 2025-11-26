@@ -213,8 +213,9 @@ class SettingsUI {
 
     const html = `
       ${this.renderUpdatesSection()}
-      ${this.renderAppearanceSection()}
       ${this.renderLanguageSection()}
+      ${this.renderAppearanceSection()}
+      ${this.renderSnippetsSection()}
       <div class="settings-section">
         <div class="settings-section-title" data-i18n="settings.shortcuts">
           ${t.shortcuts || 'Keyboard Shortcuts'}
@@ -320,6 +321,35 @@ class SettingsUI {
     `;
   }
 
+  renderSnippetsSection() {
+    const t = this.i18n.settings;
+    return `
+      <div class="settings-section">
+        <div class="settings-section-title">
+          ${this.escapeHtml(t.snippetsTitle || 'Snippets')}
+        </div>
+        <div class="settings-item snippet-buttons-vertical">
+          <button id="exportSnippetsBtn" class="snippet-action-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            ${this.escapeHtml(t.snippetsExport || 'Export')}
+          </button>
+          <button id="importSnippetsBtn" class="snippet-action-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            ${this.escapeHtml(t.snippetsImport || 'Import')}
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
   renderShortcutItems() {
     if (!this.i18n || !this.i18n.settings) return '';
 
@@ -412,6 +442,18 @@ class SettingsUI {
     const languageSelect = document.getElementById('languageSelect');
     if (languageSelect) {
       languageSelect.addEventListener('change', (e) => this.handleLanguageSelect(e.target.value));
+    }
+
+    // Snippet export button
+    const exportSnippetsBtn = document.getElementById('exportSnippetsBtn');
+    if (exportSnippetsBtn) {
+      exportSnippetsBtn.addEventListener('click', () => this.handleExportSnippets());
+    }
+
+    // Snippet import button
+    const importSnippetsBtn = document.getElementById('importSnippetsBtn');
+    if (importSnippetsBtn) {
+      importSnippetsBtn.addEventListener('click', () => this.handleImportSnippets());
     }
   }
 
@@ -1012,6 +1054,149 @@ class SettingsUI {
     } catch (err) {
       this.showToast(this.i18n.errorOccurred || 'An error occurred', 'error');
     }
+  }
+
+  /**
+   * Handle export snippets button click
+   */
+  async handleExportSnippets() {
+    const t = this.i18n.settings;
+    this.showSnippetProgress(t.snippetsExporting || 'Exporting...');
+
+    // Remove previous listeners to prevent memory leak
+    window.electronAPI?.removeSnippetExportProgress?.();
+    window.electronAPI?.onSnippetExportProgress?.((data) => {
+      this.updateSnippetProgress(data.current, data.total);
+    });
+
+    try {
+      const result = await window.electronAPI.exportSnippets();
+      this.hideSnippetProgress();
+
+      if (result.success) {
+        const msg =
+          typeof t.snippetsExportSuccess === 'function'
+            ? t.snippetsExportSuccess(result.count)
+            : `Exported ${result.count} snippets`;
+        this.showToast(msg, 'success');
+      } else if (!result.canceled) {
+        // Handle specific error cases
+        if (result.error === 'NO_SNIPPETS') {
+          this.showToast(t.snippetsNoData || 'No snippets to export', 'error');
+        } else {
+          this.showToast(t.snippetsExportError || 'Export failed', 'error');
+        }
+      }
+    } catch (err) {
+      this.hideSnippetProgress();
+      this.showToast(t.snippetsExportError || 'Export failed', 'error');
+    }
+  }
+
+  /**
+   * Handle import snippets button click
+   */
+  handleImportSnippets() {
+    this.showImportOptionsDialog();
+  }
+
+  /**
+   * Show import options dialog
+   */
+  showImportOptionsDialog() {
+    document.getElementById('snippetImportOptionsOverlay').style.display = 'flex';
+  }
+
+  /**
+   * Hide import options dialog
+   */
+  hideImportOptionsDialog() {
+    document.getElementById('snippetImportOptionsOverlay').style.display = 'none';
+  }
+
+  /**
+   * Execute import with selected mode
+   * @param {string} mode - 'merge' or 'replace'
+   */
+  async executeImport(mode) {
+    this.hideImportOptionsDialog();
+    const t = this.i18n.settings;
+
+    // Validate mode - default to 'merge' if invalid
+    const validMode = mode === 'replace' ? 'replace' : 'merge';
+
+    // Setup event listeners for progress tracking
+    const cleanupListeners = () => {
+      window.electronAPI?.removeSnippetImportStarted?.();
+      window.electronAPI?.removeSnippetImportProgress?.();
+    };
+
+    cleanupListeners(); // Remove previous listeners
+
+    // Show progress only after file is selected (not during file dialog)
+    window.electronAPI?.onSnippetImportStarted?.(() => {
+      this.showSnippetProgress(t.snippetsImporting || 'Importing...');
+    });
+    window.electronAPI?.onSnippetImportProgress?.((data) => {
+      this.updateSnippetProgress(data.current, data.total);
+    });
+
+    try {
+      const result = await window.electronAPI.importSnippets(validMode);
+      this.hideSnippetProgress();
+      cleanupListeners();
+
+      if (result.success) {
+        const msg =
+          typeof t.snippetsImportSuccess === 'function'
+            ? t.snippetsImportSuccess(result.count)
+            : `Imported ${result.count} snippets`;
+        this.showToast(msg, 'success');
+
+        // Reload snippets in clipboard_renderer if available
+        if (window.clipboardUI?.loadSnippets) {
+          await window.clipboardUI.loadSnippets();
+          window.clipboardUI.renderSnippets();
+        }
+      } else if (!result.canceled) {
+        const errorKey =
+          result.error === 'INVALID_FORMAT' ? 'snippetsInvalidFile' : 'snippetsImportError';
+        this.showToast(t[errorKey] || 'Import failed', 'error');
+      }
+    } catch (err) {
+      this.hideSnippetProgress();
+      cleanupListeners();
+      this.showToast(t.snippetsImportError || 'Import failed', 'error');
+    }
+  }
+
+  /**
+   * Show snippet progress modal
+   * @param {string} title - Progress title
+   */
+  showSnippetProgress(title) {
+    document.getElementById('snippetProgressTitle').textContent = title;
+    document.getElementById('snippetProgressDetail').textContent = '';
+    document.getElementById('snippetProgressBarFill').style.width = '0%';
+    document.getElementById('snippetProgressOverlay').style.display = 'flex';
+  }
+
+  /**
+   * Update snippet progress
+   * @param {number} current - Current progress
+   * @param {number} total - Total items
+   */
+  updateSnippetProgress(current, total) {
+    const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+    document.getElementById('snippetProgressDetail').textContent = `${current} / ${total}`;
+    document.getElementById('snippetProgressBarFill').style.width = `${pct}%`;
+  }
+
+  /**
+   * Hide snippet progress modal
+   */
+  hideSnippetProgress() {
+    document.getElementById('snippetProgressOverlay').style.display = 'none';
   }
 
   destroy() {

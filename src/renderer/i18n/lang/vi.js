@@ -44,12 +44,25 @@
     selectionTranslation: 'Dịch vùng chọn',
     selectionEmpathy: 'Phản hồi đồng cảm cho vùng chọn',
     selectionReplies: 'Các phương án trả lời cho vùng chọn',
+    slideImageGenerating: 'Tạo hình ảnh slide',
+    imageCopied: 'Đã sao chép hình ảnh vào clipboard',
     urlContextSummary: (url) => `Yêu cầu tóm tắt URL đã chọn:\n${url}`,
     urlContextDetailed: (url) => `Yêu cầu phân tích chi tiết URL đã chọn:\n${url}`,
     invalidUrlSelection:
       'Không tìm thấy URL hợp lệ. Hãy chọn một URL HTTP(S) duy nhất rồi thử lại.',
     updateAvailable: (v) => `Có phiên bản mới (${v}). Mở trang tải xuống?`,
     upToDate: 'Bạn đang dùng phiên bản mới nhất.',
+    shortcutHints: {
+      title: 'Phím tắt',
+      shortcutDesc:
+        'Thêm Shift vào phím tắt giải thích để phân tích chi tiết. Có thể thay đổi phím tắt trong tab Cài đặt.',
+      atTitle: 'Trò chuyện: Hành động @',
+      atImage: 'Tạo hình ảnh',
+      atVideo: 'Tạo video',
+      atSlide: 'Tạo hình ảnh slide',
+      slashTitle: 'Trò chuyện: Lệnh gạch chéo',
+      slashDesc: 'Sử dụng lệnh gạch chéo để khám phá nội dung trò chuyện và cấu hình cài đặt.',
+    },
     slashDescriptions: {
       what: 'Giải thích rõ hơn câu trả lời AI cuối cùng',
       next: 'Tiếp tục câu trả lời AI cuối cùng',
@@ -80,6 +93,15 @@
       imageCount2: 'Tạo 2 ảnh',
       imageCount3: 'Tạo 3 ảnh',
       imageCount4: 'Tạo 4 ảnh',
+      slide: 'Điều khiển tạo slide',
+      slideStatus: 'Hiển thị cài đặt tạo slide',
+      slideSize: 'Đặt tỷ lệ khung hình slide',
+      slideSize16_9: 'Ngang (16:9)',
+      slideSize9_16: 'Dọc (9:16)',
+      slideSize4_3: 'Ngang (4:3)',
+      slideSize3_4: 'Dọc (3:4)',
+      slideSize1_1: 'Vuông (1:1)',
+      slidePrompt: 'Chỉnh sửa mẫu prompt slide',
     },
     slashTranslateIntoLanguage: (name) => `Dịch sang ${name}`,
     clipboard: {
@@ -161,6 +183,24 @@
         snippetPopup: 'Đoạn mã',
         toggleMainWindow: 'Chuyển đổi cửa sổ chính',
       },
+      // Snippets
+      snippetsTitle: 'Đoạn mã',
+      snippetsExport: 'Xuất',
+      snippetsImport: 'Nhập',
+      snippetsExporting: 'Đang xuất...',
+      snippetsImporting: 'Đang nhập...',
+      snippetsExportSuccess: (count) => `Đã xuất ${count} đoạn mã`,
+      snippetsImportSuccess: (count) => `Đã nhập ${count} đoạn mã`,
+      snippetsExportError: 'Xuất thất bại',
+      snippetsImportError: 'Nhập thất bại',
+      snippetsInvalidFile: 'Định dạng tệp không hợp lệ',
+      snippetsNoData: 'Không có đoạn mã để xuất',
+      snippetsImportTitle: 'Nhập đoạn mã',
+      snippetsImportMerge: 'Chế độ thêm',
+      snippetsImportMergeDesc: 'Giữ đoạn mã hiện có và thêm mới',
+      snippetsImportReplace: 'Chế độ thay thế',
+      snippetsImportReplaceDesc: 'Thay thế tất cả đoạn mã hiện có',
+      snippetsImportReplaceWarning: 'Hành động này không thể hoàn tác',
     },
     common: {
       confirmAction: 'Xác nhận',
@@ -189,6 +229,11 @@
     },
     prompt: {
       close: 'Đóng',
+    },
+    slidePrompt: {
+      title: 'Chỉnh sửa prompt slide',
+      placeholder: 'Nhập prompt tùy chỉnh...',
+      save: 'Lưu',
     },
   });
 })();

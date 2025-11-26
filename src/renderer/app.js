@@ -21,6 +21,8 @@ const SLASHES = (typeof window !== 'undefined' && window.IRUKADARK_SLASHES) || {
   SLASH_VIDEO_QUALITY_TARGETS: [],
   SLASH_VIDEO_DURATION_TARGETS: [],
   SLASH_VIDEO_COUNT_TARGETS: [],
+  SLASH_SLIDE_TARGETS: [],
+  SLASH_SLIDE_SIZE_TARGETS: [],
   getLangMeta: (code) => ({ code, name: code, rtl: false }),
   normalizeTranslateCode: () => null,
   getLanguageDisplayName: (code) => code,
@@ -51,6 +53,8 @@ const SLASH_VIDEO_SIZE_TARGETS = SLASHES.SLASH_VIDEO_SIZE_TARGETS || [];
 const SLASH_VIDEO_QUALITY_TARGETS = SLASHES.SLASH_VIDEO_QUALITY_TARGETS || [];
 const SLASH_VIDEO_DURATION_TARGETS = SLASHES.SLASH_VIDEO_DURATION_TARGETS || [];
 const SLASH_VIDEO_COUNT_TARGETS = SLASHES.SLASH_VIDEO_COUNT_TARGETS || [];
+const SLASH_SLIDE_TARGETS = SLASHES.SLASH_SLIDE_TARGETS || [];
+const SLASH_SLIDE_SIZE_TARGETS = SLASHES.SLASH_SLIDE_SIZE_TARGETS || [];
 
 function getLangMeta(code) {
   if (SLASHES && typeof SLASHES.getLangMeta === 'function') {
@@ -147,6 +151,8 @@ class IrukaDarkApp {
     this.videoDuration = 4;
     this.videoCount = 1;
     this.videoResolution = '720p';
+    this.slideSize = '16:9';
+    this.slidePrompt = '';
     this.isGenerating = false;
     this.cancelRequested = false;
     this.isSending = false; // Prevent duplicate sendMessage() execution
@@ -487,6 +493,7 @@ class IrukaDarkApp {
     const atActions = [
       { key: '@image', label: getUIText('shortcutHints.atImage') || 'Generate image' },
       { key: '@video', label: getUIText('shortcutHints.atVideo') || 'Generate video' },
+      { key: '@slide', label: getUIText('shortcutHints.atSlide') || 'Generate slide image' },
     ];
 
     for (const { key, label } of atActions) {
@@ -822,6 +829,7 @@ class IrukaDarkApp {
     });
     on('onExplainScreenshot', (payload) => this.handleExplainScreenshot(payload));
     on('onExplainScreenshotDetailed', (payload) => this.handleExplainScreenshotDetailed(payload));
+    on('onGenerateSlideImage', (text) => this.handleGenerateSlideImage(text));
     on('onAccessibilityWarning', () => {
       /* no-op in chat UI */
     });
@@ -912,6 +920,8 @@ class IrukaDarkApp {
     this.loadVideoDuration();
     this.loadVideoCount();
     this.loadVideoResolution();
+    this.loadSlideSize();
+    this.loadSlidePrompt();
   }
 
   async loadWebSearchSetting() {
@@ -1007,6 +1017,29 @@ class IrukaDarkApp {
       }
     } catch (error) {
       this.videoResolution = '720p';
+    }
+  }
+
+  async loadSlideSize() {
+    try {
+      if (window.electronAPI && window.electronAPI.getSlideSize) {
+        const ratio = await window.electronAPI.getSlideSize();
+        const validRatios = ['16:9', '9:16', '4:3', '3:4', '1:1'];
+        this.slideSize = validRatios.includes(ratio) ? ratio : '16:9';
+      }
+    } catch (error) {
+      this.slideSize = '16:9';
+    }
+  }
+
+  async loadSlidePrompt() {
+    try {
+      if (window.electronAPI && window.electronAPI.getSlidePrompt) {
+        const prompt = await window.electronAPI.getSlidePrompt();
+        this.slidePrompt = prompt || '';
+      }
+    } catch (error) {
+      this.slidePrompt = '';
     }
   }
 
@@ -1210,6 +1243,140 @@ class IrukaDarkApp {
     const updated = getUIText('videoCountUpdated', normalized);
     if (updated) this.addMessage('system', updated);
     await this.persistVideoCount(normalized);
+  }
+
+  // Slide image settings
+  async persistSlideSize(ratio) {
+    try {
+      if (window.electronAPI && window.electronAPI.saveSlideSize) {
+        await window.electronAPI.saveSlideSize(ratio);
+      }
+    } catch (error) {}
+  }
+
+  async setSlideSize(ratio) {
+    const validRatios = ['16:9', '9:16', '4:3', '3:4', '1:1'];
+    const normalized = validRatios.includes(ratio) ? ratio : '16:9';
+    if (this.slideSize === normalized) {
+      const already = getUIText('slideSizeAlready', normalized);
+      if (already) this.addMessage('system', already);
+      return;
+    }
+    this.slideSize = normalized;
+    const updated = getUIText('slideSizeUpdated', normalized);
+    if (updated) this.addMessage('system', updated);
+    await this.persistSlideSize(normalized);
+  }
+
+  async persistSlidePrompt(prompt) {
+    try {
+      if (window.electronAPI && window.electronAPI.saveSlidePrompt) {
+        await window.electronAPI.saveSlidePrompt(prompt);
+      }
+    } catch (error) {}
+  }
+
+  async setSlidePrompt(prompt) {
+    this.slidePrompt = prompt || '';
+    const updated = getUIText('slidePromptUpdated');
+    if (updated) this.addMessage('system', updated);
+    await this.persistSlidePrompt(this.slidePrompt);
+  }
+
+  showSlideStatus() {
+    const sizeStatus = getUIText('slideSizeStatus', this.slideSize);
+    if (sizeStatus) this.addMessage('system', sizeStatus);
+
+    if (this.slidePrompt) {
+      const promptStatus = getUIText('slidePromptCustomStatus');
+      if (promptStatus) this.addMessage('system', promptStatus);
+    } else {
+      const promptDefault = getUIText('slidePromptDefaultStatus');
+      if (promptDefault) this.addMessage('system', promptDefault);
+    }
+  }
+
+  getDefaultSlidePrompt() {
+    const lang =
+      (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
+    const { name, code } = getLangMeta(lang);
+
+    if (lang === 'ja') {
+      return `以下の内容を1枚のスライドで説明したリッチな図解画像を生成してください。
+デザイン: shadcn/uiスタイル、白黒、背景白、アクセントカラー1つ。
+テキストは日本語で。`;
+    } else {
+      return `Generate a rich infographic slide image explaining the following content.
+Design: shadcn/ui style, black and white, white background, one accent color.
+Text should be in ${name} (${code}).`;
+    }
+  }
+
+  async openSlidePromptDialog() {
+    const overlay = document.getElementById('slidePromptOverlay');
+    const textarea = document.getElementById('slidePromptTextarea');
+    const closeBtn = document.getElementById('slidePromptClose');
+    const cancelBtn = document.getElementById('slidePromptCancel');
+    const saveBtn = document.getElementById('slidePromptSave');
+
+    if (!overlay || !textarea) return;
+
+    // Show current custom prompt or default prompt as placeholder
+    const currentValue = this.slidePrompt || '';
+    const defaultPrompt = this.getDefaultSlidePrompt();
+
+    // Set textarea value: show custom if set, otherwise show default
+    textarea.value = currentValue || defaultPrompt;
+    textarea.placeholder = defaultPrompt;
+
+    // Show overlay
+    overlay.style.display = 'flex';
+    textarea.focus();
+    textarea.select();
+
+    // Handler functions
+    const handleClose = () => {
+      overlay.style.display = 'none';
+      cleanup();
+    };
+
+    const handleSave = async () => {
+      const value = textarea.value.trim();
+      // If value matches default, save empty string (use default)
+      const newValue = value === defaultPrompt ? '' : value;
+      await this.setSlidePrompt(newValue);
+      overlay.style.display = 'none';
+      cleanup();
+    };
+
+    const handleOverlayClick = (e) => {
+      if (e.target === overlay) {
+        handleClose();
+      }
+    };
+
+    const handleKeydown = (e) => {
+      if (e.key === 'Escape') {
+        handleClose();
+      } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        handleSave();
+      }
+    };
+
+    const cleanup = () => {
+      closeBtn.removeEventListener('click', handleClose);
+      cancelBtn.removeEventListener('click', handleClose);
+      saveBtn.removeEventListener('click', handleSave);
+      overlay.removeEventListener('click', handleOverlayClick);
+      document.removeEventListener('keydown', handleKeydown);
+    };
+
+    // Add event listeners
+    closeBtn.addEventListener('click', handleClose);
+    cancelBtn.addEventListener('click', handleClose);
+    saveBtn.addEventListener('click', handleSave);
+    overlay.addEventListener('click', handleOverlayClick);
+    document.addEventListener('keydown', handleKeydown);
   }
 
   async initializeLanguage() {
@@ -1738,6 +1905,61 @@ class IrukaDarkApp {
     }
   }
 
+  /**
+   * Handle slide image generation from shortcut key (Option+Control+A)
+   * Uses the same core logic as @slide command
+   */
+  async handleGenerateSlideImage(text) {
+    try {
+      await this.cancelActiveShortcut();
+      // Switch to chat tab when shortcut is triggered
+      if (window.switchToTab) window.switchToTab('chat');
+      // Restore scroll state after tab switch
+      const chatHistory = this.chatHistory;
+      if (chatHistory && chatHistory.isConnected) {
+        this.chatHistory.style.overflowY = 'auto';
+        setTimeout(() => {
+          const chatHistory = this.chatHistory;
+          if (chatHistory && chatHistory.isConnected) {
+            this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+          }
+        }, 0);
+      }
+      const token = ++this.shortcutRequestId;
+      const trimmed = (text || '').trim();
+      if (!trimmed) return;
+
+      this.disableAutoScrollCount++;
+      this.addMessage('system-question', getUIText('slideImageGenerating'));
+      this.showTypingIndicator();
+
+      // Use shared core logic for slide image generation
+      const result = await this._generateSlideImageCore(trimmed);
+
+      if (token !== this.shortcutRequestId) {
+        return;
+      }
+      this.hideTypingIndicator();
+      if (this.cancelRequested) {
+        return;
+      }
+
+      if (result?.imageBase64) {
+        this.addImagesMessage([result], trimmed.substring(0, 50));
+      } else {
+        this.addMessage('system', getUIText('errorOccurred'));
+      }
+    } catch (e) {
+      if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
+        return;
+      }
+      this.hideTypingIndicator();
+      this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
+    } finally {
+      this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
+    }
+  }
+
   async cancelActiveShortcut() {
     try {
       if (window?.electronAPI?.cancelAI) {
@@ -1773,6 +1995,8 @@ class IrukaDarkApp {
       message = `@image ${message}`;
     } else if (this.currentCommandMode === 'video') {
       message = `@video ${message}`;
+    } else if (this.currentCommandMode === 'slide') {
+      message = `@slide ${message}`;
     }
 
     if (!message.trim()) return;
@@ -1811,6 +2035,16 @@ class IrukaDarkApp {
       if (videoCommandMatch) {
         const videoPrompt = videoCommandMatch[1].trim();
         await this.handleVideoGeneration(videoPrompt, attachments);
+        this.autosizeMessageInput(true);
+        this.messageInput.focus();
+        this.isSending = false; // Release lock before return
+        return;
+      }
+
+      const slideCommandMatch = message.match(/^@slide\s+(.+)$/i);
+      if (slideCommandMatch) {
+        const slidePrompt = slideCommandMatch[1].trim();
+        await this.handleSlideGeneration(slidePrompt);
         this.autosizeMessageInput(true);
         this.messageInput.focus();
         this.isSending = false; // Release lock before return
@@ -2187,6 +2421,38 @@ class IrukaDarkApp {
       return;
     }
 
+    if (lower.startsWith('/slide ') || lower === '/slide') {
+      const parts = cmd
+        .split(/\s+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const subCmd = (parts[1] || '').toLowerCase();
+
+      if (subCmd === 'status') {
+        this.showSlideStatus();
+        return;
+      }
+
+      if (subCmd === 'size') {
+        const sizeValue = (parts[2] || '').toLowerCase();
+        const validRatios = ['16:9', '9:16', '4:3', '3:4', '1:1'];
+        if (validRatios.includes(sizeValue)) {
+          await this.setSlideSize(sizeValue);
+          return;
+        }
+        this.addMessage('system', getUIText('slideSizeHelp'));
+        return;
+      }
+
+      if (subCmd === 'prompt') {
+        await this.openSlidePromptDialog();
+        return;
+      }
+
+      this.addMessage('system', getUIText('slideCommandHelp'));
+      return;
+    }
+
     if (lower.startsWith('/websearch') || lower.startsWith('/web ') || lower === '/web') {
       const parts = cmd
         .split(/\s+/)
@@ -2331,6 +2597,54 @@ class IrukaDarkApp {
     }
   }
 
+  /**
+   * Handle @slide command - generates slide image from user prompt
+   * Uses the same settings as Option+Control+A shortcut (/slide size, /slide prompt)
+   */
+  async handleSlideGeneration(prompt) {
+    try {
+      this.addMessage('user', `@slide ${prompt}`);
+      this.disableAutoScrollCount++;
+      this.showTypingIndicator(getUIText('slideImageGenerating') || 'Generating slide image...');
+
+      const result = await this._generateSlideImageCore(prompt);
+
+      this.hideTypingIndicator();
+
+      if (this.cancelRequested) {
+        return;
+      }
+
+      if (result?.imageBase64) {
+        this.addImagesMessage([result], prompt.substring(0, 50));
+      } else {
+        this.addMessage('system', getUIText('errorOccurred') || 'Error occurred');
+      }
+    } catch (error) {
+      this.hideTypingIndicator();
+      if (!this.cancelRequested && !/CANCELLED|Abort/i.test(String(error?.message || ''))) {
+        this.addMessage('system', `${getUIText('errorOccurred')}: ${error?.message || 'Unknown'}`);
+      }
+    } finally {
+      this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
+    }
+  }
+
+  /**
+   * Core slide image generation logic - shared by @slide command and shortcut
+   * @param {string} content - The content to generate slide image from
+   * @returns {Promise<{imageBase64: string, mimeType: string}|null>}
+   */
+  async _generateSlideImageCore(content) {
+    const basePrompt = this.slidePrompt || this.getDefaultSlidePrompt();
+    const fullPrompt = `${basePrompt}
+
+Content:
+${content}`;
+    const aspectRatio = this.slideSize || '16:9';
+    return this.geminiService.generateImageFromText(fullPrompt, aspectRatio);
+  }
+
   async generateSingleVideo(prompt, aspectRatio, durationSeconds, resolution, referenceImage) {
     return this.geminiService.generateVideoFromText(
       prompt,
@@ -2425,52 +2739,68 @@ class IrukaDarkApp {
     enlargedImg.style.objectFit = 'contain';
     enlargedImg.style.display = 'block';
 
-    // Download button
-    const downloadBtn = document.createElement('button');
-    downloadBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="7 10 12 15 17 10"></polyline>
-          <line x1="12" y1="15" x2="12" y2="3"></line>
-        </svg>
-      `;
-    downloadBtn.style.position = 'absolute';
-    downloadBtn.style.top = '10px';
-    downloadBtn.style.right = '10px';
-    downloadBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-    downloadBtn.style.border = 'none';
-    downloadBtn.style.borderRadius = '50%';
-    downloadBtn.style.width = '40px';
-    downloadBtn.style.height = '40px';
-    downloadBtn.style.cursor = 'pointer';
-    downloadBtn.style.display = 'flex';
-    downloadBtn.style.alignItems = 'center';
-    downloadBtn.style.justifyContent = 'center';
-    downloadBtn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)';
-    downloadBtn.style.transition = 'all 0.2s ease';
-    downloadBtn.style.zIndex = '10001';
-    downloadBtn.style.color = '#1f2937';
+    // Helper to create overlay action buttons
+    const createOverlayButton = (svgContent, rightPos, onClick) => {
+      const btn = document.createElement('button');
+      btn.innerHTML = svgContent;
+      Object.assign(btn.style, {
+        position: 'absolute',
+        top: '10px',
+        right: rightPos,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        border: 'none',
+        borderRadius: '50%',
+        width: '24px',
+        height: '24px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '0 1px 4px rgba(0, 0, 0, 0.2)',
+        transition: 'all 0.2s ease',
+        zIndex: '10001',
+        color: '#1f2937',
+      });
+      btn.addEventListener('mouseenter', () => {
+        btn.style.backgroundColor = 'rgba(255, 255, 255, 1)';
+        btn.style.transform = 'scale(1.1)';
+      });
+      btn.addEventListener('mouseleave', () => {
+        btn.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+        btn.style.transform = 'scale(1)';
+      });
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onClick();
+      });
+      return btn;
+    };
 
-    downloadBtn.addEventListener('mouseenter', () => {
-      downloadBtn.style.backgroundColor = 'rgba(255, 255, 255, 1)';
-      downloadBtn.style.transform = 'scale(1.1)';
-    });
+    const copySvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+    const checkSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+    const downloadSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`;
 
-    downloadBtn.addEventListener('mouseleave', () => {
-      downloadBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-      downloadBtn.style.transform = 'scale(1)';
+    const copyBtn = createOverlayButton(copySvg, '38px', async () => {
+      const success = await this.copyImageToClipboard(imageBase64, mimeType);
+      if (success) {
+        copyBtn.innerHTML = checkSvg;
+        copyBtn.style.color = '#22c55e';
+        setTimeout(() => {
+          copyBtn.innerHTML = copySvg;
+          copyBtn.style.color = '#1f2937';
+        }, 1500);
+      }
     });
-
-    downloadBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.downloadImage(imageBase64, mimeType, altText);
-    });
+    const downloadBtn = createOverlayButton(downloadSvg, '10px', () =>
+      this.downloadImage(imageBase64, mimeType, altText)
+    );
 
     imageContainer.appendChild(enlargedImg);
+    imageContainer.appendChild(copyBtn);
     imageContainer.appendChild(downloadBtn);
     overlay.appendChild(imageContainer);
 
-    // Close overlay when clicking anywhere except download button
+    // Close overlay when clicking anywhere except buttons
     overlay.addEventListener('click', () => {
       document.body.removeChild(overlay);
     });
@@ -2505,6 +2835,19 @@ class IrukaDarkApp {
       img.src = `data:${mimeType};base64,${imageBase64}`;
     } catch (e) {
       showError();
+    }
+  }
+
+  async copyImageToClipboard(imageBase64, mimeType) {
+    try {
+      if (window.electronAPI?.copyToClipboard) {
+        const dataUrl = `data:${mimeType};base64,${imageBase64}`;
+        const result = await window.electronAPI.copyToClipboard({ imageData: dataUrl });
+        return !!result;
+      }
+      return false;
+    } catch {
+      return false;
     }
   }
 
@@ -2637,6 +2980,14 @@ class IrukaDarkApp {
         label: '/video',
         descKey: 'slashDescriptions.video',
         children: SLASH_VIDEO_TARGETS,
+        childSeparator: ' ',
+      },
+      {
+        key: '/slide',
+        match: '/slide',
+        label: '/slide',
+        descKey: 'slashDescriptions.slide',
+        children: SLASH_SLIDE_TARGETS,
         childSeparator: ' ',
       },
     ];
@@ -2823,6 +3174,20 @@ class IrukaDarkApp {
     }
     if (normalized === '/video' && (raw.endsWith(' ') || lower.endsWith(' '))) {
       return SLASH_VIDEO_TARGETS;
+    }
+    if (normalized.startsWith('/slide size')) {
+      const wantsChildren =
+        normalized === '/slide size' && (raw.endsWith(' ') || lower.endsWith(' '));
+      if (wantsChildren) {
+        return SLASH_SLIDE_SIZE_TARGETS;
+      }
+      return SLASH_SLIDE_SIZE_TARGETS.filter((c) => c.match.startsWith(normalized));
+    }
+    if (normalized.startsWith('/slide ')) {
+      return SLASH_SLIDE_TARGETS.filter((c) => c.match.startsWith(normalized));
+    }
+    if (normalized === '/slide' && (raw.endsWith(' ') || lower.endsWith(' '))) {
+      return SLASH_SLIDE_TARGETS;
     }
     return this.slashCommands.filter((c) => c.match.startsWith(normalized));
   }
@@ -3490,7 +3855,8 @@ class IrukaDarkApp {
     return this.escapeHtml(text)
       .replace(/\n/g, '<br>')
       .replace(/^@image\s+/i, '<span class="command-badge">@image</span> ')
-      .replace(/^@video\s+/i, '<span class="command-badge">@video</span> ');
+      .replace(/^@video\s+/i, '<span class="command-badge">@video</span> ')
+      .replace(/^@slide\s+/i, '<span class="command-badge">@slide</span> ');
   }
 
   generateAttachmentsPreview(attachments) {
@@ -4617,6 +4983,7 @@ IrukaDarkApp.prototype.autosizeMessageInput = function (reset = false) {
 IrukaDarkApp.prototype.COMMAND_BADGES = [
   { mode: 'image', pattern: /^@image\s/i, label: '@image', length: 7 },
   { mode: 'video', pattern: /^@video\s/i, label: '@video', length: 7 },
+  { mode: 'slide', pattern: /^@slide\s/i, label: '@slide', length: 7 },
 ];
 
 // Update input command badge (realtime badge display)

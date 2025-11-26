@@ -44,12 +44,25 @@
     selectionTranslation: '선택 영역 번역',
     selectionEmpathy: '선택한 텍스트 공감 댓글',
     selectionReplies: '선택한 내용에 대한 답변 변형',
+    slideImageGenerating: '슬라이드 이미지 생성',
+    imageCopied: '이미지를 클립보드에 복사했습니다',
     urlContextSummary: (url) => `선택한 URL 요약 요청:\n${url}`,
     urlContextDetailed: (url) => `선택한 URL 상세 분석 요청:\n${url}`,
     invalidUrlSelection:
       '유효한 URL을 찾을 수 없습니다. HTTP(S) URL 한 개만 선택하고 다시 시도하세요.',
     updateAvailable: (v) => `새 버전(${v})을 사용할 수 있습니다. 다운로드 페이지를 열까요?`,
     upToDate: '최신 상태입니다.',
+    shortcutHints: {
+      title: '단축키',
+      shortcutDesc:
+        '설명 단축키에 Shift를 추가하면 상세 분석이 가능합니다. 단축키는 설정 탭에서 변경할 수 있습니다.',
+      atTitle: '채팅: @ 액션',
+      atImage: '이미지 생성',
+      atVideo: '동영상 생성',
+      atSlide: '슬라이드 이미지 생성',
+      slashTitle: '채팅: 슬래시 명령어',
+      slashDesc: '슬래시 명령어를 사용하여 채팅 내용을 탐색하고 설정을 구성할 수 있습니다.',
+    },
     slashDescriptions: {
       what: '마지막 AI 답변을 쉽게 설명',
       next: '마지막 AI 답변 이어서 생성',
@@ -79,6 +92,15 @@
       imageCount2: '이미지 2장 생성',
       imageCount3: '이미지 3장 생성',
       imageCount4: '이미지 4장 생성',
+      slide: '슬라이드 생성 제어',
+      slideStatus: '슬라이드 생성 설정 표시',
+      slideSize: '슬라이드 비율 설정',
+      slideSize16_9: '가로 (16:9)',
+      slideSize9_16: '세로 (9:16)',
+      slideSize4_3: '가로 (4:3)',
+      slideSize3_4: '세로 (3:4)',
+      slideSize1_1: '정사각형 (1:1)',
+      slidePrompt: '슬라이드 프롬프트 템플릿 편집',
     },
     slashTranslateIntoLanguage: (name) => `${name}로 번역`,
     clipboard: {
@@ -160,6 +182,24 @@
         snippetPopup: '스니펫',
         toggleMainWindow: '메인 윈도우 전환',
       },
+      // Snippets
+      snippetsTitle: '스니펫',
+      snippetsExport: '내보내기',
+      snippetsImport: '가져오기',
+      snippetsExporting: '내보내는 중...',
+      snippetsImporting: '가져오는 중...',
+      snippetsExportSuccess: (count) => `${count}개의 스니펫을 내보냈습니다`,
+      snippetsImportSuccess: (count) => `${count}개의 스니펫을 가져왔습니다`,
+      snippetsExportError: '내보내기 실패',
+      snippetsImportError: '가져오기 실패',
+      snippetsInvalidFile: '잘못된 스니펫 파일 형식',
+      snippetsNoData: '내보낼 스니펫이 없습니다',
+      snippetsImportTitle: '스니펫 가져오기',
+      snippetsImportMerge: '추가 모드',
+      snippetsImportMergeDesc: '기존 스니펫을 유지하고 새로 추가',
+      snippetsImportReplace: '교체 모드',
+      snippetsImportReplaceDesc: '모든 기존 스니펫 교체',
+      snippetsImportReplaceWarning: '이 작업은 취소할 수 없습니다',
     },
     common: {
       confirmAction: '확인',
@@ -189,6 +229,11 @@
     },
     prompt: {
       close: '닫기',
+    },
+    slidePrompt: {
+      title: '슬라이드 프롬프트 편집',
+      placeholder: '사용자 정의 프롬프트 입력...',
+      save: '저장',
     },
   });
 })();

@@ -2152,6 +2152,56 @@ html:not(.theme-dark) .change-key-btn:hover {
   pointer-events: none;
 }
 
+/* Snippet Action Buttons */
+.snippet-buttons-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.snippet-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-xs);
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--bg-overlay-light);
+  border: 1px solid var(--border-overlay-medium);
+  border-radius: var(--radius-md);
+  color: #e5e7eb;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  font-weight: 500;
+  min-width: 100px;
+}
+
+.snippet-action-btn:hover {
+  background: var(--bg-overlay-medium);
+  border-color: var(--border-overlay-strong);
+}
+
+.snippet-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.snippet-action-btn svg {
+  flex-shrink: 0;
+}
+
+html:not(.theme-dark) .snippet-action-btn {
+  background: var(--bg-overlay-light-mode);
+  border-color: var(--border-overlay-light-mode-medium);
+  color: var(--text-secondary-light);
+}
+
+html:not(.theme-dark) .snippet-action-btn:hover {
+  background: var(--bg-overlay-light-mode-strong);
+  border-color: var(--border-overlay-light-mode-strong);
+}
+
 .settings-empty {
   text-align: center;
   color: var(--text-muted);
@@ -2925,4 +2975,270 @@ html:not(.theme-dark) .shortcut-hint-key {
 
 html:not(.theme-dark) .shortcut-hint-label {
   color: var(--text-tertiary-light);
+}
+
+/* ========== Snippet Progress Modal ========== */
+.snippet-progress-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 10002;
+  backdrop-filter: blur(4px);
+}
+
+.snippet-progress-dialog {
+  background: var(--popup-bg-dark);
+  border: 1px solid var(--popup-border-dark);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  min-width: var(--popup-min-width);
+  max-width: var(--popup-max-width);
+  text-align: center;
+  box-shadow: var(--popup-shadow);
+  backdrop-filter: blur(var(--popup-blur));
+}
+
+.snippet-progress-spinner {
+  width: 32px;
+  height: 32px;
+  margin: 0 auto 12px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #ff4d6d;
+  border-radius: 50%;
+  animation: snippet-spin 1s linear infinite;
+}
+
+@keyframes snippet-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.snippet-progress-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-primary-dark);
+  margin-bottom: 4px;
+}
+
+.snippet-progress-detail {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  min-height: 14px;
+}
+
+.snippet-progress-bar {
+  height: 4px;
+  background: var(--bg-overlay-light);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.snippet-progress-bar-fill {
+  height: 100%;
+  background: var(--primary-gradient);
+  border-radius: 2px;
+  transition: width 0.3s;
+  width: 0%;
+}
+
+/* ========== Snippet Import Options Dialog ========== */
+.snippet-import-options-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 10002;
+  backdrop-filter: blur(4px);
+}
+
+.snippet-import-options-dialog {
+  background: var(--popup-bg-dark);
+  border: 1px solid var(--popup-border-dark);
+  border-radius: var(--radius-lg);
+  min-width: var(--popup-min-width);
+  max-width: var(--popup-max-width);
+  box-shadow: var(--popup-shadow);
+  backdrop-filter: blur(var(--popup-blur));
+  overflow: hidden;
+}
+
+.snippet-import-options-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--bg-overlay-light);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-primary-dark);
+}
+
+.snippet-import-options-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+}
+
+.snippet-import-options-close:hover {
+  background: var(--bg-overlay-medium);
+  color: var(--text-primary-dark);
+}
+
+.snippet-import-options-body {
+  padding: 10px 12px;
+}
+
+.snippet-import-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--bg-overlay-light);
+  border-radius: var(--radius-md);
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.snippet-import-option:hover {
+  border-color: var(--bg-overlay-medium);
+}
+
+.snippet-import-option:last-child {
+  margin-bottom: 0;
+}
+
+.snippet-import-option input[type='radio'] {
+  margin-top: 2px;
+  accent-color: #ff4d6d;
+  flex-shrink: 0;
+}
+
+.snippet-import-option-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.snippet-import-option-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-primary-dark);
+  margin-bottom: 2px;
+}
+
+.snippet-import-option-desc {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+.snippet-import-option-warning {
+  font-size: 10px;
+  color: #f59e0b;
+  margin-top: 2px;
+}
+
+.snippet-import-options-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--bg-overlay-light);
+}
+
+.snippet-import-btn-cancel {
+  padding: 5px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-overlay-light);
+  color: var(--text-primary-dark);
+  border: none;
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  transition: background 0.2s;
+}
+
+.snippet-import-btn-cancel:hover {
+  background: var(--bg-overlay-medium);
+}
+
+.snippet-import-btn-confirm {
+  padding: 5px 12px;
+  border-radius: var(--radius-md);
+  background: var(--primary-gradient);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+
+.snippet-import-btn-confirm:hover {
+  opacity: var(--opacity-hover);
+}
+
+/* Light theme overrides */
+html:not(.theme-dark) .snippet-progress-dialog,
+html:not(.theme-dark) .snippet-import-options-dialog {
+  background: var(--popup-bg-light);
+  border-color: var(--popup-border-light);
+}
+
+html:not(.theme-dark) .snippet-progress-title,
+html:not(.theme-dark) .snippet-import-options-header,
+html:not(.theme-dark) .snippet-import-option-title {
+  color: var(--text-primary-light);
+}
+
+html:not(.theme-dark) .snippet-progress-detail,
+html:not(.theme-dark) .snippet-import-option-desc {
+  color: var(--text-tertiary-light);
+}
+
+html:not(.theme-dark) .snippet-import-options-header,
+html:not(.theme-dark) .snippet-import-option,
+html:not(.theme-dark) .snippet-import-options-footer {
+  border-color: var(--border-overlay-light-mode);
+}
+
+html:not(.theme-dark) .snippet-import-option:hover {
+  border-color: var(--border-overlay-light-mode-medium);
+}
+
+html:not(.theme-dark) .snippet-import-btn-cancel {
+  background: var(--bg-overlay-light-mode);
+  color: var(--text-primary-light);
+}
+
+html:not(.theme-dark) .snippet-import-btn-cancel:hover {
+  background: var(--bg-overlay-light-mode-hover);
+}
+
+html:not(.theme-dark) .snippet-import-options-close:hover {
+  background: var(--bg-overlay-light-mode-hover);
+  color: var(--text-secondary-light);
 }

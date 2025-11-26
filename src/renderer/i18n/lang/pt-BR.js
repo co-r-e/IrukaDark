@@ -44,12 +44,25 @@
     selectionTranslation: 'Traduzir seleção',
     selectionEmpathy: 'Resposta empática para a seleção',
     selectionReplies: 'Variações de resposta para a seleção',
+    slideImageGenerating: 'Gerando imagem de slide',
+    imageCopied: 'Imagem copiada para a área de transferência',
     urlContextSummary: (url) => `Resumo da URL selecionada:\n${url}`,
     urlContextDetailed: (url) => `Análise detalhada da URL selecionada:\n${url}`,
     invalidUrlSelection:
       'Nenhuma URL válida encontrada. Selecione apenas uma URL HTTP(S) e tente novamente.',
     updateAvailable: (v) => `Nova versão (${v}) disponível. Abrir downloads?`,
     upToDate: 'Você está atualizado.',
+    shortcutHints: {
+      title: 'Atalhos de teclado',
+      shortcutDesc:
+        'Adicione Shift aos atalhos de explicação para análise detalhada. As atribuições podem ser alteradas nas configurações.',
+      atTitle: 'Chat: Ações @',
+      atImage: 'Gerar imagem',
+      atVideo: 'Gerar vídeo',
+      atSlide: 'Gerar imagem de slide',
+      slashTitle: 'Chat: Comandos slash',
+      slashDesc: 'Use os comandos slash para explorar o conteúdo do chat e configurar ajustes.',
+    },
     slashDescriptions: {
       what: 'Esclarecer a última resposta da IA',
       next: 'Continuar a última resposta da IA',
@@ -80,6 +93,15 @@
       imageCount2: 'Gerar 2 imagens',
       imageCount3: 'Gerar 3 imagens',
       imageCount4: 'Gerar 4 imagens',
+      slide: 'Controles de geração de slides',
+      slideStatus: 'Mostrar configurações de geração de slides',
+      slideSize: 'Definir proporção do slide',
+      slideSize16_9: 'Paisagem (16:9)',
+      slideSize9_16: 'Retrato (9:16)',
+      slideSize4_3: 'Paisagem (4:3)',
+      slideSize3_4: 'Retrato (3:4)',
+      slideSize1_1: 'Quadrado (1:1)',
+      slidePrompt: 'Editar modelo de prompt do slide',
     },
     slashTranslateIntoLanguage: (name) => `Traduzir para ${name}`,
     clipboard: {
@@ -161,6 +183,24 @@
         snippetPopup: 'Trechos',
         toggleMainWindow: 'Alternar janela principal',
       },
+      // Snippets
+      snippetsTitle: 'Trechos',
+      snippetsExport: 'Exportar',
+      snippetsImport: 'Importar',
+      snippetsExporting: 'Exportando...',
+      snippetsImporting: 'Importando...',
+      snippetsExportSuccess: (count) => `${count} trechos exportados`,
+      snippetsImportSuccess: (count) => `${count} trechos importados`,
+      snippetsExportError: 'Falha ao exportar',
+      snippetsImportError: 'Falha ao importar',
+      snippetsInvalidFile: 'Formato de arquivo inválido',
+      snippetsNoData: 'Nenhum trecho para exportar',
+      snippetsImportTitle: 'Importar trechos',
+      snippetsImportMerge: 'Modo adicionar',
+      snippetsImportMergeDesc: 'Manter trechos existentes e adicionar novos',
+      snippetsImportReplace: 'Modo substituir',
+      snippetsImportReplaceDesc: 'Substituir todos os trechos existentes',
+      snippetsImportReplaceWarning: 'Esta ação não pode ser desfeita',
     },
     common: {
       confirmAction: 'Confirmar',
@@ -190,6 +230,11 @@
     },
     prompt: {
       close: 'Fechar',
+    },
+    slidePrompt: {
+      title: 'Editar prompt do slide',
+      placeholder: 'Digite prompt personalizado...',
+      save: 'Salvar',
     },
   });
 })();

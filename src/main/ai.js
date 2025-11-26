@@ -541,6 +541,45 @@ async function sdkGenerateImage(
   return null;
 }
 
+/**
+ * Extract image data from response candidates
+ * Supports both camelCase and snake_case formats
+ */
+function extractImageFromCandidates(candidates) {
+  if (!candidates || candidates.length === 0) {
+    throw new Error('No candidates in API response.');
+  }
+
+  for (const candidate of candidates) {
+    const parts = candidate?.content?.parts || [];
+    for (const part of parts) {
+      const inlineData = part.inlineData || part.inline_data;
+      if (inlineData?.data) {
+        return {
+          imageData: inlineData.data,
+          mimeType: inlineData.mimeType || inlineData.mime_type || 'image/png',
+        };
+      }
+    }
+  }
+
+  const finishReason = candidates[0]?.finishReason || candidates[0]?.finish_reason || '';
+  if (String(finishReason).toUpperCase().includes('SAFETY')) {
+    throw new Error('The API blocked the image generation for safety reasons.');
+  }
+
+  throw new Error('No image data found in API response.');
+}
+
+/**
+ * Validate GenAI client
+ */
+function validateGenAIClient(genAI) {
+  if (!genAI?.models || typeof genAI.models.generateContent !== 'function') {
+    throw new Error('Invalid GenAI client');
+  }
+}
+
 async function restGenerateImageFromText(
   apiKey,
   modelBare,
@@ -550,23 +589,14 @@ async function restGenerateImageFromText(
 ) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelBare}:generateContent`;
 
-  // Configure generation to produce images
-  const config = {
-    ...(generationConfig || {}),
-    responseModalities: ['IMAGE'],
-  };
-
   const body = {
     contents: [{ parts: [{ text: String(prompt || '') }] }],
-    generationConfig: config,
+    generationConfig: {
+      ...(generationConfig || {}),
+      responseModalities: ['IMAGE'],
+      ...(aspectRatio && { imageConfig: { aspectRatio } }),
+    },
   };
-
-  // Add image config for aspect ratio (use camelCase)
-  if (aspectRatio) {
-    body.generationConfig.imageConfig = { aspectRatio };
-  }
-
-  // Debug: Log request body
 
   const res = await fetch(url, {
     method: 'POST',
@@ -574,48 +604,14 @@ async function restGenerateImageFromText(
     body: JSON.stringify(body),
     signal: signal || undefined,
   });
+
   if (!res.ok) {
     const t = await res.text();
     throw new Error(`API Error: ${res.status} - ${t}`);
   }
+
   const data = await res.json();
-
-  // Debug: Log response structure
-
-  // Extract image data from response
-  const candidates = data?.candidates || [];
-  if (candidates.length === 0) {
-    throw new Error('No candidates in API response.');
-  }
-
-  for (const candidate of candidates) {
-    const parts = candidate?.content?.parts || [];
-
-    for (const part of parts) {
-      if (part.inline_data && part.inline_data.data) {
-        return {
-          imageData: part.inline_data.data,
-          mimeType: part.inline_data.mimeType || 'image/png',
-        };
-      }
-      // Also check for inlineData (camelCase)
-      if (part.inlineData && part.inlineData.data) {
-        return {
-          imageData: part.inlineData.data,
-          mimeType: part.inlineData.mimeType || 'image/png',
-        };
-      }
-    }
-  }
-
-  // Check for safety or other finish reasons
-  const finishReason = candidates[0]?.finishReason || candidates[0]?.finish_reason || '';
-
-  if (String(finishReason).toUpperCase().includes('SAFETY')) {
-    throw new Error('The API blocked the image generation for safety reasons.');
-  }
-
-  throw new Error('No image data found in API response.');
+  return extractImageFromCandidates(data?.candidates);
 }
 
 async function restGenerateImageFromTextWithReference(
@@ -628,24 +624,13 @@ async function restGenerateImageFromTextWithReference(
 ) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelBare}:generateContent`;
 
-  // Configure generation to produce images
-  const config = {
-    ...(generationConfig || {}),
-    responseModalities: ['IMAGE'],
-  };
-
-  // Build parts array with reference images and prompt
+  // Build parts with text prompt and reference images
   const parts = [{ text: String(prompt || '') }];
-
-  // Add reference images if provided (support multiple images)
-  if (referenceImages && Array.isArray(referenceImages)) {
-    for (const refImage of referenceImages) {
-      if (refImage.base64 && refImage.mimeType) {
+  if (Array.isArray(referenceImages)) {
+    for (const ref of referenceImages) {
+      if (ref.base64 && ref.mimeType) {
         parts.push({
-          inlineData: {
-            data: String(refImage.base64),
-            mimeType: String(refImage.mimeType),
-          },
+          inlineData: { data: String(ref.base64), mimeType: String(ref.mimeType) },
         });
       }
     }
@@ -653,13 +638,12 @@ async function restGenerateImageFromTextWithReference(
 
   const body = {
     contents: [{ parts }],
-    generationConfig: config,
+    generationConfig: {
+      ...(generationConfig || {}),
+      responseModalities: ['IMAGE'],
+      ...(aspectRatio && { imageConfig: { aspectRatio } }),
+    },
   };
-
-  // Add image config for aspect ratio
-  if (aspectRatio) {
-    body.generationConfig.imageConfig = { aspectRatio };
-  }
 
   const res = await fetch(url, {
     method: 'POST',
@@ -667,43 +651,72 @@ async function restGenerateImageFromTextWithReference(
     body: JSON.stringify(body),
     signal: signal || undefined,
   });
+
   if (!res.ok) {
     const t = await res.text();
     throw new Error(`API Error: ${res.status} - ${t}`);
   }
+
   const data = await res.json();
+  return extractImageFromCandidates(data?.candidates);
+}
 
-  // Extract image data from response
-  const candidates = data?.candidates || [];
-  if (candidates.length === 0) {
-    throw new Error('No candidates in API response.');
-  }
+/**
+ * SDK-based image generation from text
+ * Uses @google/genai SDK for Gemini API
+ */
+async function sdkGenerateImageFromText(genAI, modelName, prompt, { aspectRatio = '1:1' } = {}) {
+  validateGenAIClient(genAI);
 
-  for (const candidate of candidates) {
-    const parts = candidate?.content?.parts || [];
+  const request = {
+    model: modelName,
+    contents: prompt,
+    config: {
+      responseModalities: ['TEXT', 'IMAGE'],
+      ...(aspectRatio && { imageConfig: { aspectRatio } }),
+    },
+  };
 
-    for (const part of parts) {
-      if (part.inline_data && part.inline_data.data) {
-        return {
-          imageData: part.inline_data.data,
-          mimeType: part.inline_data.mimeType || 'image/png',
-        };
-      }
-      if (part.inlineData && part.inlineData.data) {
-        return {
-          imageData: part.inlineData.data,
-          mimeType: part.inlineData.mimeType || 'image/png',
-        };
+  const response = await genAI.models.generateContent(request);
+  return extractImageFromCandidates(response?.candidates);
+}
+
+/**
+ * SDK-based image generation with reference images
+ * Uses @google/genai SDK for Gemini API
+ */
+async function sdkGenerateImageFromTextWithReference(
+  genAI,
+  modelName,
+  prompt,
+  referenceImages,
+  { aspectRatio = '1:1' } = {}
+) {
+  validateGenAIClient(genAI);
+
+  // Build parts with text prompt and reference images
+  const parts = [{ text: String(prompt || '') }];
+  if (Array.isArray(referenceImages)) {
+    for (const ref of referenceImages) {
+      if (ref.base64 && ref.mimeType) {
+        parts.push({
+          inlineData: { data: String(ref.base64), mimeType: String(ref.mimeType) },
+        });
       }
     }
   }
 
-  // Check for safety or other finish reasons
-  const finishReason = candidates[0]?.finishReason || candidates[0]?.finish_reason || '';
-  if (String(finishReason).toUpperCase().includes('SAFETY')) {
-    throw new Error('The API blocked the image generation for safety reasons.');
-  }
-  throw new Error('No image data found in API response.');
+  const request = {
+    model: modelName,
+    contents: [{ role: 'user', parts }],
+    config: {
+      responseModalities: ['TEXT', 'IMAGE'],
+      ...(aspectRatio && { imageConfig: { aspectRatio } }),
+    },
+  };
+
+  const response = await genAI.models.generateContent(request);
+  return extractImageFromCandidates(response?.candidates);
 }
 
 async function restGenerateVideoFromText(
@@ -861,6 +874,8 @@ module.exports = {
   restGenerateImageFromTextWithReference,
   sdkGenerateText,
   sdkGenerateImage,
+  sdkGenerateImageFromText,
+  sdkGenerateImageFromTextWithReference,
   restGenerateVideoFromText,
   pollVideoOperation,
   downloadVideoFromUri,

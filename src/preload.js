@@ -57,6 +57,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('shortcut-url-summary-registered', (_e, a) => cb(a)),
   onShortcutUrlDetailedRegistered: (cb) =>
     ipcRenderer.on('shortcut-url-detailed-registered', (_e, a) => cb(a)),
+  onShortcutSlideImageRegistered: (cb) =>
+    ipcRenderer.on('shortcut-slide-image-registered', (_e, a) => cb(a)),
+  onGenerateSlideImage: (cb) => ipcRenderer.on('generate-slide-image', (_e, text) => cb(text)),
   onThemeChanged: (cb) => ipcRenderer.on('theme-changed', (_e, theme) => cb(theme)),
   onToneChanged: (cb) => ipcRenderer.on('tone-changed', (_e, tone) => cb(tone)),
   onAppConfig: (cb) => ipcRenderer.on('app-config', (_e, cfg) => cb(cfg)),
@@ -81,6 +84,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getVideoCount: () => ipcRenderer.invoke('get-video-count'),
   saveVideoResolution: (resolution) => ipcRenderer.invoke('save-video-resolution', resolution),
   getVideoResolution: () => ipcRenderer.invoke('get-video-resolution'),
+  // Slide image settings
+  saveSlideSize: (ratio) => ipcRenderer.invoke('save-slide-size', ratio),
+  getSlideSize: () => ipcRenderer.invoke('get-slide-size'),
+  saveSlidePrompt: (prompt) => ipcRenderer.invoke('save-slide-prompt', prompt),
+  getSlidePrompt: () => ipcRenderer.invoke('get-slide-prompt'),
   // Popup interactions
   notifyPopupPointer: (phase) => ipcRenderer.invoke('popup:pointer', String(phase || '')),
   getPopupBounds: () => ipcRenderer.invoke('popup:get-bounds'),
@@ -110,6 +118,33 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('snippet:save-image', { snippetId, imageBase64 }),
   deleteSnippetImage: (imagePath) => ipcRenderer.invoke('snippet:delete-image', imagePath),
   copySnippetImage: (imagePath) => ipcRenderer.invoke('snippet:copy-image', imagePath),
+  // Snippet export/import
+  exportSnippets: () => ipcRenderer.invoke('snippet:export'),
+  importSnippets: (mode) => ipcRenderer.invoke('snippet:import', { mode }),
+  onSnippetExportProgress: (cb) => {
+    const handler = (_e, data) => cb(data);
+    ipcRenderer.on('snippet:export-progress', handler);
+    return handler;
+  },
+  removeSnippetExportProgress: () => {
+    ipcRenderer.removeAllListeners('snippet:export-progress');
+  },
+  onSnippetImportProgress: (cb) => {
+    const handler = (_e, data) => cb(data);
+    ipcRenderer.on('snippet:import-progress', handler);
+    return handler;
+  },
+  removeSnippetImportProgress: () => {
+    ipcRenderer.removeAllListeners('snippet:import-progress');
+  },
+  onSnippetImportStarted: (cb) => {
+    const handler = (_e, data) => cb(data);
+    ipcRenderer.on('snippet:import-started', handler);
+    return handler;
+  },
+  removeSnippetImportStarted: () => {
+    ipcRenderer.removeAllListeners('snippet:import-started');
+  },
   // Launcher
   launcher: {
     searchApps: (query) => ipcRenderer.invoke('launcher:search-apps', query),

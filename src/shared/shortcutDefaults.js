@@ -12,6 +12,7 @@
 const DEFAULT_SHORTCUTS = {
   explain: 'Alt+A',
   explainDetailed: 'Alt+Shift+A',
+  slideImage: 'Control+Alt+A',
   urlSummary: 'Alt+Q',
   urlDetailed: 'Alt+Shift+Q',
   translate: 'Alt+R',

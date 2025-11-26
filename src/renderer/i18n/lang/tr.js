@@ -44,12 +44,26 @@
     selectionTranslation: 'Seçimi çevir',
     selectionEmpathy: 'Seçim için empatik yanıt',
     selectionReplies: 'Seçim için yanıt seçenekleri',
+    slideImageGenerating: 'Slayt görseli oluşturuluyor',
+    imageCopied: 'Görsel panoya kopyalandı',
     urlContextSummary: (url) => `Seçilen URL için özet isteği:\n${url}`,
     urlContextDetailed: (url) => `Seçilen URL için ayrıntılı analiz isteği:\n${url}`,
     invalidUrlSelection:
       'Geçerli bir URL bulunamadı. Lütfen tek bir HTTP(S) URL seçip tekrar deneyin.',
     updateAvailable: (v) => `Yeni sürüm (${v}) mevcut. İndirmeleri açalım mı?`,
     upToDate: 'Güncelsiniz.',
+    shortcutHints: {
+      title: 'Kısayol Tuşları',
+      shortcutDesc:
+        'Detaylı analiz için açıklama kısayollarına Shift ekleyin. Atamalar Ayarlar sekmesinden değiştirilebilir.',
+      atTitle: 'Sohbet: @ Eylemleri',
+      atImage: 'Görsel oluştur',
+      atVideo: 'Video oluştur',
+      atSlide: 'Slayt görseli oluştur',
+      slashTitle: 'Sohbet: Eğik Çizgi Komutları',
+      slashDesc:
+        'Sohbet içeriğini keşfetmek ve ayarları yapılandırmak için eğik çizgi komutlarını kullanın.',
+    },
     slashDescriptions: {
       what: 'Son yapay zekâ yanıtını açıklığa kavuştur',
       next: 'Son yapay zekâ yanıtına devam et',
@@ -80,6 +94,15 @@
       imageCount2: '2 görsel oluştur',
       imageCount3: '3 görsel oluştur',
       imageCount4: '4 görsel oluştur',
+      slide: 'Slayt oluşturma kontrolleri',
+      slideStatus: 'Slayt oluşturma ayarlarını göster',
+      slideSize: 'Slayt en boy oranını ayarla',
+      slideSize16_9: 'Yatay (16:9)',
+      slideSize9_16: 'Dikey (9:16)',
+      slideSize4_3: 'Yatay (4:3)',
+      slideSize3_4: 'Dikey (3:4)',
+      slideSize1_1: 'Kare (1:1)',
+      slidePrompt: 'Slayt prompt şablonunu düzenle',
     },
     slashTranslateIntoLanguage: (name) => `${name} diline çevir`,
     clipboard: {
@@ -161,6 +184,24 @@
         snippetPopup: 'Kod parçacıkları',
         toggleMainWindow: 'Ana pencereyi değiştir',
       },
+      // Snippets
+      snippetsTitle: 'Kod Parçacıkları',
+      snippetsExport: 'Dışa Aktar',
+      snippetsImport: 'İçe Aktar',
+      snippetsExporting: 'Dışa aktarılıyor...',
+      snippetsImporting: 'İçe aktarılıyor...',
+      snippetsExportSuccess: (count) => `${count} kod parçacığı dışa aktarıldı`,
+      snippetsImportSuccess: (count) => `${count} kod parçacığı içe aktarıldı`,
+      snippetsExportError: 'Dışa aktarma başarısız',
+      snippetsImportError: 'İçe aktarma başarısız',
+      snippetsInvalidFile: 'Geçersiz dosya formatı',
+      snippetsNoData: 'Dışa aktarılacak kod parçacığı yok',
+      snippetsImportTitle: 'Kod Parçacıklarını İçe Aktar',
+      snippetsImportMerge: 'Ekleme Modu',
+      snippetsImportMergeDesc: 'Mevcut parçacıkları koru ve yenilerini ekle',
+      snippetsImportReplace: 'Değiştirme Modu',
+      snippetsImportReplaceDesc: 'Tüm mevcut parçacıkları değiştir',
+      snippetsImportReplaceWarning: 'Bu işlem geri alınamaz',
     },
     common: {
       confirmAction: 'Onayla',
@@ -190,6 +231,11 @@
     },
     prompt: {
       close: 'Kapat',
+    },
+    slidePrompt: {
+      title: 'Slayt İstemini Düzenle',
+      placeholder: 'Özel istem girin...',
+      save: 'Kaydet',
     },
   });
 })();

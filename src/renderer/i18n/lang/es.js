@@ -45,12 +45,25 @@
     selectionTranslation: 'Traducir selección',
     selectionEmpathy: 'Respuesta empática para la selección',
     selectionReplies: 'Variaciones de respuesta para la selección',
+    slideImageGenerating: 'Generando imagen de diapositiva',
+    imageCopied: 'Imagen copiada al portapapeles',
     urlContextSummary: (url) => `Resumen del enlace seleccionado:\n${url}`,
     urlContextDetailed: (url) => `Análisis detallado del enlace seleccionado:\n${url}`,
     invalidUrlSelection:
       'No se detectó ninguna URL válida. Selecciona una única URL con http(s) e inténtalo de nuevo.',
     updateAvailable: (v) => `Nueva versión (${v}) disponible. ¿Abrir descargas?`,
     upToDate: 'Estás al día.',
+    shortcutHints: {
+      title: 'Atajos de teclado',
+      shortcutDesc:
+        'Añade Shift a los atajos de explicación para un análisis detallado. Las asignaciones se pueden cambiar en Configuración.',
+      atTitle: 'Chat: Acciones @',
+      atImage: 'Generar imagen',
+      atVideo: 'Generar vídeo',
+      atSlide: 'Generar imagen de diapositiva',
+      slashTitle: 'Chat: Comandos slash',
+      slashDesc: 'Usa los comandos slash para explorar el contenido del chat y configurar ajustes.',
+    },
     slashDescriptions: {
       what: 'Aclarar la última respuesta de la IA',
       next: 'Continuar la última respuesta de la IA',
@@ -81,6 +94,15 @@
       imageCount2: 'Generar 2 imágenes',
       imageCount3: 'Generar 3 imágenes',
       imageCount4: 'Generar 4 imágenes',
+      slide: 'Controles de generación de diapositivas',
+      slideStatus: 'Mostrar ajustes de generación de diapositivas',
+      slideSize: 'Definir relación de aspecto de diapositiva',
+      slideSize16_9: 'Horizontal (16:9)',
+      slideSize9_16: 'Vertical (9:16)',
+      slideSize4_3: 'Horizontal (4:3)',
+      slideSize3_4: 'Vertical (3:4)',
+      slideSize1_1: 'Cuadrado (1:1)',
+      slidePrompt: 'Editar plantilla de prompt de diapositiva',
     },
     slashTranslateIntoLanguage: (name) => `Traducir a ${name}`,
     clipboard: {
@@ -162,6 +184,24 @@
         snippetPopup: 'Fragmentos',
         toggleMainWindow: 'Alternar ventana principal',
       },
+      // Snippets
+      snippetsTitle: 'Fragmentos',
+      snippetsExport: 'Exportar',
+      snippetsImport: 'Importar',
+      snippetsExporting: 'Exportando...',
+      snippetsImporting: 'Importando...',
+      snippetsExportSuccess: (count) => `${count} fragmentos exportados`,
+      snippetsImportSuccess: (count) => `${count} fragmentos importados`,
+      snippetsExportError: 'Error al exportar',
+      snippetsImportError: 'Error al importar',
+      snippetsInvalidFile: 'Formato de archivo inválido',
+      snippetsNoData: 'No hay fragmentos para exportar',
+      snippetsImportTitle: 'Importar fragmentos',
+      snippetsImportMerge: 'Modo añadir',
+      snippetsImportMergeDesc: 'Mantener fragmentos existentes y añadir nuevos',
+      snippetsImportReplace: 'Modo reemplazar',
+      snippetsImportReplaceDesc: 'Reemplazar todos los fragmentos existentes',
+      snippetsImportReplaceWarning: 'Esta acción no se puede deshacer',
     },
     common: {
       confirmAction: 'Confirmar',
@@ -192,6 +232,11 @@
     },
     prompt: {
       close: 'Cerrar',
+    },
+    slidePrompt: {
+      title: 'Editar prompt de diapositiva',
+      placeholder: 'Introduce prompt personalizado...',
+      save: 'Guardar',
     },
   });
 })();

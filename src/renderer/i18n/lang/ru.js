@@ -45,12 +45,25 @@
     selectionTranslation: 'Перевести выделение',
     selectionEmpathy: 'Эмпатичный ответ для выделенного текста',
     selectionReplies: 'Варианты ответа для выделенного текста',
+    slideImageGenerating: 'Создание изображения слайда',
+    imageCopied: 'Изображение скопировано в буфер обмена',
     urlContextSummary: (url) => `Запрос краткого обзора выбранного URL:\n${url}`,
     urlContextDetailed: (url) => `Запрос подробного разбора выбранного URL:\n${url}`,
     invalidUrlSelection:
       'Не найден допустимый URL. Выделите один HTTP(S)-адрес и попробуйте снова.',
     updateAvailable: (v) => `Доступна новая версия (${v}). Открыть загрузки?`,
     upToDate: 'У вас последняя версия.',
+    shortcutHints: {
+      title: 'Сочетания клавиш',
+      shortcutDesc:
+        'Добавьте Shift к клавишам объяснения для детального анализа. Назначения можно изменить в настройках.',
+      atTitle: 'Чат: @ действия',
+      atImage: 'Создать изображение',
+      atVideo: 'Создать видео',
+      atSlide: 'Создать изображение слайда',
+      slashTitle: 'Чат: Слэш-команды',
+      slashDesc: 'Используйте слэш-команды для изучения содержимого чата и настройки параметров.',
+    },
     slashDescriptions: {
       what: 'Разъяснить последний ответ ИИ',
       next: 'Продолжить последний ответ ИИ',
@@ -81,6 +94,15 @@
       imageCount2: 'Создать 2 изображения',
       imageCount3: 'Создать 3 изображения',
       imageCount4: 'Создать 4 изображения',
+      slide: 'Управление генерацией слайдов',
+      slideStatus: 'Показать настройки генерации слайдов',
+      slideSize: 'Задать соотношение сторон слайда',
+      slideSize16_9: 'Альбом (16:9)',
+      slideSize9_16: 'Портрет (9:16)',
+      slideSize4_3: 'Альбом (4:3)',
+      slideSize3_4: 'Портрет (3:4)',
+      slideSize1_1: 'Квадрат (1:1)',
+      slidePrompt: 'Редактировать шаблон промпта для слайда',
     },
     slashTranslateIntoLanguage: (name) => `Перевести на ${name}`,
     clipboard: {
@@ -162,6 +184,24 @@
         snippetPopup: 'Сниппеты',
         toggleMainWindow: 'Переключить главное окно',
       },
+      // Snippets
+      snippetsTitle: 'Сниппеты',
+      snippetsExport: 'Экспорт',
+      snippetsImport: 'Импорт',
+      snippetsExporting: 'Экспорт...',
+      snippetsImporting: 'Импорт...',
+      snippetsExportSuccess: (count) => `Экспортировано ${count} сниппетов`,
+      snippetsImportSuccess: (count) => `Импортировано ${count} сниппетов`,
+      snippetsExportError: 'Ошибка экспорта',
+      snippetsImportError: 'Ошибка импорта',
+      snippetsInvalidFile: 'Неверный формат файла',
+      snippetsNoData: 'Нет сниппетов для экспорта',
+      snippetsImportTitle: 'Импорт сниппетов',
+      snippetsImportMerge: 'Режим добавления',
+      snippetsImportMergeDesc: 'Сохранить существующие и добавить новые',
+      snippetsImportReplace: 'Режим замены',
+      snippetsImportReplaceDesc: 'Заменить все существующие сниппеты',
+      snippetsImportReplaceWarning: 'Это действие нельзя отменить',
     },
     common: {
       confirmAction: 'Подтвердить',
@@ -191,6 +231,11 @@
     },
     prompt: {
       close: 'Закрыть',
+    },
+    slidePrompt: {
+      title: 'Редактировать промпт слайда',
+      placeholder: 'Введите свой промпт...',
+      save: 'Сохранить',
     },
   });
 })();

@@ -44,12 +44,25 @@
     selectionTranslation: 'แปลส่วนที่เลือก',
     selectionEmpathy: 'ตอบกลับเห็นใจข้อความที่เลือก',
     selectionReplies: 'ตัวเลือกคำตอบสำหรับข้อความที่เลือก',
+    slideImageGenerating: 'สร้างภาพสไลด์',
+    imageCopied: 'คัดลอกรูปภาพไปยังคลิปบอร์ดแล้ว',
     urlContextSummary: (url) => `สรุป URL ที่เลือก:\n${url}`,
     urlContextDetailed: (url) => `วิเคราะห์รายละเอียดของ URL ที่เลือก:\n${url}`,
     invalidUrlSelection:
       'ไม่พบ URL ที่ถูกต้อง โปรดเลือก URL แบบ HTTP(S) เพียงรายการเดียวแล้วลองอีกครั้ง',
     updateAvailable: (v) => `มีเวอร์ชันใหม่ (${v}) พร้อมใช้ เปิดหน้าดาวน์โหลดไหม?`,
     upToDate: 'เป็นเวอร์ชันล่าสุดแล้ว',
+    shortcutHints: {
+      title: 'คีย์ลัด',
+      shortcutDesc:
+        'เพิ่ม Shift ในคีย์ลัดอธิบายเพื่อรับการวิเคราะห์โดยละเอียด คีย์ลัดสามารถเปลี่ยนได้ในแท็บการตั้งค่า',
+      atTitle: 'แชท: การดำเนินการ @',
+      atImage: 'สร้างรูปภาพ',
+      atVideo: 'สร้างวิดีโอ',
+      atSlide: 'สร้างรูปภาพสไลด์',
+      slashTitle: 'แชท: คำสั่ง Slash',
+      slashDesc: 'ใช้คำสั่ง Slash เพื่อสำรวจเนื้อหาแชทและกำหนดค่าการตั้งค่า',
+    },
     slashDescriptions: {
       what: 'อธิบายคำตอบล่าสุดของ AI ให้เข้าใจง่าย',
       next: 'ต่อยอดคำตอบล่าสุดของ AI',
@@ -80,6 +93,15 @@
       imageCount2: 'สร้างภาพ 2 ภาพ',
       imageCount3: 'สร้างภาพ 3 ภาพ',
       imageCount4: 'สร้างภาพ 4 ภาพ',
+      slide: 'ควบคุมการสร้างสไลด์',
+      slideStatus: 'แสดงการตั้งค่าการสร้างสไลด์',
+      slideSize: 'ตั้งค่าอัตราส่วนสไลด์',
+      slideSize16_9: 'แนวนอน (16:9)',
+      slideSize9_16: 'แนวตั้ง (9:16)',
+      slideSize4_3: 'แนวนอน (4:3)',
+      slideSize3_4: 'แนวตั้ง (3:4)',
+      slideSize1_1: 'สี่เหลี่ยมจัตุรัส (1:1)',
+      slidePrompt: 'แก้ไขเทมเพลตพรอมต์สไลด์',
     },
     slashTranslateIntoLanguage: (name) => `แปลเป็น ${name}`,
     clipboard: {
@@ -161,6 +183,24 @@
         snippetPopup: 'สนิปเพ็ต',
         toggleMainWindow: 'สลับหน้าต่างหลัก',
       },
+      // Snippets
+      snippetsTitle: 'สนิปเพ็ต',
+      snippetsExport: 'ส่งออก',
+      snippetsImport: 'นำเข้า',
+      snippetsExporting: 'กำลังส่งออก...',
+      snippetsImporting: 'กำลังนำเข้า...',
+      snippetsExportSuccess: (count) => `ส่งออก ${count} สนิปเพ็ตแล้ว`,
+      snippetsImportSuccess: (count) => `นำเข้า ${count} สนิปเพ็ตแล้ว`,
+      snippetsExportError: 'ส่งออกล้มเหลว',
+      snippetsImportError: 'นำเข้าล้มเหลว',
+      snippetsInvalidFile: 'รูปแบบไฟล์ไม่ถูกต้อง',
+      snippetsNoData: 'ไม่มีสนิปเพ็ตให้ส่งออก',
+      snippetsImportTitle: 'นำเข้าสนิปเพ็ต',
+      snippetsImportMerge: 'โหมดเพิ่ม',
+      snippetsImportMergeDesc: 'เก็บสนิปเพ็ตที่มีอยู่และเพิ่มใหม่',
+      snippetsImportReplace: 'โหมดแทนที่',
+      snippetsImportReplaceDesc: 'แทนที่สนิปเพ็ตทั้งหมดที่มีอยู่',
+      snippetsImportReplaceWarning: 'การดำเนินการนี้ไม่สามารถยกเลิกได้',
     },
     common: {
       confirmAction: 'ยืนยัน',
@@ -189,6 +229,11 @@
     },
     prompt: {
       close: 'ปิด',
+    },
+    slidePrompt: {
+      title: 'แก้ไขพรอมต์สไลด์',
+      placeholder: 'ป้อนพรอมต์ที่กำหนดเอง...',
+      save: 'บันทึก',
     },
   });
 })();

@@ -1413,6 +1413,177 @@
         background: rgba(217, 70, 239, 0.05);
         box-shadow: inset 0 0 0 2px rgba(217, 70, 239, 0.3);
       }
+
+      /* Slide Prompt Editor Overlay */
+      .slide-prompt-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10001;
+        backdrop-filter: blur(4px);
+      }
+
+      .slide-prompt-dialog {
+        background: rgba(26, 20, 70, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        padding: 0;
+        width: 280px;
+        max-width: 90%;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+      }
+
+      html:not(.theme-dark) .slide-prompt-dialog {
+        background: rgba(255, 255, 255, 0.95);
+        border-color: rgba(0, 0, 0, 0.12);
+      }
+
+      .slide-prompt-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 12px;
+        background: rgba(255, 255, 255, 0.05);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      html:not(.theme-dark) .slide-prompt-header {
+        background: rgba(0, 0, 0, 0.03);
+        border-bottom-color: rgba(0, 0, 0, 0.08);
+      }
+
+      .slide-prompt-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: #e5e7eb;
+      }
+
+      html:not(.theme-dark) .slide-prompt-title {
+        color: #111827;
+      }
+
+      .slide-prompt-close {
+        appearance: none;
+        border: none;
+        background: transparent;
+        color: #9ca3af;
+        font-size: 16px;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        transition: all 0.15s ease;
+      }
+
+      .slide-prompt-close:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #e5e7eb;
+      }
+
+      html:not(.theme-dark) .slide-prompt-close:hover {
+        background: rgba(0, 0, 0, 0.05);
+        color: #374151;
+      }
+
+      .slide-prompt-body {
+        padding: 12px;
+      }
+
+      .slide-prompt-textarea {
+        width: 100%;
+        min-height: 100px;
+        max-height: 150px;
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        color: #e5e7eb;
+        font-size: 11px;
+        font-family: inherit;
+        line-height: 1.4;
+        resize: vertical;
+        outline: none;
+        box-sizing: border-box;
+      }
+
+      html:not(.theme-dark) .slide-prompt-textarea {
+        background: rgba(0, 0, 0, 0.03);
+        border-color: rgba(0, 0, 0, 0.15);
+        color: #374151;
+      }
+
+      .slide-prompt-textarea:focus {
+        border-color: #ff4d6d;
+      }
+
+      .slide-prompt-textarea::placeholder {
+        color: #6b7280;
+      }
+
+      .slide-prompt-buttons {
+        display: flex;
+        gap: 6px;
+        padding: 8px 12px;
+        justify-content: flex-end;
+        background: rgba(255, 255, 255, 0.03);
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      html:not(.theme-dark) .slide-prompt-buttons {
+        background: rgba(0, 0, 0, 0.02);
+        border-top-color: rgba(0, 0, 0, 0.08);
+      }
+
+      .slide-prompt-btn {
+        appearance: none;
+        border: none;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        flex: 1;
+      }
+
+      .slide-prompt-btn-cancel {
+        background: rgba(255, 255, 255, 0.08);
+        color: #e5e7eb;
+      }
+
+      html:not(.theme-dark) .slide-prompt-btn-cancel {
+        background: rgba(0, 0, 0, 0.05);
+        color: #374151;
+      }
+
+      .slide-prompt-btn-cancel:hover {
+        background: rgba(255, 255, 255, 0.12);
+      }
+
+      html:not(.theme-dark) .slide-prompt-btn-cancel:hover {
+        background: rgba(0, 0, 0, 0.08);
+      }
+
+      .slide-prompt-btn-save {
+        background: linear-gradient(135deg, var(--primary), var(--primary-2));
+        color: white;
+      }
+
+      .slide-prompt-btn-save:hover {
+        opacity: 0.9;
+      }
     </style>
   </head>
 
@@ -1597,6 +1768,40 @@
               data-i18n="common.confirm"
             >
               Confirm
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide Prompt Editor -->
+      <div id="slidePromptOverlay" class="slide-prompt-overlay">
+        <div class="slide-prompt-dialog">
+          <div class="slide-prompt-header">
+            <span class="slide-prompt-title" data-i18n="slidePrompt.title">Edit Slide Prompt</span>
+            <button id="slidePromptClose" class="slide-prompt-close">×</button>
+          </div>
+          <div class="slide-prompt-body">
+            <textarea
+              id="slidePromptTextarea"
+              class="slide-prompt-textarea"
+              placeholder=""
+              data-i18n-placeholder="slidePrompt.placeholder"
+            ></textarea>
+          </div>
+          <div class="slide-prompt-buttons">
+            <button
+              id="slidePromptCancel"
+              class="slide-prompt-btn slide-prompt-btn-cancel"
+              data-i18n="common.cancel"
+            >
+              Cancel
+            </button>
+            <button
+              id="slidePromptSave"
+              class="slide-prompt-btn slide-prompt-btn-save"
+              data-i18n="slidePrompt.save"
+            >
+              Save
             </button>
           </div>
         </div>
@@ -1918,6 +2123,82 @@
     </div>
     <div id="toast" class="toast-container"></div>
 
+    <!-- Snippet Progress Modal -->
+    <div id="snippetProgressOverlay" class="snippet-progress-overlay">
+      <div class="snippet-progress-dialog">
+        <div class="snippet-progress-spinner"></div>
+        <div class="snippet-progress-title" id="snippetProgressTitle">Processing...</div>
+        <div class="snippet-progress-detail" id="snippetProgressDetail"></div>
+        <div class="snippet-progress-bar">
+          <div class="snippet-progress-bar-fill" id="snippetProgressBarFill"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Snippet Import Options Dialog -->
+    <div id="snippetImportOptionsOverlay" class="snippet-import-options-overlay">
+      <div class="snippet-import-options-dialog">
+        <div class="snippet-import-options-header">
+          <span data-i18n="settings.snippetsImportTitle">Import Snippets</span>
+          <button
+            class="snippet-import-options-close"
+            onclick="window.settingsUI?.hideImportOptionsDialog()"
+          >
+            &times;
+          </button>
+        </div>
+        <div class="snippet-import-options-body">
+          <label class="snippet-import-option">
+            <input type="radio" name="importMode" value="merge" checked />
+            <div class="snippet-import-option-content">
+              <div class="snippet-import-option-title" data-i18n="settings.snippetsImportMerge">
+                Add Mode
+              </div>
+              <div class="snippet-import-option-desc" data-i18n="settings.snippetsImportMergeDesc">
+                Keep existing snippets and add new ones
+              </div>
+            </div>
+          </label>
+          <label class="snippet-import-option">
+            <input type="radio" name="importMode" value="replace" />
+            <div class="snippet-import-option-content">
+              <div class="snippet-import-option-title" data-i18n="settings.snippetsImportReplace">
+                Replace Mode
+              </div>
+              <div
+                class="snippet-import-option-desc"
+                data-i18n="settings.snippetsImportReplaceDesc"
+              >
+                Replace all existing snippets
+              </div>
+              <div class="snippet-import-option-warning">
+                ⚠️
+                <span data-i18n="settings.snippetsImportReplaceWarning"
+                  >This action cannot be undone</span
+                >
+              </div>
+            </div>
+          </label>
+        </div>
+        <div class="snippet-import-options-footer">
+          <button
+            class="snippet-import-btn-cancel"
+            onclick="window.settingsUI?.hideImportOptionsDialog()"
+            data-i18n="cancel"
+          >
+            Cancel
+          </button>
+          <button
+            class="snippet-import-btn-confirm"
+            onclick="const radio = document.querySelector('input[name=&quot;importMode&quot;]:checked'); window.settingsUI?.executeImport(radio ? radio.value : 'merge')"
+            data-i18n="settings.snippetsImport"
+          >
+            Import
+          </button>
+        </div>
+      </div>
+    </div>
+
     <script src="./clipboard_renderer.js"></script>
     <script src="./launcher_renderer.js"></script>
     <script src="./terminal_renderer.js"></script>
@@ -1948,11 +2229,11 @@
         const settingsFooter = document.getElementById('settingsFooter');
         const inputArea = document.getElementById('inputArea');
 
-        let clipboardUI = null;
+        window.clipboardUI = null;
         let memoUI = null;
         let terminalUI = null;
         let launcherUI = null;
-        let settingsUI = null;
+        window.settingsUI = null;
 
         function switchTab(tabName) {
           // Check if chat tab is already active and visible to prevent flashing
@@ -2043,22 +2324,22 @@
               historyFooter.style.display = 'flex';
 
               // Initialize clipboard UI if not already done
-              if (!clipboardUI) {
-                clipboardUI = new ClipboardHistoryUI();
+              if (!window.clipboardUI) {
+                window.clipboardUI = new ClipboardHistoryUI();
               }
-              clipboardUI.currentTab = 'history';
-              clipboardUI.switchTab('history');
+              window.clipboardUI.currentTab = 'history';
+              window.clipboardUI.switchTab('history');
             } else if (tabName === 'snippet') {
               snippetTab.classList.add('active');
               snippetList.style.display = 'block';
               snippetFooter.style.display = 'flex';
 
               // Initialize clipboard UI if not already done
-              if (!clipboardUI) {
-                clipboardUI = new ClipboardHistoryUI();
+              if (!window.clipboardUI) {
+                window.clipboardUI = new ClipboardHistoryUI();
               }
-              clipboardUI.currentTab = 'snippet';
-              clipboardUI.switchTab('snippet');
+              window.clipboardUI.currentTab = 'snippet';
+              window.clipboardUI.switchTab('snippet');
             } else if (tabName === 'launcher') {
               launcherTab.classList.add('active');
               launcherContainer.style.display = 'block';
@@ -2106,8 +2387,8 @@
               settingsFooter.style.display = 'flex';
 
               // Initialize settings UI if not already done
-              if (!settingsUI) {
-                settingsUI = new SettingsUI();
+              if (!window.settingsUI) {
+                window.settingsUI = new SettingsUI();
               }
             }
           }

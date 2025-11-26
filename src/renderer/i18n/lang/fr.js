@@ -45,6 +45,8 @@
     selectionTranslation: 'Traduire la sélection',
     selectionEmpathy: 'Réponse empathique pour la sélection',
     selectionReplies: 'Variations de réponse pour la sélection',
+    slideImageGenerating: "Génération de l'image de diapositive",
+    imageCopied: 'Image copiée dans le presse-papiers',
     urlContextSummary: (url) => `Résumé de l’URL sélectionnée :\n${url}`,
     urlContextDetailed: (url) => `Analyse détaillée de l’URL sélectionnée :\n${url}`,
     invalidUrlSelection:
@@ -52,6 +54,18 @@
     updateAvailable: (v) =>
       `Nouvelle version (${v}) disponible. Ouvrir la page de téléchargement ?`,
     upToDate: 'Vous êtes à jour.',
+    shortcutHints: {
+      title: 'Raccourcis clavier',
+      shortcutDesc:
+        "Ajoutez Shift aux raccourcis d'explication pour une analyse détaillée. Les affectations peuvent être modifiées dans les paramètres.",
+      atTitle: 'Chat : Actions @',
+      atImage: 'Générer une image',
+      atVideo: 'Générer une vidéo',
+      atSlide: 'Générer une image de diapositive',
+      slashTitle: 'Chat : Commandes slash',
+      slashDesc:
+        'Utilisez les commandes slash pour explorer le contenu du chat et configurer les paramètres.',
+    },
     slashDescriptions: {
       what: 'Clarifier la dernière réponse de l’IA',
       next: 'Continuer la dernière réponse de l’IA',
@@ -77,11 +91,20 @@
       imageSize16_9: 'Paysage (16:9)',
       imageSize3_4: 'Portrait (3:4)',
       imageSize4_3: 'Paysage (4:3)',
-      imageCount: 'Définir le nombre d’images à générer',
+      imageCount: "Définir le nombre d'images à générer",
       imageCount1: 'Générer 1 image',
       imageCount2: 'Générer 2 images',
       imageCount3: 'Générer 3 images',
       imageCount4: 'Générer 4 images',
+      slide: 'Commandes de génération de diapositives',
+      slideStatus: 'Afficher les paramètres de génération de diapositives',
+      slideSize: 'Définir le format de la diapositive',
+      slideSize16_9: 'Paysage (16:9)',
+      slideSize9_16: 'Portrait (9:16)',
+      slideSize4_3: 'Paysage (4:3)',
+      slideSize3_4: 'Portrait (3:4)',
+      slideSize1_1: 'Carré (1:1)',
+      slidePrompt: 'Modifier le modèle de prompt de diapositive',
     },
     slashTranslateIntoLanguage: (name) => `Traduire en ${name}`,
     clipboard: {
@@ -163,6 +186,24 @@
         snippetPopup: 'Extraits',
         toggleMainWindow: 'Basculer fenêtre principale',
       },
+      // Snippets
+      snippetsTitle: 'Extraits',
+      snippetsExport: 'Exporter',
+      snippetsImport: 'Importer',
+      snippetsExporting: 'Exportation...',
+      snippetsImporting: 'Importation...',
+      snippetsExportSuccess: (count) => `${count} extraits exportés`,
+      snippetsImportSuccess: (count) => `${count} extraits importés`,
+      snippetsExportError: "Échec de l'exportation",
+      snippetsImportError: "Échec de l'importation",
+      snippetsInvalidFile: 'Format de fichier invalide',
+      snippetsNoData: 'Aucun extrait à exporter',
+      snippetsImportTitle: 'Importer des extraits',
+      snippetsImportMerge: 'Mode ajout',
+      snippetsImportMergeDesc: 'Conserver les extraits existants et en ajouter',
+      snippetsImportReplace: 'Mode remplacement',
+      snippetsImportReplaceDesc: 'Remplacer tous les extraits existants',
+      snippetsImportReplaceWarning: 'Cette action est irréversible',
     },
     common: {
       confirmAction: 'Confirmer',
@@ -192,6 +233,11 @@
     },
     prompt: {
       close: 'Fermer',
+    },
+    slidePrompt: {
+      title: 'Modifier le prompt de diapositive',
+      placeholder: 'Entrer un prompt personnalisé...',
+      save: 'Enregistrer',
     },
   });
 })();

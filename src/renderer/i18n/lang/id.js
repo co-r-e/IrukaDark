@@ -44,12 +44,26 @@
     selectionTranslation: 'Terjemahkan pilihan',
     selectionEmpathy: 'Balasan empati untuk pilihan',
     selectionReplies: 'Variasi balasan untuk pilihan',
+    slideImageGenerating: 'Membuat gambar slide',
+    imageCopied: 'Gambar disalin ke papan klip',
     urlContextSummary: (url) => `Ringkasan URL yang dipilih:\n${url}`,
     urlContextDetailed: (url) => `Analisis mendalam URL yang dipilih:\n${url}`,
     invalidUrlSelection:
       'Tidak ada URL valid yang ditemukan. Pilih satu URL HTTP(S) lalu coba lagi.',
     updateAvailable: (v) => `Versi baru (${v}) tersedia. Buka unduhan?`,
     upToDate: 'Anda sudah versi terbaru.',
+    shortcutHints: {
+      title: 'Pintasan Keyboard',
+      shortcutDesc:
+        'Tambahkan Shift ke pintasan penjelasan untuk analisis detail. Pengaturan pintasan dapat diubah di tab Pengaturan.',
+      atTitle: 'Chat: Aksi @',
+      atImage: 'Buat gambar',
+      atVideo: 'Buat video',
+      atSlide: 'Buat gambar slide',
+      slashTitle: 'Chat: Perintah Slash',
+      slashDesc:
+        'Gunakan perintah slash untuk menjelajahi konten chat dan mengonfigurasi pengaturan.',
+    },
     slashDescriptions: {
       what: 'Jelaskan ulang jawaban AI terakhir',
       next: 'Lanjutkan jawaban AI terakhir',
@@ -80,6 +94,15 @@
       imageCount2: 'Buat 2 gambar',
       imageCount3: 'Buat 3 gambar',
       imageCount4: 'Buat 4 gambar',
+      slide: 'Kontrol pembuatan slide',
+      slideStatus: 'Tampilkan pengaturan pembuatan slide',
+      slideSize: 'Atur rasio aspek slide',
+      slideSize16_9: 'Lanskap (16:9)',
+      slideSize9_16: 'Potret (9:16)',
+      slideSize4_3: 'Lanskap (4:3)',
+      slideSize3_4: 'Potret (3:4)',
+      slideSize1_1: 'Persegi (1:1)',
+      slidePrompt: 'Edit template prompt slide',
     },
     slashTranslateIntoLanguage: (name) => `Terjemahkan ke ${name}`,
     clipboard: {
@@ -161,6 +184,24 @@
         snippetPopup: 'Cuplikan',
         toggleMainWindow: 'Alihkan jendela utama',
       },
+      // Snippets
+      snippetsTitle: 'Cuplikan',
+      snippetsExport: 'Ekspor',
+      snippetsImport: 'Impor',
+      snippetsExporting: 'Mengekspor...',
+      snippetsImporting: 'Mengimpor...',
+      snippetsExportSuccess: (count) => `${count} cuplikan diekspor`,
+      snippetsImportSuccess: (count) => `${count} cuplikan diimpor`,
+      snippetsExportError: 'Ekspor gagal',
+      snippetsImportError: 'Impor gagal',
+      snippetsInvalidFile: 'Format file tidak valid',
+      snippetsNoData: 'Tidak ada cuplikan untuk diekspor',
+      snippetsImportTitle: 'Impor Cuplikan',
+      snippetsImportMerge: 'Mode Tambah',
+      snippetsImportMergeDesc: 'Pertahankan cuplikan yang ada dan tambahkan baru',
+      snippetsImportReplace: 'Mode Ganti',
+      snippetsImportReplaceDesc: 'Ganti semua cuplikan yang ada',
+      snippetsImportReplaceWarning: 'Tindakan ini tidak dapat dibatalkan',
     },
     common: {
       confirmAction: 'Konfirmasi',
@@ -190,6 +231,11 @@
     },
     prompt: {
       close: 'Tutup',
+    },
+    slidePrompt: {
+      title: 'Edit Prompt Slide',
+      placeholder: 'Masukkan prompt kustom...',
+      save: 'Simpan',
     },
   });
 })();

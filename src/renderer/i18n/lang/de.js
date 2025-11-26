@@ -45,12 +45,26 @@
     selectionTranslation: 'Auswahl übersetzen',
     selectionEmpathy: 'Einfühlsame Antwort auf die Auswahl',
     selectionReplies: 'Antwortvarianten für die Auswahl',
+    slideImageGenerating: 'Folienbild wird erstellt',
+    imageCopied: 'Bild in die Zwischenablage kopiert',
     urlContextSummary: (url) => `Kurzfassung der ausgewählten URL:\n${url}`,
     urlContextDetailed: (url) => `Ausführliche Analyse der ausgewählten URL:\n${url}`,
     invalidUrlSelection:
       'Keine gültige URL gefunden. Bitte genau eine HTTP(S)-URL markieren und erneut versuchen.',
     updateAvailable: (v) => `Neue Version (${v}) verfügbar. Downloads öffnen?`,
     upToDate: 'Du bist auf dem neuesten Stand.',
+    shortcutHints: {
+      title: 'Tastenkürzel',
+      shortcutDesc:
+        'Durch Hinzufügen von Shift zu Erklärungs-Shortcuts erhältst du eine detaillierte Analyse. Die Zuweisungen kannst du in den Einstellungen ändern.',
+      atTitle: 'Chat: @ Aktionen',
+      atImage: 'Bild generieren',
+      atVideo: 'Video generieren',
+      atSlide: 'Folienbild generieren',
+      slashTitle: 'Chat: Slash-Befehle',
+      slashDesc:
+        'Mit Slash-Befehlen kannst du Chat-Inhalte erkunden und Einstellungen konfigurieren.',
+    },
     slashDescriptions: {
       what: 'Die letzte KI-Antwort verständlicher erklären',
       next: 'Die letzte KI-Antwort fortsetzen',
@@ -81,6 +95,15 @@
       imageCount2: '2 Bilder erzeugen',
       imageCount3: '3 Bilder erzeugen',
       imageCount4: '4 Bilder erzeugen',
+      slide: 'Folienbildgenerierung steuern',
+      slideStatus: 'Einstellungen der Folienbildgenerierung anzeigen',
+      slideSize: 'Seitenverhältnis der Folie festlegen',
+      slideSize16_9: 'Querformat (16:9)',
+      slideSize9_16: 'Hochformat (9:16)',
+      slideSize4_3: 'Querformat (4:3)',
+      slideSize3_4: 'Hochformat (3:4)',
+      slideSize1_1: 'Quadrat (1:1)',
+      slidePrompt: 'Folien-Prompt-Vorlage bearbeiten',
     },
     slashTranslateIntoLanguage: (name) => `In ${name} übersetzen`,
     clipboard: {
@@ -164,6 +187,24 @@
         snippetPopup: 'Snippets',
         toggleMainWindow: 'Hauptfenster umschalten',
       },
+      // Snippets
+      snippetsTitle: 'Snippets',
+      snippetsExport: 'Exportieren',
+      snippetsImport: 'Importieren',
+      snippetsExporting: 'Exportieren...',
+      snippetsImporting: 'Importieren...',
+      snippetsExportSuccess: (count) => `${count} Snippets exportiert`,
+      snippetsImportSuccess: (count) => `${count} Snippets importiert`,
+      snippetsExportError: 'Export fehlgeschlagen',
+      snippetsImportError: 'Import fehlgeschlagen',
+      snippetsInvalidFile: 'Ungültiges Snippet-Dateiformat',
+      snippetsNoData: 'Keine Snippets zum Exportieren vorhanden',
+      snippetsImportTitle: 'Snippets importieren',
+      snippetsImportMerge: 'Hinzufügen-Modus',
+      snippetsImportMergeDesc: 'Vorhandene Snippets behalten und neue hinzufügen',
+      snippetsImportReplace: 'Ersetzen-Modus',
+      snippetsImportReplaceDesc: 'Alle vorhandenen Snippets ersetzen',
+      snippetsImportReplaceWarning: 'Diese Aktion kann nicht rückgängig gemacht werden',
     },
     common: {
       confirmAction: 'Bestätigen',
@@ -192,6 +233,11 @@
     },
     prompt: {
       close: 'Schließen',
+    },
+    slidePrompt: {
+      title: 'Folien-Prompt bearbeiten',
+      placeholder: 'Eigenen Prompt eingeben...',
+      save: 'Speichern',
     },
   });
 })();

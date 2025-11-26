@@ -13,6 +13,7 @@ const {
   shell,
   screen,
   nativeImage,
+  dialog,
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -32,10 +33,10 @@ const {
   modelCandidates,
   restGenerateText,
   restGenerateImage,
-  restGenerateImageFromText,
-  restGenerateImageFromTextWithReference,
   sdkGenerateText,
   sdkGenerateImage,
+  sdkGenerateImageFromText,
+  sdkGenerateImageFromTextWithReference,
   restGenerateVideoFromText,
 } = require('../ai');
 const { getMainWindow, setMainWindow, setPopupWindow, getPopupWindow } = require('../context');
@@ -748,6 +749,35 @@ function bootstrapApp() {
       } catch {}
     }
 
+    // Register slide image generation shortcut
+    let slideImageUsed = '';
+    if (shortcuts.slideImage) {
+      try {
+        const c = shortcuts.slideImage;
+        const ok = globalShortcut.register(c, () => {
+          logShortcutEvent('shortcut.trigger', { accel: c, kind: 'slide_image' });
+          (async () => {
+            try {
+              const mainWindow = getMainWindow();
+              if (!mainWindow || mainWindow.isDestroyed()) return;
+
+              const text = await tryCopySelectedText();
+              if (!mainWindow || mainWindow.isDestroyed()) return;
+
+              bringMainWindowToFront(mainWindow);
+
+              if (text) {
+                mainWindow.webContents.send('generate-slide-image', text);
+              } else {
+                mainWindow.webContents.send('explain-clipboard-error', '');
+              }
+            } catch (e) {}
+          })();
+        });
+        if (ok) slideImageUsed = c;
+      } catch {}
+    }
+
     // Move popup window to cursor position shortcut
     if (shortcuts.moveToCursor) {
       try {
@@ -956,6 +986,7 @@ function bootstrapApp() {
         mainWindow.webContents.send('shortcut-reply-registered', replyUsed);
         mainWindow.webContents.send('shortcut-url-summary-registered', urlSummaryUsed);
         mainWindow.webContents.send('shortcut-url-detailed-registered', urlDetailedUsed);
+        mainWindow.webContents.send('shortcut-slide-image-registered', slideImageUsed);
       }
       logShortcutEvent('shortcut.register.summary', {
         baseUsed,
@@ -964,6 +995,7 @@ function bootstrapApp() {
         replyUsed,
         urlSummaryUsed,
         urlDetailedUsed,
+        slideImageUsed,
       });
     } catch {}
 
@@ -1346,6 +1378,43 @@ function bootstrapApp() {
       return result;
     });
 
+    // Slide image settings
+    ipcMain.handle('save-slide-size', (_e, ratio) => {
+      const validRatios = ['16:9', '9:16', '4:3', '3:4', '1:1'];
+      const normalized = validRatios.includes(ratio) ? ratio : '16:9';
+      setPrefWithCacheInvalidation('SLIDE_SIZE', normalized);
+      return normalized;
+    });
+
+    ipcMain.handle('get-slide-size', () => {
+      const validRatios = ['16:9', '9:16', '4:3', '3:4', '1:1'];
+      const cached = prefCache.get('SLIDE_SIZE');
+      if (cached !== null) {
+        return validRatios.includes(cached) ? cached : '16:9';
+      }
+      const raw = getPref('SLIDE_SIZE') || '16:9';
+      const result = validRatios.includes(raw) ? raw : '16:9';
+      prefCache.set('SLIDE_SIZE', result);
+      return result;
+    });
+
+    ipcMain.handle('save-slide-prompt', (_e, prompt) => {
+      const normalized = String(prompt || '').trim();
+      setPrefWithCacheInvalidation('SLIDE_PROMPT', normalized);
+      return normalized;
+    });
+
+    ipcMain.handle('get-slide-prompt', () => {
+      const cached = prefCache.get('SLIDE_PROMPT');
+      if (cached !== null) {
+        return cached;
+      }
+
+      const raw = getPref('SLIDE_PROMPT') || '';
+      prefCache.set('SLIDE_PROMPT', raw);
+      return raw;
+    });
+
     ipcMain.handle('get-window-opacity', () => {
       const v = parseFloat(getPref('WINDOW_OPACITY') || '1');
       return Number.isFinite(v) ? v : 1;
@@ -1604,6 +1673,164 @@ function bootstrapApp() {
         );
         clipboardService.programmaticSetTime = Date.now();
         return { success: true };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    });
+
+    // ========== Snippet Export/Import ==========
+    ipcMain.handle('snippet:export', async () => {
+      const AdmZip = require('adm-zip');
+      try {
+        const now = new Date();
+        const dateStr = now.toISOString().slice(0, 10);
+        const focusedWindow = BrowserWindow.getFocusedWindow();
+        const result = await dialog.showSaveDialog(focusedWindow, {
+          defaultPath: `IrukaDark-Snippets-${dateStr}.zip`,
+          filters: [{ name: 'ZIP Archive', extensions: ['zip'] }],
+        });
+        if (result.canceled) return { success: false, canceled: true };
+
+        if (!fs.existsSync(snippetDataPath)) {
+          return { success: false, error: 'NO_SNIPPETS' };
+        }
+
+        const snippetData = JSON.parse(fs.readFileSync(snippetDataPath, 'utf8'));
+        const zip = new AdmZip();
+
+        // manifest.json
+        const manifest = {
+          version: '1.0',
+          exportedAt: now.toISOString(),
+          folderCount: (snippetData.folders || []).length,
+          snippetCount: (snippetData.snippets || []).length,
+          imageCount: (snippetData.snippets || []).filter((s) => s.type === 'image').length,
+        };
+        zip.addFile('manifest.json', Buffer.from(JSON.stringify(manifest, null, 2)));
+
+        // snippets.json
+        zip.addFile('snippets.json', Buffer.from(JSON.stringify(snippetData, null, 2)));
+
+        // 画像ファイル
+        let processedImages = 0;
+        const imageSnippets = (snippetData.snippets || []).filter(
+          (s) => s.type === 'image' && s.imagePath
+        );
+        for (const snippet of imageSnippets) {
+          const imagePath = path.join(snippetImagesDir, snippet.imagePath);
+          if (fs.existsSync(imagePath)) {
+            zip.addLocalFile(imagePath, 'images');
+          }
+          processedImages++;
+          BrowserWindow.getFocusedWindow()?.webContents.send('snippet:export-progress', {
+            current: processedImages,
+            total: imageSnippets.length,
+          });
+        }
+
+        zip.writeZip(result.filePath);
+        return { success: true, count: snippetData.snippets?.length || 0 };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    });
+
+    ipcMain.handle('snippet:import', async (_e, { mode }) => {
+      const AdmZip = require('adm-zip');
+      const validMode = mode === 'replace' ? 'replace' : 'merge';
+      const mainWindow = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+
+      try {
+        const result = await dialog.showOpenDialog(mainWindow, {
+          filters: [{ name: 'ZIP Archive', extensions: ['zip'] }],
+          properties: ['openFile'],
+        });
+        if (result.canceled) return { success: false, canceled: true };
+
+        const zip = new AdmZip(result.filePaths[0]);
+        const entries = zip.getEntries();
+
+        // Validate ZIP structure
+        const snippetsEntry = entries.find((e) => e.entryName === 'snippets.json');
+        if (!snippetsEntry) {
+          return { success: false, error: 'INVALID_FORMAT' };
+        }
+
+        const importData = JSON.parse(snippetsEntry.getData().toString('utf8'));
+
+        // Notify renderer that import has started
+        mainWindow?.webContents.send('snippet:import-started', {
+          total: importData.snippets?.length || 0,
+        });
+
+        // Ensure images directory exists
+        if (!fs.existsSync(snippetImagesDir)) {
+          fs.mkdirSync(snippetImagesDir, { recursive: true });
+        }
+
+        // Prepare existing data based on mode
+        let existingData;
+        if (validMode === 'replace') {
+          // Replace mode: clear existing images
+          if (fs.existsSync(snippetImagesDir)) {
+            for (const file of fs.readdirSync(snippetImagesDir)) {
+              fs.unlinkSync(path.join(snippetImagesDir, file));
+            }
+          }
+          existingData = { folders: [], snippets: [], nextFolderId: 1, nextSnippetId: 1 };
+        } else {
+          // Merge mode: load existing data
+          existingData = fs.existsSync(snippetDataPath)
+            ? JSON.parse(fs.readFileSync(snippetDataPath, 'utf8'))
+            : { folders: [], snippets: [], nextFolderId: 1, nextSnippetId: 1 };
+        }
+
+        // Create ID mapping for folders
+        const folderIdMap = new Map();
+        for (const folder of importData.folders || []) {
+          const newId = `folder-${existingData.nextFolderId++}`;
+          folderIdMap.set(folder.id, newId);
+          existingData.folders.push({
+            ...folder,
+            id: newId,
+            parentId: folder.parentId ? folderIdMap.get(folder.parentId) || null : null,
+            editing: false,
+          });
+        }
+
+        // Import snippets and extract images
+        const imageSnippets = (importData.snippets || []).filter((s) => s.type === 'image');
+        let processedImages = 0;
+
+        for (const snippet of importData.snippets || []) {
+          const newId = `snippet-${existingData.nextSnippetId++}`;
+          let newImagePath = null;
+
+          if (snippet.type === 'image' && snippet.imagePath) {
+            const imageEntry = entries.find((e) => e.entryName === `images/${snippet.imagePath}`);
+            if (imageEntry) {
+              const ext = path.extname(snippet.imagePath) || '.png';
+              newImagePath = `${newId}${ext}`;
+              fs.writeFileSync(path.join(snippetImagesDir, newImagePath), imageEntry.getData());
+            }
+            processedImages++;
+            mainWindow?.webContents.send('snippet:import-progress', {
+              current: processedImages,
+              total: imageSnippets.length,
+            });
+          }
+
+          existingData.snippets.push({
+            ...snippet,
+            id: newId,
+            folderId: folderIdMap.get(snippet.folderId) || null,
+            imagePath: newImagePath || (snippet.type !== 'image' ? undefined : null),
+            editing: false,
+          });
+        }
+
+        fs.writeFileSync(snippetDataPath, JSON.stringify(existingData, null, 2));
+        return { success: true, count: importData.snippets?.length || 0 };
       } catch (err) {
         return { success: false, error: err.message };
       }
@@ -2156,6 +2383,9 @@ Command:`;
     });
 
     ipcMain.handle('ai:generate-image-from-text', async (_e, payload) => {
+      const IMAGE_MODEL = 'gemini-3-pro-image-preview';
+      const TIMEOUT_MS = 60000;
+
       try {
         const keys = resolveApiKeys();
         if (!keys.length) {
@@ -2168,93 +2398,50 @@ Command:`;
         }
 
         const aspectRatio = String(payload?.aspectRatio || '1:1');
-        const generationConfig = payload?.generationConfig || {
-          temperature: 0.95,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 2048,
-        };
-
-        // Check if reference images are provided (support multiple)
         const referenceImages = payload?.referenceImages;
-        const hasReferenceImages =
-          referenceImages && Array.isArray(referenceImages) && referenceImages.length > 0;
+        const hasReferences = Array.isArray(referenceImages) && referenceImages.length > 0;
 
-        const modelName = 'gemini-3-pro-image-preview';
-        const errorLog = [];
-
-        // Create AbortController for cancellation and timeout
         const controller = new AbortController();
-        const timeoutMs = 60000; // 60 seconds for image generation
-        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-        // Set as current AI controller for cancel functionality
+        const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
         currentAIController = controller;
         currentAIKind = 'chat';
+
+        const errorLog = [];
 
         try {
           for (const key of keys) {
             try {
-              let result;
+              const genAI = await getGenAIClientForKey(key);
+              const result = hasReferences
+                ? await sdkGenerateImageFromTextWithReference(
+                    genAI,
+                    IMAGE_MODEL,
+                    prompt,
+                    referenceImages,
+                    { aspectRatio }
+                  )
+                : await sdkGenerateImageFromText(genAI, IMAGE_MODEL, prompt, { aspectRatio });
 
-              if (hasReferenceImages) {
-                // Use reference images-based generation (multiple images supported)
-                result = await restGenerateImageFromTextWithReference(
-                  key,
-                  modelName,
-                  prompt,
-                  referenceImages,
-                  generationConfig,
-                  {
-                    aspectRatio,
-                    signal: controller.signal,
-                  }
-                );
-              } else {
-                // Standard text-to-image generation
-                result = await restGenerateImageFromText(key, modelName, prompt, generationConfig, {
-                  aspectRatio,
-                  signal: controller.signal,
-                });
-              }
-
-              if (result && result.imageData) {
-                clearTimeout(timeoutId);
-                return {
-                  imageBase64: result.imageData,
-                  mimeType: result.mimeType || 'image/png',
-                };
+              if (result?.imageData) {
+                return { imageBase64: result.imageData, mimeType: result.mimeType || 'image/png' };
               }
             } catch (err) {
-              const msg = String(err?.message || 'Unknown error');
-              errorLog.push(`Key ${key.substring(0, 8)}...: ${msg}`);
-
-              if (/API_KEY_INVALID|API key not valid/i.test(msg)) {
-                continue;
-              }
-
-              // If aborted, return error immediately
               if (err.name === 'AbortError') {
-                clearTimeout(timeoutId);
                 return { error: 'Image generation was cancelled or timed out.' };
               }
-
-              throw err;
+              const msg = err?.message || 'Unknown error';
+              errorLog.push(`Key ${key.substring(0, 8)}...: ${msg}`);
+              // Continue to next key
             }
           }
 
-          clearTimeout(timeoutId);
-          return {
-            error: `Image generation failed: ${errorLog.join('; ')}`,
-          };
+          return { error: `Image generation failed: ${errorLog.join('; ')}` };
         } finally {
           clearTimeout(timeoutId);
           currentAIController = null;
         }
       } catch (err) {
-        return {
-          error: `Image generation error: ${err?.message || 'Unknown error'}`,
-        };
+        return { error: `Image generation error: ${err?.message || 'Unknown error'}` };
       }
     });
 
