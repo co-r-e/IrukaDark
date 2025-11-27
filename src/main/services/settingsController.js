@@ -51,6 +51,13 @@ class SettingsController {
     this.menuRefresher();
   }
 
+  handleSyncPopupWithMainChange(enabled) {
+    try {
+      this.setPref('SYNC_POPUP_WITH_MAIN', enabled ? '1' : '0');
+    } catch {}
+    this.menuRefresher();
+  }
+
   handleWebSearchToggle(enabled) {
     try {
       this.setPref('ENABLE_GOOGLE_SEARCH', enabled ? '1' : '0');

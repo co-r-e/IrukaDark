@@ -236,6 +236,7 @@
       themeLight: 'ライト',
       themeDark: 'ダーク',
       windowOpacity: 'ウィンドウの不透明度',
+      syncPopupWithMain: 'メインウィンドウと一緒にロゴポップアップを切り替え',
       pinAllSpaces: '全アプリ・全スペースで表示',
       language: '言語',
       settingSaved: '設定を保存しました',

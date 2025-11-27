@@ -234,6 +234,7 @@
       themeLight: 'Light',
       themeDark: 'Dark',
       windowOpacity: 'Window Opacity',
+      syncPopupWithMain: 'Toggle Logo Popup with Main Window',
       pinAllSpaces: 'Show Over All Apps/Spaces',
       language: 'Language',
       settingSaved: 'Setting saved',

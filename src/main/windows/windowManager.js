@@ -646,6 +646,72 @@ class WindowManager {
     );
   }
 
+  /**
+   * Read sync popup with main window preference
+   * @returns {boolean} True if popup should sync visibility with main window
+   */
+  readSyncPopupWithMainPref() {
+    return ['1', 'true', 'on'].includes(
+      String(this.getPref('SYNC_POPUP_WITH_MAIN') || '0').toLowerCase()
+    );
+  }
+
+  /**
+   * Show popup window if sync setting is enabled and popup is hidden
+   *
+   * @description
+   * Call this when showing the main window via shortcuts (Alt+A, Alt+S, etc.)
+   * to ensure popup visibility is synchronized if the user has enabled the setting.
+   */
+  showPopupIfSyncEnabled() {
+    if (!this.readSyncPopupWithMainPref()) return;
+
+    const popupWindow = getPopupWindow();
+    if (this.isValidWindow(popupWindow) && !popupWindow.isVisible()) {
+      popupWindow.show();
+    }
+  }
+
+  /**
+   * Hide popup window if sync setting is enabled and popup is visible
+   *
+   * @description
+   * Call this when hiding the main window to ensure popup visibility
+   * is synchronized if the user has enabled the setting.
+   */
+  hidePopupIfSyncEnabled() {
+    if (!this.readSyncPopupWithMainPref()) return;
+
+    const popupWindow = getPopupWindow();
+    if (this.isValidWindow(popupWindow) && popupWindow.isVisible()) {
+      popupWindow.hide();
+    }
+  }
+
+  /**
+   * Toggle both main window and popup window (if sync setting is enabled)
+   *
+   * @description
+   * When sync is enabled, both windows toggle together.
+   * When sync is disabled, only the main window toggles.
+   * This provides centralized control for the Alt+Space shortcut behavior.
+   */
+  toggleBothWindows() {
+    const mainWindow = getMainWindow();
+    if (!this.isValidWindow(mainWindow)) return;
+
+    this.safeExecute(() => {
+      if (mainWindow.isVisible()) {
+        mainWindow.hide();
+        this.hidePopupIfSyncEnabled();
+      } else {
+        mainWindow.show();
+        mainWindow.focus();
+        this.showPopupIfSyncEnabled();
+      }
+    }, 'Error toggling both windows');
+  }
+
   positionMainWindow(mainWindow) {
     try {
       const [w, h] = mainWindow.getSize();

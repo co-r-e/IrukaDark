@@ -45,6 +45,7 @@ class SettingsUI {
     // Appearance settings
     this.currentTheme = 'dark';
     this.currentOpacity = 1;
+    this.syncPopupWithMain = false;
 
     // Language list for settings
     this.languageList = [
@@ -158,6 +159,10 @@ class SettingsUI {
         if (window.electronAPI.getWindowOpacity) {
           const opacity = await window.electronAPI.getWindowOpacity();
           this.currentOpacity = parseFloat(opacity) || 1;
+        }
+        // Load sync popup with main setting
+        if (window.electronAPI.getSyncPopupWithMain) {
+          this.syncPopupWithMain = await window.electronAPI.getSyncPopupWithMain();
         }
       }
     } catch (err) {}
@@ -286,6 +291,17 @@ class SettingsUI {
                 )
                 .join('')}
             </select>
+          </div>
+        </div>
+
+        <!-- Sync Popup with Main Window -->
+        <div class="settings-item">
+          <div class="settings-item-label">${this.escapeHtml(t.syncPopupWithMain || 'Toggle Logo Popup with Main Window')}</div>
+          <div class="settings-item-controls">
+            <label class="settings-toggle">
+              <input type="checkbox" id="syncPopupToggle" ${this.syncPopupWithMain ? 'checked' : ''}>
+              <span class="settings-toggle-slider"></span>
+            </label>
           </div>
         </div>
       </div>
@@ -435,6 +451,14 @@ class SettingsUI {
     if (opacitySelect) {
       opacitySelect.addEventListener('change', (e) =>
         this.handleOpacitySelect(parseFloat(e.target.value))
+      );
+    }
+
+    // Sync popup with main toggle
+    const syncPopupToggle = document.getElementById('syncPopupToggle');
+    if (syncPopupToggle) {
+      syncPopupToggle.addEventListener('change', (e) =>
+        this.handleSyncPopupToggle(e.target.checked)
       );
     }
 
@@ -1033,6 +1057,22 @@ class SettingsUI {
       if (window.electronAPI && window.electronAPI.setWindowOpacity) {
         await window.electronAPI.setWindowOpacity(opacity);
         this.currentOpacity = opacity;
+        this.showToast(this.i18n.settings.settingSaved || 'Setting saved', 'success');
+      }
+    } catch (err) {
+      this.showToast(this.i18n.errorOccurred || 'An error occurred', 'error');
+    }
+  }
+
+  /**
+   * Handle sync popup with main window toggle
+   * @param {boolean} enabled - Whether to sync popup with main window
+   */
+  async handleSyncPopupToggle(enabled) {
+    try {
+      if (window.electronAPI && window.electronAPI.setSyncPopupWithMain) {
+        await window.electronAPI.setSyncPopupWithMain(enabled);
+        this.syncPopupWithMain = enabled;
         this.showToast(this.i18n.settings.settingSaved || 'Setting saved', 'success');
       }
     } catch (err) {

@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setWindowOpacity: (opacity) => ipcRenderer.invoke('set-window-opacity', opacity),
   getPinAllSpaces: () => ipcRenderer.invoke('get-pin-all-spaces'),
   setPinAllSpaces: (enabled) => ipcRenderer.invoke('set-pin-all-spaces', enabled),
+  getSyncPopupWithMain: () => ipcRenderer.invoke('get-sync-popup-with-main'),
+  setSyncPopupWithMain: (enabled) => ipcRenderer.invoke('set-sync-popup-with-main', enabled),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   fetchUrlContent: (url, options = {}) =>
     ipcRenderer.invoke('url:fetch-content', { url, ...options }),

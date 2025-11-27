@@ -1907,39 +1907,44 @@ Text should be in ${name} (${code}).`;
 
   /**
    * Handle slide image generation from shortcut key (Option+Control+A)
-   * Uses the same core logic as @slide command
+   * Uses the same core logic and UI pattern as @slide command
    */
   async handleGenerateSlideImage(text) {
-    try {
-      await this.cancelActiveShortcut();
-      // Switch to chat tab when shortcut is triggered
-      if (window.switchToTab) window.switchToTab('chat');
-      // Restore scroll state after tab switch
-      const chatHistory = this.chatHistory;
-      if (chatHistory && chatHistory.isConnected) {
-        this.chatHistory.style.overflowY = 'auto';
-        setTimeout(() => {
-          const chatHistory = this.chatHistory;
-          if (chatHistory && chatHistory.isConnected) {
-            this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
-          }
-        }, 0);
-      }
-      const token = ++this.shortcutRequestId;
-      const trimmed = (text || '').trim();
-      if (!trimmed) return;
+    await this.cancelActiveShortcut();
+    // Switch to chat tab when shortcut is triggered
+    if (window.switchToTab) window.switchToTab('chat');
+    const token = ++this.shortcutRequestId;
+    const trimmed = (text || '').trim();
+    if (!trimmed) return;
+    this.disableAutoScrollCount++;
 
-      this.disableAutoScrollCount++;
+    // Reset cancel flag before starting new generation
+    this.cancelRequested = false;
+
+    // Performance optimization: batch DOM operations in single frame
+    const aspectRatio = this.slideSize || '16:9';
+    requestAnimationFrame(() => {
       this.addMessage('system-question', getUIText('slideImageGenerating'));
-      this.showTypingIndicator();
+      this.showImageSkeletonLoader(aspectRatio, 1);
 
+      // Scroll to bottom after messages are added
+      requestAnimationFrame(() => {
+        if (this.chatHistory && this.chatHistory.isConnected) {
+          this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+        }
+      });
+    });
+
+    try {
       // Use shared core logic for slide image generation
       const result = await this._generateSlideImageCore(trimmed);
+
+      // Hide skeleton loader
+      this.hideTypingIndicator();
 
       if (token !== this.shortcutRequestId) {
         return;
       }
-      this.hideTypingIndicator();
       if (this.cancelRequested) {
         return;
       }
@@ -1947,13 +1952,15 @@ Text should be in ${name} (${code}).`;
       if (result?.imageBase64) {
         this.addImagesMessage([result], trimmed.substring(0, 50));
       } else {
-        this.addMessage('system', getUIText('errorOccurred'));
+        this.addMessage('system', getUIText('errorOccurred') || 'Error occurred');
       }
     } catch (e) {
+      // Hide skeleton loader on error
+      this.hideTypingIndicator();
+
       if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
         return;
       }
-      this.hideTypingIndicator();
       this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
     } finally {
       this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
@@ -3570,6 +3577,12 @@ ${content}`;
   showImageSkeletonLoader(aspectRatio, count) {
     this.setGenerating(true);
     if (!this.chatHistory) return;
+
+    // Remove any existing skeleton loader to prevent conflicts
+    const existingIndicator = document.getElementById('typing-indicator');
+    if (existingIndicator) {
+      existingIndicator.remove();
+    }
 
     const { width, height } = this.getSkeletonDimensions(aspectRatio);
     const wrapper = document.createElement('div');

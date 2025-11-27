@@ -665,7 +665,12 @@ async function restGenerateImageFromTextWithReference(
  * SDK-based image generation from text
  * Uses @google/genai SDK for Gemini API
  */
-async function sdkGenerateImageFromText(genAI, modelName, prompt, { aspectRatio = '1:1' } = {}) {
+async function sdkGenerateImageFromText(
+  genAI,
+  modelName,
+  prompt,
+  { aspectRatio = '1:1', signal } = {}
+) {
   validateGenAIClient(genAI);
 
   const request = {
@@ -677,7 +682,8 @@ async function sdkGenerateImageFromText(genAI, modelName, prompt, { aspectRatio 
     },
   };
 
-  const response = await genAI.models.generateContent(request);
+  const requestOptions = signal ? { signal } : undefined;
+  const response = await genAI.models.generateContent(request, requestOptions);
   return extractImageFromCandidates(response?.candidates);
 }
 
@@ -690,7 +696,7 @@ async function sdkGenerateImageFromTextWithReference(
   modelName,
   prompt,
   referenceImages,
-  { aspectRatio = '1:1' } = {}
+  { aspectRatio = '1:1', signal } = {}
 ) {
   validateGenAIClient(genAI);
 
@@ -715,7 +721,8 @@ async function sdkGenerateImageFromTextWithReference(
     },
   };
 
-  const response = await genAI.models.generateContent(request);
+  const requestOptions = signal ? { signal } : undefined;
+  const response = await genAI.models.generateContent(request, requestOptions);
   return extractImageFromCandidates(response?.candidates);
 }
 

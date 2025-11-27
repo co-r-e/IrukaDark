@@ -544,6 +544,10 @@ function bootstrapApp() {
         }
       }
       mainWindow.focus();
+
+      // Also show popup if sync setting is enabled
+      windowManager.showPopupIfSyncEnabled();
+
       return true;
     } catch (err) {
       return false;
@@ -963,15 +967,7 @@ function bootstrapApp() {
         globalShortcut.register(c, () => {
           logShortcutEvent('shortcut.trigger', { accel: c, kind: 'toggle_main_window' });
           try {
-            const mainWindow = getMainWindow();
-            if (!mainWindow || mainWindow.isDestroyed()) return;
-
-            // Toggle window visibility
-            if (mainWindow.isVisible()) {
-              mainWindow.hide();
-            } else {
-              bringMainWindowToFront(mainWindow);
-            }
+            windowManager.toggleBothWindows();
           } catch (e) {}
         });
       } catch (e) {}
@@ -1222,6 +1218,17 @@ function bootstrapApp() {
     ipcMain.handle('set-pin-all-spaces', (_e, enabled) => {
       settingsController.handlePinAllSpacesChange(!!enabled);
       prefCache.invalidate('PIN_ALL_SPACES');
+      return !!enabled;
+    });
+
+    ipcMain.handle('get-sync-popup-with-main', () => {
+      const v = String(getPref('SYNC_POPUP_WITH_MAIN') || '0');
+      return v === '1' || v.toLowerCase() === 'true';
+    });
+
+    ipcMain.handle('set-sync-popup-with-main', (_e, enabled) => {
+      settingsController.handleSyncPopupWithMainChange(!!enabled);
+      prefCache.invalidate('SYNC_POPUP_WITH_MAIN');
       return !!enabled;
     });
 
@@ -2418,9 +2425,12 @@ Command:`;
                     IMAGE_MODEL,
                     prompt,
                     referenceImages,
-                    { aspectRatio }
+                    { aspectRatio, signal: controller.signal }
                   )
-                : await sdkGenerateImageFromText(genAI, IMAGE_MODEL, prompt, { aspectRatio });
+                : await sdkGenerateImageFromText(genAI, IMAGE_MODEL, prompt, {
+                    aspectRatio,
+                    signal: controller.signal,
+                  });
 
               if (result?.imageData) {
                 return { imageBase64: result.imageData, mimeType: result.mimeType || 'image/png' };
