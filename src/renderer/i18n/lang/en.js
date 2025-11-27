@@ -217,6 +217,7 @@
       actions: {
         explain: 'Explain Text',
         explainDetailed: 'Detailed Explanation',
+        slideImage: 'Slide Image',
         urlSummary: 'URL Summary',
         urlDetailed: 'Detailed URL Analysis',
         translate: 'Translate',

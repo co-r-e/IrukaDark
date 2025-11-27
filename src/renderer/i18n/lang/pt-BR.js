@@ -171,6 +171,7 @@
       actions: {
         explain: 'Explicar texto',
         explainDetailed: 'Explicação detalhada',
+        slideImage: 'Imagem de slide',
         urlSummary: 'Resumo de URL',
         urlDetailed: 'Análise detalhada de URL',
         translate: 'Traduzir',

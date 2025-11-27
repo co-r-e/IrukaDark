@@ -166,6 +166,7 @@
       actions: {
         explain: '解釋文字',
         explainDetailed: '詳細解釋',
+        slideImage: '投影片圖像',
         urlSummary: 'URL 摘要',
         urlDetailed: '詳細 URL 分析',
         translate: '翻譯',

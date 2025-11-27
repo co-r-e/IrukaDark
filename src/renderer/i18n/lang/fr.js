@@ -174,6 +174,7 @@
       actions: {
         explain: 'Expliquer le texte',
         explainDetailed: 'Explication détaillée',
+        slideImage: 'Image de diapositive',
         urlSummary: 'Résumé URL',
         urlDetailed: 'Analyse URL détaillée',
         translate: 'Traduire',

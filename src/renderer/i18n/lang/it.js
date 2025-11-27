@@ -173,6 +173,7 @@
       actions: {
         explain: 'Spiega testo',
         explainDetailed: 'Spiegazione dettagliata',
+        slideImage: 'Immagine diapositiva',
         urlSummary: 'Riepilogo URL',
         urlDetailed: 'Analisi URL dettagliata',
         translate: 'Traduci',

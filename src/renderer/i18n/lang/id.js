@@ -172,6 +172,7 @@
       actions: {
         explain: 'Jelaskan teks',
         explainDetailed: 'Penjelasan detail',
+        slideImage: 'Gambar slide',
         urlSummary: 'Ringkasan URL',
         urlDetailed: 'Analisis URL detail',
         translate: 'Terjemahkan',

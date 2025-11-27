@@ -170,6 +170,7 @@
       actions: {
         explain: '텍스트 설명',
         explainDetailed: '상세 설명',
+        slideImage: '슬라이드 이미지',
         urlSummary: 'URL 요약',
         urlDetailed: '상세 URL 분석',
         translate: '번역',

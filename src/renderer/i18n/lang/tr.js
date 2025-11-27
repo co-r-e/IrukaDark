@@ -172,6 +172,7 @@
       actions: {
         explain: 'Metni açıkla',
         explainDetailed: 'Ayrıntılı açıklama',
+        slideImage: 'Slayt görüntüsü',
         urlSummary: 'URL özeti',
         urlDetailed: 'Ayrıntılı URL analizi',
         translate: 'Çevir',

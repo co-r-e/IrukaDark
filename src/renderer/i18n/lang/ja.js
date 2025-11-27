@@ -219,6 +219,7 @@
       actions: {
         explain: 'テキスト説明',
         explainDetailed: '詳細説明',
+        slideImage: 'スライド画像生成',
         urlSummary: 'URL要約',
         urlDetailed: 'URL詳細分析',
         translate: '翻訳',

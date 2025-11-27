@@ -171,6 +171,7 @@
       actions: {
         explain: 'Giải thích văn bản',
         explainDetailed: 'Giải thích chi tiết',
+        slideImage: 'Hình ảnh trang chiếu',
         urlSummary: 'Tóm tắt URL',
         urlDetailed: 'Phân tích URL chi tiết',
         translate: 'Dịch',

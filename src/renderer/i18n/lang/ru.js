@@ -172,6 +172,7 @@
       actions: {
         explain: 'Объяснить текст',
         explainDetailed: 'Подробное объяснение',
+        slideImage: 'Изображение слайда',
         urlSummary: 'Краткое изложение URL',
         urlDetailed: 'Подробный анализ URL',
         translate: 'Перевести',
