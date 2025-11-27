@@ -18,10 +18,16 @@ files:
   - '!**/*.md'
   - '!**/.DS_Store'
 extraResources:
+  # macOS automation bridge
   - from: native/macos/IrukaAutomation/dist
     to: mac-automation
     filter:
       - 'IrukaAutomation'
+  # Windows automation bridge
+  - from: native/windows/IrukaAutomation/dist
+    to: win-automation
+    filter:
+      - 'IrukaAutomation.exe'
 mac:
   target:
     - target: dmg
@@ -37,6 +43,16 @@ mac:
   icon: src/renderer/assets/icons/icon.png
 dmg:
   artifactName: '${productName}-${version}-mac-${arch}.dmg'
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  # Windows 10 1809+ (build 17763)
+  artifactName: '${productName}-${version}-win-${arch}.${ext}'
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
 publish:
   - provider: github
     releaseType: release

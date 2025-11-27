@@ -1,0 +1,196 @@
+<Window x:Class="IrukaAutomation.UI.Windows.ClipboardPopupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Clipboard"
+        Width="220"
+        Height="280"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        Deactivated="Window_Deactivated"
+        KeyDown="Window_KeyDown">
+
+    <Border CornerRadius="12"
+            Background="{DynamicResource PopupBackground}"
+            BorderBrush="{DynamicResource PopupBorder}"
+            BorderThickness="1">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="20" ShadowDepth="2" Opacity="0.3" />
+        </Border.Effect>
+
+        <Grid Margin="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- Tab Header -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                <RadioButton x:Name="HistoryTab"
+                             Content="History"
+                             IsChecked="True"
+                             Style="{DynamicResource TabButtonStyle}"
+                             Checked="Tab_Checked" />
+                <RadioButton x:Name="ImageTab"
+                             Content="Images"
+                             Style="{DynamicResource TabButtonStyle}"
+                             Margin="8,0,0,0"
+                             Checked="Tab_Checked" />
+                <RadioButton x:Name="SnippetTab"
+                             Content="Snippets"
+                             Style="{DynamicResource TabButtonStyle}"
+                             Margin="8,0,0,0"
+                             Checked="Tab_Checked" />
+            </StackPanel>
+
+            <!-- Content Area -->
+            <ListBox x:Name="ItemList"
+                     Grid.Row="1"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     SelectionMode="Single"
+                     VirtualizingPanel.IsVirtualizing="True"
+                     VirtualizingPanel.VirtualizationMode="Recycling"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     MouseDoubleClick="ItemList_MouseDoubleClick"
+                     KeyDown="ItemList_KeyDown">
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="Padding" Value="6,4" />
+                        <Setter Property="Margin" Value="0,1" />
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <Border x:Name="Border"
+                                            Background="{DynamicResource ItemBackground}"
+                                            CornerRadius="6"
+                                            Padding="{TemplateBinding Padding}">
+                                        <ContentPresenter HorizontalAlignment="Stretch" />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource ItemSelectedBackground}" />
+                                        </Trigger>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource ItemHoverBackground}" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Number Badge (1-9) -->
+                            <Border Grid.Column="0"
+                                    Background="{DynamicResource NumberBadgeBackground}"
+                                    CornerRadius="3"
+                                    Padding="4,1"
+                                    Margin="0,0,6,0"
+                                    VerticalAlignment="Center"
+                                    Visibility="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Converter={StaticResource IndexToVisibilityConverter}}">
+                                <TextBlock Text="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Converter={StaticResource IndexToNumberConverter}}"
+                                           Foreground="{DynamicResource TextMuted}"
+                                           FontSize="10"
+                                           FontWeight="Bold" />
+                            </Border>
+
+                            <!-- Content -->
+                            <Grid Grid.Column="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Image Thumbnail (if present) -->
+                                <Image Grid.Column="0"
+                                       Source="{Binding ThumbnailImage}"
+                                       Width="32"
+                                       Height="32"
+                                       Stretch="UniformToFill"
+                                       Margin="0,0,6,0"
+                                       Visibility="{Binding HasImage, Converter={StaticResource BoolToVisibilityConverter}}"
+                                       RenderOptions.BitmapScalingMode="HighQuality">
+                                    <Image.Clip>
+                                        <RectangleGeometry Rect="0,0,32,32" RadiusX="4" RadiusY="4" />
+                                    </Image.Clip>
+                                </Image>
+
+                                <!-- Text -->
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding DisplayText}"
+                                           TextTrimming="CharacterEllipsis"
+                                           TextWrapping="NoWrap"
+                                           MaxHeight="36"
+                                           VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextPrimary}"
+                                           FontSize="11" />
+                            </Grid>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
+    </Border>
+
+    <Window.Resources>
+        <!-- Converters -->
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <local:IndexToNumberConverter x:Key="IndexToNumberConverter" xmlns:local="clr-namespace:IrukaAutomation.UI.Windows" />
+        <local:IndexToVisibilityConverter x:Key="IndexToVisibilityConverter" xmlns:local="clr-namespace:IrukaAutomation.UI.Windows" />
+
+        <!-- Dark Theme (Default) -->
+        <SolidColorBrush x:Key="PopupBackground" Color="#1E1E1E" />
+        <SolidColorBrush x:Key="PopupBorder" Color="#3E3E3E" />
+        <SolidColorBrush x:Key="TextPrimary" Color="#E0E0E0" />
+        <SolidColorBrush x:Key="TextMuted" Color="#808080" />
+        <SolidColorBrush x:Key="ItemBackground" Color="Transparent" />
+        <SolidColorBrush x:Key="ItemSelectedBackground" Color="#3E3E3E" />
+        <SolidColorBrush x:Key="ItemHoverBackground" Color="#2E2E2E" />
+        <SolidColorBrush x:Key="NumberBadgeBackground" Color="#4E4E4E" />
+
+        <!-- Tab Button Style -->
+        <Style x:Key="TabButtonStyle" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="6,3" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Border"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+                                <Setter TargetName="Border" Property="Background" Value="{DynamicResource ItemSelectedBackground}" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="{DynamicResource ItemHoverBackground}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+</Window>

@@ -1,5 +1,6 @@
 /*!
- * macOS automation bridge via Swift helper binary.
+ * Windows automation bridge via C# helper binary.
+ * Compatible with macAutomationBridge.js interface.
  */
 const { app } = require('electron');
 const { spawn } = require('child_process');
@@ -36,10 +37,8 @@ function resolveLogPath() {
       bridgeLogPath = undefined;
       return bridgeLogPath;
     }
-    // Electron's logs path on macOS is already '~/Library/Logs/<AppName>'
-    // so we should not append the app name again.
     fs.mkdirSync(logsDir, { recursive: true });
-    bridgeLogPath = path.join(logsDir, 'automation.log');
+    bridgeLogPath = path.join(logsDir, 'automation-win.log');
   } catch {
     bridgeLogPath = undefined;
   }
@@ -77,17 +76,21 @@ function resolveExecutablePath() {
   const appRoot = app?.isPackaged ? process.resourcesPath : path.resolve(__dirname, '../../..');
 
   const candidates = [
-    path.join(appRoot, 'mac-automation', 'IrukaAutomation'),
-    path.join(appRoot, 'bin', 'IrukaAutomation'),
-    path.join(appRoot, 'native', 'macos', 'IrukaAutomation', 'dist', 'IrukaAutomation'),
+    path.join(appRoot, 'win-automation', 'IrukaAutomation.exe'),
+    path.join(appRoot, 'bin', 'IrukaAutomation.exe'),
+    path.join(appRoot, 'native', 'windows', 'IrukaAutomation', 'dist', 'IrukaAutomation.exe'),
     path.join(
       appRoot,
       'native',
-      'macos',
+      'windows',
       'IrukaAutomation',
-      '.build',
-      'release',
-      'IrukaAutomation'
+      'IrukaAutomation',
+      'bin',
+      'Release',
+      'net8.0-windows',
+      'win-x64',
+      'publish',
+      'IrukaAutomation.exe'
     ),
   ];
 
@@ -134,7 +137,7 @@ function spawnBridge(
       timeoutMs,
       promptAccessibility,
     });
-    reject(new Error('SWIFT_BRIDGE_NOT_AVAILABLE'));
+    reject(new Error('CSHARP_BRIDGE_NOT_AVAILABLE'));
     return promise;
   }
 
@@ -164,7 +167,7 @@ function spawnBridge(
       try {
         child.kill('SIGKILL');
       } catch {}
-      reject(new Error('SWIFT_BRIDGE_TIMEOUT'));
+      reject(new Error('CSHARP_BRIDGE_TIMEOUT'));
     },
     Math.max(timeoutMs + 250, timeoutMs * 1.5)
   );
@@ -200,7 +203,7 @@ function spawnBridge(
 
     const payloadRaw = (stdout || '').trim();
     if (!payloadRaw) {
-      const error = new Error('SWIFT_BRIDGE_EMPTY_OUTPUT');
+      const error = new Error('CSHARP_BRIDGE_EMPTY_OUTPUT');
       error.meta = { code, signal, stderr: stderr.trim() };
       logBridgeEvent('spawnBridge.emptyOutput', {
         command,
@@ -220,7 +223,7 @@ function spawnBridge(
       const lastLine = payloadRaw.split('\n').filter(Boolean).pop() || payloadRaw;
       payload = JSON.parse(lastLine);
     } catch (e) {
-      const error = new Error('SWIFT_BRIDGE_INVALID_JSON');
+      const error = new Error('CSHARP_BRIDGE_INVALID_JSON');
       error.meta = { stdout: payloadRaw, stderr: stderr.trim(), cause: e };
       logBridgeEvent('spawnBridge.invalidJson', {
         command,
@@ -273,13 +276,11 @@ async function fetchSelectedText({ timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
 
     return result;
   } catch (error) {
-    if (error?.message === 'SWIFT_BRIDGE_NOT_AVAILABLE') {
+    if (error?.message === 'CSHARP_BRIDGE_NOT_AVAILABLE') {
       return { status: 'error', code: 'bridge_missing', text: '' };
     }
-    if (error?.message === 'SWIFT_BRIDGE_TIMEOUT') {
+    if (error?.message === 'CSHARP_BRIDGE_TIMEOUT') {
       return { status: 'error', code: 'timeout', text: '' };
-    }
-    if (process.env.DEBUG || process.argv.includes('--dev')) {
     }
     return { status: 'error', code: 'invoke_failed', text: '' };
   }
@@ -288,9 +289,7 @@ async function fetchSelectedText({ timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
 function isClipboardPopupActive() {
   if (!clipboardPopupProcess) return false;
 
-  // Check if process is still running
   try {
-    // Sending signal 0 doesn't actually kill the process, just checks if it exists
     process.kill(clipboardPopupProcess.pid, 0);
     return true;
   } catch (e) {
@@ -325,9 +324,6 @@ function updateClipboardPopup(historyItems, options = {}) {
   if (!clipboardPopupProcess) return false;
 
   try {
-    // Prepare items for Swift popup (max 60 items total)
-    // Swift separates them into History tab (30 text items) and HistoryImage tab (30 image items)
-    // Rich text data (RTF, HTML) is passed along with text items for format-preserving paste
     const items = historyItems
       .filter((item) => (item.text && typeof item.text === 'string') || item.imageData)
       .slice(0, 60)
@@ -336,7 +332,7 @@ function updateClipboardPopup(historyItems, options = {}) {
         imageData: item.imageData || null,
         imageDataOriginal: item.imageDataOriginal || null,
         timestamp: item.timestamp || Date.now(),
-        richText: item.richText || null, // RTF, HTML, Markdown formats
+        richText: item.richText || null,
       }));
 
     if (items.length === 0) {
@@ -372,13 +368,10 @@ async function spawnClipboardPopup(historyItems, options = {}) {
   const executable = resolveExecutablePath();
   if (!executable) {
     logBridgeEvent('spawnClipboardPopup.notFound');
-    reject(new Error('SWIFT_BRIDGE_NOT_AVAILABLE'));
+    reject(new Error('CSHARP_BRIDGE_NOT_AVAILABLE'));
     return promise;
   }
 
-  // Prepare items for Swift popup (max 60 items total)
-  // Swift separates them into History tab (30 text items) and HistoryImage tab (30 image items)
-  // Rich text data (RTF, HTML) is passed along with text items for format-preserving paste
   const items = historyItems
     .filter((item) => (item.text && typeof item.text === 'string') || item.imageData)
     .slice(0, 60)
@@ -387,7 +380,7 @@ async function spawnClipboardPopup(historyItems, options = {}) {
       imageData: item.imageData || null,
       imageDataOriginal: item.imageDataOriginal || null,
       timestamp: item.timestamp || Date.now(),
-      richText: item.richText || null, // RTF, HTML, Markdown formats
+      richText: item.richText || null,
     }));
 
   if (items.length === 0) {
@@ -396,13 +389,8 @@ async function spawnClipboardPopup(historyItems, options = {}) {
     return promise;
   }
 
-  const path = require('path');
-  const { app } = require('electron');
-
   const input = {
     items,
-    // Position is now automatically determined by Swift using cursor location
-    // No need to pass position from Electron
     isDarkMode: options.isDarkMode || false,
     opacity: options.opacity || 1.0,
     activeTab: options.activeTab || 'history',
@@ -416,7 +404,6 @@ async function spawnClipboardPopup(historyItems, options = {}) {
     detached: false,
   });
 
-  // Store the process reference
   clipboardPopupProcess = child;
 
   logBridgeEvent('spawnClipboardPopup.start', {
@@ -467,8 +454,6 @@ async function spawnClipboardPopup(historyItems, options = {}) {
     });
 
     clipboardPopupProcess = null;
-
-    // Return payload so caller can handle pasted item
     resolve({ code, signal, payload, stderr: stderr.trim() });
   });
 
@@ -568,6 +553,18 @@ function stopClipboardDaemon() {
   clipboardDaemonProcess = null;
 }
 
+// Event handlers that external code can subscribe to
+let onClipboardChanged = null;
+let onItemPasted = null;
+
+function setClipboardChangedHandler(handler) {
+  onClipboardChanged = handler;
+}
+
+function setItemPastedHandler(handler) {
+  onItemPasted = handler;
+}
+
 function handleDaemonEvent(event) {
   logBridgeEvent('daemon.event', { event: event.event });
 
@@ -584,12 +581,35 @@ function handleDaemonEvent(event) {
       }
       break;
 
+    case 'clipboard_changed':
+      logBridgeEvent('daemon.clipboardChanged', {
+        hasText: !!event.text,
+        hasImage: !!event.imageDataOriginal,
+      });
+      if (onClipboardChanged) {
+        onClipboardChanged({
+          text: event.text || null,
+          imageDataOriginal: event.imageDataOriginal || null,
+        });
+      }
+      break;
+
     case 'item_pasted':
       logBridgeEvent('daemon.itemPasted', {
         hasText: !!event.text,
         hasImage: !!event.imageDataOriginal,
       });
       daemonState = 'ready';
+      if (onItemPasted) {
+        onItemPasted({
+          text: event.text || null,
+          imageDataOriginal: event.imageDataOriginal || null,
+        });
+      }
+      break;
+
+    case 'shown':
+      daemonState = 'showing';
       break;
 
     case 'hidden':
@@ -715,16 +735,6 @@ function hideClipboardPopupFast() {
 
 function isDaemonPopupShowing() {
   return daemonState === 'showing';
-}
-
-// Event handlers for clipboard changes (stub for macOS - not implemented yet)
-// macOS uses different clipboard monitoring mechanism
-function setClipboardChangedHandler(/* handler */) {
-  // Stub: macOS clipboard monitoring is handled differently
-}
-
-function setItemPastedHandler(/* handler */) {
-  // Stub: macOS item paste events are handled differently
 }
 
 module.exports = {
