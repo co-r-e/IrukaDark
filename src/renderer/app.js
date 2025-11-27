@@ -2515,15 +2515,20 @@ Text should be in ${name} (${code}).`;
     try {
       this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
       this.addMessage('user', `@image ${prompt}`, attachments);
-      this.showTypingIndicator();
 
       const aspectRatio = this.imageSize === 'auto' ? '1:1' : this.imageSize;
       const count = this.imageCount || 1;
+      this.showImageSkeletonLoader(aspectRatio, count);
 
       const referenceFiles = this.getAllReferenceFiles(attachments);
       const generatePromises = Array(count)
         .fill(null)
-        .map(() => this.generateSingleImage(prompt, aspectRatio, referenceFiles));
+        .map((_, index) =>
+          this.generateSingleImage(prompt, aspectRatio, referenceFiles).catch((error) => {
+            this.markSkeletonFailed(index);
+            return null;
+          })
+        );
 
       const results = await Promise.all(generatePromises);
       this.hideTypingIndicator();
@@ -2557,6 +2562,13 @@ Text should be in ${name} (${code}).`;
       );
     }
     return this.geminiService.generateImageFromText(prompt, aspectRatio);
+  }
+
+  getSkeletonDimensions(aspectRatio) {
+    const baseWidth = 100;
+    const ratioMap = { '1:1': 1, '9:16': 16 / 9, '16:9': 9 / 16, '3:4': 4 / 3, '4:3': 3 / 4 };
+    const ratio = ratioMap[aspectRatio] || 1;
+    return { width: baseWidth, height: Math.round(baseWidth * ratio) };
   }
 
   async handleVideoGeneration(prompt, attachments = []) {
@@ -2605,9 +2617,14 @@ Text should be in ${name} (${code}).`;
     try {
       this.addMessage('user', `@slide ${prompt}`);
       this.disableAutoScrollCount++;
-      this.showTypingIndicator(getUIText('slideImageGenerating') || 'Generating slide image...');
 
-      const result = await this._generateSlideImageCore(prompt);
+      const aspectRatio = this.slideSize || '16:9';
+      this.showImageSkeletonLoader(aspectRatio, 1);
+
+      const result = await this._generateSlideImageCore(prompt).catch((error) => {
+        this.markSkeletonFailed(0);
+        return null;
+      });
 
       this.hideTypingIndicator();
 
@@ -3548,6 +3565,37 @@ ${content}`;
 
     // Reset generating state - this triggers send button icon change back to send icon
     this.setGenerating(false);
+  }
+
+  showImageSkeletonLoader(aspectRatio, count) {
+    this.setGenerating(true);
+    if (!this.chatHistory) return;
+
+    const { width, height } = this.getSkeletonDimensions(aspectRatio);
+    const wrapper = document.createElement('div');
+    wrapper.id = 'typing-indicator';
+    wrapper.className = 'message ai-message';
+
+    const container = document.createElement('div');
+    container.className = 'image-skeleton-container';
+
+    for (let i = 0; i < count; i++) {
+      const skeleton = document.createElement('div');
+      skeleton.className = 'image-skeleton';
+      skeleton.dataset.index = i;
+      skeleton.style.cssText = `width:${width}px;height:${height}px`;
+      container.appendChild(skeleton);
+    }
+
+    wrapper.appendChild(container);
+    this.chatHistory.appendChild(wrapper);
+  }
+
+  markSkeletonFailed(index) {
+    const skeleton = document.querySelector(
+      `#typing-indicator .image-skeleton[data-index="${index}"]`
+    );
+    skeleton?.classList.add('loading-failed');
   }
 
   addMessage(type, content, attachments = [], options = {}) {
