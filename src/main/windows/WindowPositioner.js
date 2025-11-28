@@ -75,7 +75,7 @@ class WindowPositioner {
 
   /**
    * Calculate initial positions for both main and popup windows
-   * Positions main window at bottom right, popup centered below it
+   * Popup is positioned at bottom right with margin, main window above it
    *
    * @param {number} mainWidth - Main window width
    * @param {number} mainHeight - Main window height
@@ -89,18 +89,18 @@ class WindowPositioner {
     const { RIGHT: marginRight, BOTTOM: marginBottom } = WINDOW_MARGINS;
     const { POPUP_MAIN_OVERLAP: overlap } = WINDOW_LAYOUT;
 
-    // Calculate unconstrained positions
-    const mainX = wa.x + wa.width - mainWidth - marginRight;
-    const mainY = wa.y + wa.height - mainHeight - marginBottom;
-    const popupX = mainX + (mainWidth - popupWidth) / 2;
-    const popupY = mainY + mainHeight + overlap;
+    // Popup at bottom right corner with margin
+    const popupX = wa.x + wa.width - (mainWidth + popupWidth) / 2 - marginRight;
+    const popupY = wa.y + wa.height - popupHeight - marginBottom;
 
-    // Apply constraints
+    // Main window centered above popup with overlap
+    const mainX = wa.x + wa.width - mainWidth - marginRight;
+    const mainY = popupY - mainHeight - overlap;
+
     const mainPos = this.constrainToBounds(mainX, mainY, mainWidth, mainHeight, wa);
     const popupPos = this.constrainToBounds(popupX, popupY, popupWidth, popupHeight, wa);
 
     return {
-      ...mainPos,
       mainX: mainPos.x,
       mainY: mainPos.y,
       popupX: popupPos.x,

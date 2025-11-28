@@ -20,12 +20,12 @@ const WINDOW_DIMENSIONS = {
 };
 
 /**
- * Screen margins for window positioning
- * Used when positioning windows at screen edges
+ * Screen margins for initial window positioning
+ * Defines spacing from screen edges when windows are reset to default position
  */
 const WINDOW_MARGINS = {
   RIGHT: 16,
-  BOTTOM: 12,
+  BOTTOM: 50,
 };
 
 /**
