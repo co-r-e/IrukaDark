@@ -164,31 +164,40 @@ class DragController {
    * Handle pointer/mouse down event
    * @param {PointerEvent|MouseEvent} event - The pointer or mouse event
    */
-  async handleDown(event) {
+  handleDown(event) {
     try {
       event.preventDefault();
     } catch {}
 
     this.log('Pointer down');
 
-    // Get initial bounds
-    this.startBounds = await this.getBounds();
-    if (!this.startBounds) {
-      this.log('Failed to get initial bounds');
-      return;
-    }
-
-    // Initialize drag state
+    // Initialize drag state BEFORE async IPC call
+    // This ensures click detection works even if IPC fails
     this.isDragging = true;
     this.hasMoved = false;
     this.startScreenX = event.screenX;
     this.startScreenY = event.screenY;
     this.currentPointerId = event.pointerId ?? null;
+    this.startBounds = null;
 
     // Set pointer capture for reliable drag tracking
     this.managePointerCapture(event, true);
 
+    // Notify main process of pointer down (fire-and-forget for click detection)
     this.notifyPhase('down');
+
+    // Get initial bounds asynchronously for drag functionality
+    // Drag will only work if bounds are successfully retrieved
+    this.getBounds()
+      .then((bounds) => {
+        if (bounds && this.isDragging) {
+          this.startBounds = bounds;
+          this.log('Bounds retrieved for drag:', bounds);
+        }
+      })
+      .catch((err) => {
+        this.log('Failed to get bounds (drag disabled):', err);
+      });
   }
 
   /**
@@ -196,16 +205,19 @@ class DragController {
    * @param {PointerEvent|MouseEvent} event - The pointer or mouse event
    */
   handleMove(event) {
-    if (!this.isDragging || !this.startBounds) return;
+    if (!this.isDragging) return;
 
     const dx = event.screenX - this.startScreenX;
     const dy = event.screenY - this.startScreenY;
 
-    // Track if moved beyond threshold
+    // Track if moved beyond threshold (independent of bounds availability)
+    // This ensures drag vs click detection works even if IPC is slow
     this.hasMoved ||= Math.abs(dx) + Math.abs(dy) > DRAG_THRESHOLD;
 
-    // Update position immediately for responsive tracking
-    this.setPosition(this.startBounds.x + dx, this.startBounds.y + dy);
+    // Only update position if bounds are available
+    if (this.startBounds) {
+      this.setPosition(this.startBounds.x + dx, this.startBounds.y + dy);
+    }
   }
 
   /**
