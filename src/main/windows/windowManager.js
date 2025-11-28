@@ -662,13 +662,15 @@ class WindowManager {
    * @description
    * Call this when showing the main window via shortcuts (Alt+A, Alt+S, etc.)
    * to ensure popup visibility is synchronized if the user has enabled the setting.
+   * When popup was hidden, it resets to initial position before showing.
    */
   showPopupIfSyncEnabled() {
     if (!this.readSyncPopupWithMainPref()) return;
 
     const popupWindow = getPopupWindow();
     if (this.isValidWindow(popupWindow) && !popupWindow.isVisible()) {
-      popupWindow.show();
+      // Reset to initial position when popup was hidden
+      this.resetPopupToInitialPosition();
     }
   }
 
