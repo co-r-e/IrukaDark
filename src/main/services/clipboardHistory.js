@@ -214,41 +214,20 @@ class ClipboardHistoryService extends EventEmitter {
         const imageChanged = hasImage && imageHash !== this.lastImageHash;
 
         if (textChanged || imageChanged) {
-          // Check if this content already exists in history (to prevent re-adding)
-          const alreadyInHistory = this.history.some((item) => {
-            if (hasText && item.text === currentText) {
-              // If only text changed and it matches an existing item
-              if (!hasImage) return true;
-              // If both text and image, check image hash
-              if (hasImage && item.imageHash) {
-                return item.imageHash === imageHash;
-              }
-            }
-            if (hasImage && !hasText && item.imageHash) {
-              return item.imageHash === imageHash;
-            }
-            return false;
+          // Read rich text formats from clipboard
+          const richText = this.readRichTextFromClipboard();
+
+          // Add text and/or image to history as a single item
+          // Note: Consecutive duplicate copies are already prevented by lastClipboard/lastImageHash check above
+          this.addToHistory({
+            text: hasText ? currentText : null,
+            imageData: hasImage ? imageDataUrl : null,
+            imageDataOriginal: hasImage ? imageDataOriginal : null,
+            imageHash: hasImage ? imageHash : null,
+            richText,
           });
 
-          if (!alreadyInHistory) {
-            // Read rich text formats from clipboard
-            const richText = this.readRichTextFromClipboard();
-
-            // Add text and/or image to history as a single item
-            this.addToHistory(
-              {
-                text: hasText ? currentText : null,
-                imageData: hasImage ? imageDataUrl : null,
-                imageDataOriginal: hasImage ? imageDataOriginal : null,
-                imageHash: hasImage ? imageHash : null,
-                richText,
-              },
-              'auto',
-              { skipIfDuplicate: true }
-            );
-          }
-
-          // Update last known state regardless
+          // Update last known state
           this.lastClipboard = hasText ? currentText : '';
           this.lastImageHash = hasImage ? imageHash : '';
         }

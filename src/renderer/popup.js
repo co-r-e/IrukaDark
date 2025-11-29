@@ -50,6 +50,10 @@ class DragController {
     // AbortController for cleanup
     this.abortController = new AbortController();
 
+    // RAF throttling for smooth drag
+    this.rafId = null;
+    this.pendingPosition = null;
+
     this.log('DragController initialized');
     this.attachEventListeners();
   }
@@ -202,6 +206,7 @@ class DragController {
 
   /**
    * Handle pointer/mouse move event
+   * Uses requestAnimationFrame to throttle position updates for smooth dragging
    * @param {PointerEvent|MouseEvent} event - The pointer or mouse event
    */
   handleMove(event) {
@@ -216,12 +221,27 @@ class DragController {
 
     // Only update position if bounds are available
     if (this.startBounds) {
-      this.setPosition(this.startBounds.x + dx, this.startBounds.y + dy);
+      // RAF throttling: store pending position and schedule update
+      this.pendingPosition = {
+        x: this.startBounds.x + dx,
+        y: this.startBounds.y + dy,
+      };
+
+      if (this.rafId === null) {
+        this.rafId = requestAnimationFrame(() => {
+          this.rafId = null;
+          if (this.pendingPosition && this.isDragging) {
+            this.setPosition(this.pendingPosition.x, this.pendingPosition.y);
+            this.pendingPosition = null;
+          }
+        });
+      }
     }
   }
 
   /**
    * Handle pointer/mouse up event
+   * Ensures final position is sent immediately on drag end
    * @param {PointerEvent|MouseEvent} event - The pointer or mouse event
    */
   handleUp(event) {
@@ -230,6 +250,16 @@ class DragController {
     }
 
     this.log('Pointer up, moved:', this.hasMoved);
+
+    // Flush any pending position update immediately
+    if (this.pendingPosition) {
+      if (this.rafId !== null) {
+        cancelAnimationFrame(this.rafId);
+        this.rafId = null;
+      }
+      this.setPosition(this.pendingPosition.x, this.pendingPosition.y);
+      this.pendingPosition = null;
+    }
 
     this.isDragging = false;
 
@@ -271,6 +301,13 @@ class DragController {
 
     // Abort all event listeners
     this.abortController.abort();
+
+    // Cancel any pending RAF
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
+    this.pendingPosition = null;
 
     // Clear state
     this.isDragging = false;

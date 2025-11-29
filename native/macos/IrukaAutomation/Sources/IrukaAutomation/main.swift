@@ -1159,6 +1159,10 @@ final class ClipboardPopupWindow: NSPanel {
   // PERFORMANCE: Reduced image cache size to save memory (50 → 30)
   private var imageCache = LRUCache<String, NSImage>(capacity: 30)
 
+  // PERFORMANCE: Cache state to avoid redundant operations
+  private var lastSnippetDataPath: String? = nil
+  private var lastMouseLocation: NSPoint = .zero
+
   init(items: [ClipboardItem], isDarkMode: Bool = false, opacity: Double = 1.0, activeTab: String = "history", snippetDataPath: String? = nil) {
     self.isDarkMode = isDarkMode
     self.opacity = opacity
@@ -1246,26 +1250,38 @@ final class ClipboardPopupWindow: NSPanel {
     self.isDarkMode = isDarkMode
     self.opacity = opacity
     self.activeTab = activeTab
-    self.rowInfoCache.removeAll()
-    self.imageCache.clear()
 
+    // PERFORMANCE: Only reload snippets if path changed
     if let path = snippetDataPath {
       let parentDir = (path as NSString).deletingLastPathComponent
       self.snippetImagesDir = (parentDir as NSString).appendingPathComponent("snippet-images")
-      DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-        self?.loadSnippetsFromFile(path)
+      if self.lastSnippetDataPath != path {
+        self.lastSnippetDataPath = path
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+          self?.loadSnippetsFromFile(path)
+        }
       }
     } else {
-      self.snippetFolders = []
-      self.snippets = []
-      self.snippetContentMap = [:]
-      self.snippetTreeRoot = nil
-      self.snippetImagesDir = nil
+      if self.lastSnippetDataPath != nil {
+        self.lastSnippetDataPath = nil
+        self.snippetFolders = []
+        self.snippets = []
+        self.snippetContentMap = [:]
+        self.snippetTreeRoot = nil
+        self.snippetImagesDir = nil
+      }
     }
 
-    let positionManager = WindowPositionManager()
-    let contentRect = positionManager.calculateOptimalPosition()
-    self.setFrame(contentRect, display: false)
+    // PERFORMANCE: Only recalculate position if cursor moved significantly
+    let currentMouseLocation = NSEvent.mouseLocation
+    let positionChanged = abs(currentMouseLocation.x - lastMouseLocation.x) > 50
+                       || abs(currentMouseLocation.y - lastMouseLocation.y) > 50
+    if positionChanged || self.frame.isEmpty {
+      let positionManager = WindowPositionManager()
+      let contentRect = positionManager.calculateOptimalPosition()
+      self.setFrame(contentRect, display: false)
+      lastMouseLocation = currentMouseLocation
+    }
 
     switch activeTab {
     case "history", "historyImage":
