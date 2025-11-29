@@ -427,6 +427,39 @@
     },
   ];
 
+  const SLASH_SLIDE_COUNT_TARGETS = [
+    {
+      key: '/slide count 1',
+      match: '/slide count 1',
+      label: '/slide count 1',
+      descKey: 'slashDescriptions.slideCount1',
+      count: 1,
+    },
+    {
+      key: '/slide count 2',
+      match: '/slide count 2',
+      label: '/slide count 2',
+      descKey: 'slashDescriptions.slideCount2',
+      count: 2,
+    },
+    {
+      key: '/slide count 3',
+      match: '/slide count 3',
+      label: '/slide count 3',
+      descKey: 'slashDescriptions.slideCount3',
+      count: 3,
+    },
+    {
+      key: '/slide count 4',
+      match: '/slide count 4',
+      label: '/slide count 4',
+      descKey: 'slashDescriptions.slideCount4',
+      count: 4,
+    },
+  ];
+
+  const SLASH_SLIDE_TEMPLATE_TARGETS = [];
+
   const SLASH_SLIDE_TARGETS = [
     {
       key: '/slide status',
@@ -443,10 +476,20 @@
       childSeparator: ' ',
     },
     {
-      key: '/slide prompt',
-      match: '/slide prompt',
-      label: '/slide prompt',
-      descKey: 'slashDescriptions.slidePrompt',
+      key: '/slide count',
+      match: '/slide count',
+      label: '/slide count',
+      descKey: 'slashDescriptions.slideCount',
+      children: SLASH_SLIDE_COUNT_TARGETS,
+      childSeparator: ' ',
+    },
+    {
+      key: '/slide template',
+      match: '/slide template',
+      label: '/slide template',
+      descKey: 'slashDescriptions.slideTemplate',
+      children: SLASH_SLIDE_TEMPLATE_TARGETS,
+      childSeparator: ' ',
     },
   ];
 
@@ -496,6 +539,8 @@
     SLASH_VIDEO_COUNT_TARGETS,
     SLASH_SLIDE_TARGETS,
     SLASH_SLIDE_SIZE_TARGETS,
+    SLASH_SLIDE_COUNT_TARGETS,
+    SLASH_SLIDE_TEMPLATE_TARGETS,
     getLangMeta,
     normalizeTranslateCode,
     getLanguageDisplayName,

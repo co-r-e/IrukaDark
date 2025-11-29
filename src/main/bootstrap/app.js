@@ -1405,21 +1405,235 @@ function bootstrapApp() {
       return result;
     });
 
-    ipcMain.handle('save-slide-prompt', (_e, prompt) => {
-      const normalized = String(prompt || '').trim();
-      setPrefWithCacheInvalidation('SLIDE_PROMPT', normalized);
-      return normalized;
+    // Slide Template Management
+    const SLIDE_TEMPLATES_FILE = path.join(app.getPath('userData'), 'slide-templates.json');
+    const SLIDE_TEMPLATE_IMAGES_DIR = path.join(app.getPath('userData'), 'slide-template-images');
+
+    const loadSlideTemplatesData = () => {
+      try {
+        if (fs.existsSync(SLIDE_TEMPLATES_FILE)) {
+          return JSON.parse(fs.readFileSync(SLIDE_TEMPLATES_FILE, 'utf8'));
+        }
+      } catch {}
+      return { version: '1.0', activeTemplateId: null, templates: [] };
+    };
+
+    const saveSlideTemplatesData = (data) => {
+      try {
+        fs.writeFileSync(SLIDE_TEMPLATES_FILE, JSON.stringify(data, null, 2), 'utf8');
+      } catch {}
+    };
+
+    // Helper to reconstruct thumbnailBase64 from image file
+    const loadTemplateImage = (imageFilename) => {
+      if (!imageFilename) return null;
+      try {
+        const imagePath = path.join(SLIDE_TEMPLATE_IMAGES_DIR, imageFilename);
+        if (fs.existsSync(imagePath)) {
+          const buffer = fs.readFileSync(imagePath);
+          const ext = path.extname(imageFilename).toLowerCase().slice(1);
+          const mimeType = ext === 'jpg' ? 'jpeg' : ext;
+          return `data:image/${mimeType};base64,${buffer.toString('base64')}`;
+        }
+      } catch {}
+      return null;
+    };
+
+    // Helper to add thumbnailBase64 to templates array
+    const withThumbnails = (templates) =>
+      templates.map((tpl) => ({ ...tpl, thumbnailBase64: loadTemplateImage(tpl.imageFilename) }));
+
+    ipcMain.handle('slide-template:get-all', () => {
+      const data = loadSlideTemplatesData();
+      return {
+        templates: withThumbnails(data.templates || []),
+        activeTemplateId: data.activeTemplateId,
+      };
     });
 
-    ipcMain.handle('get-slide-prompt', () => {
-      const cached = prefCache.get('SLIDE_PROMPT');
-      if (cached !== null) {
-        return cached;
+    ipcMain.handle('slide-template:save', (_e, template) => {
+      const data = loadSlideTemplatesData();
+      const now = Date.now();
+
+      // Prevent editing of default template (but allow initial creation)
+      if (template.id === 'default') {
+        const existingDefault = data.templates.find((t) => t.id === 'default');
+        if (existingDefault) {
+          return withThumbnails(data.templates);
+        }
       }
 
-      const raw = getPref('SLIDE_PROMPT') || '';
-      prefCache.set('SLIDE_PROMPT', raw);
-      return raw;
+      // Ensure images directory exists
+      if (!fs.existsSync(SLIDE_TEMPLATE_IMAGES_DIR)) {
+        fs.mkdirSync(SLIDE_TEMPLATE_IMAGES_DIR, { recursive: true });
+      }
+
+      // Use provided ID or generate new one
+      const templateId = template.id || `tpl-${now}-${Math.random().toString(36).substr(2, 9)}`;
+      const existingIndex = data.templates.findIndex((t) => t.id === templateId);
+
+      // Handle image: save to file and store only filename (not base64 in JSON)
+      let imageFilename = null;
+
+      if (template.thumbnailBase64) {
+        // Extract mimeType and base64 data
+        const match = template.thumbnailBase64.match(/^data:image\/(\w+);base64,(.+)$/);
+        if (match) {
+          const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
+          imageFilename = `${templateId}.${ext}`;
+          const filePath = path.join(SLIDE_TEMPLATE_IMAGES_DIR, imageFilename);
+          fs.writeFileSync(filePath, Buffer.from(match[2], 'base64'));
+        }
+      } else if (existingIndex >= 0 && data.templates[existingIndex].imageFilename) {
+        // Image was removed - delete the file
+        try {
+          const oldPath = path.join(
+            SLIDE_TEMPLATE_IMAGES_DIR,
+            data.templates[existingIndex].imageFilename
+          );
+          if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+        } catch {}
+      }
+
+      const savedTemplate = {
+        id: templateId,
+        name: template.name,
+        prompt: template.prompt || '',
+        imageFilename,
+        createdAt: existingIndex >= 0 ? data.templates[existingIndex].createdAt : now,
+        updatedAt: now,
+      };
+
+      if (existingIndex >= 0) {
+        data.templates[existingIndex] = savedTemplate;
+      } else {
+        data.templates.push(savedTemplate);
+      }
+
+      saveSlideTemplatesData(data);
+      return withThumbnails(data.templates);
+    });
+
+    ipcMain.handle('slide-template:delete', (_e, templateId) => {
+      const data = loadSlideTemplatesData();
+
+      // Prevent deletion of default template
+      if (templateId === 'default') {
+        return withThumbnails(data.templates);
+      }
+
+      const template = data.templates.find((t) => t.id === templateId);
+
+      // Delete associated image file
+      if (template?.imageFilename) {
+        try {
+          const imagePath = path.join(SLIDE_TEMPLATE_IMAGES_DIR, template.imageFilename);
+          if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
+        } catch {}
+      }
+
+      data.templates = data.templates.filter((t) => t.id !== templateId);
+      if (data.activeTemplateId === templateId) data.activeTemplateId = null;
+      saveSlideTemplatesData(data);
+      return withThumbnails(data.templates);
+    });
+
+    ipcMain.handle('slide-template:set-active', (_e, templateId) => {
+      const data = loadSlideTemplatesData();
+      data.activeTemplateId = templateId;
+      saveSlideTemplatesData(data);
+      return templateId;
+    });
+
+    ipcMain.handle('slide-template:select-image', async (event) => {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      const result = await dialog.showOpenDialog(win, {
+        properties: ['openFile'],
+        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }],
+      });
+
+      if (result.canceled || !result.filePaths.length) return null;
+
+      const filePath = result.filePaths[0];
+      const buffer = fs.readFileSync(filePath);
+      const ext = path.extname(filePath).toLowerCase().slice(1);
+      const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+
+      return {
+        base64: `data:${mimeType};base64,${buffer.toString('base64')}`,
+        mimeType,
+        originalPath: filePath,
+      };
+    });
+
+    // Popup custom icon handlers
+    const notifyPopupIconChange = (icon) => {
+      const popupWin = getPopupWindow();
+      if (!popupWin || popupWin.isDestroyed()) return;
+
+      popupWin.webContents.send('popup-icon-changed', icon);
+
+      // Invalidate shadow to update macOS window shadow cache
+      if (process.platform === 'darwin') {
+        setTimeout(() => {
+          if (popupWin && !popupWin.isDestroyed()) {
+            popupWin.invalidateShadow();
+          }
+        }, 50);
+      }
+    };
+
+    ipcMain.handle('popup-icon:get', () => getPref('POPUP_CUSTOM_ICON') || null);
+
+    ipcMain.handle('popup-icon:invalidate-shadow', () => {
+      if (process.platform !== 'darwin') return;
+      const popupWin = getPopupWindow();
+      if (popupWin && !popupWin.isDestroyed()) {
+        popupWin.invalidateShadow();
+      }
+    });
+
+    ipcMain.handle('popup-icon:set', (_e, base64DataUrl) => {
+      try {
+        if (!base64DataUrl || typeof base64DataUrl !== 'string') {
+          return { success: false, error: 'Invalid data' };
+        }
+        setPref('POPUP_CUSTOM_ICON', base64DataUrl);
+        notifyPopupIconChange(base64DataUrl);
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    });
+
+    ipcMain.handle('popup-icon:reset', () => {
+      try {
+        setPref('POPUP_CUSTOM_ICON', null);
+        notifyPopupIconChange(null);
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    });
+
+    ipcMain.handle('popup-icon:select-image', async (event) => {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      const result = await dialog.showOpenDialog(win, {
+        properties: ['openFile'],
+        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'] }],
+      });
+
+      if (result.canceled || !result.filePaths.length) return null;
+
+      const filePath = result.filePaths[0];
+      const buffer = fs.readFileSync(filePath);
+      const ext = path.extname(filePath).toLowerCase().slice(1);
+      const mimeType = ext === 'svg' ? 'image/svg+xml' : `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+
+      return {
+        base64: `data:${mimeType};base64,${buffer.toString('base64')}`,
+        mimeType,
+      };
     });
 
     ipcMain.handle('get-window-opacity', () => {

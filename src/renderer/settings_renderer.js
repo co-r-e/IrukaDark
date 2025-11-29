@@ -46,6 +46,7 @@ class SettingsUI {
     this.currentTheme = 'dark';
     this.currentOpacity = 1;
     this.syncPopupWithMain = false;
+    this.customPopupIcon = null;
 
     // Language list for settings
     this.languageList = [
@@ -164,6 +165,10 @@ class SettingsUI {
         // Load sync popup with main setting
         if (window.electronAPI.getSyncPopupWithMain) {
           this.syncPopupWithMain = await window.electronAPI.getSyncPopupWithMain();
+        }
+        // Load custom popup icon
+        if (window.electronAPI.getCustomPopupIcon) {
+          this.customPopupIcon = await window.electronAPI.getCustomPopupIcon();
         }
       }
     } catch (err) {}
@@ -304,6 +309,29 @@ class SettingsUI {
               <span class="settings-toggle-slider"></span>
             </label>
           </div>
+        </div>
+
+        <!-- Custom Popup Icon -->
+        <div class="settings-item">
+          <div class="settings-item-label">${this.escapeHtml(t.popupIcon || 'Logo Popup Icon')}</div>
+          <div class="settings-item-controls popup-icon-controls">
+            <div class="popup-icon-preview-container">
+              <img src="${this.customPopupIcon ? this.escapeHtml(this.customPopupIcon) : 'assets/icons/irukadark_logo.svg'}" class="popup-icon-preview" alt="Popup icon">
+            </div>
+            <div class="popup-icon-actions">
+              <button id="selectPopupIconBtn" class="settings-btn settings-btn-secondary">
+                ${this.escapeHtml(t.popupIconChange || 'Change')}
+              </button>
+              ${
+                this.customPopupIcon
+                  ? `<button id="resetPopupIconBtn" class="settings-btn settings-btn-danger-outline">
+                  ${this.escapeHtml(t.popupIconReset || 'Reset')}
+                </button>`
+                  : ''
+              }
+            </div>
+          </div>
+          <div class="popup-icon-hint">${this.escapeHtml(t.popupIconHint || 'Recommended: 70x70px')}</div>
         </div>
       </div>
     `;
@@ -461,6 +489,18 @@ class SettingsUI {
       syncPopupToggle.addEventListener('change', (e) =>
         this.handleSyncPopupToggle(e.target.checked)
       );
+    }
+
+    // Popup icon select button
+    const selectPopupIconBtn = document.getElementById('selectPopupIconBtn');
+    if (selectPopupIconBtn) {
+      selectPopupIconBtn.addEventListener('click', () => this.handleSelectPopupIcon());
+    }
+
+    // Popup icon reset button
+    const resetPopupIconBtn = document.getElementById('resetPopupIconBtn');
+    if (resetPopupIconBtn) {
+      resetPopupIconBtn.addEventListener('click', () => this.handleResetPopupIcon());
     }
 
     // Language select
@@ -1076,6 +1116,51 @@ class SettingsUI {
         this.syncPopupWithMain = enabled;
         this.showToast(this.i18n.settings.settingSaved || 'Setting saved', 'success');
       }
+    } catch (err) {
+      this.showToast(this.i18n.errorOccurred || 'An error occurred', 'error');
+    }
+  }
+
+  /**
+   * Update popup icon state and refresh UI
+   * @param {string|null} icon - Base64 data URL or null
+   * @private
+   */
+  updatePopupIconUI(icon) {
+    this.customPopupIcon = icon;
+    this.render();
+    this.bindEvents();
+    this.showToast(this.i18n.settings.settingSaved || 'Setting saved', 'success');
+  }
+
+  /**
+   * Handle popup icon selection
+   */
+  async handleSelectPopupIcon() {
+    try {
+      const result = await window.electronAPI.selectPopupIconImage();
+      if (!result) return;
+
+      const saveResult = await window.electronAPI.setCustomPopupIcon(result.base64);
+      if (!saveResult.success) {
+        throw new Error(saveResult.error || 'Failed to save');
+      }
+      this.updatePopupIconUI(result.base64);
+    } catch (err) {
+      this.showToast(this.i18n.errorOccurred || 'An error occurred', 'error');
+    }
+  }
+
+  /**
+   * Handle popup icon reset to default
+   */
+  async handleResetPopupIcon() {
+    try {
+      const result = await window.electronAPI.resetCustomPopupIcon();
+      if (!result.success) {
+        throw new Error('Failed to reset');
+      }
+      this.updatePopupIconUI(null);
     } catch (err) {
       this.showToast(this.i18n.errorOccurred || 'An error occurred', 'error');
     }

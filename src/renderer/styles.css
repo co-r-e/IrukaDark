@@ -2082,6 +2082,92 @@ html:not(.theme-dark) .settings-btn {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
+/* Settings Button Secondary */
+.settings-btn-secondary {
+  background: var(--bg-overlay-medium);
+  border: 1px solid var(--border-overlay-medium);
+  color: var(--text-primary-dark);
+  min-width: auto;
+}
+
+.settings-btn-secondary:hover {
+  background: var(--bg-overlay-light);
+  border-color: var(--border-overlay-strong);
+  opacity: 1;
+}
+
+html:not(.theme-dark) .settings-btn-secondary {
+  background: var(--bg-overlay-light-mode);
+  border-color: var(--border-overlay-light-mode-medium);
+  color: var(--text-primary-light);
+}
+
+html:not(.theme-dark) .settings-btn-secondary:hover {
+  background: var(--bg-overlay-light-mode-strong);
+}
+
+/* Settings Button Danger Outline */
+.settings-btn-danger-outline {
+  background: transparent;
+  border: 1px solid rgba(255, 77, 109, 0.5);
+  color: #ff4d6d;
+  min-width: auto;
+}
+
+.settings-btn-danger-outline:hover {
+  background: rgba(255, 77, 109, 0.1);
+  border-color: #ff4d6d;
+  opacity: 1;
+}
+
+/* Popup Icon Settings */
+.popup-icon-controls {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.popup-icon-preview-container {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-overlay-light);
+  border: 1px solid var(--border-overlay-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.popup-icon-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.popup-icon-default {
+  color: var(--text-muted);
+}
+
+html:not(.theme-dark) .popup-icon-preview-container {
+  background: var(--bg-overlay-light-mode);
+  border-color: var(--border-overlay-light-mode);
+}
+
+.popup-icon-actions {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.popup-icon-hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-top: 4px;
+  width: 100%;
+}
+
 /* Settings Input (text field) */
 .settings-input {
   font-size: var(--font-size-sm);

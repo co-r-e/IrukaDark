@@ -23,6 +23,7 @@ const SLASHES = (typeof window !== 'undefined' && window.IRUKADARK_SLASHES) || {
   SLASH_VIDEO_COUNT_TARGETS: [],
   SLASH_SLIDE_TARGETS: [],
   SLASH_SLIDE_SIZE_TARGETS: [],
+  SLASH_SLIDE_COUNT_TARGETS: [],
   getLangMeta: (code) => ({ code, name: code, rtl: false }),
   normalizeTranslateCode: () => null,
   getLanguageDisplayName: (code) => code,
@@ -55,6 +56,8 @@ const SLASH_VIDEO_DURATION_TARGETS = SLASHES.SLASH_VIDEO_DURATION_TARGETS || [];
 const SLASH_VIDEO_COUNT_TARGETS = SLASHES.SLASH_VIDEO_COUNT_TARGETS || [];
 const SLASH_SLIDE_TARGETS = SLASHES.SLASH_SLIDE_TARGETS || [];
 const SLASH_SLIDE_SIZE_TARGETS = SLASHES.SLASH_SLIDE_SIZE_TARGETS || [];
+const SLASH_SLIDE_COUNT_TARGETS = SLASHES.SLASH_SLIDE_COUNT_TARGETS || [];
+const SLASH_SLIDE_TEMPLATE_TARGETS = SLASHES.SLASH_SLIDE_TEMPLATE_TARGETS || [];
 
 function getLangMeta(code) {
   if (SLASHES && typeof SLASHES.getLangMeta === 'function') {
@@ -152,7 +155,11 @@ class IrukaDarkApp {
     this.videoCount = 1;
     this.videoResolution = '720p';
     this.slideSize = '16:9';
-    this.slidePrompt = '';
+    this.slideCount = 1;
+    this.slideTemplates = [];
+    this.activeSlideTemplateId = null;
+    this.editingTemplateId = null;
+    this.editingTemplateImageBase64 = null;
     this.isGenerating = false;
     this.cancelRequested = false;
     this.isSending = false; // Prevent duplicate sendMessage() execution
@@ -911,7 +918,10 @@ class IrukaDarkApp {
     if (!window.electronAPI) {
       this.addMessage('system', getUIText('apiUnavailable'));
     }
-    this.initializeLanguage();
+    // Initialize language first, then load templates (which may create Default template)
+    this.initializeLanguage().then(() => {
+      this.loadSlideTemplates();
+    });
     this.loadWebSearchSetting();
     this.loadTranslateMode();
     this.loadImageSize();
@@ -921,7 +931,7 @@ class IrukaDarkApp {
     this.loadVideoCount();
     this.loadVideoResolution();
     this.loadSlideSize();
-    this.loadSlidePrompt();
+    this.loadSlideCount();
   }
 
   async loadWebSearchSetting() {
@@ -1032,14 +1042,424 @@ class IrukaDarkApp {
     }
   }
 
-  async loadSlidePrompt() {
+  async loadSlideCount() {
     try {
-      if (window.electronAPI && window.electronAPI.getSlidePrompt) {
-        const prompt = await window.electronAPI.getSlidePrompt();
-        this.slidePrompt = prompt || '';
+      if (window.electronAPI && window.electronAPI.getSlideCount) {
+        const count = await window.electronAPI.getSlideCount();
+        const validCounts = [1, 2, 3, 4];
+        this.slideCount = validCounts.includes(count) ? count : 1;
       }
     } catch (error) {
-      this.slidePrompt = '';
+      this.slideCount = 1;
+    }
+  }
+
+  async loadSlideTemplates() {
+    try {
+      if (window.electronAPI && window.electronAPI.getSlideTemplates) {
+        const data = await window.electronAPI.getSlideTemplates();
+        this.slideTemplates = data.templates || [];
+        this.activeSlideTemplateId = data.activeTemplateId || null;
+
+        // Create Default template if no templates exist
+        if (this.slideTemplates.length === 0) {
+          await this.createDefaultSlideTemplate();
+        }
+
+        this.updateSlideTemplateTargets();
+      }
+    } catch (error) {
+      this.slideTemplates = [];
+      this.activeSlideTemplateId = null;
+    }
+  }
+
+  async createDefaultSlideTemplate() {
+    const defaultPrompt = this.getDefaultSlidePrompt();
+    const defaultTemplate = {
+      id: 'default',
+      name: 'Default',
+      prompt: defaultPrompt,
+      thumbnailBase64: null,
+    };
+
+    try {
+      if (window.electronAPI && window.electronAPI.saveSlideTemplate) {
+        await window.electronAPI.saveSlideTemplate(defaultTemplate);
+      }
+      // Reload to get the saved template
+      if (window.electronAPI && window.electronAPI.getSlideTemplates) {
+        const data = await window.electronAPI.getSlideTemplates();
+        this.slideTemplates = data.templates || [];
+        // Set Default as active
+        if (this.slideTemplates.length > 0 && !this.activeSlideTemplateId) {
+          const defaultTpl = this.slideTemplates.find((t) => t.id === 'default');
+          if (defaultTpl && window.electronAPI.setActiveSlideTemplate) {
+            await window.electronAPI.setActiveSlideTemplate(defaultTpl.id);
+            this.activeSlideTemplateId = defaultTpl.id;
+          }
+        }
+      }
+    } catch (error) {
+      // Silently fail - user can create templates manually
+    }
+  }
+
+  updateSlideTemplateTargets() {
+    // Update SLASH_SLIDE_TEMPLATE_TARGETS dynamically
+    SLASH_SLIDE_TEMPLATE_TARGETS.length = 0;
+    for (const tpl of this.slideTemplates) {
+      SLASH_SLIDE_TEMPLATE_TARGETS.push({
+        key: `/slide template ${tpl.name}`,
+        match: `/slide template ${tpl.name.toLowerCase()}`,
+        label: `/slide template ${tpl.name}`,
+        descKey: 'slashDescriptions.slideTemplateItem',
+        templateId: tpl.id,
+        templateName: tpl.name,
+      });
+    }
+  }
+
+  getActiveSlideTemplate() {
+    if (!this.activeSlideTemplateId) return null;
+    return this.slideTemplates.find((t) => t.id === this.activeSlideTemplateId) || null;
+  }
+
+  async applySlideTemplate(templateId) {
+    const template = this.slideTemplates.find((t) => t.id === templateId);
+    if (!template) {
+      const notFound = getUIText('slideTemplateNotFound');
+      this.addMessage('system', notFound);
+      return;
+    }
+    this.activeSlideTemplateId = templateId;
+    try {
+      if (window.electronAPI && window.electronAPI.setActiveSlideTemplate) {
+        await window.electronAPI.setActiveSlideTemplate(templateId);
+      }
+    } catch (error) {}
+    const applied = getUIText('slideTemplateApplied', template.name);
+    this.addMessage('system', applied);
+  }
+
+  async clearActiveSlideTemplate() {
+    this.activeSlideTemplateId = null;
+    try {
+      if (window.electronAPI && window.electronAPI.setActiveSlideTemplate) {
+        await window.electronAPI.setActiveSlideTemplate(null);
+      }
+    } catch (error) {}
+    const cleared = getUIText('slideTemplateCleared');
+    this.addMessage('system', cleared);
+  }
+
+  openSlideTemplateDialog() {
+    const overlay = document.getElementById('slideTemplateOverlay');
+    const listEl = document.getElementById('slideTemplateList');
+    const closeBtn = document.getElementById('slideTemplateClose');
+    const addBtn = document.getElementById('slideTemplateAddBtn');
+
+    if (!overlay || !listEl) return;
+
+    this.renderSlideTemplateList(listEl);
+    overlay.style.display = 'flex';
+
+    const closeHandler = () => {
+      overlay.style.display = 'none';
+      closeBtn.removeEventListener('click', closeHandler);
+      overlay.removeEventListener('click', overlayClickHandler);
+    };
+
+    const overlayClickHandler = (e) => {
+      if (e.target === overlay) closeHandler();
+    };
+
+    closeBtn.addEventListener('click', closeHandler);
+    overlay.addEventListener('click', overlayClickHandler);
+
+    addBtn.onclick = () => {
+      this.openSlideTemplateEditDialog(null);
+    };
+  }
+
+  renderSlideTemplateList(listEl) {
+    listEl.innerHTML = '';
+
+    if (this.slideTemplates.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'slide-template-empty';
+      empty.textContent = getUIText('slideTemplate.noTemplates') || 'No templates yet';
+      listEl.appendChild(empty);
+      return;
+    }
+
+    for (const tpl of this.slideTemplates) {
+      const item = document.createElement('div');
+      item.className = 'slide-template-item';
+      if (tpl.id === this.activeSlideTemplateId) {
+        item.classList.add('active');
+      }
+
+      // Thumbnail
+      if (tpl.thumbnailBase64) {
+        const thumb = document.createElement('img');
+        thumb.className = 'slide-template-item-thumb';
+        thumb.src = tpl.thumbnailBase64;
+        item.appendChild(thumb);
+      } else {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'slide-template-item-thumb-placeholder';
+        placeholder.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`;
+        item.appendChild(placeholder);
+      }
+
+      // Info
+      const info = document.createElement('div');
+      info.className = 'slide-template-item-info';
+
+      const name = document.createElement('div');
+      name.className = 'slide-template-item-name';
+      name.textContent = tpl.name;
+      info.appendChild(name);
+
+      const prompt = document.createElement('div');
+      prompt.className = 'slide-template-item-prompt';
+      // For default template, show current language prompt instead of saved prompt
+      const displayPrompt = tpl.id === 'default' ? this.getDefaultSlidePrompt() : tpl.prompt || '';
+      prompt.textContent = displayPrompt.slice(0, 50) + (displayPrompt.length > 50 ? '...' : '');
+      info.appendChild(prompt);
+
+      item.appendChild(info);
+
+      // Actions
+      const actions = document.createElement('div');
+      actions.className = 'slide-template-item-actions';
+
+      // Use button
+      const useBtn = document.createElement('button');
+      useBtn.className = 'slide-template-item-btn';
+      useBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+      useBtn.title = getUIText('slideTemplate.use') || 'Use';
+      useBtn.onclick = (e) => {
+        e.stopPropagation();
+        this.applySlideTemplate(tpl.id);
+        document.getElementById('slideTemplateOverlay').style.display = 'none';
+      };
+      actions.appendChild(useBtn);
+
+      // Edit and Delete buttons (hidden for default template)
+      if (tpl.id !== 'default') {
+        // Edit button
+        const editBtn = document.createElement('button');
+        editBtn.className = 'slide-template-item-btn';
+        editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>`;
+        editBtn.title = getUIText('slideTemplate.edit') || 'Edit';
+        editBtn.onclick = (e) => {
+          e.stopPropagation();
+          this.openSlideTemplateEditDialog(tpl);
+        };
+        actions.appendChild(editBtn);
+
+        // Delete button
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'slide-template-item-btn delete';
+        deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`;
+        deleteBtn.title = getUIText('slideTemplate.delete') || 'Delete';
+        deleteBtn.onclick = (e) => {
+          e.stopPropagation();
+          this.deleteSlideTemplate(tpl.id);
+        };
+        actions.appendChild(deleteBtn);
+      }
+
+      item.appendChild(actions);
+
+      // Click item to use
+      item.onclick = () => {
+        this.applySlideTemplate(tpl.id);
+        document.getElementById('slideTemplateOverlay').style.display = 'none';
+      };
+
+      listEl.appendChild(item);
+    }
+  }
+
+  async openSlideTemplateEditDialog(template) {
+    // Prevent editing of default template
+    if (template && template.id === 'default') return;
+
+    const overlay = document.getElementById('slideTemplateEditOverlay');
+    const titleEl = document.getElementById('slideTemplateEditTitle');
+    const nameInput = document.getElementById('slideTemplateEditName');
+    const promptInput = document.getElementById('slideTemplateEditPrompt');
+    const imagePreview = document.getElementById('slideTemplateEditImagePreview');
+    const imageActions = document.getElementById('slideTemplateEditImageActions');
+    const closeBtn = document.getElementById('slideTemplateEditClose');
+    const cancelBtn = document.getElementById('slideTemplateEditCancel');
+    const saveBtn = document.getElementById('slideTemplateEditSave');
+    const deleteImageBtn = document.getElementById('slideTemplateEditImageDelete');
+
+    if (!overlay) return;
+
+    this.editingTemplateId = template ? template.id : null;
+    this.editingTemplateImageBase64 = null;
+
+    // Set title
+    titleEl.textContent = template
+      ? getUIText('slideTemplate.edit') || 'Edit Template'
+      : getUIText('slideTemplate.addNew') || 'Add Template';
+
+    // Set values
+    nameInput.value = template ? template.name : '';
+    promptInput.value = template ? template.prompt || '' : '';
+
+    // Set image preview
+    if (template && template.thumbnailBase64) {
+      imagePreview.innerHTML = `<img src="${template.thumbnailBase64}" />`;
+      imageActions.style.display = 'flex';
+      this.editingTemplateImageBase64 = template.thumbnailBase64;
+    } else {
+      imagePreview.innerHTML = `
+        <div class="slide-template-edit-image-placeholder">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          <span>${getUIText('slideTemplate.clickToSelect') || 'Click to select image'}</span>
+        </div>
+      `;
+      imageActions.style.display = 'none';
+    }
+
+    overlay.style.display = 'flex';
+
+    const closeHandler = () => {
+      overlay.style.display = 'none';
+      this.editingTemplateId = null;
+      this.editingTemplateImageBase64 = null;
+    };
+
+    closeBtn.onclick = closeHandler;
+    cancelBtn.onclick = closeHandler;
+
+    imagePreview.onclick = async () => {
+      await this.selectSlideTemplateImage();
+    };
+
+    deleteImageBtn.onclick = () => {
+      this.editingTemplateImageBase64 = null;
+      imagePreview.innerHTML = `
+        <div class="slide-template-edit-image-placeholder">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          <span>${getUIText('slideTemplate.clickToSelect') || 'Click to select image'}</span>
+        </div>
+      `;
+      imageActions.style.display = 'none';
+    };
+
+    saveBtn.onclick = async () => {
+      const name = nameInput.value.trim();
+      if (!name) {
+        const err = getUIText('slideTemplate.nameRequired') || 'Name is required';
+        this.addMessage('system', err);
+        return;
+      }
+
+      // Check for duplicate template name (different ID but same name)
+      const duplicateExists = this.slideTemplates.some(
+        (t) => t.name.toLowerCase() === name.toLowerCase() && t.id !== this.editingTemplateId
+      );
+      if (duplicateExists) {
+        const err =
+          getUIText('slideTemplate.nameDuplicate') || 'A template with this name already exists';
+        this.addMessage('system', err);
+        return;
+      }
+
+      const templateData = {
+        id: this.editingTemplateId || `tpl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        name,
+        prompt: promptInput.value.trim(),
+        thumbnailBase64: this.editingTemplateImageBase64 || null,
+        imageFilename: null, // Will be set by main process if image is saved
+      };
+
+      try {
+        if (window.electronAPI && window.electronAPI.saveSlideTemplate) {
+          await window.electronAPI.saveSlideTemplate(templateData);
+        }
+        await this.loadSlideTemplates();
+        const saved = getUIText('slideTemplateSaved', name);
+        this.addMessage('system', saved);
+        closeHandler();
+        // Refresh list
+        const listEl = document.getElementById('slideTemplateList');
+        if (listEl) this.renderSlideTemplateList(listEl);
+      } catch (error) {
+        const errMsg = getUIText('slideTemplate.saveError') || 'Failed to save template';
+        this.addMessage('system', errMsg);
+      }
+    };
+
+    overlay.onclick = (e) => {
+      if (e.target === overlay) closeHandler();
+    };
+  }
+
+  async selectSlideTemplateImage() {
+    try {
+      if (window.electronAPI && window.electronAPI.selectSlideTemplateImage) {
+        const result = await window.electronAPI.selectSlideTemplateImage();
+        if (result && result.base64) {
+          this.editingTemplateImageBase64 = result.base64;
+          const imagePreview = document.getElementById('slideTemplateEditImagePreview');
+          const imageActions = document.getElementById('slideTemplateEditImageActions');
+          if (imagePreview) {
+            imagePreview.innerHTML = `<img src="${result.base64}" />`;
+          }
+          if (imageActions) {
+            imageActions.style.display = 'flex';
+          }
+        }
+      }
+    } catch (error) {}
+  }
+
+  async deleteSlideTemplate(templateId) {
+    // Prevent deletion of default template
+    if (templateId === 'default') return;
+
+    const template = this.slideTemplates.find((t) => t.id === templateId);
+    if (!template) return;
+
+    const confirmMsg =
+      getUIText('slideTemplate.confirmDelete', template.name) || `Delete "${template.name}"?`;
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      if (window.electronAPI && window.electronAPI.deleteSlideTemplate) {
+        await window.electronAPI.deleteSlideTemplate(templateId);
+      }
+      if (this.activeSlideTemplateId === templateId) {
+        this.activeSlideTemplateId = null;
+      }
+      await this.loadSlideTemplates();
+      const deleted = getUIText('slideTemplateDeleted', template.name);
+      this.addMessage('system', deleted);
+      // Refresh list
+      const listEl = document.getElementById('slideTemplateList');
+      if (listEl) this.renderSlideTemplateList(listEl);
+    } catch (error) {
+      const errMsg = getUIText('slideTemplate.deleteError') || 'Failed to delete template';
+      this.addMessage('system', errMsg);
+    }
+  }
+
+  showSlideTemplateStatus() {
+    const active = this.getActiveSlideTemplate();
+    if (active) {
+      const status = getUIText('slideTemplateActiveStatus', active.name);
+      this.addMessage('system', status);
+    } else {
+      const noActive = getUIText('slideTemplateNoActive');
+      this.addMessage('system', noActive);
     }
   }
 
@@ -1268,31 +1688,50 @@ class IrukaDarkApp {
     await this.persistSlideSize(normalized);
   }
 
-  async persistSlidePrompt(prompt) {
+  async persistSlideCount(count) {
     try {
-      if (window.electronAPI && window.electronAPI.saveSlidePrompt) {
-        await window.electronAPI.saveSlidePrompt(prompt);
+      if (window.electronAPI && window.electronAPI.saveSlideCount) {
+        await window.electronAPI.saveSlideCount(count);
       }
     } catch (error) {}
   }
 
-  async setSlidePrompt(prompt) {
-    this.slidePrompt = prompt || '';
-    const updated = getUIText('slidePromptUpdated');
+  async setSlideCount(count) {
+    const validCounts = [1, 2, 3, 4];
+    const normalized = validCounts.includes(count) ? count : 1;
+    if (this.slideCount === normalized) {
+      const already = getUIText('slideCountAlready', normalized);
+      if (already) this.addMessage('system', already);
+      return;
+    }
+    this.slideCount = normalized;
+    const updated = getUIText('slideCountUpdated', normalized);
     if (updated) this.addMessage('system', updated);
-    await this.persistSlidePrompt(this.slidePrompt);
+    await this.persistSlideCount(normalized);
+  }
+
+  showSlideCountStatus() {
+    const message = getUIText('slideCountStatus', this.slideCount);
+    if (message) {
+      this.addMessage('system', message);
+    }
   }
 
   showSlideStatus() {
     const sizeStatus = getUIText('slideSizeStatus', this.slideSize);
     if (sizeStatus) this.addMessage('system', sizeStatus);
 
-    if (this.slidePrompt) {
-      const promptStatus = getUIText('slidePromptCustomStatus');
-      if (promptStatus) this.addMessage('system', promptStatus);
+    const countStatus = getUIText('slideCountStatus', this.slideCount);
+    if (countStatus) this.addMessage('system', countStatus);
+
+    // Template status
+    const activeTemplate = this.getActiveSlideTemplate();
+    if (activeTemplate) {
+      const templateStatus = getUIText('slideTemplateActiveStatus', activeTemplate.name);
+      if (templateStatus) this.addMessage('system', templateStatus);
     } else {
-      const promptDefault = getUIText('slidePromptDefaultStatus');
-      if (promptDefault) this.addMessage('system', promptDefault);
+      const noActive = getUIText('slideTemplateNoActive');
+      if (noActive) this.addMessage('system', noActive);
     }
   }
 
@@ -1301,82 +1740,9 @@ class IrukaDarkApp {
       (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
     const { name, code } = getLangMeta(lang);
 
-    if (lang === 'ja') {
-      return `以下の内容を1枚のスライドで説明したリッチな図解画像を生成してください。
-デザイン: shadcn/uiスタイル、白黒、背景白、アクセントカラー1つ。
-テキストは日本語で。`;
-    } else {
-      return `Generate a rich infographic slide image explaining the following content.
-Design: shadcn/ui style, black and white, white background, one accent color.
+    return `Generate a rich infographics slide image explaining the following content.
+Design: black and white, white background, pink gradient accent color.
 Text should be in ${name} (${code}).`;
-    }
-  }
-
-  async openSlidePromptDialog() {
-    const overlay = document.getElementById('slidePromptOverlay');
-    const textarea = document.getElementById('slidePromptTextarea');
-    const closeBtn = document.getElementById('slidePromptClose');
-    const cancelBtn = document.getElementById('slidePromptCancel');
-    const saveBtn = document.getElementById('slidePromptSave');
-
-    if (!overlay || !textarea) return;
-
-    // Show current custom prompt or default prompt as placeholder
-    const currentValue = this.slidePrompt || '';
-    const defaultPrompt = this.getDefaultSlidePrompt();
-
-    // Set textarea value: show custom if set, otherwise show default
-    textarea.value = currentValue || defaultPrompt;
-    textarea.placeholder = defaultPrompt;
-
-    // Show overlay
-    overlay.style.display = 'flex';
-    textarea.focus();
-    textarea.select();
-
-    // Handler functions
-    const handleClose = () => {
-      overlay.style.display = 'none';
-      cleanup();
-    };
-
-    const handleSave = async () => {
-      const value = textarea.value.trim();
-      // If value matches default, save empty string (use default)
-      const newValue = value === defaultPrompt ? '' : value;
-      await this.setSlidePrompt(newValue);
-      overlay.style.display = 'none';
-      cleanup();
-    };
-
-    const handleOverlayClick = (e) => {
-      if (e.target === overlay) {
-        handleClose();
-      }
-    };
-
-    const handleKeydown = (e) => {
-      if (e.key === 'Escape') {
-        handleClose();
-      } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-        handleSave();
-      }
-    };
-
-    const cleanup = () => {
-      closeBtn.removeEventListener('click', handleClose);
-      cancelBtn.removeEventListener('click', handleClose);
-      saveBtn.removeEventListener('click', handleSave);
-      overlay.removeEventListener('click', handleOverlayClick);
-      document.removeEventListener('keydown', handleKeydown);
-    };
-
-    // Add event listeners
-    closeBtn.addEventListener('click', handleClose);
-    cancelBtn.addEventListener('click', handleClose);
-    saveBtn.addEventListener('click', handleSave);
-    overlay.addEventListener('click', handleOverlayClick);
-    document.addEventListener('keydown', handleKeydown);
   }
 
   async initializeLanguage() {
@@ -2451,8 +2817,39 @@ Text should be in ${name} (${code}).`;
         return;
       }
 
-      if (subCmd === 'prompt') {
-        await this.openSlidePromptDialog();
+      if (subCmd === 'count') {
+        const countValue = parseInt(parts[2], 10);
+        const validCounts = [1, 2, 3, 4];
+        if (validCounts.includes(countValue)) {
+          await this.setSlideCount(countValue);
+          return;
+        }
+        this.addMessage('system', getUIText('slideCountHelp'));
+        return;
+      }
+
+      if (subCmd === 'template') {
+        const templateName = parts.slice(2).join(' ').trim();
+        if (!templateName) {
+          // Open template list dialog
+          this.openSlideTemplateDialog();
+          return;
+        }
+        // Find template by name (case-insensitive)
+        const template = this.slideTemplates.find(
+          (t) => t.name.toLowerCase() === templateName.toLowerCase()
+        );
+        if (template) {
+          await this.applySlideTemplate(template.id);
+        } else if (
+          templateName.toLowerCase() === 'clear' ||
+          templateName.toLowerCase() === 'none'
+        ) {
+          await this.clearActiveSlideTemplate();
+        } else {
+          const notFound = getUIText('slideTemplateNotFound');
+          this.addMessage('system', notFound);
+        }
         return;
       }
 
@@ -2618,7 +3015,7 @@ Text should be in ${name} (${code}).`;
 
   /**
    * Handle @slide command - generates slide image from user prompt
-   * Uses the same settings as Option+Control+A shortcut (/slide size, /slide prompt)
+   * Uses the same settings as Option+Control+A shortcut (/slide size, /slide template, /slide count)
    */
   async handleSlideGeneration(prompt) {
     try {
@@ -2626,12 +3023,19 @@ Text should be in ${name} (${code}).`;
       this.disableAutoScrollCount++;
 
       const aspectRatio = this.slideSize || '16:9';
-      this.showImageSkeletonLoader(aspectRatio, 1);
+      const count = this.slideCount || 1;
+      this.showImageSkeletonLoader(aspectRatio, count);
 
-      const result = await this._generateSlideImageCore(prompt).catch((error) => {
-        this.markSkeletonFailed(0);
-        return null;
-      });
+      const generatePromises = Array(count)
+        .fill(null)
+        .map((_, index) =>
+          this._generateSlideImageCore(prompt).catch((error) => {
+            this.markSkeletonFailed(index);
+            return null;
+          })
+        );
+
+      const results = await Promise.all(generatePromises);
 
       this.hideTypingIndicator();
 
@@ -2639,8 +3043,9 @@ Text should be in ${name} (${code}).`;
         return;
       }
 
-      if (result?.imageBase64) {
-        this.addImagesMessage([result], prompt.substring(0, 50));
+      const validResults = results.filter((result) => result?.imageBase64);
+      if (validResults.length > 0) {
+        this.addImagesMessage(validResults, prompt.substring(0, 50));
       } else {
         this.addMessage('system', getUIText('errorOccurred') || 'Error occurred');
       }
@@ -2660,12 +3065,47 @@ Text should be in ${name} (${code}).`;
    * @returns {Promise<{imageBase64: string, mimeType: string}|null>}
    */
   async _generateSlideImageCore(content) {
-    const basePrompt = this.slidePrompt || this.getDefaultSlidePrompt();
+    // Check for active template
+    const activeTemplate = this.getActiveSlideTemplate();
+    let basePrompt;
+    let referenceImage = null;
+
+    if (activeTemplate) {
+      // For default template, always use getDefaultSlidePrompt() to reflect current UI language
+      // For other templates, use template's prompt or fallback to default
+      basePrompt =
+        activeTemplate.id === 'default'
+          ? this.getDefaultSlidePrompt()
+          : activeTemplate.prompt || this.getDefaultSlidePrompt();
+      // If template has an image, use it as reference
+      if (activeTemplate.thumbnailBase64) {
+        // Extract mimeType from data URL
+        const mimeMatch = activeTemplate.thumbnailBase64.match(/^data:(image\/[^;]+);base64,/);
+        const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+        referenceImage = {
+          base64: activeTemplate.thumbnailBase64.replace(/^data:[^;]+;base64,/, ''),
+          mimeType,
+        };
+      }
+    } else {
+      // No template active, use default prompt
+      basePrompt = this.getDefaultSlidePrompt();
+    }
+
     const fullPrompt = `${basePrompt}
 
 Content:
 ${content}`;
     const aspectRatio = this.slideSize || '16:9';
+
+    if (referenceImage) {
+      // Generate with reference image
+      return this.geminiService.generateImageFromTextWithReference(
+        fullPrompt,
+        aspectRatio,
+        referenceImage
+      );
+    }
     return this.geminiService.generateImageFromText(fullPrompt, aspectRatio);
   }
 
@@ -3206,6 +3646,14 @@ ${content}`;
         return SLASH_SLIDE_SIZE_TARGETS;
       }
       return SLASH_SLIDE_SIZE_TARGETS.filter((c) => c.match.startsWith(normalized));
+    }
+    if (normalized.startsWith('/slide count')) {
+      const wantsChildren =
+        normalized === '/slide count' && (raw.endsWith(' ') || lower.endsWith(' '));
+      if (wantsChildren) {
+        return SLASH_SLIDE_COUNT_TARGETS;
+      }
+      return SLASH_SLIDE_COUNT_TARGETS.filter((c) => c.match.startsWith(normalized));
     }
     if (normalized.startsWith('/slide ')) {
       return SLASH_SLIDE_TARGETS.filter((c) => c.match.startsWith(normalized));
@@ -4165,12 +4613,21 @@ class GeminiService {
   async generateImageFromTextWithReference(prompt, aspectRatio = '1:1', referenceFiles) {
     try {
       if (window.electronAPI && window.electronAPI.generateImageFromText) {
-        // 複数のファイルをbase64に変換
+        // Normalize input: accept either File objects or pre-converted {base64, mimeType} objects
+        const filesArray = Array.isArray(referenceFiles) ? referenceFiles : [referenceFiles];
         const referenceImages = await Promise.all(
-          referenceFiles.map(async (file) => {
+          filesArray.map(async (item) => {
+            // If already converted (has base64 property), use directly
+            if (item && item.base64) {
+              return {
+                base64: item.base64,
+                mimeType: item.mimeType || 'image/png',
+              };
+            }
+            // Otherwise, treat as File object and convert
             return {
-              base64: await this.fileToBase64(file),
-              mimeType: file.type,
+              base64: await this.fileToBase64(item),
+              mimeType: item.type,
             };
           })
         );

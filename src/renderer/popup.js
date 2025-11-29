@@ -324,6 +324,61 @@ function setupLogoErrorHandling() {
 }
 
 /**
+ * Default logo path
+ */
+const DEFAULT_LOGO_PATH = 'assets/icons/irukadark_logo.svg';
+
+/**
+ * Update the popup logo image
+ * @param {string|null} iconSrc - Base64 data URL or null for default
+ */
+function updatePopupLogo(iconSrc) {
+  const logoImg = document.getElementById('logoImg');
+  if (!logoImg) return;
+
+  // Remove fallback logo if it exists
+  const fallbackLogo = document.getElementById('fallbackLogo');
+  if (fallbackLogo) {
+    fallbackLogo.remove();
+  }
+
+  // Ensure img element is visible and update source
+  logoImg.style.display = '';
+  logoImg.src = iconSrc || DEFAULT_LOGO_PATH;
+}
+
+/**
+ * Load custom popup icon if set
+ */
+async function loadCustomPopupIcon() {
+  try {
+    const api = window.electronAPI;
+    if (!api?.getCustomPopupIcon) return;
+
+    const customIcon = await api.getCustomPopupIcon();
+    if (customIcon) {
+      updatePopupLogo(customIcon);
+      // Invalidate shadow after icon loaded to update macOS window shadow
+      setTimeout(() => {
+        api.invalidatePopupShadow?.();
+      }, 50);
+    }
+  } catch (err) {
+    // Keep default icon on error
+  }
+}
+
+/**
+ * Listen for popup icon changes from settings
+ */
+function setupPopupIconChangeListener() {
+  const api = window.electronAPI;
+  if (!api?.onPopupIconChanged) return;
+
+  api.onPopupIconChanged((icon) => updatePopupLogo(icon));
+}
+
+/**
  * Initialize drag controller when DOM is ready
  * Creates the DragController instance and attaches it to the logo container
  */
@@ -341,6 +396,12 @@ function setupLogoErrorHandling() {
 
     // Setup logo error handling
     setupLogoErrorHandling();
+
+    // Load custom icon if set
+    loadCustomPopupIcon();
+
+    // Listen for icon changes from settings
+    setupPopupIconChangeListener();
 
     // Create and initialize drag controller
     const dragController = new DragController(api, container);

@@ -89,13 +89,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Slide image settings
   saveSlideSize: (ratio) => ipcRenderer.invoke('save-slide-size', ratio),
   getSlideSize: () => ipcRenderer.invoke('get-slide-size'),
-  saveSlidePrompt: (prompt) => ipcRenderer.invoke('save-slide-prompt', prompt),
-  getSlidePrompt: () => ipcRenderer.invoke('get-slide-prompt'),
+  saveSlideCount: (count) => ipcRenderer.invoke('save-slide-count', count),
+  getSlideCount: () => ipcRenderer.invoke('get-slide-count'),
+  // Slide template management
+  getSlideTemplates: () => ipcRenderer.invoke('slide-template:get-all'),
+  saveSlideTemplate: (template) => ipcRenderer.invoke('slide-template:save', template),
+  deleteSlideTemplate: (id) => ipcRenderer.invoke('slide-template:delete', id),
+  setActiveSlideTemplate: (id) => ipcRenderer.invoke('slide-template:set-active', id),
+  selectSlideTemplateImage: () => ipcRenderer.invoke('slide-template:select-image'),
   // Popup interactions
   notifyPopupPointer: (phase) => ipcRenderer.invoke('popup:pointer', String(phase || '')),
   getPopupBounds: () => ipcRenderer.invoke('popup:get-bounds'),
   setPopupPosition: (x, y) =>
     ipcRenderer.invoke('popup:set-position', { x: Number(x) || 0, y: Number(y) || 0 }),
+  // Popup custom icon
+  getCustomPopupIcon: () => ipcRenderer.invoke('popup-icon:get'),
+  setCustomPopupIcon: (base64) => ipcRenderer.invoke('popup-icon:set', base64),
+  resetCustomPopupIcon: () => ipcRenderer.invoke('popup-icon:reset'),
+  selectPopupIconImage: () => ipcRenderer.invoke('popup-icon:select-image'),
+  invalidatePopupShadow: () => ipcRenderer.invoke('popup-icon:invalidate-shadow'),
+  onPopupIconChanged: (cb) => ipcRenderer.on('popup-icon-changed', (_e, icon) => cb(icon)),
   // Unhide the main window; pass true to also focus
   ensureVisible: (focus = false) => ipcRenderer.invoke('ui:ensure-visible', { focus }),
   // Set dragging state (for window level adjustment)
