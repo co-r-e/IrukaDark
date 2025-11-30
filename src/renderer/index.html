@@ -258,6 +258,34 @@
         display: block;
       }
 
+      /* Color swatch for color codes */
+      .clipboard-item-text-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .color-swatch {
+        width: 16px;
+        height: 16px;
+        min-width: 16px;
+        border-radius: 4px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+      }
+
+      html:not(.theme-dark) .color-swatch {
+        border-color: rgba(0, 0, 0, 0.15);
+      }
+
+      /* Color snippet styles (same as image-snippet layout) */
+      .snippet-item.color-snippet .snippet-item-content-wrapper {
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+      }
+
       .snippet-folder {
         background: transparent;
         border: none;

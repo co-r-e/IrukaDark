@@ -47,6 +47,7 @@ const menuTranslations = {
     help: 'Help',
     checkForUpdates: 'Check for Updates…',
     launchAtLogin: 'Launch at Login',
+    restart: 'Restart',
   },
   ja: {
     irukadark: 'IrukaDark',
@@ -96,6 +97,7 @@ const menuTranslations = {
     help: 'ヘルプ',
     checkForUpdates: 'アップデートを確認…',
     launchAtLogin: 'ログイン時に起動',
+    restart: '再起動',
   },
   es: {
     irukadark: 'IrukaDark',
@@ -142,6 +144,7 @@ const menuTranslations = {
     toneFormal: 'Formal',
     toneCasual: 'Informal',
     help: 'Ayuda',
+    restart: 'Reiniciar',
   },
   'zh-Hans': {
     irukadark: 'IrukaDark',
@@ -188,6 +191,7 @@ const menuTranslations = {
     toneFormal: '正式',
     toneCasual: '口语',
     help: '帮助',
+    restart: '重启',
   },
   'zh-Hant': {
     irukadark: 'IrukaDark',
@@ -234,6 +238,7 @@ const menuTranslations = {
     toneFormal: '正式',
     toneCasual: '口語',
     help: '說明',
+    restart: '重新啟動',
   },
   hi: {
     irukadark: 'IrukaDark',
@@ -280,6 +285,7 @@ const menuTranslations = {
     toneFormal: 'औपचारिक',
     toneCasual: 'अनौपचारिक',
     help: 'सहायता',
+    restart: 'पुनः प्रारंभ करें',
   },
   'pt-BR': {
     irukadark: 'IrukaDark',
@@ -326,6 +332,7 @@ const menuTranslations = {
     toneFormal: 'Formal',
     toneCasual: 'Informal',
     help: 'Ajuda',
+    restart: 'Reiniciar',
   },
   fr: {
     irukadark: 'IrukaDark',
@@ -372,6 +379,7 @@ const menuTranslations = {
     toneFormal: 'Formel',
     toneCasual: 'Décontracté',
     help: 'Aide',
+    restart: 'Redémarrer',
   },
   de: {
     irukadark: 'IrukaDark',
@@ -418,6 +426,7 @@ const menuTranslations = {
     toneFormal: 'Förmlich',
     toneCasual: 'Locker',
     help: 'Hilfe',
+    restart: 'Neustart',
   },
   ar: {
     irukadark: 'IrukaDark',
@@ -464,6 +473,7 @@ const menuTranslations = {
     toneFormal: 'رسمي',
     toneCasual: 'غير رسمي',
     help: 'مساعدة',
+    restart: 'إعادة التشغيل',
   },
   ru: {
     irukadark: 'IrukaDark',
@@ -510,6 +520,7 @@ const menuTranslations = {
     toneFormal: 'Официальный',
     toneCasual: 'Разговорный',
     help: 'Справка',
+    restart: 'Перезапустить',
   },
   ko: {
     irukadark: 'IrukaDark',
@@ -556,6 +567,7 @@ const menuTranslations = {
     toneFormal: '격식체',
     toneCasual: '캐주얼',
     help: '도움말',
+    restart: '재시작',
   },
   id: {
     irukadark: 'IrukaDark',
@@ -602,6 +614,7 @@ const menuTranslations = {
     toneFormal: 'Resmi',
     toneCasual: 'Santai',
     help: 'Bantuan',
+    restart: 'Mulai Ulang',
   },
   vi: {
     irukadark: 'IrukaDark',
@@ -648,6 +661,7 @@ const menuTranslations = {
     toneFormal: 'Trang trọng',
     toneCasual: 'Thân mật',
     help: 'Trợ giúp',
+    restart: 'Khởi động lại',
   },
   th: {
     irukadark: 'IrukaDark',
@@ -694,6 +708,7 @@ const menuTranslations = {
     toneFormal: 'ทางการ',
     toneCasual: 'ไม่เป็นทางการ',
     help: 'วิธีใช้',
+    restart: 'รีสตาร์ท',
   },
   it: {
     irukadark: 'IrukaDark',
@@ -740,6 +755,7 @@ const menuTranslations = {
     toneFormal: 'Formale',
     toneCasual: 'Informale',
     help: 'Aiuto',
+    restart: 'Riavvia',
   },
   tr: {
     irukadark: 'IrukaDark',
@@ -786,6 +802,7 @@ const menuTranslations = {
     toneFormal: 'Resmî',
     toneCasual: 'Gündelik',
     help: 'Yardım',
+    restart: 'Yeniden Başlat',
   },
 };
 

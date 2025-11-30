@@ -3,6 +3,56 @@
  * License: AGPL-3.0-only. See https://github.com/co-r-e/IrukaDark/blob/HEAD/LICENSE
  */
 
+// Color code detection patterns
+const COLOR_PATTERNS = {
+  // HEX: #RGB, #RRGGBB, #RGBA, #RRGGBBAA
+  HEX: /^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{4}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$/,
+  // RGB/RGBA: rgb(r, g, b) or rgba(r, g, b, a)
+  RGB: /^rgba?\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*([0-9.]+))?\s*\)$/i,
+  // HSL/HSLA: hsl(h, s%, l%) or hsla(h, s%, l%, a)
+  HSL: /^hsla?\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})%\s*,\s*(\d{1,3})%\s*(?:,\s*([0-9.]+))?\s*\)$/i,
+};
+
+/**
+ * Detects if text is a color code and returns the color value
+ * @param {string} text - Text to check
+ * @returns {string|null} CSS color value if detected, null otherwise
+ */
+function detectColorCode(text) {
+  if (!text || typeof text !== 'string') return null;
+
+  const trimmed = text.trim();
+
+  // Check HEX
+  if (COLOR_PATTERNS.HEX.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Check RGB/RGBA
+  if (COLOR_PATTERNS.RGB.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Check HSL/HSLA
+  if (COLOR_PATTERNS.HSL.test(trimmed)) {
+    return trimmed;
+  }
+
+  return null;
+}
+
+/**
+ * Creates a color swatch element
+ * @param {string} color - CSS color value
+ * @returns {HTMLElement} Color swatch div element
+ */
+function createColorSwatch(color) {
+  const swatch = document.createElement('div');
+  swatch.className = 'color-swatch';
+  swatch.style.backgroundColor = color;
+  return swatch;
+}
+
 // SVG Icon Constants
 const ICONS = {
   COPY: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>',
@@ -603,11 +653,22 @@ class ClipboardHistoryUI {
 
       contentEl.appendChild(imgEl);
     } else {
-      // Display text
+      // Display text with optional color swatch
+      const textWrapper = document.createElement('div');
+      textWrapper.className = 'clipboard-item-text-wrapper';
+
+      // Check if text is a color code
+      const colorValue = detectColorCode(item.text);
+      if (colorValue) {
+        const swatch = createColorSwatch(colorValue);
+        textWrapper.appendChild(swatch);
+      }
+
       const textEl = document.createElement('div');
       textEl.className = 'clipboard-item-text';
       textEl.textContent = item.text || '';
-      contentEl.appendChild(textEl);
+      textWrapper.appendChild(textEl);
+      contentEl.appendChild(textWrapper);
     }
 
     const actionsEl = document.createElement('div');
@@ -936,6 +997,14 @@ class ClipboardHistoryUI {
       imgEl.src = `data:image/png;base64,${snippet.thumbnailData}`;
       imgEl.alt = snippet.name;
       contentWrapper.appendChild(imgEl);
+    } else {
+      // Check if snippet content is a color code (for text snippets)
+      const colorValue = detectColorCode(snippet.content);
+      if (colorValue) {
+        snippetEl.classList.add('color-snippet');
+        const swatch = createColorSwatch(colorValue);
+        contentWrapper.appendChild(swatch);
+      }
     }
 
     const nameDiv = document.createElement('div');

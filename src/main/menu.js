@@ -395,6 +395,14 @@ function createTrayMenu(ctx) {
     },
     { type: 'separator' },
     {
+      label: 'Restart',
+      click: () => {
+        const { app } = require('electron');
+        app.relaunch();
+        app.quit();
+      },
+    },
+    {
       label: 'Quit',
       click: () => require('electron').app.quit(),
     },

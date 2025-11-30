@@ -583,6 +583,128 @@ struct ClipboardItem: Decodable {
   let richText: RichTextData?
 }
 
+// MARK: - Color Code Detection
+
+/// Convert HSL to RGB
+/// - Parameters:
+///   - h: Hue (0-1)
+///   - s: Saturation (0-1)
+///   - l: Lightness (0-1)
+/// - Returns: Tuple of (red, green, blue) values (0-1)
+func hslToRgb(h: CGFloat, s: CGFloat, l: CGFloat) -> (CGFloat, CGFloat, CGFloat) {
+  if s == 0 {
+    // Achromatic (gray)
+    return (l, l, l)
+  }
+
+  let q = l < 0.5 ? l * (1 + s) : l + s - l * s
+  let p = 2 * l - q
+
+  func hueToRgb(_ p: CGFloat, _ q: CGFloat, _ t: CGFloat) -> CGFloat {
+    var t = t
+    if t < 0 { t += 1 }
+    if t > 1 { t -= 1 }
+    if t < 1/6 { return p + (q - p) * 6 * t }
+    if t < 1/2 { return q }
+    if t < 2/3 { return p + (q - p) * (2/3 - t) * 6 }
+    return p
+  }
+
+  let r = hueToRgb(p, q, h + 1/3)
+  let g = hueToRgb(p, q, h)
+  let b = hueToRgb(p, q, h - 1/3)
+
+  return (r, g, b)
+}
+
+/// Detects if a string is a color code and returns the NSColor if valid
+/// Supports HEX (#RGB, #RRGGBB, #RGBA, #RRGGBBAA), RGB, RGBA, HSL, HSLA formats
+func detectColorCode(_ text: String?) -> NSColor? {
+  guard let text = text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else {
+    return nil
+  }
+
+  // HEX pattern: #RGB, #RRGGBB, #RGBA, #RRGGBBAA
+  if text.hasPrefix("#") {
+    let hex = String(text.dropFirst())
+    let length = hex.count
+
+    guard [3, 4, 6, 8].contains(length) else { return nil }
+    guard hex.allSatisfy({ $0.isHexDigit }) else { return nil }
+
+    var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 1.0
+
+    if length == 3 || length == 4 {
+      // #RGB or #RGBA
+      let chars = Array(hex)
+      r = CGFloat(Int(String(repeating: chars[0], count: 2), radix: 16) ?? 0) / 255.0
+      g = CGFloat(Int(String(repeating: chars[1], count: 2), radix: 16) ?? 0) / 255.0
+      b = CGFloat(Int(String(repeating: chars[2], count: 2), radix: 16) ?? 0) / 255.0
+      if length == 4 {
+        a = CGFloat(Int(String(repeating: chars[3], count: 2), radix: 16) ?? 255) / 255.0
+      }
+    } else {
+      // #RRGGBB or #RRGGBBAA
+      r = CGFloat(Int(hex.prefix(2), radix: 16) ?? 0) / 255.0
+      g = CGFloat(Int(hex.dropFirst(2).prefix(2), radix: 16) ?? 0) / 255.0
+      b = CGFloat(Int(hex.dropFirst(4).prefix(2), radix: 16) ?? 0) / 255.0
+      if length == 8 {
+        a = CGFloat(Int(hex.dropFirst(6).prefix(2), radix: 16) ?? 255) / 255.0
+      }
+    }
+
+    return NSColor(red: r, green: g, blue: b, alpha: a)
+  }
+
+  // RGB/RGBA pattern: rgb(r, g, b) or rgba(r, g, b, a)
+  let rgbPattern = #"^rgba?\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*([0-9.]+))?\s*\)$"#
+  if let regex = try? NSRegularExpression(pattern: rgbPattern, options: .caseInsensitive),
+     let match = regex.firstMatch(in: text, options: [], range: NSRange(text.startIndex..., in: text)) {
+    let rRange = Range(match.range(at: 1), in: text)
+    let gRange = Range(match.range(at: 2), in: text)
+    let bRange = Range(match.range(at: 3), in: text)
+
+    if let rRange = rRange, let gRange = gRange, let bRange = bRange {
+      let r = CGFloat(Int(text[rRange]) ?? 0) / 255.0
+      let g = CGFloat(Int(text[gRange]) ?? 0) / 255.0
+      let b = CGFloat(Int(text[bRange]) ?? 0) / 255.0
+      var a: CGFloat = 1.0
+
+      if let aRange = Range(match.range(at: 4), in: text) {
+        a = CGFloat(Double(text[aRange]) ?? 1.0)
+      }
+
+      return NSColor(red: r, green: g, blue: b, alpha: a)
+    }
+  }
+
+  // HSL/HSLA pattern: hsl(h, s%, l%) or hsla(h, s%, l%, a)
+  let hslPattern = #"^hsla?\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})%\s*,\s*(\d{1,3})%\s*(?:,\s*([0-9.]+))?\s*\)$"#
+  if let regex = try? NSRegularExpression(pattern: hslPattern, options: .caseInsensitive),
+     let match = regex.firstMatch(in: text, options: [], range: NSRange(text.startIndex..., in: text)) {
+    let hRange = Range(match.range(at: 1), in: text)
+    let sRange = Range(match.range(at: 2), in: text)
+    let lRange = Range(match.range(at: 3), in: text)
+
+    if let hRange = hRange, let sRange = sRange, let lRange = lRange {
+      let h = CGFloat(Int(text[hRange]) ?? 0) / 360.0
+      let s = CGFloat(Int(text[sRange]) ?? 0) / 100.0
+      let l = CGFloat(Int(text[lRange]) ?? 0) / 100.0
+      var a: CGFloat = 1.0
+
+      if let aRange = Range(match.range(at: 4), in: text) {
+        a = CGFloat(Double(text[aRange]) ?? 1.0)
+      }
+
+      // Convert HSL to RGB (NSColor uses HSB, not HSL)
+      let (r, g, b) = hslToRgb(h: h, s: s, l: l)
+      return NSColor(red: r, green: g, blue: b, alpha: a)
+    }
+  }
+
+  return nil
+}
+
 /// Rich text formatting data for clipboard items
 /// - Note: RTF data is stored as base64-encoded string for JSON compatibility
 struct RichTextData: Decodable {
@@ -917,6 +1039,7 @@ final class HoverableTabButton: NSButton {
 final class ClipboardItemCell: NSTableCellView {
   private let contentTextLabel = NSTextField(labelWithString: "")
   private let contentImageView = NSImageView()
+  private let colorSwatchView = NSView()
   private var isConfigured = false
 
   override init(frame frameRect: NSRect) {
@@ -931,6 +1054,13 @@ final class ClipboardItemCell: NSTableCellView {
 
   private func setupSubviews() {
     guard !isConfigured else { return }
+
+    // Color swatch - configure once
+    colorSwatchView.wantsLayer = true
+    colorSwatchView.layer?.cornerRadius = 4
+    colorSwatchView.layer?.borderWidth = 1
+    colorSwatchView.isHidden = true
+    addSubview(colorSwatchView)
 
     // Text label - configure once
     contentTextLabel.isEditable = false
@@ -956,8 +1086,35 @@ final class ClipboardItemCell: NSTableCellView {
   func configure(text: String?, image: NSImage?, rowHeight: CGFloat, availableWidth: CGFloat, isDarkMode: Bool) {
     let leftPadding: CGFloat = 3
     let topPadding: CGFloat = 3
+    let swatchSize: CGFloat = 14
+    let swatchGap: CGFloat = 6
 
     if let text = text, !text.isEmpty {
+      // Check if text is a color code
+      let detectedColor = detectColorCode(text)
+
+      if let color = detectedColor {
+        // Show color swatch
+        colorSwatchView.layer?.backgroundColor = color.cgColor
+        colorSwatchView.layer?.borderColor = isDarkMode
+          ? NSColor(white: 1.0, alpha: 0.2).cgColor
+          : NSColor(white: 0.0, alpha: 0.15).cgColor
+        let swatchY = (rowHeight - swatchSize) / 2
+        colorSwatchView.frame = NSRect(x: leftPadding, y: swatchY, width: swatchSize, height: swatchSize)
+        colorSwatchView.isHidden = false
+
+        // Text label offset by swatch
+        let textX = leftPadding + swatchSize + swatchGap
+        let textWidth = availableWidth - swatchSize - swatchGap
+        let textHeight = rowHeight - topPadding * 2
+        contentTextLabel.frame = NSRect(x: textX, y: topPadding, width: textWidth, height: textHeight)
+      } else {
+        // No color swatch
+        colorSwatchView.isHidden = true
+        let textHeight = rowHeight - topPadding * 2
+        contentTextLabel.frame = NSRect(x: leftPadding, y: topPadding, width: availableWidth, height: textHeight)
+      }
+
       // Text mode - プレビュー用に整形（空行・空白を詰める）
       let previewText = text.compactForPreview()
       contentTextLabel.stringValue = previewText
@@ -965,12 +1122,11 @@ final class ClipboardItemCell: NSTableCellView {
         ? NSColor(red: 0xe5/255.0, green: 0xe7/255.0, blue: 0xeb/255.0, alpha: 1.0)
         : NSColor(red: 0x37/255.0, green: 0x41/255.0, blue: 0x51/255.0, alpha: 1.0)
 
-      let textHeight = rowHeight - topPadding * 2
-      contentTextLabel.frame = NSRect(x: leftPadding, y: topPadding, width: availableWidth, height: textHeight)
       contentTextLabel.isHidden = false
       contentImageView.isHidden = true
     } else if let image = image {
       // Image mode
+      colorSwatchView.isHidden = true
       contentImageView.image = image
       let imageHeight: CGFloat = 36
       contentImageView.frame = NSRect(
@@ -983,6 +1139,7 @@ final class ClipboardItemCell: NSTableCellView {
       contentTextLabel.isHidden = true
     } else {
       // Empty mode
+      colorSwatchView.isHidden = true
       contentTextLabel.isHidden = true
       contentImageView.isHidden = true
     }
@@ -993,6 +1150,7 @@ final class ClipboardItemCell: NSTableCellView {
     // Lightweight reset only
     contentTextLabel.stringValue = ""
     contentImageView.image = nil
+    colorSwatchView.isHidden = true
   }
 }
 
@@ -1058,6 +1216,7 @@ final class SnippetFolderCell: NSTableCellView {
 /// Custom cell view for snippets
 final class SnippetItemCell: NSTableCellView {
   private let nameLabel = NSTextField(labelWithString: "")
+  private let colorSwatchView = NSView()
   private var isConfigured = false
 
   override init(frame frameRect: NSRect) {
@@ -1073,6 +1232,13 @@ final class SnippetItemCell: NSTableCellView {
   private func setupSubviews() {
     guard !isConfigured else { return }
 
+    // Color swatch - configure once
+    colorSwatchView.wantsLayer = true
+    colorSwatchView.layer?.cornerRadius = 3
+    colorSwatchView.layer?.borderWidth = 1
+    colorSwatchView.isHidden = true
+    addSubview(colorSwatchView)
+
     // Name only
     nameLabel.isEditable = false
     nameLabel.isBordered = false
@@ -1083,12 +1249,31 @@ final class SnippetItemCell: NSTableCellView {
     isConfigured = true
   }
 
-  func configure(name: String, level: Int, isDarkMode: Bool) {
+  func configure(name: String, content: String?, isImage: Bool, level: Int, isDarkMode: Bool) {
     let indentWidth: CGFloat = 16
-    let leftPadding: CGFloat = 8 + (CGFloat(level) * indentWidth)  // Wider spacing from disclosure triangle
+    var leftPadding: CGFloat = 8 + (CGFloat(level) * indentWidth)  // Wider spacing from disclosure triangle
     let topPadding: CGFloat = 1  // Narrower vertical padding
     let rowHeight: CGFloat = 22  // Reduced row height
     let contentHeight = rowHeight - topPadding * 2  // 20px
+    let swatchSize: CGFloat = 12
+    let swatchGap: CGFloat = 6
+
+    // Check if content is a color code (for text snippets only)
+    let detectedColor = isImage ? nil : detectColorCode(content)
+
+    if let color = detectedColor {
+      // Show color swatch
+      colorSwatchView.layer?.backgroundColor = color.cgColor
+      colorSwatchView.layer?.borderColor = isDarkMode
+        ? NSColor(white: 1.0, alpha: 0.2).cgColor
+        : NSColor(white: 0.0, alpha: 0.15).cgColor
+      let swatchY = (rowHeight - swatchSize) / 2
+      colorSwatchView.frame = NSRect(x: leftPadding, y: swatchY, width: swatchSize, height: swatchSize)
+      colorSwatchView.isHidden = false
+      leftPadding += swatchSize + swatchGap
+    } else {
+      colorSwatchView.isHidden = true
+    }
 
     // Name - vertically centered
     nameLabel.stringValue = name
@@ -1103,6 +1288,7 @@ final class SnippetItemCell: NSTableCellView {
   override func prepareForReuse() {
     super.prepareForReuse()
     nameLabel.stringValue = ""
+    colorSwatchView.isHidden = true
   }
 }
 
@@ -2200,14 +2386,17 @@ extension ClipboardPopupWindow: NSOutlineViewDelegate {
       cell?.configure(name: name, isExpanded: isExpanded, level: level, isDarkMode: isDarkMode)
       return cell
 
-    case .snippet(_, let name, _, _):
+    case .snippet(_, let name, let contentRef, let imagePath):
       let identifier = NSUserInterfaceItemIdentifier("SnippetCell")
       var cell = outlineView.makeView(withIdentifier: identifier, owner: self) as? SnippetItemCell
       if cell == nil {
         cell = SnippetItemCell()
         cell?.identifier = identifier
       }
-      cell?.configure(name: name, level: level, isDarkMode: isDarkMode)
+      let isImage = imagePath != nil
+      // Get actual content from snippetContentMap using contentRef (snippet ID)
+      let actualContent = snippetContentMap[contentRef]
+      cell?.configure(name: name, content: actualContent, isImage: isImage, level: level, isDarkMode: isDarkMode)
       return cell
     }
   }

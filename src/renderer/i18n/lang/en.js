@@ -114,7 +114,7 @@
       title: 'Shortcut Keys',
       shortcutDesc:
         'Add Shift to explanation shortcuts for detailed analysis. Shortcut key assignments can be changed in the Settings tab.',
-      atTitle: 'Chat: @ Actions',
+      atTitle: 'Chat: @ Commands',
       atImage: 'Generate image',
       atVideo: 'Generate video',
       atSlide: 'Generate slide image',
