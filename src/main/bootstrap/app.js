@@ -1405,6 +1405,25 @@ function bootstrapApp() {
       return result;
     });
 
+    ipcMain.handle('save-slide-count', (_e, count) => {
+      const validCounts = [1, 2, 3, 4];
+      const normalized = validCounts.includes(count) ? count : 1;
+      setPrefWithCacheInvalidation('SLIDE_COUNT', normalized);
+      return normalized;
+    });
+
+    ipcMain.handle('get-slide-count', () => {
+      const validCounts = [1, 2, 3, 4];
+      const cached = prefCache.get('SLIDE_COUNT');
+      if (cached !== null) {
+        return validCounts.includes(cached) ? cached : 1;
+      }
+      const raw = getPref('SLIDE_COUNT') || 1;
+      const result = validCounts.includes(raw) ? raw : 1;
+      prefCache.set('SLIDE_COUNT', result);
+      return result;
+    });
+
     // Slide Template Management
     const SLIDE_TEMPLATES_FILE = path.join(app.getPath('userData'), 'slide-templates.json');
     const SLIDE_TEMPLATE_IMAGES_DIR = path.join(app.getPath('userData'), 'slide-template-images');
