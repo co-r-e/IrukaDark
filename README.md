@@ -24,6 +24,8 @@ Lightweight local AI chat for macOS. Explain or translate selected text, or chat
 - Optional floating logo popup window (toggle from menu)
 - Clean, minimal UI with dark/light themes
 - Slash command palette with suggestions, nested sub-commands, and multi-language `/translate`
+- Clipboard history with color code preview (HEX, RGB, HSL formats)
+- Quick restart from tray menu
 
 ## Beginner Setup (Step‑by‑step)
 
