@@ -1349,6 +1349,11 @@ final class ClipboardPopupWindow: NSPanel {
   private var lastSnippetDataPath: String? = nil
   private var lastMouseLocation: NSPoint = .zero
 
+  // Daemon mode: callback for requesting richText and pending item for paste
+  var onRequestRichText: ((Double) -> Void)?
+  private var pendingPasteItem: ClipboardItem?
+  private var richTextTimeoutTask: DispatchWorkItem?
+
   init(items: [ClipboardItem], isDarkMode: Bool = false, opacity: Double = 1.0, activeTab: String = "history", snippetDataPath: String? = nil) {
     self.isDarkMode = isDarkMode
     self.opacity = opacity
@@ -1827,8 +1832,16 @@ final class ClipboardPopupWindow: NSPanel {
   }
 
   @objc private func closeWindow() {
+    cancelPendingPaste()
     TooltipManager.shared.hideTooltip()
     self.close()
+  }
+
+  /// Cancel any pending paste operation (called when window is closed)
+  private func cancelPendingPaste() {
+    richTextTimeoutTask?.cancel()
+    richTextTimeoutTask = nil
+    pendingPasteItem = nil
   }
 
   // MARK: - Tab Switching
@@ -1943,9 +1956,57 @@ final class ClipboardPopupWindow: NSPanel {
     let item = items[index]
 
     self.orderOut(nil)
-    pasteItem(item: item)
 
-    // Close window after a short delay and report the pasted item
+    // Daemon mode with text item: request richText before paste
+    // For image-only items or non-daemon mode: paste immediately
+    let hasText = item.text != nil && !item.text!.isEmpty
+    if let callback = onRequestRichText, hasText, let timestamp = item.timestamp {
+      // Store pending item and request richText from Electron
+      pendingPasteItem = item
+      callback(Double(timestamp))
+
+      // Set timeout: if richText doesn't arrive within 500ms, paste with plain text
+      richTextTimeoutTask?.cancel()
+      let timeoutTask = DispatchWorkItem { [weak self] in
+        guard let self = self, self.pendingPasteItem != nil else { return }
+        // Timeout: paste without richText
+        self.provideRichText(nil)
+      }
+      richTextTimeoutTask = timeoutTask
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: timeoutTask)
+    } else {
+      // Image-only item or legacy mode: paste immediately
+      pasteItem(item: item)
+      reportPastedItem(item: item)
+    }
+  }
+
+  /// Called when richText is provided by Electron for pending paste
+  func provideRichText(_ richText: RichTextData?) {
+    // Cancel timeout since we received the response
+    richTextTimeoutTask?.cancel()
+    richTextTimeoutTask = nil
+
+    guard var item = pendingPasteItem else { return }
+    pendingPasteItem = nil
+
+    // Update item with richText if provided
+    if let richText = richText {
+      item = ClipboardItem(
+        text: item.text,
+        imageData: item.imageData,
+        imageDataOriginal: item.imageDataOriginal,
+        timestamp: item.timestamp,
+        richText: richText
+      )
+    }
+
+    pasteItem(item: item)
+    reportPastedItem(item: item)
+  }
+
+  /// Report pasted item and close window
+  private func reportPastedItem(item: ClipboardItem) {
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
       let output = BridgeOutput(
         status: .ok,
@@ -2892,6 +2953,9 @@ struct DaemonPayload: Decodable {
   let opacity: Double?
   let activeTab: String?
   let snippetDataPath: String?
+  // For provide_richtext command
+  let timestamp: Double?
+  let richText: RichTextData?
 }
 
 struct DaemonEvent: Encodable {
@@ -2900,13 +2964,15 @@ struct DaemonEvent: Encodable {
   let message: String?
   let text: String?
   let imageDataOriginal: String?
+  let timestamp: Double?
 
-  init(event: String, code: String? = nil, message: String? = nil, text: String? = nil, imageDataOriginal: String? = nil) {
+  init(event: String, code: String? = nil, message: String? = nil, text: String? = nil, imageDataOriginal: String? = nil, timestamp: Double? = nil) {
     self.event = event
     self.code = code
     self.message = message
     self.text = text
     self.imageDataOriginal = imageDataOriginal
+    self.timestamp = timestamp
   }
 
   func encoded() -> String {
@@ -3208,6 +3274,13 @@ struct IrukaAutomationCLI {
             let opacity = payload.opacity ?? 1.0
             let activeTab = payload.activeTab ?? "history"
 
+            // Callback to request richText from Electron before paste
+            let richTextRequestCallback: (Double) -> Void = { timestamp in
+              let requestEvent = DaemonEvent(event: "request_richtext", timestamp: timestamp)
+              print(requestEvent.encoded())
+              fflush(stdout)
+            }
+
             if let window = cachedPopupWindow, !window.isVisible {
               window.reset(
                 items: items,
@@ -3216,6 +3289,7 @@ struct IrukaAutomationCLI {
                 activeTab: activeTab,
                 snippetDataPath: payload.snippetDataPath
               )
+              window.onRequestRichText = richTextRequestCallback
               window.makeKeyAndOrderFront(nil)
               window.focusActiveTabView()
               setupWindowCloseHandler(for: window)
@@ -3227,6 +3301,7 @@ struct IrukaAutomationCLI {
                 activeTab: activeTab,
                 snippetDataPath: payload.snippetDataPath
               )
+              window.onRequestRichText = richTextRequestCallback
               cachedPopupWindow = window
               window.makeKeyAndOrderFront(nil)
               window.focusActiveTabView()
@@ -3251,6 +3326,11 @@ struct IrukaAutomationCLI {
             let pongEvent = DaemonEvent(event: "pong")
             print(pongEvent.encoded())
             fflush(stdout)
+
+          case "provide_richtext":
+            // Electron is providing richText data for pending paste
+            guard let payload = cmd.payload else { return }
+            cachedPopupWindow?.provideRichText(payload.richText)
 
           case "shutdown":
             app.terminate(nil)

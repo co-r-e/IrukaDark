@@ -14,6 +14,7 @@ const DAEMON_HEALTH_CHECK_INTERVAL_MS = 30000;
 const DAEMON_HEALTH_CHECK_TIMEOUT_MS = 3000;
 const DAEMON_MAX_RESTART_COUNT = 3;
 const DAEMON_RESTART_WINDOW_MS = 300000;
+const DAEMON_PERIODIC_RESTART_MS = 3600000; // 1 hour - restart daemon periodically to prevent HID state corruption
 
 let cachedExecutablePath = null;
 let lastPromptAttempt = 0;
@@ -27,6 +28,10 @@ let daemonState = 'stopped';
 let daemonRestartHistory = [];
 let healthCheckTimer = null;
 let pendingHealthCheck = null;
+let periodicRestartTimer = null;
+
+// Cache history items for richText lookup during paste
+let cachedHistoryItems = [];
 
 function resolveLogPath() {
   if (bridgeLogPath !== null) return bridgeLogPath;
@@ -325,18 +330,21 @@ function updateClipboardPopup(historyItems, options = {}) {
   if (!clipboardPopupProcess) return false;
 
   try {
-    // Prepare items for Swift popup (max 60 items total)
-    // Swift separates them into History tab (30 text items) and HistoryImage tab (30 image items)
-    // Rich text data (RTF, HTML) is passed along with text items for format-preserving paste
+    // Cache history items for richText lookup during paste (full data)
+    cachedHistoryItems = historyItems;
+
+    // Prepare items for Swift popup (max 1030 items total)
+    // Swift separates them into History tab (1000 text items) and HistoryImage tab (30 image items)
+    // richText is excluded here for performance - it will be fetched on-demand during paste
     const items = historyItems
       .filter((item) => (item.text && typeof item.text === 'string') || item.imageData)
-      .slice(0, 60)
+      .slice(0, 1030)
       .map((item) => ({
         text: item.text || null,
         imageData: item.imageData || null,
         imageDataOriginal: item.imageDataOriginal || null,
         timestamp: item.timestamp || Date.now(),
-        richText: item.richText || null, // RTF, HTML, Markdown formats
+        // richText excluded for performance - fetched on-demand via request_richtext
       }));
 
     if (items.length === 0) {
@@ -376,18 +384,21 @@ async function spawnClipboardPopup(historyItems, options = {}) {
     return promise;
   }
 
-  // Prepare items for Swift popup (max 60 items total)
-  // Swift separates them into History tab (30 text items) and HistoryImage tab (30 image items)
-  // Rich text data (RTF, HTML) is passed along with text items for format-preserving paste
+  // Cache history items for richText lookup during paste (full data)
+  cachedHistoryItems = historyItems;
+
+  // Prepare items for Swift popup (max 1030 items total)
+  // Swift separates them into History tab (1000 text items) and HistoryImage tab (30 image items)
+  // richText is excluded here for performance - it will be fetched on-demand during paste
   const items = historyItems
     .filter((item) => (item.text && typeof item.text === 'string') || item.imageData)
-    .slice(0, 60)
+    .slice(0, 1030)
     .map((item) => ({
       text: item.text || null,
       imageData: item.imageData || null,
       imageDataOriginal: item.imageDataOriginal || null,
       timestamp: item.timestamp || Date.now(),
-      richText: item.richText || null, // RTF, HTML, Markdown formats
+      // richText excluded for performance - fetched on-demand via request_richtext
     }));
 
   if (items.length === 0) {
@@ -554,6 +565,7 @@ function startClipboardDaemon() {
 
 function stopClipboardDaemon() {
   stopHealthCheck();
+  stopPeriodicRestart();
   if (clipboardDaemonProcess) {
     sendDaemonCommand('shutdown');
     setTimeout(() => {
@@ -575,12 +587,27 @@ function handleDaemonEvent(event) {
     case 'ready':
       daemonState = 'ready';
       startHealthCheck();
+      startPeriodicRestart();
       break;
 
     case 'pong':
       if (pendingHealthCheck) {
         clearTimeout(pendingHealthCheck.timeout);
         pendingHealthCheck = null;
+      }
+      break;
+
+    case 'request_richtext':
+      // Swift is requesting richText data for paste operation
+      // Find the item by timestamp and send back the richText
+      {
+        const timestamp = event.timestamp;
+        const richText = findRichTextByTimestamp(timestamp);
+        logBridgeEvent('daemon.requestRichtext', {
+          timestamp,
+          hasRichText: !!richText,
+        });
+        sendDaemonCommand('provide_richtext', { timestamp, richText });
       }
       break;
 
@@ -600,6 +627,19 @@ function handleDaemonEvent(event) {
       logBridgeEvent('daemon.event.error', { code: event.code, message: event.message });
       break;
   }
+}
+
+/**
+ * Find richText data by timestamp from cached history items
+ * @param {number} timestamp - The timestamp to search for
+ * @returns {object|null} - The richText object or null if not found
+ */
+function findRichTextByTimestamp(timestamp) {
+  if (!timestamp || !cachedHistoryItems || cachedHistoryItems.length === 0) {
+    return null;
+  }
+  const item = cachedHistoryItems.find((i) => i.timestamp === timestamp);
+  return item?.richText || null;
 }
 
 function startHealthCheck() {
@@ -628,6 +668,50 @@ function stopHealthCheck() {
   if (pendingHealthCheck) {
     clearTimeout(pendingHealthCheck.timeout);
     pendingHealthCheck = null;
+  }
+}
+
+function startPeriodicRestart() {
+  stopPeriodicRestart();
+  periodicRestartTimer = setInterval(() => {
+    // Only restart when daemon is idle (ready state, not showing popup)
+    if (daemonState === 'ready') {
+      logBridgeEvent('daemon.periodicRestart');
+      performPeriodicRestart();
+    }
+  }, DAEMON_PERIODIC_RESTART_MS);
+}
+
+function stopPeriodicRestart() {
+  if (periodicRestartTimer) {
+    clearInterval(periodicRestartTimer);
+    periodicRestartTimer = null;
+  }
+}
+
+function performPeriodicRestart() {
+  // Graceful restart: stop and start daemon
+  stopHealthCheck();
+  stopPeriodicRestart();
+
+  if (clipboardDaemonProcess) {
+    sendDaemonCommand('shutdown');
+
+    // Give daemon time to shutdown gracefully, then restart
+    setTimeout(() => {
+      if (clipboardDaemonProcess) {
+        try {
+          clipboardDaemonProcess.kill('SIGTERM');
+        } catch {}
+      }
+      clipboardDaemonProcess = null;
+      daemonState = 'stopped';
+
+      // Restart after a short delay
+      setTimeout(() => {
+        startClipboardDaemon();
+      }, 500);
+    }, 1000);
   }
 }
 
