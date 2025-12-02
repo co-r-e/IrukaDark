@@ -1354,10 +1354,19 @@ final class ClipboardPopupWindow: NSPanel {
   private var pendingPasteItem: ClipboardItem?
   private var richTextTimeoutTask: DispatchWorkItem?
 
-  init(items: [ClipboardItem], isDarkMode: Bool = false, opacity: Double = 1.0, activeTab: String = "history", snippetDataPath: String? = nil) {
+  // Lazy loading: callback and state
+  var onRequestMoreItems: ((Int, String) -> Void)?  // (offset, activeTab)
+  private var totalTextItemCount: Int = 0
+  private var totalImageItemCount: Int = 0
+  private var isLoadingMore: Bool = false
+  private var scrollObserver: NSObjectProtocol?
+
+  init(items: [ClipboardItem], isDarkMode: Bool = false, opacity: Double = 1.0, activeTab: String = "history", snippetDataPath: String? = nil, totalTextItemCount: Int = 0, totalImageItemCount: Int = 0) {
     self.isDarkMode = isDarkMode
     self.opacity = opacity
     self.activeTab = activeTab
+    self.totalTextItemCount = totalTextItemCount
+    self.totalImageItemCount = totalImageItemCount
 
     // Capture previous app before showing window
     if let activeApp = NSWorkspace.shared.frontmostApplication,
@@ -1388,6 +1397,7 @@ final class ClipboardPopupWindow: NSPanel {
     classifyItems(items)
 
     setupUI()
+    setupScrollObserver()
 
     // PERFORMANCE: Load snippet data asynchronously if path provided
     if let path = snippetDataPath {
@@ -1407,6 +1417,10 @@ final class ClipboardPopupWindow: NSPanel {
   deinit {
     // Clean up tooltip when window is deallocated
     TooltipManager.shared.hideTooltip()
+    // Clean up scroll observer
+    if let observer = scrollObserver {
+      NotificationCenter.default.removeObserver(observer)
+    }
   }
 
   /// Focus the appropriate view based on active tab
@@ -1429,7 +1443,7 @@ final class ClipboardPopupWindow: NSPanel {
   }
 
   // PERFORMANCE: Window reuse - reset state for next use
-  func reset(items: [ClipboardItem], isDarkMode: Bool, opacity: Double, activeTab: String, snippetDataPath: String?) {
+  func reset(items: [ClipboardItem], isDarkMode: Bool, opacity: Double, activeTab: String, snippetDataPath: String?, totalTextItemCount: Int = 0, totalImageItemCount: Int = 0) {
     TooltipManager.shared.hideTooltip()
 
     if let activeApp = NSWorkspace.shared.frontmostApplication,
@@ -1441,6 +1455,9 @@ final class ClipboardPopupWindow: NSPanel {
     self.isDarkMode = isDarkMode
     self.opacity = opacity
     self.activeTab = activeTab
+    self.totalTextItemCount = totalTextItemCount
+    self.totalImageItemCount = totalImageItemCount
+    self.isLoadingMore = false
 
     // PERFORMANCE: Only reload snippets if path changed
     if let path = snippetDataPath {
@@ -1524,6 +1541,88 @@ final class ClipboardPopupWindow: NSPanel {
       return snippetItems
     default:
       return []
+    }
+  }
+
+  // MARK: - Lazy Loading
+
+  /// Setup scroll observer to detect when user scrolls near the bottom
+  private func setupScrollObserver() {
+    scrollObserver = NotificationCenter.default.addObserver(
+      forName: NSScrollView.didLiveScrollNotification,
+      object: scrollView,
+      queue: .main
+    ) { [weak self] _ in
+      self?.checkScrollPosition()
+    }
+  }
+
+  /// Check if user scrolled near the bottom and request more items if needed
+  private func checkScrollPosition() {
+    guard !isLoadingMore,
+          activeTab == "history" || activeTab == "historyImage",
+          let clipView = scrollView.contentView as? NSClipView,
+          let documentView = scrollView.documentView else {
+      return
+    }
+
+    let visibleRect = clipView.documentVisibleRect
+    let documentHeight = documentView.frame.height
+    let scrollBottom = visibleRect.origin.y + visibleRect.height
+
+    // Trigger load more when within 100px of bottom
+    let threshold: CGFloat = 100
+    if documentHeight - scrollBottom < threshold {
+      requestMoreItemsIfNeeded()
+    }
+  }
+
+  /// Request more items from Electron if there are more to load
+  private func requestMoreItemsIfNeeded() {
+    let currentCount: Int
+    let totalCount: Int
+
+    switch activeTab {
+    case "history":
+      currentCount = historyTextItems.count
+      totalCount = totalTextItemCount
+    case "historyImage":
+      currentCount = historyImageItems.count
+      totalCount = totalImageItemCount
+    default:
+      return
+    }
+
+    // Check if there are more items to load
+    guard currentCount < totalCount else { return }
+
+    isLoadingMore = true
+    onRequestMoreItems?(currentCount, activeTab)
+  }
+
+  /// Append more items received from Electron
+  func appendItems(_ newItems: [ClipboardItem], forTab tab: String) {
+    guard tab == activeTab else { return }
+
+    switch tab {
+    case "history":
+      let textItems = newItems.filter { item in item.text?.isEmpty == false }
+      historyTextItems.append(contentsOf: textItems)
+    case "historyImage":
+      let imageItems = newItems.filter { item in
+        guard let imageData = item.imageData, !imageData.isEmpty else { return false }
+        return item.text?.isEmpty ?? true
+      }
+      historyImageItems.append(contentsOf: imageItems)
+    default:
+      break
+    }
+
+    isLoadingMore = false
+
+    // Reload table view to show new items
+    DispatchQueue.main.async { [weak self] in
+      self?.tableView?.reloadData()
     }
   }
 
@@ -2956,6 +3055,9 @@ struct DaemonPayload: Decodable {
   // For provide_richtext command
   let timestamp: Double?
   let richText: RichTextData?
+  // For lazy loading
+  let totalItemCount: Int?
+  let offset: Int?
 }
 
 struct DaemonEvent: Encodable {
@@ -2965,14 +3067,18 @@ struct DaemonEvent: Encodable {
   let text: String?
   let imageDataOriginal: String?
   let timestamp: Double?
+  let offset: Int?
+  let activeTab: String?
 
-  init(event: String, code: String? = nil, message: String? = nil, text: String? = nil, imageDataOriginal: String? = nil, timestamp: Double? = nil) {
+  init(event: String, code: String? = nil, message: String? = nil, text: String? = nil, imageDataOriginal: String? = nil, timestamp: Double? = nil, offset: Int? = nil, activeTab: String? = nil) {
     self.event = event
     self.code = code
     self.message = message
     self.text = text
     self.imageDataOriginal = imageDataOriginal
     self.timestamp = timestamp
+    self.offset = offset
+    self.activeTab = activeTab
   }
 
   func encoded() -> String {
@@ -3273,10 +3379,19 @@ struct IrukaAutomationCLI {
             let isDarkMode = payload.isDarkMode ?? false
             let opacity = payload.opacity ?? 1.0
             let activeTab = payload.activeTab ?? "history"
+            let totalTextItemCount = payload.totalItemCount ?? items.count
+            let totalImageItemCount = payload.totalItemCount ?? items.count
 
             // Callback to request richText from Electron before paste
             let richTextRequestCallback: (Double) -> Void = { timestamp in
               let requestEvent = DaemonEvent(event: "request_richtext", timestamp: timestamp)
+              print(requestEvent.encoded())
+              fflush(stdout)
+            }
+
+            // Callback to request more items for lazy loading
+            let moreItemsRequestCallback: (Int, String) -> Void = { offset, tab in
+              let requestEvent = DaemonEvent(event: "request_more_items", offset: offset, activeTab: tab)
               print(requestEvent.encoded())
               fflush(stdout)
             }
@@ -3287,9 +3402,12 @@ struct IrukaAutomationCLI {
                 isDarkMode: isDarkMode,
                 opacity: opacity,
                 activeTab: activeTab,
-                snippetDataPath: payload.snippetDataPath
+                snippetDataPath: payload.snippetDataPath,
+                totalTextItemCount: totalTextItemCount,
+                totalImageItemCount: totalImageItemCount
               )
               window.onRequestRichText = richTextRequestCallback
+              window.onRequestMoreItems = moreItemsRequestCallback
               window.makeKeyAndOrderFront(nil)
               window.focusActiveTabView()
               setupWindowCloseHandler(for: window)
@@ -3299,9 +3417,12 @@ struct IrukaAutomationCLI {
                 isDarkMode: isDarkMode,
                 opacity: opacity,
                 activeTab: activeTab,
-                snippetDataPath: payload.snippetDataPath
+                snippetDataPath: payload.snippetDataPath,
+                totalTextItemCount: totalTextItemCount,
+                totalImageItemCount: totalImageItemCount
               )
               window.onRequestRichText = richTextRequestCallback
+              window.onRequestMoreItems = moreItemsRequestCallback
               cachedPopupWindow = window
               window.makeKeyAndOrderFront(nil)
               window.focusActiveTabView()
@@ -3331,6 +3452,13 @@ struct IrukaAutomationCLI {
             // Electron is providing richText data for pending paste
             guard let payload = cmd.payload else { return }
             cachedPopupWindow?.provideRichText(payload.richText)
+
+          case "provide_more_items":
+            // Electron is providing more items for lazy loading
+            guard let payload = cmd.payload,
+                  let items = payload.items,
+                  let activeTab = payload.activeTab else { return }
+            cachedPopupWindow?.appendItems(items, forTab: activeTab)
 
           case "shutdown":
             app.terminate(nil)

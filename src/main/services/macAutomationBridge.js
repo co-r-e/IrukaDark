@@ -611,6 +611,47 @@ function handleDaemonEvent(event) {
       }
       break;
 
+    case 'request_more_items':
+      // Swift is requesting more items for lazy loading
+      {
+        const offset = event.offset || 0;
+        const activeTab = event.activeTab || 'history';
+        const batchSize = 60;
+
+        // Filter items based on tab type
+        const allFiltered = cachedHistoryItems.filter((item) => {
+          if (activeTab === 'history') {
+            return item.text && typeof item.text === 'string' && item.text.length > 0;
+          } else if (activeTab === 'historyImage') {
+            return item.imageData && (!item.text || item.text.length === 0);
+          }
+          return false;
+        });
+
+        // Get next batch of items
+        const moreItems = allFiltered.slice(offset, offset + batchSize).map((item) => ({
+          text: item.text || null,
+          imageData: item.imageData || null,
+          imageDataOriginal: item.imageDataOriginal || null,
+          timestamp: item.timestamp || Date.now(),
+          richText: item.richText || null,
+        }));
+
+        logBridgeEvent('daemon.requestMoreItems', {
+          offset,
+          activeTab,
+          sentCount: moreItems.length,
+          totalCount: allFiltered.length,
+        });
+
+        sendDaemonCommand('provide_more_items', {
+          items: moreItems,
+          activeTab,
+          offset,
+        });
+      }
+      break;
+
     case 'item_pasted':
       logBridgeEvent('daemon.itemPasted', {
         hasText: !!event.text,
@@ -755,16 +796,22 @@ function getDaemonState() {
 
 async function showClipboardPopupFast(historyItems, options = {}) {
   if (daemonState === 'ready') {
-    const items = historyItems
-      .filter((item) => (item.text && typeof item.text === 'string') || item.imageData)
-      .slice(0, 60)
-      .map((item) => ({
-        text: item.text || null,
-        imageData: item.imageData || null,
-        imageDataOriginal: item.imageDataOriginal || null,
-        timestamp: item.timestamp || Date.now(),
-        richText: item.richText || null,
-      }));
+    // Cache all items for lazy loading
+    cachedHistoryItems = historyItems;
+
+    // Filter and prepare initial batch
+    const allFiltered = historyItems.filter(
+      (item) => (item.text && typeof item.text === 'string') || item.imageData
+    );
+
+    const initialBatchSize = 60;
+    const items = allFiltered.slice(0, initialBatchSize).map((item) => ({
+      text: item.text || null,
+      imageData: item.imageData || null,
+      imageDataOriginal: item.imageDataOriginal || null,
+      timestamp: item.timestamp || Date.now(),
+      richText: item.richText || null,
+    }));
 
     if (items.length === 0) {
       return { error: 'NO_CLIPBOARD_ITEMS' };
@@ -776,11 +823,15 @@ async function showClipboardPopupFast(historyItems, options = {}) {
       opacity: options.opacity || 1.0,
       activeTab: options.activeTab || 'history',
       snippetDataPath: path.join(app.getPath('userData'), 'snippets.json'),
+      totalItemCount: allFiltered.length,
     });
 
     if (sent) {
       daemonState = 'showing';
-      logBridgeEvent('showClipboardPopupFast.sent', { itemCount: items.length });
+      logBridgeEvent('showClipboardPopupFast.sent', {
+        itemCount: items.length,
+        totalCount: allFiltered.length,
+      });
       return { fast: true };
     }
   }
