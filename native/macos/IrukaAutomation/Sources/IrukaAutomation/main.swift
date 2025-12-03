@@ -1,7 +1,9 @@
 import AppKit
 import ApplicationServices
+import AVFoundation
 import Carbon.HIToolbox
 import Foundation
+import Speech
 
 struct BridgeOutput: Encodable {
   enum Status: String, Encodable {
@@ -3035,6 +3037,7 @@ enum Command: String {
   case ensureAccessibility = "ensure-accessibility"
   case clipboardPopup = "clipboard-popup"
   case daemon = "daemon"
+  case voiceQuery = "voice-query"
   case help = "help"
   case version = "version"
 }
@@ -3113,6 +3116,8 @@ struct IrukaAutomationCLI {
       runClipboardPopup()
     case .daemon:
       runDaemon()
+    case .voiceQuery:
+      runVoiceQuery()
     case .help:
       printUsageAndExit(code: nil, message: nil, exitCode: EXIT_SUCCESS)
     case .version:
@@ -3473,5 +3478,758 @@ struct IrukaAutomationCLI {
     }
 
     app.run()
+  }
+
+  // MARK: - Voice Query Mode
+
+  private static func runVoiceQuery() {
+    let app = NSApplication.shared
+    app.setActivationPolicy(.accessory)
+
+    // Parse command line arguments for popup bounds
+    var popupBounds: NSRect? = nil
+    let args = CommandLine.arguments
+    var popupX: CGFloat? = nil
+    var popupY: CGFloat? = nil
+    var popupWidth: CGFloat = 60
+    var popupHeight: CGFloat = 60
+
+    for i in 0..<args.count {
+      if args[i] == "--popup-x" && i + 1 < args.count {
+        popupX = CGFloat(Double(args[i + 1]) ?? 0)
+      } else if args[i] == "--popup-y" && i + 1 < args.count {
+        popupY = CGFloat(Double(args[i + 1]) ?? 0)
+      } else if args[i] == "--popup-width" && i + 1 < args.count {
+        popupWidth = CGFloat(Double(args[i + 1]) ?? 60)
+      } else if args[i] == "--popup-height" && i + 1 < args.count {
+        popupHeight = CGFloat(Double(args[i + 1]) ?? 60)
+      }
+    }
+
+    if let x = popupX, let y = popupY {
+      popupBounds = NSRect(x: x, y: y, width: popupWidth, height: popupHeight)
+    }
+
+    // Check accessibility permission for global key monitoring
+    guard SelectedTextStateMachine.ensureAccessibility(prompt: true) else {
+      let event = VoiceQueryEvent(
+        event: "voice_query_error",
+        code: "accessibility_permission_denied",
+        message: "Accessibility permission is required for global key monitoring."
+      )
+      print(event.encoded())
+      fflush(stdout)
+      exit(EXIT_FAILURE)
+    }
+
+    // Start the voice query session
+    let session = VoiceQuerySession(popupBounds: popupBounds)
+    session.start { result in
+      switch result {
+      case .success(let data):
+        let event = VoiceQueryEvent(
+          event: "voice_query_complete",
+          screenshotBase64: data.screenshotBase64,
+          mimeType: data.mimeType,
+          transcribedText: data.transcribedText
+        )
+        print(event.encoded())
+        fflush(stdout)
+        exit(EXIT_SUCCESS)
+
+      case .failure(let error):
+        let event = VoiceQueryEvent(
+          event: "voice_query_error",
+          code: error.code,
+          message: error.message
+        )
+        print(event.encoded())
+        fflush(stdout)
+        exit(EXIT_FAILURE)
+      }
+    }
+
+    app.run()
+  }
+}
+
+// MARK: - Voice Query Event
+
+struct VoiceQueryEvent: Encodable {
+  let event: String
+  let code: String?
+  let message: String?
+  let screenshotBase64: String?
+  let mimeType: String?
+  let transcribedText: String?
+
+  init(
+    event: String,
+    code: String? = nil,
+    message: String? = nil,
+    screenshotBase64: String? = nil,
+    mimeType: String? = nil,
+    transcribedText: String? = nil
+  ) {
+    self.event = event
+    self.code = code
+    self.message = message
+    self.screenshotBase64 = screenshotBase64
+    self.mimeType = mimeType
+    self.transcribedText = transcribedText
+  }
+
+  func encoded() -> String {
+    let encoder = JSONEncoder()
+    if let data = try? encoder.encode(self), let str = String(data: data, encoding: .utf8) {
+      return str
+    }
+    return #"{"event":"voice_query_error","code":"serialization_failed"}"#
+  }
+}
+
+// MARK: - Voice Query Error
+
+struct VoiceQueryError: Error {
+  let code: String
+  let message: String
+}
+
+// MARK: - Voice Query Result
+
+struct VoiceQueryResult {
+  let screenshotBase64: String
+  let mimeType: String
+  let transcribedText: String
+}
+
+// MARK: - Voice Query Session
+
+class VoiceQuerySession: NSObject {
+  private var screenshotBase64: String?
+  private var mimeType: String = "image/png"
+  private var transcribedText: String = ""
+  private var completion: ((Result<VoiceQueryResult, VoiceQueryError>) -> Void)?
+
+  private var indicatorWindow: RecordingIndicatorWindow?
+  private var speechRecognizer: SFSpeechRecognizer?
+  private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
+  private var recognitionTask: SFSpeechRecognitionTask?
+  private var audioEngine: AVAudioEngine?
+  private var eventTap: CFMachPort?
+  private var runLoopSource: CFRunLoopSource?
+  private var fallbackTimer: Timer?
+  private var timeoutTimer: Timer?
+
+  private var isOptionKeyDown = true  // Assume Option is down when started (since user pressed Option+E)
+  private var hasReceivedSpeech = false
+  private var isFinished = false  // Guard against multiple completion calls
+
+  private var popupBounds: NSRect?
+  private let maxRecordingDuration: TimeInterval = 60.0  // 60 seconds max
+
+  init(popupBounds: NSRect? = nil) {
+    self.popupBounds = popupBounds
+    super.init()
+  }
+
+  deinit {
+    // Safety cleanup in case session is deallocated without proper finish
+    stopTimeoutTimer()
+    stopRecording()
+    stopKeyMonitoring()
+    hideRecordingIndicator()
+  }
+
+  func start(completion: @escaping (Result<VoiceQueryResult, VoiceQueryError>) -> Void) {
+    self.completion = completion
+
+    // Emit started event
+    let startEvent = VoiceQueryEvent(event: "voice_query_started")
+    print(startEvent.encoded())
+    fflush(stdout)
+
+    // Show recording indicator immediately for instant feedback
+    DispatchQueue.main.async {
+      self.showRecordingIndicator()
+    }
+
+    // Start speech recognition immediately (parallel with screenshot)
+    checkMicrophonePermissionAndStartRecognition()
+
+    // Monitor for Option key release
+    startKeyMonitoring()
+
+    // Start timeout timer
+    startTimeoutTimer()
+
+    // Capture screenshot in background (parallel with speech recognition)
+    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+      guard let self = self, !self.isFinished else { return }
+
+      guard let screenshot = self.captureFullScreen() else {
+        DispatchQueue.main.async {
+          guard !self.isFinished else { return }
+          self.safeFinishWithError(VoiceQueryError(code: "screen_capture_error", message: "Failed to capture screen"))
+        }
+        return
+      }
+
+      guard !self.isFinished else { return }
+      self.screenshotBase64 = screenshot
+    }
+  }
+
+  private func startTimeoutTimer() {
+    timeoutTimer = Timer.scheduledTimer(withTimeInterval: maxRecordingDuration, repeats: false) { [weak self] _ in
+      guard let self = self, !self.isFinished else { return }
+      // Auto-finish with whatever text we have so far
+      self.safeFinishSession()
+    }
+  }
+
+  private func stopTimeoutTimer() {
+    timeoutTimer?.invalidate()
+    timeoutTimer = nil
+  }
+
+  // MARK: - Screen Capture
+
+  private func captureFullScreen() -> String? {
+    // Get all active displays
+    var displayCount: UInt32 = 0
+    CGGetActiveDisplayList(0, nil, &displayCount)
+
+    guard displayCount > 0 else {
+      return nil
+    }
+
+    var displays = [CGDirectDisplayID](repeating: 0, count: Int(displayCount))
+    CGGetActiveDisplayList(displayCount, &displays, &displayCount)
+
+    // Calculate the bounding box of all displays
+    var minX: CGFloat = .infinity
+    var minY: CGFloat = .infinity
+    var maxX: CGFloat = -.infinity
+    var maxY: CGFloat = -.infinity
+
+    for display in displays {
+      let bounds = CGDisplayBounds(display)
+      minX = min(minX, bounds.minX)
+      minY = min(minY, bounds.minY)
+      maxX = max(maxX, bounds.maxX)
+      maxY = max(maxY, bounds.maxY)
+    }
+
+    let totalWidth = Int(maxX - minX)
+    let totalHeight = Int(maxY - minY)
+
+    // Create a combined image
+    guard let context = CGContext(
+      data: nil,
+      width: totalWidth,
+      height: totalHeight,
+      bitsPerComponent: 8,
+      bytesPerRow: 0,
+      space: CGColorSpaceCreateDeviceRGB(),
+      bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+    ) else {
+      return nil
+    }
+
+    // Draw each display's screenshot into the combined context
+    for display in displays {
+      guard let screenshot = CGDisplayCreateImage(display) else { continue }
+      let bounds = CGDisplayBounds(display)
+
+      // Calculate position in the combined image (flip Y coordinate)
+      let x = bounds.minX - minX
+      let y = maxY - bounds.maxY  // Flip Y for drawing
+
+      context.draw(screenshot, in: CGRect(x: x, y: y, width: bounds.width, height: bounds.height))
+    }
+
+    guard let combinedImage = context.makeImage() else {
+      return nil
+    }
+
+    let bitmapRep = NSBitmapImageRep(cgImage: combinedImage)
+    guard let pngData = bitmapRep.representation(using: .png, properties: [:]) else {
+      return nil
+    }
+
+    return pngData.base64EncodedString()
+  }
+
+  // MARK: - Recording Indicator
+
+  private func showRecordingIndicator() {
+    indicatorWindow = RecordingIndicatorWindow(popupBounds: popupBounds)
+    indicatorWindow?.makeKeyAndOrderFront(nil)
+  }
+
+  private func hideRecordingIndicator() {
+    // Ensure main thread for UI operations
+    if Thread.isMainThread {
+      indicatorWindow?.close()
+      indicatorWindow = nil
+    } else {
+      DispatchQueue.main.sync {
+        indicatorWindow?.close()
+        indicatorWindow = nil
+      }
+    }
+  }
+
+  // MARK: - Microphone Permission
+
+  private func checkMicrophonePermissionAndStartRecognition() {
+    switch AVCaptureDevice.authorizationStatus(for: .audio) {
+    case .authorized:
+      startSpeechRecognition()
+    case .notDetermined:
+      AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
+        guard let self = self, !self.isFinished else { return }
+        if granted {
+          self.startSpeechRecognition()
+        } else {
+          self.safeFinishWithError(VoiceQueryError(code: "microphone_permission_denied", message: "Microphone permission denied"))
+        }
+      }
+    case .denied, .restricted:
+      safeFinishWithError(VoiceQueryError(code: "microphone_permission_denied", message: "Microphone permission denied"))
+    @unknown default:
+      safeFinishWithError(VoiceQueryError(code: "microphone_permission_unknown", message: "Unknown microphone authorization status"))
+    }
+  }
+
+  // MARK: - Speech Recognition
+
+  private func startSpeechRecognition() {
+    guard !isFinished else { return }
+
+    // Request authorization
+    SFSpeechRecognizer.requestAuthorization { [weak self] status in
+      guard let self = self, !self.isFinished else { return }
+
+      switch status {
+      case .authorized:
+        DispatchQueue.main.async {
+          self.beginRecording()
+        }
+      case .denied:
+        self.safeFinishWithError(VoiceQueryError(code: "speech_permission_denied", message: "Speech recognition permission denied"))
+      case .restricted:
+        self.safeFinishWithError(VoiceQueryError(code: "speech_permission_restricted", message: "Speech recognition is restricted"))
+      case .notDetermined:
+        self.safeFinishWithError(VoiceQueryError(code: "speech_permission_not_determined", message: "Speech recognition permission not determined"))
+      @unknown default:
+        self.safeFinishWithError(VoiceQueryError(code: "speech_permission_unknown", message: "Unknown speech recognition authorization status"))
+      }
+    }
+  }
+
+  private func beginRecording() {
+    guard !isFinished else { return }
+
+    speechRecognizer = SFSpeechRecognizer(locale: Locale.current)
+
+    guard let speechRecognizer = speechRecognizer, speechRecognizer.isAvailable else {
+      safeFinishWithError(VoiceQueryError(code: "speech_recognizer_unavailable", message: "Speech recognizer is not available"))
+      return
+    }
+
+    audioEngine = AVAudioEngine()
+    recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
+
+    guard let recognitionRequest = recognitionRequest,
+          let audioEngine = audioEngine else {
+      safeFinishWithError(VoiceQueryError(code: "audio_setup_failed", message: "Failed to set up audio recording"))
+      return
+    }
+
+    // Enable partial results for real-time feedback
+    recognitionRequest.shouldReportPartialResults = true
+
+    // Use server-based recognition for better accuracy (requires network)
+    recognitionRequest.requiresOnDeviceRecognition = false
+
+    // Set task hint to dictation for natural speech optimization
+    recognitionRequest.taskHint = .dictation
+
+    // Enable automatic punctuation (macOS 13+)
+    if #available(macOS 13.0, *) {
+      recognitionRequest.addsPunctuation = true
+    }
+
+    let inputNode = audioEngine.inputNode
+    let recordingFormat = inputNode.outputFormat(forBus: 0)
+
+    // Validate audio format
+    guard recordingFormat.sampleRate > 0 && recordingFormat.channelCount > 0 else {
+      safeFinishWithError(VoiceQueryError(code: "invalid_audio_format", message: "Invalid audio format - check microphone settings"))
+      return
+    }
+
+    // Use smaller buffer for faster response to rapid speech (1024 samples)
+    // Smaller buffer = more frequent updates = better for fast talkers
+    // Apply gain to amplify quiet speech (2.0x = +6dB boost)
+    let inputGain: Float = 2.0
+
+    inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
+      guard let self = self, !self.isFinished else { return }
+
+      // Apply gain to amplify quiet voices
+      if let channelData = buffer.floatChannelData {
+        let frameCount = Int(buffer.frameLength)
+        let channelCount = Int(buffer.format.channelCount)
+
+        for channel in 0..<channelCount {
+          let data = channelData[channel]
+          for frame in 0..<frameCount {
+            // Apply gain with soft clipping to prevent distortion
+            let amplified = data[frame] * inputGain
+            data[frame] = max(-1.0, min(1.0, amplified))
+          }
+        }
+      }
+
+      self.recognitionRequest?.append(buffer)
+    }
+
+    audioEngine.prepare()
+
+    do {
+      try audioEngine.start()
+    } catch {
+      safeFinishWithError(VoiceQueryError(code: "audio_engine_start_failed", message: "Failed to start audio engine: \(error.localizedDescription)"))
+      return
+    }
+
+    recognitionTask = speechRecognizer.recognitionTask(with: recognitionRequest) { [weak self] result, error in
+      guard let self = self, !self.isFinished else { return }
+
+      if let result = result {
+        self.transcribedText = result.bestTranscription.formattedString
+        self.hasReceivedSpeech = true
+
+        // Emit partial transcription
+        let partialEvent = VoiceQueryEvent(
+          event: "voice_query_partial",
+          transcribedText: self.transcribedText
+        )
+        print(partialEvent.encoded())
+        fflush(stdout)
+      }
+
+      if error != nil || (result?.isFinal ?? false) {
+        // Recognition ended
+      }
+    }
+  }
+
+  private func stopRecording() {
+    audioEngine?.stop()
+    audioEngine?.inputNode.removeTap(onBus: 0)
+    recognitionRequest?.endAudio()
+    recognitionTask?.cancel()
+    recognitionTask = nil
+    recognitionRequest = nil
+    audioEngine = nil
+  }
+
+  // MARK: - Key Monitoring
+
+  private func startKeyMonitoring() {
+    let eventMask: CGEventMask = (1 << CGEventType.flagsChanged.rawValue)
+
+    // Note: eventTapCreate requires accessibility permission
+    eventTap = CGEvent.tapCreate(
+      tap: .cgSessionEventTap,
+      place: .headInsertEventTap,
+      options: .defaultTap,
+      eventsOfInterest: eventMask,
+      callback: { (proxy, type, event, refcon) -> Unmanaged<CGEvent>? in
+        guard let refcon = refcon else { return Unmanaged.passUnretained(event) }
+        let session = Unmanaged<VoiceQuerySession>.fromOpaque(refcon).takeUnretainedValue()
+
+        if type == .flagsChanged {
+          let flags = event.flags
+          let optionDown = flags.contains(.maskAlternate)
+
+          if session.isOptionKeyDown && !optionDown {
+            // Option key was released
+            session.isOptionKeyDown = false
+            DispatchQueue.main.async {
+              session.safeFinishSession()
+            }
+          }
+        }
+
+        return Unmanaged.passUnretained(event)
+      },
+      userInfo: Unmanaged.passUnretained(self).toOpaque()
+    )
+
+    guard let eventTap = eventTap else {
+      // Fallback: Use a timer to check if Option is still down
+      startFallbackKeyMonitoring()
+      return
+    }
+
+    runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
+    if let source = runLoopSource {
+      CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+      CGEvent.tapEnable(tap: eventTap, enable: true)
+    }
+  }
+
+  private func startFallbackKeyMonitoring() {
+    // Fallback: Poll for Option key state (store timer for proper cleanup)
+    fallbackTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] timer in
+      guard let self = self else {
+        timer.invalidate()
+        return
+      }
+
+      if self.isFinished {
+        timer.invalidate()
+        return
+      }
+
+      let flags = CGEventSource.flagsState(.hidSystemState)
+      let optionDown = flags.contains(.maskAlternate)
+
+      if !optionDown {
+        timer.invalidate()
+        self.safeFinishSession()
+      }
+    }
+  }
+
+  private func stopKeyMonitoring() {
+    fallbackTimer?.invalidate()
+    fallbackTimer = nil
+
+    if let eventTap = eventTap {
+      CGEvent.tapEnable(tap: eventTap, enable: false)
+    }
+    if let source = runLoopSource {
+      CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
+    }
+    eventTap = nil
+    runLoopSource = nil
+  }
+
+  // MARK: - Finish Session (Thread-Safe Wrappers)
+
+  private func safeFinishSession() {
+    if Thread.isMainThread {
+      finishSession()
+    } else {
+      DispatchQueue.main.async {
+        self.finishSession()
+      }
+    }
+  }
+
+  private func safeFinishWithError(_ error: VoiceQueryError) {
+    if Thread.isMainThread {
+      finishWithError(error)
+    } else {
+      DispatchQueue.main.async {
+        self.finishWithError(error)
+      }
+    }
+  }
+
+  private func finishSession() {
+    guard !isFinished else { return }
+    isFinished = true
+
+    stopTimeoutTimer()
+    stopRecording()
+    stopKeyMonitoring()
+    hideRecordingIndicator()
+
+    // Wait briefly for screenshot if not yet captured (max 500ms)
+    if screenshotBase64 == nil {
+      for _ in 0..<10 {
+        Thread.sleep(forTimeInterval: 0.05)
+        if screenshotBase64 != nil { break }
+      }
+    }
+
+    // Check if we have valid results
+    guard let screenshotBase64 = screenshotBase64 else {
+      completion?(.failure(VoiceQueryError(code: "no_screenshot", message: "No screenshot captured")))
+      return
+    }
+
+    // Check if any speech was detected
+    let finalText = transcribedText.trimmingCharacters(in: .whitespacesAndNewlines)
+    if finalText.isEmpty {
+      completion?(.failure(VoiceQueryError(code: "no_speech_detected", message: "No speech detected")))
+      return
+    }
+
+    let result = VoiceQueryResult(
+      screenshotBase64: screenshotBase64,
+      mimeType: mimeType,
+      transcribedText: finalText
+    )
+    completion?(.success(result))
+  }
+
+  private func finishWithError(_ error: VoiceQueryError) {
+    guard !isFinished else { return }
+    isFinished = true
+
+    stopTimeoutTimer()
+    stopRecording()
+    stopKeyMonitoring()
+    hideRecordingIndicator()
+    completion?(.failure(error))
+  }
+}
+
+// MARK: - Recording Indicator Window
+
+class RecordingIndicatorWindow: NSPanel {
+  private var pulseTimer: Timer?
+
+  init(popupBounds: NSRect? = nil) {
+    let size = NSSize(width: 36, height: 36)
+
+    // Get primary screen for coordinate conversion (Electron coordinates are relative to primary)
+    let primaryScreen = NSScreen.screens.first
+    let primaryHeight = primaryScreen?.frame.height ?? 0
+
+    var origin: NSPoint
+    var targetScreen = NSScreen.main
+
+    if let popup = popupBounds {
+      // Convert Electron coordinates (top-left origin) to macOS coordinates (bottom-left origin)
+      // Electron Y is from top of primary screen, macOS Y is from bottom
+      let macosPopupY = primaryHeight - popup.origin.y - popup.height
+      let macosPopupX = popup.origin.x
+
+      // Find the screen that contains the popup
+      let popupCenter = NSPoint(x: macosPopupX + popup.width / 2, y: macosPopupY + popup.height / 2)
+      for screen in NSScreen.screens {
+        if screen.frame.contains(popupCenter) {
+          targetScreen = screen
+          break
+        }
+      }
+
+      // Position to the left of the popup with 10px gap
+      origin = NSPoint(
+        x: macosPopupX - size.width - 10,
+        y: macosPopupY + (popup.height - size.height) / 2  // Center vertically with popup
+      )
+
+      // Get the target screen's visible frame for bounds checking
+      let screenFrame = targetScreen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero
+
+      // Ensure indicator stays within screen bounds
+      // If too far left, place to the right of popup instead
+      if origin.x < screenFrame.minX {
+        origin.x = macosPopupX + popup.width + 10
+      }
+      // If too far right, clamp to screen edge
+      if origin.x + size.width > screenFrame.maxX {
+        origin.x = screenFrame.maxX - size.width - 10
+      }
+      // Clamp Y to screen bounds
+      origin.y = max(screenFrame.minY + 10, min(origin.y, screenFrame.maxY - size.height - 10))
+    } else {
+      // Fallback: top-right corner of main screen
+      let screenFrame = NSScreen.main?.visibleFrame ?? .zero
+      origin = NSPoint(
+        x: screenFrame.maxX - size.width - 20,
+        y: screenFrame.maxY - size.height - 20
+      )
+    }
+    let frame = NSRect(origin: origin, size: size)
+
+    super.init(
+      contentRect: frame,
+      styleMask: [.borderless, .nonactivatingPanel],
+      backing: .buffered,
+      defer: false
+    )
+
+    level = .screenSaver
+    collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
+    isOpaque = false
+    backgroundColor = .clear
+    hasShadow = true
+    hidesOnDeactivate = false
+
+    setupUI()
+    startPulseAnimation()
+  }
+
+  private func setupUI() {
+    let containerFrame = NSRect(origin: .zero, size: frame.size)
+    let container = NSView(frame: containerFrame)
+    container.wantsLayer = true
+
+    // Primary gradient: #ff4d6d -> #d946ef (135 degrees)
+    let gradientLayer = CAGradientLayer()
+    gradientLayer.frame = containerFrame
+    gradientLayer.colors = [
+      NSColor(red: 255/255, green: 77/255, blue: 109/255, alpha: 1.0).cgColor,  // #ff4d6d
+      NSColor(red: 217/255, green: 70/255, blue: 239/255, alpha: 1.0).cgColor   // #d946ef
+    ]
+    // 135 degrees: top-left to bottom-right
+    gradientLayer.startPoint = CGPoint(x: 0, y: 1)
+    gradientLayer.endPoint = CGPoint(x: 1, y: 0)
+    gradientLayer.cornerRadius = frame.size.width / 2
+
+    container.layer?.addSublayer(gradientLayer)
+    container.layer?.cornerRadius = frame.size.width / 2
+    container.layer?.masksToBounds = true
+
+    // Microphone icon (simple circle indicator)
+    let innerCircle = NSView(frame: NSRect(x: 12, y: 12, width: 12, height: 12))
+    innerCircle.wantsLayer = true
+    innerCircle.layer?.backgroundColor = NSColor.white.cgColor
+    innerCircle.layer?.cornerRadius = 6
+    container.addSubview(innerCircle)
+
+    contentView = container
+  }
+
+  private func startPulseAnimation() {
+    var alpha: CGFloat = 1.0
+    var increasing = false
+
+    pulseTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+      guard let self = self else { return }
+
+      if increasing {
+        alpha += 0.03
+        if alpha >= 1.0 {
+          alpha = 1.0
+          increasing = false
+        }
+      } else {
+        alpha -= 0.03
+        if alpha <= 0.5 {
+          alpha = 0.5
+          increasing = true
+        }
+      }
+
+      self.alphaValue = alpha
+    }
+  }
+
+  override func close() {
+    pulseTimer?.invalidate()
+    pulseTimer = nil
+    super.close()
   }
 }

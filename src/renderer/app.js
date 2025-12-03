@@ -16,6 +16,7 @@ const SLASHES = (typeof window !== 'undefined' && window.IRUKADARK_SLASHES) || {
   SLASH_IMAGE_TARGETS: [],
   SLASH_IMAGE_SIZE_TARGETS: [],
   SLASH_IMAGE_COUNT_TARGETS: [],
+  SLASH_IMAGE_TEMPLATE_TARGETS: [],
   SLASH_VIDEO_TARGETS: [],
   SLASH_VIDEO_SIZE_TARGETS: [],
   SLASH_VIDEO_QUALITY_TARGETS: [],
@@ -49,6 +50,7 @@ const SLASH_WEB_TARGETS = SLASHES.SLASH_WEB_TARGETS || [];
 const SLASH_IMAGE_TARGETS = SLASHES.SLASH_IMAGE_TARGETS || [];
 const SLASH_IMAGE_SIZE_TARGETS = SLASHES.SLASH_IMAGE_SIZE_TARGETS || [];
 const SLASH_IMAGE_COUNT_TARGETS = SLASHES.SLASH_IMAGE_COUNT_TARGETS || [];
+const SLASH_IMAGE_TEMPLATE_TARGETS = SLASHES.SLASH_IMAGE_TEMPLATE_TARGETS || [];
 const SLASH_VIDEO_TARGETS = SLASHES.SLASH_VIDEO_TARGETS || [];
 const SLASH_VIDEO_SIZE_TARGETS = SLASHES.SLASH_VIDEO_SIZE_TARGETS || [];
 const SLASH_VIDEO_QUALITY_TARGETS = SLASHES.SLASH_VIDEO_QUALITY_TARGETS || [];
@@ -157,9 +159,12 @@ class IrukaDarkApp {
     this.slideSize = '16:9';
     this.slideCount = 1;
     this.slideTemplates = [];
-    this.activeSlideTemplateId = null;
+    this.activeSlideTemplateId = 'default';
+    this.imageTemplates = [];
+    this.activeImageTemplateId = 'default';
     this.editingTemplateId = null;
     this.editingTemplateImageBase64 = null;
+    this.editingTemplateType = null; // 'slide' or 'image'
     this.isGenerating = false;
     this.cancelRequested = false;
     this.isSending = false; // Prevent duplicate sendMessage() execution
@@ -836,6 +841,8 @@ class IrukaDarkApp {
     });
     on('onExplainScreenshot', (payload) => this.handleExplainScreenshot(payload));
     on('onExplainScreenshotDetailed', (payload) => this.handleExplainScreenshotDetailed(payload));
+    on('onVoiceQueryComplete', (payload) => this.handleVoiceQueryComplete(payload));
+    on('onVoiceQueryError', (error) => this.handleVoiceQueryError(error));
     on('onGenerateSlideImage', (text) => this.handleGenerateSlideImage(text));
     on('onAccessibilityWarning', () => {
       /* no-op in chat UI */
@@ -921,6 +928,7 @@ class IrukaDarkApp {
     // Initialize language first, then load templates (which may create Default template)
     this.initializeLanguage().then(() => {
       this.loadSlideTemplates();
+      this.loadImageTemplates();
     });
     this.loadWebSearchSetting();
     this.loadTranslateMode();
@@ -1059,49 +1067,12 @@ class IrukaDarkApp {
       if (window.electronAPI && window.electronAPI.getSlideTemplates) {
         const data = await window.electronAPI.getSlideTemplates();
         this.slideTemplates = data.templates || [];
-        this.activeSlideTemplateId = data.activeTemplateId || null;
-
-        // Create Default template if no templates exist
-        if (this.slideTemplates.length === 0) {
-          await this.createDefaultSlideTemplate();
-        }
-
+        this.activeSlideTemplateId = data.activeTemplateId || 'default';
         this.updateSlideTemplateTargets();
       }
     } catch (error) {
       this.slideTemplates = [];
-      this.activeSlideTemplateId = null;
-    }
-  }
-
-  async createDefaultSlideTemplate() {
-    const defaultPrompt = this.getDefaultSlidePrompt();
-    const defaultTemplate = {
-      id: 'default',
-      name: 'Default',
-      prompt: defaultPrompt,
-      thumbnailBase64: null,
-    };
-
-    try {
-      if (window.electronAPI && window.electronAPI.saveSlideTemplate) {
-        await window.electronAPI.saveSlideTemplate(defaultTemplate);
-      }
-      // Reload to get the saved template
-      if (window.electronAPI && window.electronAPI.getSlideTemplates) {
-        const data = await window.electronAPI.getSlideTemplates();
-        this.slideTemplates = data.templates || [];
-        // Set Default as active
-        if (this.slideTemplates.length > 0 && !this.activeSlideTemplateId) {
-          const defaultTpl = this.slideTemplates.find((t) => t.id === 'default');
-          if (defaultTpl && window.electronAPI.setActiveSlideTemplate) {
-            await window.electronAPI.setActiveSlideTemplate(defaultTpl.id);
-            this.activeSlideTemplateId = defaultTpl.id;
-          }
-        }
-      }
-    } catch (error) {
-      // Silently fail - user can create templates manually
+      this.activeSlideTemplateId = 'default';
     }
   }
 
@@ -1143,10 +1114,10 @@ class IrukaDarkApp {
   }
 
   async clearActiveSlideTemplate() {
-    this.activeSlideTemplateId = null;
+    this.activeSlideTemplateId = 'default';
     try {
       if (window.electronAPI && window.electronAPI.setActiveSlideTemplate) {
-        await window.electronAPI.setActiveSlideTemplate(null);
+        await window.electronAPI.setActiveSlideTemplate('default');
       }
     } catch (error) {}
     const cleared = getUIText('slideTemplateCleared');
@@ -1438,7 +1409,7 @@ class IrukaDarkApp {
         await window.electronAPI.deleteSlideTemplate(templateId);
       }
       if (this.activeSlideTemplateId === templateId) {
-        this.activeSlideTemplateId = null;
+        this.activeSlideTemplateId = 'default';
       }
       await this.loadSlideTemplates();
       const deleted = getUIText('slideTemplateDeleted', template.name);
@@ -1462,6 +1433,377 @@ class IrukaDarkApp {
       this.addMessage('system', noActive);
     }
   }
+
+  // ==================== Image Template Methods ====================
+
+  async loadImageTemplates() {
+    try {
+      if (window.electronAPI && window.electronAPI.getImageTemplates) {
+        const data = await window.electronAPI.getImageTemplates();
+        this.imageTemplates = data.templates || [];
+        this.activeImageTemplateId = data.activeTemplateId || 'default';
+        this.updateImageTemplateTargets();
+      }
+    } catch (error) {
+      this.imageTemplates = [];
+      this.activeImageTemplateId = 'default';
+    }
+  }
+
+  updateImageTemplateTargets() {
+    // Update SLASH_IMAGE_TEMPLATE_TARGETS dynamically
+    SLASH_IMAGE_TEMPLATE_TARGETS.length = 0;
+    for (const tpl of this.imageTemplates) {
+      SLASH_IMAGE_TEMPLATE_TARGETS.push({
+        key: `/image template ${tpl.name}`,
+        match: `/image template ${tpl.name.toLowerCase()}`,
+        label: `/image template ${tpl.name}`,
+        descKey: 'slashDescriptions.imageTemplateItem',
+        templateId: tpl.id,
+        templateName: tpl.name,
+      });
+    }
+  }
+
+  getActiveImageTemplate() {
+    if (!this.activeImageTemplateId) return null;
+    return this.imageTemplates.find((t) => t.id === this.activeImageTemplateId) || null;
+  }
+
+  async applyImageTemplate(templateId) {
+    const template = this.imageTemplates.find((t) => t.id === templateId);
+    if (!template) {
+      const notFound = getUIText('imageTemplateNotFound');
+      this.addMessage('system', notFound);
+      return;
+    }
+    this.activeImageTemplateId = templateId;
+    try {
+      if (window.electronAPI && window.electronAPI.setActiveImageTemplate) {
+        await window.electronAPI.setActiveImageTemplate(templateId);
+      }
+    } catch (error) {}
+    const applied = getUIText('imageTemplateApplied', template.name);
+    this.addMessage('system', applied);
+  }
+
+  async clearActiveImageTemplate() {
+    this.activeImageTemplateId = 'default';
+    try {
+      if (window.electronAPI && window.electronAPI.setActiveImageTemplate) {
+        await window.electronAPI.setActiveImageTemplate('default');
+      }
+    } catch (error) {}
+    const cleared = getUIText('imageTemplateCleared');
+    this.addMessage('system', cleared);
+  }
+
+  openImageTemplateDialog() {
+    const overlay = document.getElementById('imageTemplateOverlay');
+    const listEl = document.getElementById('imageTemplateList');
+    const closeBtn = document.getElementById('imageTemplateClose');
+    const addBtn = document.getElementById('imageTemplateAddBtn');
+
+    if (!overlay || !listEl) return;
+
+    this.renderImageTemplateList(listEl);
+    overlay.style.display = 'flex';
+
+    const closeHandler = () => {
+      overlay.style.display = 'none';
+      closeBtn.removeEventListener('click', closeHandler);
+      overlay.removeEventListener('click', overlayClickHandler);
+    };
+    const overlayClickHandler = (e) => {
+      if (e.target === overlay) closeHandler();
+    };
+
+    closeBtn.addEventListener('click', closeHandler);
+    overlay.addEventListener('click', overlayClickHandler);
+
+    addBtn.onclick = () => {
+      this.openImageTemplateEditDialog(null);
+    };
+  }
+
+  renderImageTemplateList(listEl) {
+    listEl.innerHTML = '';
+
+    if (this.imageTemplates.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'image-template-empty';
+      empty.textContent = getUIText('imageTemplate.noTemplates') || 'No templates yet';
+      listEl.appendChild(empty);
+      return;
+    }
+
+    for (const tpl of this.imageTemplates) {
+      const item = document.createElement('div');
+      item.className = 'image-template-item';
+      if (tpl.id === this.activeImageTemplateId) {
+        item.classList.add('active');
+      }
+
+      // Thumbnail
+      if (tpl.thumbnailBase64) {
+        const thumb = document.createElement('img');
+        thumb.className = 'image-template-item-thumb';
+        thumb.src = tpl.thumbnailBase64;
+        item.appendChild(thumb);
+      } else {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'image-template-item-thumb-placeholder';
+        placeholder.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`;
+        item.appendChild(placeholder);
+      }
+
+      // Info
+      const info = document.createElement('div');
+      info.className = 'image-template-item-info';
+
+      const name = document.createElement('div');
+      name.className = 'image-template-item-name';
+      name.textContent = tpl.name;
+      info.appendChild(name);
+
+      const prompt = document.createElement('div');
+      prompt.className = 'image-template-item-prompt';
+      const displayPrompt = tpl.prompt || '';
+      prompt.textContent = displayPrompt.slice(0, 50) + (displayPrompt.length > 50 ? '...' : '');
+      info.appendChild(prompt);
+
+      item.appendChild(info);
+
+      // Actions
+      const actions = document.createElement('div');
+      actions.className = 'image-template-item-actions';
+
+      // Use button
+      const useBtn = document.createElement('button');
+      useBtn.className = 'image-template-item-btn';
+      useBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+      useBtn.title = getUIText('imageTemplate.use') || 'Use';
+      useBtn.onclick = (e) => {
+        e.stopPropagation();
+        this.applyImageTemplate(tpl.id);
+        document.getElementById('imageTemplateOverlay').style.display = 'none';
+      };
+      actions.appendChild(useBtn);
+
+      // Edit and Delete buttons (not for default template)
+      if (tpl.id !== 'default') {
+        // Edit button
+        const editBtn = document.createElement('button');
+        editBtn.className = 'image-template-item-btn';
+        editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>`;
+        editBtn.title = getUIText('imageTemplate.edit') || 'Edit';
+        editBtn.onclick = (e) => {
+          e.stopPropagation();
+          this.openImageTemplateEditDialog(tpl);
+        };
+        actions.appendChild(editBtn);
+
+        // Delete button
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'image-template-item-btn delete';
+        deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`;
+        deleteBtn.title = getUIText('imageTemplate.delete') || 'Delete';
+        deleteBtn.onclick = (e) => {
+          e.stopPropagation();
+          this.deleteImageTemplate(tpl.id);
+        };
+        actions.appendChild(deleteBtn);
+      }
+
+      item.appendChild(actions);
+
+      // Click item to use
+      item.onclick = () => {
+        this.applyImageTemplate(tpl.id);
+        document.getElementById('imageTemplateOverlay').style.display = 'none';
+      };
+
+      listEl.appendChild(item);
+    }
+  }
+
+  async openImageTemplateEditDialog(template) {
+    const overlay = document.getElementById('imageTemplateEditOverlay');
+    const titleEl = document.getElementById('imageTemplateEditTitle');
+    const nameInput = document.getElementById('imageTemplateEditName');
+    const promptInput = document.getElementById('imageTemplateEditPrompt');
+    const imagePreview = document.getElementById('imageTemplateEditImagePreview');
+    const imageActions = document.getElementById('imageTemplateEditImageActions');
+    const closeBtn = document.getElementById('imageTemplateEditClose');
+    const cancelBtn = document.getElementById('imageTemplateEditCancel');
+    const saveBtn = document.getElementById('imageTemplateEditSave');
+    const deleteImageBtn = document.getElementById('imageTemplateEditImageDelete');
+
+    if (!overlay) return;
+
+    this.editingTemplateId = template ? template.id : null;
+    this.editingTemplateImageBase64 = null;
+    this.editingTemplateType = 'image';
+
+    // Set title
+    titleEl.textContent = template
+      ? getUIText('imageTemplate.edit') || 'Edit Template'
+      : getUIText('imageTemplate.addNew') || 'Add Template';
+
+    // Set values
+    nameInput.value = template ? template.name : '';
+    promptInput.value = template ? template.prompt || '' : '';
+
+    // Set image preview
+    if (template && template.thumbnailBase64) {
+      imagePreview.innerHTML = `<img src="${template.thumbnailBase64}" />`;
+      imageActions.style.display = 'flex';
+      this.editingTemplateImageBase64 = template.thumbnailBase64;
+    } else {
+      imagePreview.innerHTML = `
+        <div class="image-template-edit-image-placeholder">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          <span>${getUIText('imageTemplate.clickToSelect') || 'Click to select image'}</span>
+        </div>
+      `;
+      imageActions.style.display = 'none';
+    }
+
+    overlay.style.display = 'flex';
+
+    const closeHandler = () => {
+      overlay.style.display = 'none';
+      this.editingTemplateId = null;
+      this.editingTemplateImageBase64 = null;
+      this.editingTemplateType = null;
+    };
+    closeBtn.onclick = closeHandler;
+    cancelBtn.onclick = closeHandler;
+
+    imagePreview.onclick = async () => {
+      await this.selectImageTemplateImage();
+    };
+
+    deleteImageBtn.onclick = () => {
+      this.editingTemplateImageBase64 = null;
+      imagePreview.innerHTML = `
+        <div class="image-template-edit-image-placeholder">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          <span>${getUIText('imageTemplate.clickToSelect') || 'Click to select image'}</span>
+        </div>
+      `;
+      imageActions.style.display = 'none';
+    };
+
+    saveBtn.onclick = async () => {
+      const name = nameInput.value.trim();
+      if (!name) {
+        const err = getUIText('imageTemplate.nameRequired') || 'Name is required';
+        this.addMessage('system', err);
+        return;
+      }
+
+      // Check for duplicate template name (different ID but same name)
+      const duplicateExists = this.imageTemplates.some(
+        (t) => t.name.toLowerCase() === name.toLowerCase() && t.id !== this.editingTemplateId
+      );
+      if (duplicateExists) {
+        const err =
+          getUIText('imageTemplate.nameDuplicate') || 'A template with this name already exists';
+        this.addMessage('system', err);
+        return;
+      }
+
+      const templateData = {
+        id:
+          this.editingTemplateId ||
+          `img-tpl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        name,
+        prompt: promptInput.value.trim(),
+        thumbnailBase64: this.editingTemplateImageBase64 || null,
+        imageFilename: null,
+      };
+
+      try {
+        if (window.electronAPI && window.electronAPI.saveImageTemplate) {
+          await window.electronAPI.saveImageTemplate(templateData);
+        }
+        await this.loadImageTemplates();
+        const saved = getUIText('imageTemplateSaved', name);
+        this.addMessage('system', saved);
+        closeHandler();
+        // Refresh list
+        const listEl = document.getElementById('imageTemplateList');
+        if (listEl) this.renderImageTemplateList(listEl);
+      } catch (error) {
+        const errMsg = getUIText('imageTemplate.saveError') || 'Failed to save template';
+        this.addMessage('system', errMsg);
+      }
+    };
+
+    overlay.onclick = (e) => {
+      if (e.target === overlay) closeHandler();
+    };
+  }
+
+  async selectImageTemplateImage() {
+    try {
+      if (window.electronAPI && window.electronAPI.selectImageTemplateImage) {
+        const result = await window.electronAPI.selectImageTemplateImage();
+        if (result && result.base64) {
+          this.editingTemplateImageBase64 = result.base64;
+          const imagePreview = document.getElementById('imageTemplateEditImagePreview');
+          const imageActions = document.getElementById('imageTemplateEditImageActions');
+          if (imagePreview) {
+            imagePreview.innerHTML = `<img src="${result.base64}" />`;
+          }
+          if (imageActions) {
+            imageActions.style.display = 'flex';
+          }
+        }
+      }
+    } catch (error) {}
+  }
+
+  async deleteImageTemplate(templateId) {
+    const template = this.imageTemplates.find((t) => t.id === templateId);
+    if (!template) return;
+
+    const confirmMsg =
+      getUIText('imageTemplate.confirmDelete', template.name) || `Delete "${template.name}"?`;
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      if (window.electronAPI && window.electronAPI.deleteImageTemplate) {
+        await window.electronAPI.deleteImageTemplate(templateId);
+      }
+      if (this.activeImageTemplateId === templateId) {
+        this.activeImageTemplateId = 'default';
+      }
+      await this.loadImageTemplates();
+      const deleted = getUIText('imageTemplateDeleted', template.name);
+      this.addMessage('system', deleted);
+      // Refresh list
+      const listEl = document.getElementById('imageTemplateList');
+      if (listEl) this.renderImageTemplateList(listEl);
+    } catch (error) {
+      const errMsg = getUIText('imageTemplate.deleteError') || 'Failed to delete template';
+      this.addMessage('system', errMsg);
+    }
+  }
+
+  showImageTemplateStatus() {
+    const active = this.getActiveImageTemplate();
+    if (active) {
+      const status = getUIText('imageTemplateActiveStatus', active.name);
+      this.addMessage('system', status);
+    } else {
+      const noActive = getUIText('imageTemplateNoActive');
+      this.addMessage('system', noActive);
+    }
+  }
+
+  // ==================== End Image Template Methods ====================
 
   getTranslateModeLabel(mode = this.translateMode) {
     const m = mode === 'free' ? 'free' : 'literal';
@@ -2272,6 +2614,136 @@ Text should be in ${name} (${code}).`;
   }
 
   /**
+   * Handle voice query completion with screenshot and transcribed text
+   * @param {Object} payload - { data: base64, mimeType: string, query: string }
+   */
+  async handleVoiceQueryComplete(payload) {
+    try {
+      await this.cancelActiveShortcut();
+      // Switch to chat tab when shortcut is triggered
+      if (window.switchToTab) window.switchToTab('chat');
+
+      const token = ++this.shortcutRequestId;
+      const data = payload && payload.data ? String(payload.data) : '';
+      const mime = payload && payload.mimeType ? String(payload.mimeType) : 'image/png';
+      const query = payload && payload.query ? String(payload.query).trim() : '';
+
+      // If no screenshot or no voice query, show error
+      if (!data) {
+        this.showToast(
+          getUIText('voiceQuery')?.screenCaptureError || 'Screen capture failed',
+          'error'
+        );
+        return;
+      }
+      if (!query) {
+        this.showToast(getUIText('voiceQuery')?.noSpeechDetected || 'No speech detected', 'error');
+        return;
+      }
+
+      this.disableAutoScrollCount++;
+
+      // Performance optimization: batch DOM operations in single frame
+      requestAnimationFrame(() => {
+        // Show the user's voice query
+        this.addMessage(
+          'system-question',
+          `${getUIText('voiceQuery')?.title || 'Voice Query'}: ${query}`
+        );
+        this.showTypingIndicator();
+
+        // Scroll to bottom after messages are added
+        requestAnimationFrame(() => {
+          if (this.chatHistory && this.chatHistory.isConnected) {
+            this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+          }
+        });
+      });
+
+      // Build history context and send to AI
+      const historyText = this.buildHistoryContext();
+
+      // Build a prompt that includes the user's voice query with the screenshot context
+      const response = await this.geminiService.generateVoiceQueryResponse(
+        data,
+        mime,
+        query,
+        historyText,
+        this.webSearchEnabled
+      );
+
+      if (token !== this.shortcutRequestId) {
+        return;
+      }
+      this.hideTypingIndicator();
+      if (this.cancelRequested) {
+        return;
+      }
+      this.addMessage('ai', response);
+
+      // Ensure window is visible
+      try {
+        window.electronAPI?.ensureVisible?.(false);
+      } catch {}
+    } catch (e) {
+      if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
+        return;
+      }
+      this.hideTypingIndicator();
+      this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
+    } finally {
+      this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
+    }
+  }
+
+  /**
+   * Handle voice query error
+   * @param {Object} error - { code: string, message: string }
+   */
+  handleVoiceQueryError(error) {
+    const code = error?.code || 'unknown';
+    const voiceQueryText = getUIText('voiceQuery') || {};
+
+    let message;
+    switch (code) {
+      case 'no_speech_detected':
+      case 'cancelled':
+        message = voiceQueryText.noSpeechDetected || 'No speech detected';
+        break;
+      case 'microphone_permission_denied':
+      case 'microphone_permission_unknown':
+        message = voiceQueryText.microphonePermissionDenied || 'Microphone permission denied';
+        break;
+      case 'speech_permission_denied':
+      case 'speech_permission_restricted':
+      case 'speech_permission_not_determined':
+      case 'speech_permission_unknown':
+        message = voiceQueryText.speechPermissionDenied || 'Speech recognition permission denied';
+        break;
+      case 'accessibility_permission_denied':
+        message =
+          voiceQueryText.accessibilityPermissionDenied || 'Accessibility permission required';
+        break;
+      case 'screen_capture_error':
+      case 'no_screenshot':
+        message = voiceQueryText.screenCaptureError || 'Screen capture failed';
+        break;
+      case 'audio_setup_failed':
+      case 'audio_engine_start_failed':
+      case 'invalid_audio_format':
+        message = voiceQueryText.audioSetupError || 'Audio setup failed';
+        break;
+      case 'speech_recognizer_unavailable':
+        message = voiceQueryText.speechUnavailable || 'Speech recognition unavailable';
+        break;
+      default:
+        message = voiceQueryText.error || error?.message || 'Voice query failed';
+    }
+
+    this.showToast(message, 'error');
+  }
+
+  /**
    * Handle slide image generation from shortcut key (Option+Control+A)
    * Uses the same core logic and UI pattern as @slide command
    */
@@ -2707,6 +3179,7 @@ Text should be in ${name} (${code}).`;
       if (subCmd === 'status') {
         this.showImageSizeStatus();
         this.showImageCountStatus();
+        this.showImageTemplateStatus();
         return;
       }
 
@@ -2729,6 +3202,31 @@ Text should be in ${name} (${code}).`;
           return;
         }
         this.addMessage('system', getUIText('imageCountHelp'));
+        return;
+      }
+
+      if (subCmd === 'template') {
+        const templateName = parts.slice(2).join(' ').trim();
+        if (!templateName) {
+          // Show template list dialog
+          this.openImageTemplateDialog();
+          return;
+        }
+        // Find template by name (case-insensitive)
+        const template = this.imageTemplates.find(
+          (t) => t.name.toLowerCase() === templateName.toLowerCase()
+        );
+        if (template) {
+          await this.applyImageTemplate(template.id);
+        } else if (
+          templateName.toLowerCase() === 'clear' ||
+          templateName.toLowerCase() === 'none'
+        ) {
+          await this.clearActiveImageTemplate();
+        } else {
+          const notFound = getUIText('imageTemplateNotFound');
+          this.addMessage('system', notFound);
+        }
         return;
       }
 
@@ -2924,11 +3422,37 @@ Text should be in ${name} (${code}).`;
       const count = this.imageCount || 1;
       this.showImageSkeletonLoader(aspectRatio, count);
 
+      // Get active image template
+      const activeTemplate = this.getActiveImageTemplate();
+      let finalPrompt = prompt;
+      let templateReferenceImage = null;
+
+      if (activeTemplate) {
+        // Apply template prompt if it exists
+        if (activeTemplate.prompt) {
+          finalPrompt = `${activeTemplate.prompt}\n\n${prompt}`;
+        }
+        // If template has an image, use it as reference
+        if (activeTemplate.thumbnailBase64) {
+          const mimeMatch = activeTemplate.thumbnailBase64.match(/^data:(image\/[^;]+);base64,/);
+          const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+          templateReferenceImage = {
+            base64: activeTemplate.thumbnailBase64.replace(/^data:[^;]+;base64,/, ''),
+            mimeType,
+          };
+        }
+      }
+
       const referenceFiles = this.getAllReferenceFiles(attachments);
       const generatePromises = Array(count)
         .fill(null)
         .map((_, index) =>
-          this.generateSingleImage(prompt, aspectRatio, referenceFiles).catch((error) => {
+          this.generateSingleImage(
+            finalPrompt,
+            aspectRatio,
+            referenceFiles,
+            templateReferenceImage
+          ).catch((error) => {
             this.markSkeletonFailed(index);
             return null;
           })
@@ -2957,12 +3481,22 @@ Text should be in ${name} (${code}).`;
     return attachments.filter((f) => f.type.startsWith('image/'));
   }
 
-  async generateSingleImage(prompt, aspectRatio, referenceFiles) {
-    if (referenceFiles && referenceFiles.length > 0) {
+  async generateSingleImage(prompt, aspectRatio, referenceFiles, templateReferenceImage = null) {
+    // Combine template reference image with attachment reference files
+    const allReferenceFiles = [...(referenceFiles || [])];
+    if (templateReferenceImage) {
+      allReferenceFiles.unshift({
+        base64: templateReferenceImage.base64,
+        mimeType: templateReferenceImage.mimeType,
+        name: 'template-reference.png',
+      });
+    }
+
+    if (allReferenceFiles.length > 0) {
       return this.geminiService.generateImageFromTextWithReference(
         prompt,
         aspectRatio,
-        referenceFiles
+        allReferenceFiles
       );
     }
     return this.geminiService.generateImageFromText(prompt, aspectRatio);
@@ -3439,19 +3973,19 @@ ${content}`;
         childSeparator: ' ',
       },
       {
-        key: '/video',
-        match: '/video',
-        label: '/video',
-        descKey: 'slashDescriptions.video',
-        children: SLASH_VIDEO_TARGETS,
-        childSeparator: ' ',
-      },
-      {
         key: '/slide',
         match: '/slide',
         label: '/slide',
         descKey: 'slashDescriptions.slide',
         children: SLASH_SLIDE_TARGETS,
+        childSeparator: ' ',
+      },
+      {
+        key: '/video',
+        match: '/video',
+        label: '/video',
+        descKey: 'slashDescriptions.video',
+        children: SLASH_VIDEO_TARGETS,
         childSeparator: ' ',
       },
     ];
@@ -3595,6 +4129,14 @@ ${content}`;
       }
       return SLASH_IMAGE_COUNT_TARGETS.filter((c) => c.match.startsWith(normalized));
     }
+    if (normalized.startsWith('/image template')) {
+      const wantsChildren =
+        normalized === '/image template' && (raw.endsWith(' ') || lower.endsWith(' '));
+      if (wantsChildren) {
+        return SLASH_IMAGE_TEMPLATE_TARGETS;
+      }
+      return SLASH_IMAGE_TEMPLATE_TARGETS.filter((c) => c.match.startsWith(normalized));
+    }
     if (normalized.startsWith('/image ')) {
       return SLASH_IMAGE_TARGETS.filter((c) => c.match.startsWith(normalized));
     }
@@ -3654,6 +4196,14 @@ ${content}`;
         return SLASH_SLIDE_COUNT_TARGETS;
       }
       return SLASH_SLIDE_COUNT_TARGETS.filter((c) => c.match.startsWith(normalized));
+    }
+    if (normalized.startsWith('/slide template')) {
+      const wantsChildren =
+        normalized === '/slide template' && (raw.endsWith(' ') || lower.endsWith(' '));
+      if (wantsChildren) {
+        return SLASH_SLIDE_TEMPLATE_TARGETS;
+      }
+      return SLASH_SLIDE_TEMPLATE_TARGETS.filter((c) => c.match.startsWith(normalized));
     }
     if (normalized.startsWith('/slide ')) {
       return SLASH_SLIDE_TARGETS.filter((c) => c.match.startsWith(normalized));
@@ -5235,6 +5785,56 @@ ${trimmed}`;
           : `Recent chat context:\n${historyText}\n\n`) + prompt;
     }
     return this.requestWithImage(prompt, imageBase64, mimeType, useWebSearch, 'shortcut');
+  }
+
+  /**
+   * Generate a response for voice query (screenshot + voice question)
+   * @param {string} imageBase64 - Base64 encoded screenshot
+   * @param {string} mimeType - MIME type of the image
+   * @param {string} voiceQuery - The transcribed voice query from the user
+   * @param {string} historyText - Chat history context
+   * @param {boolean} useWebSearch - Whether to use web search
+   * @returns {Promise<string>} AI response
+   */
+  async generateVoiceQueryResponse(
+    imageBase64,
+    mimeType = 'image/png',
+    voiceQuery,
+    historyText = '',
+    useWebSearch = false
+  ) {
+    const lang =
+      (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
+    const tone = typeof getCurrentTone === 'function' ? getCurrentTone() : 'casual';
+    const { name, code } = getLangMeta(lang);
+    const query = String(voiceQuery || '').trim();
+
+    let prompt;
+    if (lang === 'ja') {
+      prompt =
+        `ユーザーは画面を見ながら次のように質問しています：「${query}」\n\n` +
+        'このスクリーンショットを分析し、ユーザーの質問に対して具体的かつ分かりやすく回答してください。' +
+        '画面内の関連する情報を特定し、質問の文脈に沿って説明してください。' +
+        (tone === 'casual'
+          ? ' 口調はやさしく温かみのあるタメ口（常体）。くだけすぎない。絵文字は使わない。'
+          : '');
+    } else {
+      prompt =
+        `The user is looking at their screen and asking: "${query}"\n\n` +
+        `Analyze this screenshot and answer the user's question clearly and specifically. ` +
+        `Identify the relevant information on the screen and explain it in the context of their question. ` +
+        `Respond strictly in ${name} (${code}).` +
+        (tone === 'casual' ? ' Use a friendly, conversational tone (no emojis).' : '');
+    }
+
+    if (historyText && historyText.trim()) {
+      prompt =
+        (lang === 'ja'
+          ? `【チャット履歴（直近）】\n${historyText}\n\n`
+          : `Recent chat context:\n${historyText}\n\n`) + prompt;
+    }
+
+    return this.requestWithImage(prompt, imageBase64, mimeType, useWebSearch, 'voice-query');
   }
 
   async generateTableFromText(text, historyText = '', useWebSearch = false) {

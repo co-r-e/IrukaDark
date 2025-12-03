@@ -848,6 +848,202 @@ function hideClipboardPopupFast() {
   return closeClipboardPopup();
 }
 
+// Voice Query state
+let voiceQueryProcess = null;
+
+/**
+ * Spawn voice-query command for screen + voice query feature
+ * @param {Object} options - Callback options
+ * @param {Function} options.onComplete - Called when voice query completes with screenshot and transcribed text
+ * @param {Function} options.onError - Called when an error occurs
+ * @param {Object} options.popupBounds - Popup window bounds for indicator positioning {x, y, width, height}
+ * @returns {Promise} Resolves when the voice query session ends
+ */
+async function spawnVoiceQuery({ onComplete, onError, popupBounds } = {}) {
+  const { promise, resolve, reject } = Promise.withResolvers();
+
+  const executable = resolveExecutablePath();
+  if (!executable) {
+    logBridgeEvent('spawnVoiceQuery.notFound');
+    const err = new Error('SWIFT_BRIDGE_NOT_AVAILABLE');
+    onError?.({ code: 'bridge_missing', message: 'Swift bridge not available' });
+    reject(err);
+    return promise;
+  }
+
+  // Kill any existing voice query process
+  if (voiceQueryProcess) {
+    try {
+      voiceQueryProcess.kill('SIGTERM');
+    } catch {}
+    voiceQueryProcess = null;
+  }
+
+  // Build args with optional popup bounds
+  const args = ['voice-query'];
+  if (popupBounds && typeof popupBounds.x === 'number') {
+    args.push(
+      '--popup-x',
+      String(Math.round(popupBounds.x)),
+      '--popup-y',
+      String(Math.round(popupBounds.y)),
+      '--popup-width',
+      String(Math.round(popupBounds.width || 60)),
+      '--popup-height',
+      String(Math.round(popupBounds.height || 60))
+    );
+  }
+
+  const child = spawn(executable, args, {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    detached: false,
+  });
+
+  voiceQueryProcess = child;
+
+  logBridgeEvent('spawnVoiceQuery.start', {
+    childPid: child.pid,
+  });
+
+  // Safety timeout to prevent hanging (60 seconds)
+  const VOICE_QUERY_TIMEOUT_MS = 60000;
+  const timeoutId = setTimeout(() => {
+    if (voiceQueryProcess === child) {
+      logBridgeEvent('spawnVoiceQuery.timeout', { pid: child.pid });
+      try {
+        child.kill('SIGTERM');
+      } catch {}
+      voiceQueryProcess = null;
+      onError?.({ code: 'timeout', message: 'Voice query timed out' });
+    }
+  }, VOICE_QUERY_TIMEOUT_MS);
+
+  let stdout = '';
+  let stderr = '';
+
+  child.stdout.on('data', (chunk) => {
+    stdout += chunk.toString();
+
+    // Parse line-delimited JSON events
+    const lines = stdout.split('\n');
+    stdout = lines.pop() || ''; // Keep incomplete line
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const event = JSON.parse(line);
+        handleVoiceQueryEvent(event, { onComplete, onError });
+      } catch (e) {
+        logBridgeEvent('spawnVoiceQuery.parseError', { line, error: e.message });
+      }
+    }
+  });
+
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk.toString();
+  });
+
+  child.once('error', (error) => {
+    clearTimeout(timeoutId);
+    logBridgeEvent('spawnVoiceQuery.error', {
+      message: error?.message || '',
+      code: error?.code || '',
+    });
+    voiceQueryProcess = null;
+    onError?.({ code: 'spawn_error', message: error?.message || 'Spawn error' });
+    reject(error);
+  });
+
+  child.once('exit', (code, signal) => {
+    clearTimeout(timeoutId);
+    logBridgeEvent('spawnVoiceQuery.exit', {
+      exitCode: code,
+      signal,
+      stderr: stderr.trim(),
+    });
+
+    voiceQueryProcess = null;
+
+    if (code !== 0 && code !== null) {
+      const err = new Error(`Voice query exited with code ${code}`);
+      // Don't call onError here if we already handled a specific error event
+      reject(err);
+    } else {
+      resolve();
+    }
+  });
+
+  return promise;
+}
+
+/**
+ * Handle events from the voice-query Swift process
+ */
+function handleVoiceQueryEvent(event, { onComplete, onError }) {
+  logBridgeEvent('voiceQuery.event', { event: event.event });
+
+  switch (event.event) {
+    case 'voice_query_complete':
+      // Clear process reference immediately (process will exit after this event)
+      voiceQueryProcess = null;
+      onComplete?.({
+        screenshotBase64: event.screenshotBase64,
+        mimeType: event.mimeType || 'image/png',
+        transcribedText: event.transcribedText,
+      });
+      break;
+
+    case 'voice_query_error':
+      // Clear process reference immediately (process will exit after this event)
+      voiceQueryProcess = null;
+      onError?.({
+        code: event.code || 'unknown',
+        message: event.message || 'Unknown error',
+      });
+      break;
+
+    case 'voice_query_cancelled':
+      // Clear process reference immediately (process will exit after this event)
+      voiceQueryProcess = null;
+      onError?.({
+        code: event.reason || 'cancelled',
+        message: event.message || 'Voice query cancelled',
+      });
+      break;
+
+    case 'voice_query_started':
+      // Session started - could emit progress event if needed
+      logBridgeEvent('voiceQuery.started');
+      break;
+
+    case 'voice_query_partial':
+      // Partial transcription update - could emit progress event if needed
+      logBridgeEvent('voiceQuery.partial', { text: event.text });
+      break;
+  }
+}
+
+/**
+ * Check if a voice query session is active
+ */
+function isVoiceQueryActive() {
+  return voiceQueryProcess !== null;
+}
+
+/**
+ * Cancel the current voice query session
+ */
+function cancelVoiceQuery() {
+  if (voiceQueryProcess) {
+    try {
+      voiceQueryProcess.kill('SIGTERM');
+    } catch {}
+    voiceQueryProcess = null;
+    return true;
+  }
+  return false;
+}
+
 function isDaemonPopupShowing() {
   return daemonState === 'showing';
 }
@@ -865,4 +1061,8 @@ module.exports = {
   showClipboardPopupFast,
   hideClipboardPopupFast,
   isDaemonPopupShowing,
+  // Voice query
+  spawnVoiceQuery,
+  isVoiceQueryActive,
+  cancelVoiceQuery,
 };

@@ -220,6 +220,8 @@
     },
   ];
 
+  const SLASH_IMAGE_TEMPLATE_TARGETS = [];
+
   const SLASH_IMAGE_TARGETS = [
     {
       key: '/image status',
@@ -241,6 +243,14 @@
       label: '/image count',
       descKey: 'slashDescriptions.imageCount',
       children: SLASH_IMAGE_COUNT_TARGETS,
+      childSeparator: ' ',
+    },
+    {
+      key: '/image template',
+      match: '/image template',
+      label: '/image template',
+      descKey: 'slashDescriptions.imageTemplate',
+      children: SLASH_IMAGE_TEMPLATE_TARGETS,
       childSeparator: ' ',
     },
   ];
@@ -532,6 +542,7 @@
     SLASH_IMAGE_TARGETS,
     SLASH_IMAGE_SIZE_TARGETS,
     SLASH_IMAGE_COUNT_TARGETS,
+    SLASH_IMAGE_TEMPLATE_TARGETS,
     SLASH_VIDEO_TARGETS,
     SLASH_VIDEO_SIZE_TARGETS,
     SLASH_VIDEO_QUALITY_TARGETS,

@@ -233,6 +233,7 @@ class SettingsUI {
         </div>
         ${this.renderShortcutItems()}
       </div>
+      ${this.renderFooterSection()}
     `;
 
     this.container.innerHTML = html;
@@ -432,6 +433,16 @@ class SettingsUI {
       .join('');
   }
 
+  renderFooterSection() {
+    return `
+      <div class="settings-footer">
+        <a href="#" class="settings-footer-link" data-url="https://co-r-e.net">Company</a>
+        <span class="settings-footer-separator">|</span>
+        <a href="#" class="settings-footer-link" data-url="https://x.com/okuwaki_m">Developer</a>
+      </div>
+    `;
+  }
+
   bindEvents() {
     // Remove old listeners to prevent duplicates
     this.unbindEvents();
@@ -520,6 +531,18 @@ class SettingsUI {
     if (importSnippetsBtn) {
       importSnippetsBtn.addEventListener('click', () => this.handleImportSnippets());
     }
+
+    // Footer links (open external URLs)
+    const footerLinks = this.container.querySelectorAll('.settings-footer-link');
+    footerLinks.forEach((link) => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = link.getAttribute('data-url');
+        if (url && window.electronAPI && window.electronAPI.openExternal) {
+          window.electronAPI.openExternal(url);
+        }
+      });
+    });
   }
 
   unbindEvents() {

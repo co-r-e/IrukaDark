@@ -54,6 +54,8 @@ const {
   getDaemonState,
   showClipboardPopupFast,
   hideClipboardPopupFast,
+  spawnVoiceQuery,
+  isVoiceQueryActive,
 } = require('../services/macAutomationBridge');
 const { getClipboardHistoryService } = require('../services/clipboardHistory');
 
@@ -973,6 +975,63 @@ function bootstrapApp() {
       } catch (e) {}
     }
 
+    // Voice query shortcut (screen capture + voice input)
+    let voiceQueryUsed = '';
+    if (shortcuts.voiceQuery) {
+      try {
+        const c = shortcuts.voiceQuery;
+        const ok = globalShortcut.register(c, () => {
+          logShortcutEvent('shortcut.trigger', { accel: c, kind: 'voice_query' });
+          (async () => {
+            try {
+              // Only on macOS
+              if (process.platform !== 'darwin') return;
+
+              // Prevent rapid triggers - ignore if already active
+              if (isVoiceQueryActive()) {
+                logShortcutEvent('shortcut.voiceQuery.alreadyActive');
+                return;
+              }
+
+              // Get popup bounds for indicator positioning (may be null if popup not visible)
+              const popupBounds = windowManager.getPopupBounds();
+
+              await spawnVoiceQuery({
+                popupBounds: popupBounds || null,
+                onComplete: ({ screenshotBase64, mimeType, transcribedText }) => {
+                  const mainWindow = getMainWindow();
+                  if (mainWindow && !mainWindow.isDestroyed()) {
+                    bringMainWindowToFront(mainWindow);
+                    mainWindow.webContents.send('voice-query-complete', {
+                      data: screenshotBase64,
+                      mimeType,
+                      query: transcribedText,
+                    });
+                  }
+                },
+                onError: (error) => {
+                  const mainWindow = getMainWindow();
+                  if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send('voice-query-error', error);
+                  }
+                },
+              });
+            } catch (e) {
+              logShortcutEvent('shortcut.voiceQuery.error', { error: e?.message || '' });
+            }
+          })();
+        });
+        if (ok) {
+          voiceQueryUsed = c;
+          logShortcutEvent('shortcut.register.voiceQuery.success', { accel: c });
+        } else {
+          logShortcutEvent('shortcut.register.voiceQuery.failed', { accel: c });
+        }
+      } catch (e) {
+        logShortcutEvent('shortcut.register.voiceQuery.exception', { error: e?.message || '' });
+      }
+    }
+
     try {
       const mainWindow = getMainWindow();
       if (mainWindow && !mainWindow.isDestroyed() && !silent) {
@@ -992,6 +1051,7 @@ function bootstrapApp() {
         urlSummaryUsed,
         urlDetailedUsed,
         slideImageUsed,
+        voiceQueryUsed,
       });
     } catch {}
 
@@ -1429,12 +1489,43 @@ function bootstrapApp() {
     const SLIDE_TEMPLATE_IMAGES_DIR = path.join(app.getPath('userData'), 'slide-template-images');
 
     const loadSlideTemplatesData = () => {
+      let data = { version: '1.0', activeTemplateId: null, templates: [] };
+      let needsSave = false;
       try {
         if (fs.existsSync(SLIDE_TEMPLATES_FILE)) {
-          return JSON.parse(fs.readFileSync(SLIDE_TEMPLATES_FILE, 'utf8'));
+          data = JSON.parse(fs.readFileSync(SLIDE_TEMPLATES_FILE, 'utf8'));
         }
       } catch {}
-      return { version: '1.0', activeTemplateId: null, templates: [] };
+
+      // Ensure Default template exists
+      const hasDefault = (data.templates || []).some((t) => t.id === 'default');
+      if (!hasDefault) {
+        data.templates = data.templates || [];
+        data.templates.unshift({
+          id: 'default',
+          name: 'Default',
+          prompt: '',
+          imageFilename: null,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+        needsSave = true;
+      }
+
+      // Ensure activeTemplateId defaults to 'default'
+      if (!data.activeTemplateId) {
+        data.activeTemplateId = 'default';
+        needsSave = true;
+      }
+
+      // Save if default was added
+      if (needsSave) {
+        try {
+          fs.writeFileSync(SLIDE_TEMPLATES_FILE, JSON.stringify(data, null, 2), 'utf8');
+        } catch {}
+      }
+
+      return data;
     };
 
     const saveSlideTemplatesData = (data) => {
@@ -1552,7 +1643,7 @@ function bootstrapApp() {
       }
 
       data.templates = data.templates.filter((t) => t.id !== templateId);
-      if (data.activeTemplateId === templateId) data.activeTemplateId = null;
+      if (data.activeTemplateId === templateId) data.activeTemplateId = 'default';
       saveSlideTemplatesData(data);
       return withThumbnails(data.templates);
     });
@@ -1565,6 +1656,199 @@ function bootstrapApp() {
     });
 
     ipcMain.handle('slide-template:select-image', async (event) => {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      const result = await dialog.showOpenDialog(win, {
+        properties: ['openFile'],
+        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }],
+      });
+
+      if (result.canceled || !result.filePaths.length) return null;
+
+      const filePath = result.filePaths[0];
+      const buffer = fs.readFileSync(filePath);
+      const ext = path.extname(filePath).toLowerCase().slice(1);
+      const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+
+      return {
+        base64: `data:${mimeType};base64,${buffer.toString('base64')}`,
+        mimeType,
+        originalPath: filePath,
+      };
+    });
+
+    // Image Template Management
+    const IMAGE_TEMPLATES_FILE = path.join(app.getPath('userData'), 'image-templates.json');
+    const IMAGE_TEMPLATE_IMAGES_DIR = path.join(app.getPath('userData'), 'image-template-images');
+
+    const loadImageTemplatesData = () => {
+      let data = { version: '1.0', activeTemplateId: null, templates: [] };
+      let needsSave = false;
+      try {
+        if (fs.existsSync(IMAGE_TEMPLATES_FILE)) {
+          data = JSON.parse(fs.readFileSync(IMAGE_TEMPLATES_FILE, 'utf8'));
+        }
+      } catch {}
+
+      // Ensure Default template exists
+      const hasDefault = (data.templates || []).some((t) => t.id === 'default');
+      if (!hasDefault) {
+        data.templates = data.templates || [];
+        data.templates.unshift({
+          id: 'default',
+          name: 'Default',
+          prompt: '',
+          imageFilename: null,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+        needsSave = true;
+      }
+
+      // Ensure activeTemplateId defaults to 'default'
+      if (!data.activeTemplateId) {
+        data.activeTemplateId = 'default';
+        needsSave = true;
+      }
+
+      // Save if default was added
+      if (needsSave) {
+        try {
+          fs.writeFileSync(IMAGE_TEMPLATES_FILE, JSON.stringify(data, null, 2), 'utf8');
+        } catch {}
+      }
+
+      return data;
+    };
+
+    const saveImageTemplatesData = (data) => {
+      try {
+        fs.writeFileSync(IMAGE_TEMPLATES_FILE, JSON.stringify(data, null, 2), 'utf8');
+      } catch {}
+    };
+
+    const loadImageTemplateImage = (imageFilename) => {
+      if (!imageFilename) return null;
+      try {
+        const imagePath = path.join(IMAGE_TEMPLATE_IMAGES_DIR, imageFilename);
+        if (fs.existsSync(imagePath)) {
+          const buffer = fs.readFileSync(imagePath);
+          const ext = path.extname(imageFilename).toLowerCase().slice(1);
+          const mimeType = ext === 'jpg' ? 'jpeg' : ext;
+          return `data:image/${mimeType};base64,${buffer.toString('base64')}`;
+        }
+      } catch {}
+      return null;
+    };
+
+    const withImageThumbnails = (templates) =>
+      templates.map((tpl) => ({
+        ...tpl,
+        thumbnailBase64: loadImageTemplateImage(tpl.imageFilename),
+      }));
+
+    ipcMain.handle('image-template:get-all', () => {
+      const data = loadImageTemplatesData();
+      return {
+        templates: withImageThumbnails(data.templates || []),
+        activeTemplateId: data.activeTemplateId,
+      };
+    });
+
+    ipcMain.handle('image-template:save', (_e, template) => {
+      const data = loadImageTemplatesData();
+      const now = Date.now();
+
+      // Prevent editing of default template (but allow initial creation)
+      if (template.id === 'default') {
+        const existingDefault = data.templates.find((t) => t.id === 'default');
+        if (existingDefault) {
+          return withImageThumbnails(data.templates);
+        }
+      }
+
+      // Ensure images directory exists
+      if (!fs.existsSync(IMAGE_TEMPLATE_IMAGES_DIR)) {
+        fs.mkdirSync(IMAGE_TEMPLATE_IMAGES_DIR, { recursive: true });
+      }
+
+      // Use provided ID or generate new one
+      const templateId = template.id || `img-tpl-${now}-${Math.random().toString(36).substr(2, 9)}`;
+      const existingIndex = data.templates.findIndex((t) => t.id === templateId);
+
+      // Handle image: save to file and store only filename (not base64 in JSON)
+      let imageFilename = null;
+
+      if (template.thumbnailBase64) {
+        // Extract mimeType and base64 data
+        const match = template.thumbnailBase64.match(/^data:image\/(\w+);base64,(.+)$/);
+        if (match) {
+          const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
+          imageFilename = `${templateId}.${ext}`;
+          const filePath = path.join(IMAGE_TEMPLATE_IMAGES_DIR, imageFilename);
+          fs.writeFileSync(filePath, Buffer.from(match[2], 'base64'));
+        }
+      } else if (existingIndex >= 0 && data.templates[existingIndex].imageFilename) {
+        // Image was removed - delete the file
+        try {
+          const oldPath = path.join(
+            IMAGE_TEMPLATE_IMAGES_DIR,
+            data.templates[existingIndex].imageFilename
+          );
+          if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+        } catch {}
+      }
+
+      const templateToSave = {
+        id: templateId,
+        name: template.name,
+        prompt: template.prompt || '',
+        imageFilename,
+        createdAt: existingIndex >= 0 ? data.templates[existingIndex].createdAt : now,
+        updatedAt: now,
+      };
+
+      if (existingIndex >= 0) {
+        data.templates[existingIndex] = templateToSave;
+      } else {
+        data.templates.push(templateToSave);
+      }
+
+      saveImageTemplatesData(data);
+      return withImageThumbnails(data.templates);
+    });
+
+    ipcMain.handle('image-template:delete', (_e, templateId) => {
+      const data = loadImageTemplatesData();
+
+      // Prevent deletion of default template
+      if (templateId === 'default') {
+        return withImageThumbnails(data.templates);
+      }
+
+      const template = data.templates.find((t) => t.id === templateId);
+
+      // Delete associated image file
+      if (template?.imageFilename) {
+        try {
+          const imagePath = path.join(IMAGE_TEMPLATE_IMAGES_DIR, template.imageFilename);
+          if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
+        } catch {}
+      }
+
+      data.templates = data.templates.filter((t) => t.id !== templateId);
+      if (data.activeTemplateId === templateId) data.activeTemplateId = 'default';
+      saveImageTemplatesData(data);
+      return withImageThumbnails(data.templates);
+    });
+
+    ipcMain.handle('image-template:set-active', (_e, templateId) => {
+      const data = loadImageTemplatesData();
+      data.activeTemplateId = templateId;
+      saveImageTemplatesData(data);
+      return templateId;
+    });
+
+    ipcMain.handle('image-template:select-image', async (event) => {
       const win = BrowserWindow.fromWebContents(event.sender);
       const result = await dialog.showOpenDialog(win, {
         properties: ['openFile'],
@@ -2835,6 +3119,12 @@ Command:`;
       if (svc && typeof svc.stopMonitoring === 'function') {
         svc.stopMonitoring();
       }
+    } catch (err) {}
+
+    // Cancel any active voice query session
+    try {
+      const { cancelVoiceQuery } = require('../services/macAutomationBridge');
+      cancelVoiceQuery();
     } catch (err) {}
   });
 

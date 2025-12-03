@@ -69,6 +69,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onExplainScreenshot: (cb) => ipcRenderer.on('explain-screenshot', (_e, p) => cb(p)),
   onExplainScreenshotDetailed: (cb) =>
     ipcRenderer.on('explain-screenshot-detailed', (_e, p) => cb(p)),
+  // Voice query events
+  onVoiceQueryComplete: (cb) => ipcRenderer.on('voice-query-complete', (_e, p) => cb(p)),
+  onVoiceQueryError: (cb) => ipcRenderer.on('voice-query-error', (_e, err) => cb(err)),
   saveWebSearchSetting: (enabled) => ipcRenderer.invoke('save-web-search-setting', enabled),
   getWebSearchEnabled: () => ipcRenderer.invoke('get-web-search-enabled'),
   saveTranslateMode: (mode) => ipcRenderer.invoke('save-translate-mode', mode),
@@ -97,6 +100,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteSlideTemplate: (id) => ipcRenderer.invoke('slide-template:delete', id),
   setActiveSlideTemplate: (id) => ipcRenderer.invoke('slide-template:set-active', id),
   selectSlideTemplateImage: () => ipcRenderer.invoke('slide-template:select-image'),
+  // Image template management
+  getImageTemplates: () => ipcRenderer.invoke('image-template:get-all'),
+  saveImageTemplate: (template) => ipcRenderer.invoke('image-template:save', template),
+  deleteImageTemplate: (id) => ipcRenderer.invoke('image-template:delete', id),
+  setActiveImageTemplate: (id) => ipcRenderer.invoke('image-template:set-active', id),
+  selectImageTemplateImage: () => ipcRenderer.invoke('image-template:select-image'),
   // Popup interactions
   notifyPopupPointer: (phase) => ipcRenderer.invoke('popup:pointer', String(phase || '')),
   getPopupBounds: () => ipcRenderer.invoke('popup:get-bounds'),

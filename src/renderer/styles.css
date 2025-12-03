@@ -2382,6 +2382,48 @@ html:not(.theme-dark) #resetAllShortcutsBtn:hover {
   border-color: rgba(255, 77, 109, 0.35);
 }
 
+/* Settings Footer Links */
+.settings-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 0 8px;
+  margin-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.settings-footer-link {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  text-decoration: none;
+  transition: color 0.2s ease;
+  cursor: pointer;
+}
+
+.settings-footer-link:hover {
+  color: var(--text-primary-dark);
+  text-decoration: underline;
+}
+
+.settings-footer-separator {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  opacity: 0.5;
+}
+
+html:not(.theme-dark) .settings-footer {
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+html:not(.theme-dark) .settings-footer-link {
+  color: var(--text-tertiary-light);
+}
+
+html:not(.theme-dark) .settings-footer-link:hover {
+  color: var(--text-primary-light);
+}
+
 /* Shortcut Change Popup */
 .shortcut-change-popup {
   position: fixed;
