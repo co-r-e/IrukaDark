@@ -24,7 +24,7 @@ const DEFAULT_SHORTCUTS = {
   clipboardPopup: 'Command+Shift+V',
   snippetPopup: 'Alt+Shift+V',
   toggleMainWindow: 'Alt+Space',
-  voiceQuery: 'Alt+E',
+  voiceQuery: 'Alt+Shift+E',
 };
 
 /**
