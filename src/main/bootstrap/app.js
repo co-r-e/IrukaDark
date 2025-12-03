@@ -1671,7 +1671,21 @@ function bootstrapApp() {
         const maxLength = Number.isFinite(payload?.maxLength)
           ? Number(payload.maxLength)
           : undefined;
-        const result = await fetchUrlContent(raw, { timeoutMs, maxLength });
+        // PDF-specific options
+        const extractPdfImages = payload?.extractPdfImages === true;
+        const maxPdfPages = Number.isFinite(payload?.maxPdfPages)
+          ? Number(payload.maxPdfPages)
+          : 10;
+        const pdfImageScale = Number.isFinite(payload?.pdfImageScale)
+          ? Number(payload.pdfImageScale)
+          : 1.5;
+        const result = await fetchUrlContent(raw, {
+          timeoutMs,
+          maxLength,
+          extractPdfImages,
+          maxPdfPages,
+          pdfImageScale,
+        });
         return result;
       } catch (error) {
         return { error: error?.message || 'Failed to fetch URL content' };

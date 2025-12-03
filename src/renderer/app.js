@@ -4540,11 +4540,15 @@ class GeminiService {
     imageBase64,
     mimeType = 'image/png',
     useWebSearch = false,
-    source = 'chat'
+    source = 'chat',
+    options = {}
   ) {
     try {
       if (window.electronAPI && window.electronAPI.aiGenerateWithImage) {
-        const cfg = this.defaultGenerationConfig();
+        const baseCfg = this.defaultGenerationConfig();
+        const cfg = options.generationConfigOverrides
+          ? { ...baseCfg, ...options.generationConfigOverrides }
+          : baseCfg;
         const result = await window.electronAPI.aiGenerateWithImage(prompt, imageBase64, mimeType, {
           model: this.model,
           generationConfig: cfg,
@@ -4719,14 +4723,18 @@ class GeminiService {
     }
   }
 
-  async fetchUrlPlainText(url, maxLength = 5000) {
+  async fetchUrlPlainText(url, maxLength = 5000, options = {}) {
     if (!window.electronAPI || typeof window.electronAPI.fetchUrlContent !== 'function') {
       throw new Error('URL content bridge unavailable');
     }
     const safeMaxLength = Math.max(1000, Math.min(maxLength, 20000));
+    const extractPdfImages = options.extractPdfImages === true;
+    const maxPdfPages = options.maxPdfPages || 10;
     const result = await window.electronAPI.fetchUrlContent(url, {
       maxLength: safeMaxLength,
-      timeoutMs: 12000,
+      timeoutMs: extractPdfImages ? 30000 : 12000,
+      extractPdfImages,
+      maxPdfPages,
     });
     if (!result || typeof result !== 'object') {
       throw new Error('Failed to fetch URL content');
@@ -4735,13 +4743,16 @@ class GeminiService {
       throw new Error(result.error);
     }
     const text = String(result.text || '').trim();
-    if (!text) {
+    if (!text && !result.isPdf) {
       throw new Error('No readable content found at URL');
     }
     return {
       text,
       truncated: !!result.truncated,
       finalUrl: result.finalUrl || url,
+      isPdf: !!result.isPdf,
+      pageCount: result.pageCount,
+      images: result.images || [],
     };
   }
 
@@ -4752,11 +4763,15 @@ class GeminiService {
     }
 
     const maxLength = mode === 'summary' ? 5000 : 10000;
+    // Extract PDF images only in detailed mode
+    const extractPdfImages = mode === 'detailed';
     const {
       text: pageText,
       truncated,
       finalUrl,
-    } = await this.fetchUrlPlainText(normalizedUrl, maxLength);
+      isPdf,
+      images,
+    } = await this.fetchUrlPlainText(normalizedUrl, maxLength, { extractPdfImages });
 
     const lang =
       (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
@@ -4817,6 +4832,21 @@ class GeminiService {
       } else {
         prompt = `${historyBlock}Based on the following website content, produce a detailed analysis in ${name} (${code}) with the headings: Overview (2-3 sentences), Key Details (bullet list with section names, data, or quotes), Context/Background, Risks or Caveats, and Recommended Actions.${toneLine}${truncatedNote}\nIf the page cannot be verified, explain what failed and offer next steps.\n\nWebsite URL: ${finalUrl}\n\nContent:\n${pageText}\n\nProvide the detailed analysis:`;
       }
+    }
+
+    // If PDF with images, use requestWithImage to include page image(s)
+    if (isPdf && images && images.length > 0) {
+      const firstImage = images[0];
+      return this.requestWithImage(
+        prompt,
+        firstImage.base64,
+        firstImage.mimeType,
+        false,
+        'shortcut',
+        {
+          generationConfigOverrides: cfgOverrides,
+        }
+      );
     }
 
     return this.requestText(prompt, false, 'shortcut', {
