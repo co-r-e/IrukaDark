@@ -299,6 +299,7 @@
         snippetPopup: 'スニペット',
         toggleMainWindow: 'メインウィンドウ表示切替',
         voiceQuery: '画面+音声クエリ',
+        voiceOnly: '音声クエリ',
       },
       appearance: '外観',
       theme: 'テーマ',

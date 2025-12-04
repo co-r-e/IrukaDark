@@ -857,9 +857,10 @@ let voiceQueryProcess = null;
  * @param {Function} options.onComplete - Called when voice query completes with screenshot and transcribed text
  * @param {Function} options.onError - Called when an error occurs
  * @param {Object} options.popupBounds - Popup window bounds for indicator positioning {x, y, width, height}
+ * @param {boolean} options.noScreenshot - If true, skip screen capture (voice-only mode)
  * @returns {Promise} Resolves when the voice query session ends
  */
-async function spawnVoiceQuery({ onComplete, onError, popupBounds } = {}) {
+async function spawnVoiceQuery({ onComplete, onError, popupBounds, noScreenshot = false } = {}) {
   const { promise, resolve, reject } = Promise.withResolvers();
 
   const executable = resolveExecutablePath();
@@ -892,6 +893,9 @@ async function spawnVoiceQuery({ onComplete, onError, popupBounds } = {}) {
       '--popup-height',
       String(Math.round(popupBounds.height || 60))
     );
+  }
+  if (noScreenshot) {
+    args.push('--no-screenshot');
   }
 
   const child = spawn(executable, args, {

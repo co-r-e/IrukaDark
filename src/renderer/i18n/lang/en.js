@@ -298,6 +298,7 @@
         snippetPopup: 'Snippets',
         toggleMainWindow: 'Toggle Main Window',
         voiceQuery: 'Screen + Voice Query',
+        voiceOnly: 'Voice Query',
       },
       appearance: 'Appearance',
       theme: 'Theme',

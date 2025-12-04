@@ -842,6 +842,7 @@ class IrukaDarkApp {
     on('onExplainScreenshot', (payload) => this.handleExplainScreenshot(payload));
     on('onExplainScreenshotDetailed', (payload) => this.handleExplainScreenshotDetailed(payload));
     on('onVoiceQueryComplete', (payload) => this.handleVoiceQueryComplete(payload));
+    on('onVoiceOnlyComplete', (payload) => this.handleVoiceOnlyComplete(payload));
     on('onVoiceQueryError', (error) => this.handleVoiceQueryError(error));
     on('onGenerateSlideImage', (text) => this.handleGenerateSlideImage(text));
     on('onAccessibilityWarning', () => {
@@ -2646,10 +2647,7 @@ Text should be in ${name} (${code}).`;
       // Performance optimization: batch DOM operations in single frame
       requestAnimationFrame(() => {
         // Show the user's voice query
-        this.addMessage(
-          'system-question',
-          `${getUIText('voiceQuery')?.title || 'Voice Query'}: ${query}`
-        );
+        this.addMessage('system-question', query);
         this.showTypingIndicator();
 
         // Scroll to bottom after messages are added
@@ -2741,6 +2739,37 @@ Text should be in ${name} (${code}).`;
     }
 
     this.showToast(message, 'error');
+  }
+
+  /**
+   * Handle voice-only completion (without screenshot)
+   * @param {Object} payload - { query: string }
+   */
+  async handleVoiceOnlyComplete(payload) {
+    try {
+      await this.cancelActiveShortcut();
+      // Switch to chat tab when shortcut is triggered
+      if (window.switchToTab) window.switchToTab('chat');
+
+      const query = payload && payload.query ? String(payload.query).trim() : '';
+
+      if (!query) {
+        this.showToast(getUIText('voiceQuery')?.noSpeechDetected || 'No speech detected', 'error');
+        return;
+      }
+
+      // Reset cancel flag before starting new generation
+      this.cancelRequested = false;
+
+      // Set the query to input and send as a regular chat message
+      this.messageInput.value = query;
+      await this.sendMessage();
+    } catch (e) {
+      if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
+        return;
+      }
+      this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
+    }
   }
 
   /**

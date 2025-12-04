@@ -71,6 +71,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('explain-screenshot-detailed', (_e, p) => cb(p)),
   // Voice query events
   onVoiceQueryComplete: (cb) => ipcRenderer.on('voice-query-complete', (_e, p) => cb(p)),
+  onVoiceOnlyComplete: (cb) => ipcRenderer.on('voice-only-complete', (_e, p) => cb(p)),
   onVoiceQueryError: (cb) => ipcRenderer.on('voice-query-error', (_e, err) => cb(err)),
   saveWebSearchSetting: (enabled) => ipcRenderer.invoke('save-web-search-setting', enabled),
   getWebSearchEnabled: () => ipcRenderer.invoke('get-web-search-enabled'),

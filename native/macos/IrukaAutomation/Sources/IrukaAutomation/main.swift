@@ -3494,6 +3494,8 @@ struct IrukaAutomationCLI {
     var popupWidth: CGFloat = 60
     var popupHeight: CGFloat = 60
 
+    var noScreenshot = false
+
     for i in 0..<args.count {
       if args[i] == "--popup-x" && i + 1 < args.count {
         popupX = CGFloat(Double(args[i + 1]) ?? 0)
@@ -3503,6 +3505,8 @@ struct IrukaAutomationCLI {
         popupWidth = CGFloat(Double(args[i + 1]) ?? 60)
       } else if args[i] == "--popup-height" && i + 1 < args.count {
         popupHeight = CGFloat(Double(args[i + 1]) ?? 60)
+      } else if args[i] == "--no-screenshot" {
+        noScreenshot = true
       }
     }
 
@@ -3523,7 +3527,7 @@ struct IrukaAutomationCLI {
     }
 
     // Start the voice query session
-    let session = VoiceQuerySession(popupBounds: popupBounds)
+    let session = VoiceQuerySession(popupBounds: popupBounds, noScreenshot: noScreenshot)
     session.start { result in
       switch result {
       case .success(let data):
@@ -3598,8 +3602,8 @@ struct VoiceQueryError: Error {
 // MARK: - Voice Query Result
 
 struct VoiceQueryResult {
-  let screenshotBase64: String
-  let mimeType: String
+  let screenshotBase64: String?
+  let mimeType: String?
   let transcribedText: String
 }
 
@@ -3627,9 +3631,11 @@ class VoiceQuerySession: NSObject {
 
   private var popupBounds: NSRect?
   private let maxRecordingDuration: TimeInterval = 60.0  // 60 seconds max
+  private var noScreenshot: Bool = false
 
-  init(popupBounds: NSRect? = nil) {
+  init(popupBounds: NSRect? = nil, noScreenshot: Bool = false) {
     self.popupBounds = popupBounds
+    self.noScreenshot = noScreenshot
     super.init()
   }
 
@@ -3663,20 +3669,22 @@ class VoiceQuerySession: NSObject {
     // Start timeout timer
     startTimeoutTimer()
 
-    // Capture screenshot in background (parallel with speech recognition)
-    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-      guard let self = self, !self.isFinished else { return }
+    // Capture screenshot in background (parallel with speech recognition) - skip if noScreenshot
+    if !noScreenshot {
+      DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        guard let self = self, !self.isFinished else { return }
 
-      guard let screenshot = self.captureFullScreen() else {
-        DispatchQueue.main.async {
-          guard !self.isFinished else { return }
-          self.safeFinishWithError(VoiceQueryError(code: "screen_capture_error", message: "Failed to capture screen"))
+        guard let screenshot = self.captureFullScreen() else {
+          DispatchQueue.main.async {
+            guard !self.isFinished else { return }
+            self.safeFinishWithError(VoiceQueryError(code: "screen_capture_error", message: "Failed to capture screen"))
+          }
+          return
         }
-        return
-      }
 
-      guard !self.isFinished else { return }
-      self.screenshotBase64 = screenshot
+        guard !self.isFinished else { return }
+        self.screenshotBase64 = screenshot
+      }
     }
   }
 
@@ -4052,16 +4060,16 @@ class VoiceQuerySession: NSObject {
     stopKeyMonitoring()
     hideRecordingIndicator()
 
-    // Wait briefly for screenshot if not yet captured (max 500ms)
-    if screenshotBase64 == nil {
+    // Wait briefly for screenshot if not yet captured (max 500ms) - skip if noScreenshot mode
+    if !noScreenshot && screenshotBase64 == nil {
       for _ in 0..<10 {
         Thread.sleep(forTimeInterval: 0.05)
         if screenshotBase64 != nil { break }
       }
     }
 
-    // Check if we have valid results
-    guard let screenshotBase64 = screenshotBase64 else {
+    // Check if we have valid results (only check screenshot if not in noScreenshot mode)
+    if !noScreenshot && screenshotBase64 == nil {
       completion?(.failure(VoiceQueryError(code: "no_screenshot", message: "No screenshot captured")))
       return
     }
@@ -4074,8 +4082,8 @@ class VoiceQuerySession: NSObject {
     }
 
     let result = VoiceQueryResult(
-      screenshotBase64: screenshotBase64,
-      mimeType: mimeType,
+      screenshotBase64: noScreenshot ? nil : screenshotBase64,
+      mimeType: noScreenshot ? nil : mimeType,
       transcribedText: finalText
     )
     completion?(.success(result))

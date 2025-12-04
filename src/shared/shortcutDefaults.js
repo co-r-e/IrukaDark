@@ -25,6 +25,7 @@ const DEFAULT_SHORTCUTS = {
   snippetPopup: 'Alt+Shift+V',
   toggleMainWindow: 'Alt+Space',
   voiceQuery: 'Alt+Shift+E',
+  voiceOnly: 'Alt+E',
 };
 
 /**

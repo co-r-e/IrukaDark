@@ -1032,6 +1032,62 @@ function bootstrapApp() {
       }
     }
 
+    // Voice only shortcut (voice input without screen capture)
+    let voiceOnlyUsed = '';
+    if (shortcuts.voiceOnly) {
+      try {
+        const c = shortcuts.voiceOnly;
+        const ok = globalShortcut.register(c, () => {
+          logShortcutEvent('shortcut.trigger', { accel: c, kind: 'voice_only' });
+          (async () => {
+            try {
+              // Only on macOS
+              if (process.platform !== 'darwin') return;
+
+              // Prevent rapid triggers - ignore if already active
+              if (isVoiceQueryActive()) {
+                logShortcutEvent('shortcut.voiceOnly.alreadyActive');
+                return;
+              }
+
+              // Get popup bounds for indicator positioning (may be null if popup not visible)
+              const popupBounds = windowManager.getPopupBounds();
+
+              await spawnVoiceQuery({
+                popupBounds: popupBounds || null,
+                noScreenshot: true,
+                onComplete: ({ transcribedText }) => {
+                  const mainWindow = getMainWindow();
+                  if (mainWindow && !mainWindow.isDestroyed()) {
+                    bringMainWindowToFront(mainWindow);
+                    mainWindow.webContents.send('voice-only-complete', {
+                      query: transcribedText,
+                    });
+                  }
+                },
+                onError: (error) => {
+                  const mainWindow = getMainWindow();
+                  if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send('voice-query-error', error);
+                  }
+                },
+              });
+            } catch (e) {
+              logShortcutEvent('shortcut.voiceOnly.error', { error: e?.message || '' });
+            }
+          })();
+        });
+        if (ok) {
+          voiceOnlyUsed = c;
+          logShortcutEvent('shortcut.register.voiceOnly.success', { accel: c });
+        } else {
+          logShortcutEvent('shortcut.register.voiceOnly.failed', { accel: c });
+        }
+      } catch (e) {
+        logShortcutEvent('shortcut.register.voiceOnly.exception', { error: e?.message || '' });
+      }
+    }
+
     try {
       const mainWindow = getMainWindow();
       if (mainWindow && !mainWindow.isDestroyed() && !silent) {
@@ -1052,6 +1108,7 @@ function bootstrapApp() {
         urlDetailedUsed,
         slideImageUsed,
         voiceQueryUsed,
+        voiceOnlyUsed,
       });
     } catch {}
 
