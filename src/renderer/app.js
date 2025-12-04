@@ -363,6 +363,7 @@ class IrukaDarkApp {
     'explain',
     'urlSummary',
     'translate',
+    'voiceOnly',
     'moveToCursor',
     'clipboardPopup',
     'toggleMainWindow',
@@ -451,6 +452,21 @@ class IrukaDarkApp {
   _buildShortcutHintsElement(shortcuts) {
     const container = document.createElement('div');
     container.className = 'shortcut-hints';
+
+    // Spacer to push IrukaChat to center
+    const topSpacer = document.createElement('div');
+    topSpacer.className = 'shortcut-hints-spacer';
+    container.appendChild(topSpacer);
+
+    const appTitle = document.createElement('div');
+    appTitle.className = 'shortcut-hints-app-title';
+    appTitle.textContent = 'IrukaDark';
+    container.appendChild(appTitle);
+
+    // Spacer after title to push shortcuts below viewport
+    const bottomSpacer = document.createElement('div');
+    bottomSpacer.className = 'shortcut-hints-spacer';
+    container.appendChild(bottomSpacer);
 
     const title = document.createElement('div');
     title.className = 'shortcut-hints-title';
