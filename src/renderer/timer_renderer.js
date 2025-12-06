@@ -3,15 +3,52 @@
  * Countdown timer with progress ring visualization
  */
 class TimerRenderer {
+  // =========================================
+  // Static Configuration
+  // =========================================
+
+  static STATUS = {
+    IDLE: 'idle',
+    RUNNING: 'running',
+    PAUSED: 'paused',
+    COMPLETED: 'completed',
+  };
+
+  static SOUND = {
+    FREQUENCY: 1800,
+    DURATION: 0.08,
+    INTERVAL: 150,
+    GROUP_PAUSE: 400,
+    BEEPS_PER_GROUP: 4,
+    GROUPS: 2,
+  };
+
+  static WHEEL_THRESHOLD = 50;
+
+  static ANIMATION = {
+    COMPLETED_DURATION: 2000,
+    RESET_SPIN_DURATION: 300,
+  };
+
+  // =========================================
+  // Constructor
+  // =========================================
+
   constructor() {
+    // Time state
     this.hours = 0;
     this.minutes = 0;
     this.seconds = 0;
     this.totalSeconds = 0;
     this.remainingSeconds = 0;
+
+    // Timer state
+    this.status = TimerRenderer.STATUS.IDLE;
+    this.timeModifiedWhilePaused = false;
+
+    // Timers & Audio
     this.intervalId = null;
     this.completedTimeoutId = null;
-    this.status = 'idle'; // 'idle', 'running', 'paused', 'completed'
     this.audioContext = null;
 
     this.init();
@@ -24,7 +61,6 @@ class TimerRenderer {
       return;
     }
     this.bindEvents();
-    this.render();
   }
 
   // =========================================
@@ -39,25 +75,23 @@ class TimerRenderer {
       this.renderInitialHTML();
     }
 
-    // Time inputs
     this.displayHours = this.container.querySelector('.timer-input-hours');
     this.displayMinutes = this.container.querySelector('.timer-input-minutes');
     this.displaySeconds = this.container.querySelector('.timer-input-seconds');
-
-    // Control buttons
     this.btnStart = this.container.querySelector('.timer-btn-start');
     this.btnPause = this.container.querySelector('.timer-btn-pause');
     this.btnReset = this.container.querySelector('.timer-btn-reset');
-
-    // Progress ring
     this.progressRing = this.container.querySelector('.timer-progress-ring-circle');
-    this.progressRingRadius = this.progressRing ? this.progressRing.r.baseVal.value : 90;
-    this.progressRingCircumference = this.progressRingRadius * 2 * Math.PI;
 
-    if (this.progressRing) {
-      this.progressRing.style.strokeDasharray = `${this.progressRingCircumference} ${this.progressRingCircumference}`;
-      this.progressRing.style.strokeDashoffset = this.progressRingCircumference;
-    }
+    this.initProgressRing();
+  }
+
+  initProgressRing() {
+    if (!this.progressRing) return;
+    this.progressRingRadius = this.progressRing.r.baseVal.value;
+    this.progressRingCircumference = this.progressRingRadius * 2 * Math.PI;
+    this.progressRing.style.strokeDasharray = `${this.progressRingCircumference} ${this.progressRingCircumference}`;
+    this.progressRing.style.strokeDashoffset = this.progressRingCircumference;
   }
 
   renderInitialHTML() {
@@ -66,28 +100,12 @@ class TimerRenderer {
         <div class="timer-wrapper">
           <div class="timer-circle-container">
             <svg class="timer-progress-ring" viewBox="0 0 300 300">
-              <circle
-                class="timer-progress-ring-circle-bg"
-                stroke="rgba(255,255,255,0.1)"
-                stroke-width="8"
-                fill="transparent"
-                r="90"
-                cx="150"
-                cy="150"
-              />
-              <circle
-                class="timer-progress-ring-circle"
-                stroke="url(#timerGradient)"
-                stroke-width="8"
-                fill="transparent"
-                r="90"
-                cx="150"
-                cy="150"
-              />
+              <circle class="timer-progress-ring-circle-bg" stroke="rgba(255,255,255,0.1)" stroke-width="8" fill="transparent" r="90" cx="150" cy="150"/>
+              <circle class="timer-progress-ring-circle" stroke="url(#timerGradient)" stroke-width="8" fill="transparent" r="90" cx="150" cy="150"/>
               <defs>
                 <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stop-color="#ff4d6d" />
-                  <stop offset="100%" stop-color="#d946ef" />
+                  <stop offset="0%" stop-color="#ff4d6d"/>
+                  <stop offset="100%" stop-color="#d946ef"/>
                 </linearGradient>
               </defs>
             </svg>
@@ -103,7 +121,12 @@ class TimerRenderer {
           </div>
           <div class="timer-controls">
             <button class="timer-btn timer-btn-reset" title="Reset">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 12"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                <path d="M21 3v5h-5"/>
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                <path d="M8 16H3v5"/>
+              </svg>
             </button>
             <button class="timer-btn timer-btn-start" title="Start">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -114,14 +137,7 @@ class TimerRenderer {
           </div>
         </div>
         <div class="timer-presets">
-          <button class="timer-preset-btn" data-minutes="3">3</button>
-          <button class="timer-preset-btn" data-minutes="5">5</button>
-          <button class="timer-preset-btn" data-minutes="10">10</button>
-          <button class="timer-preset-btn" data-minutes="15">15</button>
-          <button class="timer-preset-btn" data-minutes="20">20</button>
-          <button class="timer-preset-btn" data-minutes="30">30</button>
-          <button class="timer-preset-btn" data-minutes="45">45</button>
-          <button class="timer-preset-btn" data-minutes="60">60</button>
+          ${[3, 5, 10, 15, 20, 30, 45, 60].map((m) => `<button class="timer-preset-btn" data-minutes="${m}">${m}</button>`).join('')}
         </div>
       </div>
     `;
@@ -132,15 +148,11 @@ class TimerRenderer {
   // =========================================
 
   bindEvents() {
-    // Control buttons
     this.btnStart?.addEventListener('click', () => this.start());
     this.btnPause?.addEventListener('click', () => this.pause());
     this.btnReset?.addEventListener('click', () => this.reset());
 
-    // Time inputs
     this.bindInputEvents();
-
-    // Preset buttons
     this.bindPresetEvents();
   }
 
@@ -148,26 +160,23 @@ class TimerRenderer {
     const inputs = [this.displayHours, this.displayMinutes, this.displaySeconds].filter(Boolean);
 
     inputs.forEach((input) => {
-      input.addEventListener('change', () => this.validateInputs());
-
-      input.addEventListener('input', () => {
-        input.value = input.value.replace(/[^0-9]/g, '');
-        if (input.value.length > 2) input.value = input.value.slice(0, 2);
+      input.addEventListener('change', () => {
+        this.validateInputs();
+        this.markTimeModified();
       });
-
+      input.addEventListener('input', () => {
+        input.value = input.value.replace(/[^0-9]/g, '').slice(0, 2);
+      });
       input.addEventListener('focus', () => {
         if (this.isEditable()) input.select();
       });
-
-      // Scroll wheel adjustment (passive: false to allow preventDefault)
       input._scrollAccumulator = 0;
       input.addEventListener('wheel', (e) => this.handleWheelInput(e, input), { passive: false });
     });
   }
 
   bindPresetEvents() {
-    const presetBtns = this.container.querySelectorAll('.timer-preset-btn');
-    presetBtns.forEach((btn) => {
+    this.container.querySelectorAll('.timer-preset-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         if (!this.isEditable()) return;
         const minutes = parseInt(btn.dataset.minutes, 10);
@@ -175,6 +184,7 @@ class TimerRenderer {
         this.minutes = minutes % 60;
         this.seconds = 0;
         this.updateDisplayValues();
+        this.markTimeModified();
       });
     });
   }
@@ -184,21 +194,18 @@ class TimerRenderer {
     e.preventDefault();
 
     input._scrollAccumulator += e.deltaY;
-    const SCROLL_THRESHOLD = 50;
 
-    if (Math.abs(input._scrollAccumulator) >= SCROLL_THRESHOLD) {
+    if (Math.abs(input._scrollAccumulator) >= TimerRenderer.WHEEL_THRESHOLD) {
       const delta = Math.sign(input._scrollAccumulator) * -1;
       input._scrollAccumulator = 0;
 
-      let val = parseInt(input.value, 10) || 0;
-      val += delta;
-
       const max = input.classList.contains('timer-input-hours') ? 99 : 59;
-      if (val < 0) val = max;
-      if (val > max) val = 0;
+      const currentVal = parseInt(input.value, 10) || 0;
+      const newVal = (currentVal + delta + max + 1) % (max + 1);
 
-      input.value = this.pad(val);
+      input.value = this.pad(newVal);
       this.validateInputs();
+      this.markTimeModified();
     }
   }
 
@@ -207,64 +214,59 @@ class TimerRenderer {
   // =========================================
 
   start() {
-    // Prevent multiple intervals
-    if (this.status === 'running') return;
+    if (this.status === TimerRenderer.STATUS.RUNNING) return;
 
-    if (this.isEditable()) {
+    // Resume from paused without modification: continue from current remainingSeconds
+    // Otherwise: calculate new totalSeconds from input
+    const shouldRecalculate =
+      this.status !== TimerRenderer.STATUS.PAUSED || this.timeModifiedWhilePaused;
+
+    if (shouldRecalculate) {
       this.validateInputs();
       this.totalSeconds = this.hours * 3600 + this.minutes * 60 + this.seconds;
       if (this.totalSeconds === 0) return;
       this.remainingSeconds = this.totalSeconds;
     }
 
-    this.status = 'running';
+    // Don't start if no time remaining
+    if (this.remainingSeconds === 0) return;
+
+    this.status = TimerRenderer.STATUS.RUNNING;
+    this.timeModifiedWhilePaused = false;
     this.toggleControls();
     this.disableInputs(true);
 
-    // Clear any existing interval before creating new one
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-    }
+    this.clearInterval();
     this.intervalId = setInterval(() => this.tick(), 1000);
     this.updateProgress();
   }
 
   pause() {
-    if (this.status !== 'running') return;
-    this.status = 'paused';
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
-    }
+    if (this.status !== TimerRenderer.STATUS.RUNNING) return;
+    this.status = TimerRenderer.STATUS.PAUSED;
+    this.clearInterval();
+    this.disableInputs(false);
     this.toggleControls();
   }
 
   reset() {
-    // Clear interval
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
-    }
+    this.clearInterval();
+    this.clearCompletedTimeout();
 
-    // Clear completed animation timeout
-    if (this.completedTimeoutId) {
-      clearTimeout(this.completedTimeoutId);
-      this.completedTimeoutId = null;
-    }
-
-    this.status = 'idle';
+    this.status = TimerRenderer.STATUS.IDLE;
     this.remainingSeconds = 0;
     this.totalSeconds = 0;
+    this.timeModifiedWhilePaused = false;
     this.disableInputs(false);
     this.toggleControls();
     this.updateProgress();
-
-    // Remove completed class immediately on reset
     this.container.classList.remove('timer-completed');
 
     if (this.progressRing) {
       this.progressRing.style.strokeDashoffset = this.progressRingCircumference;
     }
+
+    this.animateResetButton();
   }
 
   tick() {
@@ -279,11 +281,8 @@ class TimerRenderer {
   }
 
   complete() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
-    }
-    this.status = 'completed';
+    this.clearInterval();
+    this.status = TimerRenderer.STATUS.COMPLETED;
     this.updateDisplayValues();
     this.disableInputs(false);
     this.toggleControls();
@@ -293,39 +292,31 @@ class TimerRenderer {
     this.completedTimeoutId = setTimeout(() => {
       this.container.classList.remove('timer-completed');
       this.completedTimeoutId = null;
-    }, 2000);
+    }, TimerRenderer.ANIMATION.COMPLETED_DURATION);
   }
 
   // =========================================
   // Display & UI
   // =========================================
 
-  render() {
-    // Initial render if needed
-  }
-
   validateInputs() {
     let h = parseInt(this.displayHours?.value, 10) || 0;
     let m = parseInt(this.displayMinutes?.value, 10) || 0;
     let s = parseInt(this.displaySeconds?.value, 10) || 0;
 
-    // Handle overflow
     if (s > 59) {
       m += Math.floor(s / 60);
-      s = s % 60;
+      s %= 60;
     }
     if (m > 59) {
       h += Math.floor(m / 60);
-      m = m % 60;
+      m %= 60;
     }
-
-    // Clamp hours to max 99
-    if (h > 99) h = 99;
+    h = Math.min(h, 99);
 
     this.hours = h;
     this.minutes = m;
     this.seconds = s;
-
     this.updateDisplayValues();
   }
 
@@ -344,34 +335,40 @@ class TimerRenderer {
   updateProgress() {
     if (!this.progressRing) return;
 
+    const circumference = this.progressRingCircumference;
     if (this.totalSeconds === 0) {
-      this.progressRing.style.strokeDasharray = `${this.progressRingCircumference} ${this.progressRingCircumference}`;
+      this.progressRing.style.strokeDasharray = `${circumference} ${circumference}`;
       this.progressRing.style.strokeDashoffset = '0';
       return;
     }
 
-    const visibleLength =
-      this.progressRingCircumference * (this.remainingSeconds / this.totalSeconds);
-    this.progressRing.style.strokeDasharray = `${visibleLength} ${this.progressRingCircumference}`;
+    const ratio = this.remainingSeconds / this.totalSeconds;
+    this.progressRing.style.strokeDasharray = `${circumference * ratio} ${circumference}`;
     this.progressRing.style.strokeDashoffset = '0';
   }
 
   toggleControls() {
     if (!this.btnStart || !this.btnPause) return;
-
-    if (this.status === 'running') {
-      this.btnStart.style.display = 'none';
-      this.btnPause.style.display = 'inline-flex';
-    } else {
-      this.btnStart.style.display = 'inline-flex';
-      this.btnPause.style.display = 'none';
-    }
+    const isRunning = this.status === TimerRenderer.STATUS.RUNNING;
+    this.btnStart.style.display = isRunning ? 'none' : 'inline-flex';
+    this.btnPause.style.display = isRunning ? 'inline-flex' : 'none';
   }
 
   disableInputs(disabled) {
-    if (this.displayHours) this.displayHours.disabled = disabled;
-    if (this.displayMinutes) this.displayMinutes.disabled = disabled;
-    if (this.displaySeconds) this.displaySeconds.disabled = disabled;
+    [this.displayHours, this.displayMinutes, this.displaySeconds].forEach((input) => {
+      if (input) input.disabled = disabled;
+    });
+  }
+
+  animateResetButton() {
+    if (!this.btnReset) return;
+    const duration = TimerRenderer.ANIMATION.RESET_SPIN_DURATION;
+    this.btnReset.style.transition = `transform ${duration}ms ease`;
+    this.btnReset.style.transform = 'rotate(360deg)';
+    setTimeout(() => {
+      this.btnReset.style.transition = 'none';
+      this.btnReset.style.transform = 'rotate(0deg)';
+    }, duration);
   }
 
   // =========================================
@@ -379,11 +376,35 @@ class TimerRenderer {
   // =========================================
 
   isEditable() {
-    return this.status === 'idle' || this.status === 'completed';
+    return [
+      TimerRenderer.STATUS.IDLE,
+      TimerRenderer.STATUS.PAUSED,
+      TimerRenderer.STATUS.COMPLETED,
+    ].includes(this.status);
+  }
+
+  markTimeModified() {
+    if (this.status === TimerRenderer.STATUS.PAUSED) {
+      this.timeModifiedWhilePaused = true;
+    }
   }
 
   pad(num) {
     return num.toString().padStart(2, '0');
+  }
+
+  clearInterval() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+  }
+
+  clearCompletedTimeout() {
+    if (this.completedTimeoutId) {
+      clearTimeout(this.completedTimeoutId);
+      this.completedTimeoutId = null;
+    }
   }
 
   // =========================================
@@ -393,12 +414,11 @@ class TimerRenderer {
   async playSound() {
     if (!window.AudioContext && !window.webkitAudioContext) return;
 
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!this.audioContext) {
-      this.audioContext = new AudioContext();
+      this.audioContext = new AudioContextClass();
     }
 
-    // Resume AudioContext if suspended (happens when tab is in background)
     if (this.audioContext.state === 'suspended') {
       try {
         await this.audioContext.resume();
@@ -408,44 +428,37 @@ class TimerRenderer {
       }
     }
 
-    const ctx = this.audioContext;
-    const beepDuration = 0.08;
-    const beepInterval = 150;
-    const groupPause = 400;
+    const { FREQUENCY, DURATION, INTERVAL, GROUP_PAUSE, BEEPS_PER_GROUP, GROUPS } =
+      TimerRenderer.SOUND;
 
-    const playBeep = (time) => {
-      setTimeout(() => {
-        try {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(1800, ctx.currentTime);
-
-          gain.gain.setValueAtTime(0.15, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + beepDuration);
-
-          osc.start(ctx.currentTime);
-          osc.stop(ctx.currentTime + beepDuration);
-        } catch (e) {
-          console.warn('Failed to play beep:', e);
-        }
-      }, time);
-    };
-
-    // First group
-    for (let i = 0; i < 4; i++) {
-      playBeep(i * beepInterval);
+    for (let group = 0; group < GROUPS; group++) {
+      const groupStart = group * (BEEPS_PER_GROUP * INTERVAL + GROUP_PAUSE);
+      for (let i = 0; i < BEEPS_PER_GROUP; i++) {
+        this.scheduleBeep(groupStart + i * INTERVAL, FREQUENCY, DURATION);
+      }
     }
+  }
 
-    // Second group
-    const secondGroupStart = 4 * beepInterval + groupPause;
-    for (let i = 0; i < 4; i++) {
-      playBeep(secondGroupStart + i * beepInterval);
-    }
+  scheduleBeep(delay, frequency, duration) {
+    setTimeout(() => {
+      try {
+        const ctx = this.audioContext;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(frequency, ctx.currentTime);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + duration);
+      } catch (e) {
+        console.warn('Failed to play beep:', e);
+      }
+    }, delay);
   }
 
   // =========================================
@@ -453,17 +466,9 @@ class TimerRenderer {
   // =========================================
 
   destroy() {
-    // Clear timers
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
-    }
-    if (this.completedTimeoutId) {
-      clearTimeout(this.completedTimeoutId);
-      this.completedTimeoutId = null;
-    }
+    this.clearInterval();
+    this.clearCompletedTimeout();
 
-    // Close AudioContext
     if (this.audioContext) {
       this.audioContext.close().catch(() => {});
       this.audioContext = null;
@@ -471,7 +476,7 @@ class TimerRenderer {
   }
 }
 
-// Initialize when DOM is ready
+// Initialize
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     window.timerApp = new TimerRenderer();

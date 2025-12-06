@@ -3470,8 +3470,7 @@ html:not(.theme-dark) .snippet-import-options-close:hover {
   align-items: center;
   justify-content: center;
   height: 100%;
-  padding: 0 0.5rem 2rem 0.5rem;
-  gap: 0;
+  padding: 0 0.5rem 2rem;
   width: 100%;
   overflow: hidden;
 }
@@ -3491,7 +3490,6 @@ html:not(.theme-dark) .snippet-import-options-close:hover {
   width: 100%;
   height: 100%;
   transform: rotate(-90deg);
-  transform-origin: 50% 50%;
 }
 
 .timer-progress-ring-circle-bg {
@@ -3502,35 +3500,26 @@ html:not(.theme-dark) .snippet-import-options-close:hover {
   transition:
     stroke-dasharray 0.35s,
     stroke-dashoffset 0.35s;
-  transform-origin: 50% 50%;
   stroke-linecap: round;
 }
 
 /* Time Display */
 .timer-display-container {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  inset: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  width: 90%;
+  justify-content: center;
 }
 
 .timer-inputs {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0;
-  width: 100%;
 }
 
 .timer-input {
-  width: auto;
-  min-width: 2.2ch;
-  flex: 0 1 auto;
-  max-width: 60px;
+  width: 2.5ch;
   background: transparent;
   border: none;
   color: #e5e7eb;
@@ -3540,7 +3529,6 @@ html:not(.theme-dark) .snippet-import-options-close:hover {
   font-family: 'SF Mono', 'Monaco', monospace;
   outline: none;
   padding: 0;
-  appearance: none;
   -moz-appearance: textfield;
   cursor: ns-resize;
 }
@@ -3548,7 +3536,6 @@ html:not(.theme-dark) .snippet-import-options-close:hover {
 .timer-input::-webkit-outer-spin-button,
 .timer-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
-  margin: 0;
 }
 
 .timer-input:focus {
@@ -3571,53 +3558,57 @@ html:not(.theme-dark) .snippet-import-options-close:hover {
 }
 
 .timer-btn {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #e5e7eb;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   cursor: pointer;
-  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.timer-btn-start,
+.timer-btn-pause {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e5e7eb;
   backdrop-filter: blur(10px);
 }
 
-.timer-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  transform: scale(1.05);
-}
-
-.timer-btn:active {
-  transform: scale(0.95);
-}
-
 .timer-btn-start {
-  width: 38px;
-  height: 38px;
   background: linear-gradient(135deg, var(--primary), var(--primary-2));
   border: none;
 }
 
 .timer-btn-start:hover {
   background: linear-gradient(135deg, #ff6b85, #e85af0);
+  transform: scale(1.05);
 }
 
 .timer-btn-pause {
-  width: 38px;
-  height: 38px;
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+.timer-btn-pause:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: scale(1.05);
+}
+
 .timer-btn-reset {
-  width: 30px;
-  height: 30px;
+  background: none;
+  border: none;
   color: #9ca3af;
+  backdrop-filter: none;
 }
 
 .timer-btn-reset:hover {
   color: #e5e7eb;
+}
+
+.timer-btn:active {
+  transform: scale(0.95);
 }
 
 /* Preset Buttons */
@@ -3684,14 +3675,11 @@ html:not(.theme-dark) .timer-progress-ring-circle-bg {
   stroke: rgba(0, 0, 0, 0.05);
 }
 
-html:not(.theme-dark) .timer-btn {
+html:not(.theme-dark) .timer-btn-start,
+html:not(.theme-dark) .timer-btn-pause {
   background: rgba(0, 0, 0, 0.05);
   border-color: rgba(0, 0, 0, 0.1);
   color: #374151;
-}
-
-html:not(.theme-dark) .timer-btn:hover {
-  background: rgba(0, 0, 0, 0.08);
 }
 
 html:not(.theme-dark) .timer-btn-start {
@@ -3701,6 +3689,18 @@ html:not(.theme-dark) .timer-btn-start {
 
 html:not(.theme-dark) .timer-btn-start:hover {
   background: linear-gradient(135deg, #ff6b85, #e85af0);
+}
+
+html:not(.theme-dark) .timer-btn-pause:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+html:not(.theme-dark) .timer-btn-reset {
+  color: #6b7280;
+}
+
+html:not(.theme-dark) .timer-btn-reset:hover {
+  color: #374151;
 }
 
 html:not(.theme-dark) .timer-preset-btn {
