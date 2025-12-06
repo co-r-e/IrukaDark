@@ -142,6 +142,7 @@
       tabChat: '聊天',
       tabHistory: 'Clipboard',
       tabSnippet: '程式碼片段',
+      tabTimer: '計時器',
       tabMemo: '備忘錄',
       tabLauncher: '啟動器',
       tabSettings: '設定',
@@ -242,6 +243,11 @@
       cancel: '取消',
       confirm: '確認',
       close: '關閉',
+    },
+    timer: {
+      tabTimer: '計時器',
+      tabStopwatch: '碼錶',
+      tabSchedule: '日程',
     },
     terminal: {
       tab: '終端機',

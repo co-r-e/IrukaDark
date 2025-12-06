@@ -148,6 +148,7 @@
       tabChat: 'Chat',
       tabHistory: 'Clipboard',
       tabSnippet: 'Snippet',
+      tabTimer: 'Timer',
       tabMemo: 'Mémo',
       tabLauncher: 'Lanceur',
       tabSettings: 'Paramètres',
@@ -250,6 +251,11 @@
       cancel: 'Annuler',
       confirm: 'Confirmer',
       close: 'Fermer',
+    },
+    timer: {
+      tabTimer: 'Minuteur',
+      tabStopwatch: 'Chronomètre',
+      tabSchedule: 'Horaire',
     },
     terminal: {
       tab: 'Terminal',

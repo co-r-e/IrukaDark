@@ -146,6 +146,7 @@
       tabChat: 'Obrolan',
       tabHistory: 'Clipboard',
       tabSnippet: 'Snippet',
+      tabTimer: 'Timer',
       tabMemo: 'Catatan',
       tabLauncher: 'Peluncur',
       tabSettings: 'Pengaturan',
@@ -248,6 +249,11 @@
       cancel: 'Batal',
       confirm: 'Konfirmasi',
       close: 'Tutup',
+    },
+    timer: {
+      tabTimer: 'Timer',
+      tabStopwatch: 'Stopwatch',
+      tabSchedule: 'Jadwal',
     },
     terminal: {
       tab: 'Terminal',

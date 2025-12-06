@@ -145,6 +145,7 @@
       tabChat: 'Chat',
       tabHistory: 'Clipboard',
       tabSnippet: 'Snippet',
+      tabTimer: 'Timer',
       tabMemo: 'Nota',
       tabLauncher: 'Lançador',
       tabSettings: 'Configurações',
@@ -247,6 +248,11 @@
       cancel: 'Cancelar',
       confirm: 'Confirmar',
       close: 'Fechar',
+    },
+    timer: {
+      tabTimer: 'Temporizador',
+      tabStopwatch: 'Cronômetro',
+      tabSchedule: 'Agenda',
     },
     terminal: {
       tab: 'Terminal',

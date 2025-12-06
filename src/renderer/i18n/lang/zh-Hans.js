@@ -142,6 +142,7 @@
       tabChat: '聊天',
       tabHistory: 'Clipboard',
       tabSnippet: '代码片段',
+      tabTimer: '计时器',
       tabMemo: '备忘录',
       tabLauncher: '启动器',
       tabSettings: '设置',
@@ -242,6 +243,11 @@
       cancel: '取消',
       confirm: '确认',
       close: '关闭',
+    },
+    timer: {
+      tabTimer: '计时器',
+      tabStopwatch: '秒表',
+      tabSchedule: '日程',
     },
     terminal: {
       tab: '终端',

@@ -146,6 +146,7 @@
       tabChat: 'Sohbet',
       tabHistory: 'Clipboard',
       tabSnippet: 'Snippet',
+      tabTimer: 'Timer',
       tabMemo: 'Not',
       tabLauncher: 'Başlatıcı',
       tabSettings: 'Ayarlar',
@@ -248,6 +249,11 @@
       cancel: 'İptal',
       confirm: 'Onayla',
       close: 'Kapat',
+    },
+    timer: {
+      tabTimer: 'Zamanlayıcı',
+      tabStopwatch: 'Kronometre',
+      tabSchedule: 'Program',
     },
     terminal: {
       tab: 'Terminal',

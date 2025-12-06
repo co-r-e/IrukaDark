@@ -1341,6 +1341,81 @@
       }
 
       /* ========================================
+         Timer Sub-Tabs
+         ======================================== */
+
+      .timer-tabs {
+        display: flex;
+        gap: 0;
+        padding: 4px 8px;
+        background: rgba(0, 0, 0, 0.3);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        overflow-x: auto;
+        flex-shrink: 0;
+      }
+
+      html:not(.theme-dark) .timer-tabs {
+        background: rgba(0, 0, 0, 0.05);
+        border-bottom-color: rgba(0, 0, 0, 0.1);
+      }
+
+      .timer-tab {
+        display: flex;
+        align-items: center;
+        padding: 3px 6px;
+        background: transparent;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        flex-shrink: 0;
+      }
+
+      .timer-tab-name {
+        font-size: 10px;
+        color: #9ca3af;
+        font-weight: 500;
+        user-select: none;
+        transition: color 0.15s ease;
+      }
+
+      html:not(.theme-dark) .timer-tab-name {
+        color: #9ca3af;
+      }
+
+      .timer-tab:hover .timer-tab-name {
+        color: #e5e7eb;
+      }
+
+      html:not(.theme-dark) .timer-tab:hover .timer-tab-name {
+        color: #374151;
+      }
+
+      .timer-tab.active .timer-tab-name {
+        color: #e5e7eb;
+      }
+
+      html:not(.theme-dark) .timer-tab.active .timer-tab-name {
+        color: #0b1220;
+      }
+
+      .timer-content {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+        min-height: 0;
+      }
+
+      .timer-panel {
+        display: none;
+        height: 100%;
+      }
+
+      .timer-panel.active {
+        display: block;
+      }
+
+      /* ========================================
          Terminal AI Command Input
          ======================================== */
 
@@ -2778,6 +2853,14 @@
             Snippet
           </button>
           <button
+            id="timerTab"
+            class="titlebar-tab"
+            data-tab="timer"
+            data-i18n="clipboard.tabTimer"
+          >
+            Timer
+          </button>
+          <button
             id="launcherTab"
             class="titlebar-tab"
             data-tab="launcher"
@@ -2888,6 +2971,36 @@
       <div id="terminalContainer" class="terminal-container" style="display: none">
         <div id="terminalTabs" class="terminal-tabs"></div>
         <div id="terminalContent" class="terminal-content"></div>
+      </div>
+
+      <!-- Timer -->
+      <div
+        id="timerContainer"
+        class="clipboard-list"
+        style="display: none; padding: 0; flex-direction: column"
+      >
+        <div class="timer-tabs">
+          <button class="timer-tab active" data-timer-tab="timer">
+            <span class="timer-tab-name" data-i18n="timer.tabTimer">Timer</span>
+          </button>
+          <button class="timer-tab" data-timer-tab="stopwatch">
+            <span class="timer-tab-name" data-i18n="timer.tabStopwatch">Stopwatch</span>
+          </button>
+          <button class="timer-tab" data-timer-tab="schedule">
+            <span class="timer-tab-name" data-i18n="timer.tabSchedule">Schedule</span>
+          </button>
+        </div>
+        <div class="timer-content">
+          <div id="timerPanelTimer" class="timer-panel active" data-timer-panel="timer">
+            <!-- Timer panel content -->
+          </div>
+          <div id="timerPanelStopwatch" class="timer-panel" data-timer-panel="stopwatch">
+            <!-- Stopwatch panel content -->
+          </div>
+          <div id="timerPanelSchedule" class="timer-panel" data-timer-panel="schedule">
+            <!-- Schedule panel content -->
+          </div>
+        </div>
       </div>
 
       <!-- Launcher -->
@@ -3316,6 +3429,9 @@
       <!-- Terminal Footer -->
       <div id="terminalFooter" class="tab-footer" style="display: none"></div>
 
+      <!-- Timer Footer -->
+      <div id="timerFooter" class="tab-footer" style="display: none"></div>
+
       <!-- Launcher Footer -->
       <div id="launcherFooter" class="tab-footer" style="display: none">
         <div style="display: flex; gap: 8px; align-items: center">
@@ -3589,6 +3705,7 @@
         const chatTab = document.getElementById('chatTab');
         const historyTab = document.getElementById('historyTab');
         const snippetTab = document.getElementById('snippetTab');
+        const timerTab = document.getElementById('timerTab');
         const launcherTab = document.getElementById('launcherTab');
         const memoTab = document.getElementById('memoTab');
         const terminalTab = document.getElementById('terminalTab');
@@ -3597,12 +3714,14 @@
         const chatHistory = document.getElementById('chatHistory');
         const clipboardList = document.getElementById('clipboardList');
         const snippetList = document.getElementById('snippetList');
+        const timerContainer = document.getElementById('timerContainer');
         const memoContainer = document.getElementById('memoContainer');
         const terminalContainer = document.getElementById('terminalContainer');
         const launcherContainer = document.getElementById('launcherContainer');
         const settingsContainer = document.getElementById('settingsContainer');
         const historyFooter = document.getElementById('historyFooter');
         const snippetFooter = document.getElementById('snippetFooter');
+        const timerFooter = document.getElementById('timerFooter');
         const memoFooter = document.getElementById('memoFooter');
         const terminalFooter = document.getElementById('terminalFooter');
         const launcherFooter = document.getElementById('launcherFooter');
@@ -3636,6 +3755,7 @@
           chatTab.classList.remove('active');
           historyTab.classList.remove('active');
           snippetTab.classList.remove('active');
+          timerTab.classList.remove('active');
           launcherTab.classList.remove('active');
           memoTab.classList.remove('active');
           terminalTab.classList.remove('active');
@@ -3647,12 +3767,14 @@
           if (apiKeyForm) apiKeyForm.style.display = 'none';
           clipboardList.style.display = 'none';
           snippetList.style.display = 'none';
+          timerContainer.style.display = 'none';
           memoContainer.style.display = 'none';
           terminalContainer.style.display = 'none';
           launcherContainer.style.display = 'none';
           settingsContainer.style.display = 'none';
           historyFooter.style.display = 'none';
           snippetFooter.style.display = 'none';
+          timerFooter.style.display = 'none';
           memoFooter.style.display = 'none';
           terminalFooter.style.display = 'none';
           launcherFooter.style.display = 'none';
@@ -3720,6 +3842,10 @@
               }
               window.clipboardUI.currentTab = 'snippet';
               window.clipboardUI.switchTab('snippet');
+            } else if (tabName === 'timer') {
+              timerTab.classList.add('active');
+              timerContainer.style.display = 'flex';
+              timerFooter.style.display = 'flex';
             } else if (tabName === 'launcher') {
               launcherTab.classList.add('active');
               launcherContainer.style.display = 'block';
@@ -3777,22 +3903,33 @@
         chatTab.addEventListener('click', () => switchTab('chat'));
         historyTab.addEventListener('click', () => switchTab('history'));
         snippetTab.addEventListener('click', () => switchTab('snippet'));
+        timerTab.addEventListener('click', () => switchTab('timer'));
         launcherTab.addEventListener('click', () => switchTab('launcher'));
         memoTab.addEventListener('click', () => switchTab('memo'));
         terminalTab.addEventListener('click', () => switchTab('terminal'));
         settingsTab.addEventListener('click', () => switchTab('settings'));
 
         // Keyboard navigation for tabs
-        const tabs = ['chat', 'history', 'snippet', 'launcher', 'memo', 'terminal', 'settings'];
+        const tabs = [
+          'chat',
+          'history',
+          'snippet',
+          'timer',
+          'launcher',
+          'memo',
+          'terminal',
+          'settings',
+        ];
 
         function getCurrentTabIndex() {
           if (chatTab.classList.contains('active')) return 0;
           if (historyTab.classList.contains('active')) return 1;
           if (snippetTab.classList.contains('active')) return 2;
-          if (launcherTab.classList.contains('active')) return 3;
-          if (memoTab.classList.contains('active')) return 4;
-          if (terminalTab.classList.contains('active')) return 5;
-          if (settingsTab.classList.contains('active')) return 6;
+          if (timerTab.classList.contains('active')) return 3;
+          if (launcherTab.classList.contains('active')) return 4;
+          if (memoTab.classList.contains('active')) return 5;
+          if (terminalTab.classList.contains('active')) return 6;
+          if (settingsTab.classList.contains('active')) return 7;
           return 0; // Default to chat
         }
 
@@ -3804,13 +3941,15 @@
                 ? historyTab
                 : tabName === 'snippet'
                   ? snippetTab
-                  : tabName === 'launcher'
-                    ? launcherTab
-                    : tabName === 'memo'
-                      ? memoTab
-                      : tabName === 'terminal'
-                        ? terminalTab
-                        : settingsTab;
+                  : tabName === 'timer'
+                    ? timerTab
+                    : tabName === 'launcher'
+                      ? launcherTab
+                      : tabName === 'memo'
+                        ? memoTab
+                        : tabName === 'terminal'
+                          ? terminalTab
+                          : settingsTab;
 
           if (tabElement) {
             tabElement.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
@@ -3845,6 +3984,25 @@
 
         // Expose switchTab globally so it can be called from app.js
         window.switchToTab = switchTab;
+
+        // Timer sub-tabs switching
+        const timerSubTabs = document.querySelectorAll('.timer-tab');
+        const timerPanels = document.querySelectorAll('.timer-panel');
+
+        timerSubTabs.forEach((tab) => {
+          tab.addEventListener('click', () => {
+            const targetPanel = tab.dataset.timerTab;
+
+            // Update active tab
+            timerSubTabs.forEach((t) => t.classList.remove('active'));
+            tab.classList.add('active');
+
+            // Update active panel
+            timerPanels.forEach((p) => p.classList.remove('active'));
+            const panel = document.querySelector(`[data-timer-panel="${targetPanel}"]`);
+            if (panel) panel.classList.add('active');
+          });
+        });
       })();
     </script>
     <script src="./app.js"></script>

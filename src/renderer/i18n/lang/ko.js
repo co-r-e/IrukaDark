@@ -144,6 +144,7 @@
       tabChat: '채팅',
       tabHistory: 'Clipboard',
       tabSnippet: '스니펫',
+      tabTimer: '타이머',
       tabMemo: '메모',
       tabLauncher: '런처',
       tabSettings: '설정',
@@ -246,6 +247,11 @@
       cancel: '취소',
       confirm: '확인',
       close: '닫기',
+    },
+    timer: {
+      tabTimer: '타이머',
+      tabStopwatch: '스톱워치',
+      tabSchedule: '일정',
     },
     terminal: {
       tab: '터미널',

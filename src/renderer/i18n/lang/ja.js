@@ -224,6 +224,7 @@
       tabChat: 'チャット',
       tabHistory: 'クリップボード',
       tabSnippet: 'スニペット',
+      tabTimer: 'タイマー',
       tabMemo: 'メモ',
       tabLauncher: 'ランチャー',
       tabSettings: '設定',
@@ -359,6 +360,11 @@
       cancel: 'キャンセル',
       confirm: '確認',
       close: '閉じる',
+    },
+    timer: {
+      tabTimer: 'タイマー',
+      tabStopwatch: 'ストップウォッチ',
+      tabSchedule: 'スケジュール',
     },
     terminal: {
       tab: 'ターミナル',

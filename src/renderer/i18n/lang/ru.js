@@ -146,6 +146,7 @@
       tabChat: 'Чат',
       tabHistory: 'Clipboard',
       tabSnippet: 'Сниппет',
+      tabTimer: 'Таймер',
       tabMemo: 'Заметка',
       tabLauncher: 'Запуск',
       tabSettings: 'Настройки',
@@ -248,6 +249,11 @@
       cancel: 'Отмена',
       confirm: 'Подтвердить',
       close: 'Закрыть',
+    },
+    timer: {
+      tabTimer: 'Таймер',
+      tabStopwatch: 'Секундомер',
+      tabSchedule: 'Расписание',
     },
     terminal: {
       tab: 'Терминал',

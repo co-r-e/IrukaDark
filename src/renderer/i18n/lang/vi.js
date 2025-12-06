@@ -145,6 +145,7 @@
       tabChat: 'Trò chuyện',
       tabHistory: 'Clipboard',
       tabSnippet: 'Snippet',
+      tabTimer: 'Timer',
       tabMemo: 'Ghi chú',
       tabLauncher: 'Trình khởi chạy',
       tabSettings: 'Cài đặt',
@@ -247,6 +248,11 @@
       cancel: 'Hủy',
       confirm: 'Xác nhận',
       close: 'Đóng',
+    },
+    timer: {
+      tabTimer: 'Hẹn giờ',
+      tabStopwatch: 'Bấm giờ',
+      tabSchedule: 'Lịch trình',
     },
     terminal: {
       tab: 'Terminal',

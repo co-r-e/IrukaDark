@@ -145,6 +145,7 @@
       tabChat: 'แชท',
       tabHistory: 'Clipboard',
       tabSnippet: 'Snippet',
+      tabTimer: 'Timer',
       tabMemo: 'บันทึก',
       tabLauncher: 'ตัวเปิด',
       tabSettings: 'การตั้งค่า',
@@ -247,6 +248,11 @@
       cancel: 'ยกเลิก',
       confirm: 'ยืนยัน',
       close: 'ปิด',
+    },
+    timer: {
+      tabTimer: 'ตั้งเวลา',
+      tabStopwatch: 'นาฬิกาจับเวลา',
+      tabSchedule: 'กำหนดการ',
     },
     terminal: {
       tab: 'เทอร์มินัล',
