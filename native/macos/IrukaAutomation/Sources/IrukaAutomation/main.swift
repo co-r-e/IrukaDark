@@ -3650,6 +3650,12 @@ class VoiceQuerySession: NSObject {
   func start(completion: @escaping (Result<VoiceQueryResult, VoiceQueryError>) -> Void) {
     self.completion = completion
 
+    // Play startup sound (low volume)
+    if let sound = NSSound(named: "Pop") {
+      sound.volume = 0.1
+      sound.play()
+    }
+
     // Emit started event
     let startEvent = VoiceQueryEvent(event: "voice_query_started")
     print(startEvent.encoded())
@@ -4199,13 +4205,6 @@ class RecordingIndicatorWindow: NSPanel {
     container.layer?.addSublayer(gradientLayer)
     container.layer?.cornerRadius = frame.size.width / 2
     container.layer?.masksToBounds = true
-
-    // Microphone icon (simple circle indicator)
-    let innerCircle = NSView(frame: NSRect(x: 12, y: 12, width: 12, height: 12))
-    innerCircle.wantsLayer = true
-    innerCircle.layer?.backgroundColor = NSColor.white.cgColor
-    innerCircle.layer?.cornerRadius = 6
-    container.addSubview(innerCircle)
 
     contentView = container
   }

@@ -16,7 +16,7 @@ const DEFAULT_SHORTCUTS = {
   urlSummary: 'Alt+Q',
   urlDetailed: 'Alt+Shift+Q',
   translate: 'Alt+R',
-  reply: 'Alt+T',
+  reply: 'Alt+H',
   screenshot: 'Alt+S',
   screenshotDetailed: 'Alt+Shift+S',
   moveToCursor: 'Alt+Z',
@@ -24,8 +24,8 @@ const DEFAULT_SHORTCUTS = {
   clipboardPopup: 'Command+Shift+V',
   snippetPopup: 'Alt+Shift+V',
   toggleMainWindow: 'Alt+Space',
-  voiceQuery: 'Alt+Shift+E',
-  voiceOnly: 'Alt+E',
+  voiceQuery: 'Alt+Shift+X',
+  voiceOnly: 'Alt+X',
   rephrase: 'Alt+W',
 };
 
