@@ -26,6 +26,7 @@ const DEFAULT_SHORTCUTS = {
   toggleMainWindow: 'Alt+Space',
   voiceQuery: 'Alt+Shift+E',
   voiceOnly: 'Alt+E',
+  rephrase: 'Alt+W',
 };
 
 /**

@@ -363,6 +363,7 @@ class IrukaDarkApp {
     'explain',
     'urlSummary',
     'translate',
+    'rephrase',
     'voiceOnly',
     'moveToCursor',
     'clipboardPopup',
@@ -842,6 +843,7 @@ class IrukaDarkApp {
     on('onExplainClipboard', (text) => this.handleExplainClipboard(text));
     on('onExplainClipboardDetailed', (text) => this.handleExplainClipboardDetailed(text));
     on('onTranslateClipboard', (text) => this.handleTranslateClipboard(text));
+    on('onRephraseClipboard', (text) => this.handleRephraseClipboard(text));
     on('onReplyClipboard', (text) => this.handleReplyClipboard(text));
     on('onSummarizeUrlContext', (url) => this.handleSummarizeUrlContext(url));
     on('onSummarizeUrlContextDetailed', (url) => this.handleSummarizeUrlContextDetailed(url));
@@ -2443,6 +2445,57 @@ Text should be in ${name} (${code}).`;
 
     try {
       const response = await this.geminiService.generatePureTranslation(content);
+      if (token !== this.shortcutRequestId) {
+        return;
+      }
+      this.hideTypingIndicator();
+      if (this.cancelRequested) {
+        return;
+      }
+      this.addMessage('ai', response);
+      try {
+        window.electronAPI &&
+          window.electronAPI.ensureVisible &&
+          window.electronAPI.ensureVisible(false);
+      } catch {}
+    } catch (e) {
+      if (this.cancelRequested || /CANCELLED|Abort/i.test(String(e?.message || ''))) {
+        return;
+      }
+      this.hideTypingIndicator();
+      this.addMessage('system', `${getUIText('errorOccurred')}: ${e?.message || 'Unknown error'}`);
+    } finally {
+      this.disableAutoScrollCount = Math.max(0, this.disableAutoScrollCount - 1);
+    }
+  }
+
+  /**
+   * Rephrase selected text to express it better
+   */
+  async handleRephraseClipboard(text) {
+    await this.cancelActiveShortcut();
+    // Switch to chat tab when shortcut is triggered
+    if (window.switchToTab) window.switchToTab('chat');
+    const token = ++this.shortcutRequestId;
+    const content = (text || '').trim();
+    if (!content) return;
+    this.disableAutoScrollCount++;
+
+    // Performance optimization: batch DOM operations in single frame
+    requestAnimationFrame(() => {
+      this.addMessage('system-question', getUIText('selectionRephrase'));
+      this.showTypingIndicator();
+
+      // Scroll to bottom after messages are added
+      requestAnimationFrame(() => {
+        if (this.chatHistory && this.chatHistory.isConnected) {
+          this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+        }
+      });
+    });
+
+    try {
+      const response = await this.geminiService.generateRephrase(content);
       if (token !== this.shortcutRequestId) {
         return;
       }
@@ -5587,6 +5640,39 @@ Text:
 ${t}`;
     // Web search is unnecessary for pure translation
     const res = await this.requestText(prompt, false, 'shortcut');
+    return res;
+  }
+
+  /** Rephrase text to express it better (creative, high temperature) */
+  async generateRephrase(text) {
+    const lang =
+      (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
+    const t = text.length > 12000 ? text.slice(0, 12000) + ' …(truncated)' : text;
+    const rephrasePromptMap = {
+      en: 'I want to say this better:',
+      ja: 'これをうまく言いたい:',
+      es: 'Quiero decir esto mejor:',
+      'es-419': 'Quiero decir esto mejor:',
+      'zh-Hans': '我想把这句话说得更好:',
+      'zh-Hant': '我想把這句話說得更好:',
+      hi: 'मैं इसे बेहतर तरीके से कहना चाहता हूं:',
+      'pt-BR': 'Quero dizer isso melhor:',
+      fr: 'Je veux mieux formuler ceci:',
+      de: 'Ich möchte das besser ausdrücken:',
+      ar: 'أريد أن أقول هذا بشكل أفضل:',
+      ru: 'Я хочу сказать это лучше:',
+      ko: '이걸 더 잘 표현하고 싶어:',
+      id: 'Saya ingin mengatakannya dengan lebih baik:',
+      vi: 'Tôi muốn nói điều này hay hơn:',
+      th: 'ฉันอยากพูดสิ่งนี้ให้ดีขึ้น:',
+      it: 'Voglio dirlo meglio:',
+      tr: 'Bunu daha iyi ifade etmek istiyorum:',
+    };
+    const promptPrefix = rephrasePromptMap[lang] || rephrasePromptMap['en'];
+    const prompt = `${promptPrefix}\n${t}`;
+    const res = await this.requestText(prompt, false, 'shortcut', {
+      generationConfigOverrides: { temperature: 1.0, maxOutputTokens: 8192 },
+    });
     return res;
   }
 

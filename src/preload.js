@@ -43,6 +43,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onExplainClipboardDetailed: (cb) =>
     ipcRenderer.on('explain-clipboard-detailed', (_e, t) => cb(t)),
   onTranslateClipboard: (cb) => ipcRenderer.on('translate-clipboard', (_e, t) => cb(t)),
+  onRephraseClipboard: (cb) => ipcRenderer.on('rephrase-clipboard', (_e, t) => cb(t)),
   onExplainClipboardError: (cb) => ipcRenderer.on('explain-clipboard-error', (_e, msg) => cb(msg)),
   onReplyClipboard: (cb) => ipcRenderer.on('reply-clipboard-variations', (_e, t) => cb(t)),
   onSummarizeUrlContext: (cb) => ipcRenderer.on('summarize-url-context', (_e, url) => cb(url)),

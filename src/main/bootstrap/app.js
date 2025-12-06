@@ -708,6 +708,33 @@ function bootstrapApp() {
       } catch {}
     }
 
+    // Register rephrase shortcut
+    if (shortcuts.rephrase) {
+      try {
+        const c = shortcuts.rephrase;
+        globalShortcut.register(c, () => {
+          logShortcutEvent('shortcut.trigger', { accel: c, kind: 'rephrase' });
+          (async () => {
+            try {
+              const mainWindow = getMainWindow();
+              if (!mainWindow || mainWindow.isDestroyed()) return;
+
+              const text = await tryCopySelectedText();
+              if (!mainWindow || mainWindow.isDestroyed()) return;
+
+              bringMainWindowToFront(mainWindow);
+
+              if (text) {
+                mainWindow.webContents.send('rephrase-clipboard', text);
+              } else {
+                mainWindow.webContents.send('explain-clipboard-error', '');
+              }
+            } catch (e) {}
+          })();
+        });
+      } catch {}
+    }
+
     const replyUsed =
       shortcuts.reply && registerReplyShortcut(shortcuts.reply) ? shortcuts.reply : '';
 
