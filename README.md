@@ -28,6 +28,8 @@ Lightweight local AI chat for macOS. Explain or translate selected text, or chat
 - Quick restart from tray menu
 - Voice input support (speech-to-text for hands-free messaging)
 - PDF content extraction (attach PDFs for AI analysis)
+- Timer & Stopwatch with audio notifications
+- Schedule feature for task management
 
 ## Beginner Setup (Step‑by‑step)
 
