@@ -25,7 +25,7 @@ const SLASHES = (typeof window !== 'undefined' && window.IRUKADARK_SLASHES) || {
   SLASH_SLIDE_TARGETS: [],
   SLASH_SLIDE_SIZE_TARGETS: [],
   SLASH_SLIDE_COUNT_TARGETS: [],
-  getLangMeta: (code) => ({ code, name: code, rtl: false }),
+  getLangMeta: (code) => ({ code, name: code }),
   normalizeTranslateCode: () => null,
   getLanguageDisplayName: (code) => code,
   LANG_NAMES: {},
@@ -67,9 +67,7 @@ function getLangMeta(code) {
   }
   const lang = String(code || 'en');
   const name = SLASHES.LANG_NAMES ? SLASHES.LANG_NAMES[lang] || 'English' : lang;
-  const rtlLocales = new Set(['ar', 'he', 'fa', 'ur']);
-  const rtl = rtlLocales.has(lang);
-  return { code: lang, name, rtl };
+  return { code: lang, name };
 }
 
 function normalizeTranslateCode(code) {
@@ -220,8 +218,6 @@ class IrukaDarkApp {
   updateUILanguage() {
     const lang = getCurrentUILanguage();
     document.documentElement.lang = lang;
-    const rtlLocales = new Set(['ar', 'he', 'fa', 'ur']);
-    document.documentElement.dir = rtlLocales.has(lang) ? 'rtl' : 'ltr';
     this.updateStaticHTMLText();
     try {
       this.updateSendButtonIcon();

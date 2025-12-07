@@ -506,9 +506,7 @@
   function getLangMeta(code) {
     const lang = String(code || 'en');
     const name = LANG_NAMES[lang] || 'English';
-    const rtlLocales = new Set(['ar', 'he', 'fa', 'ur']);
-    const rtl = rtlLocales.has(lang);
-    return { code: lang, name, rtl };
+    return { code: lang, name };
   }
 
   function normalizeTranslateCode(code) {

@@ -1186,66 +1186,6 @@ html.solid-window.theme-dark #messageInput {
   line-height: 1.35;
 }
 
-/* RTL adjustments: flip send button and input padding */
-html[dir='rtl'] #messageInput {
-  padding-left: 44px;
-  padding-right: 12px;
-}
-
-/* In RTL, force the send/stop button to the left.
-   Needs !important to override the base #sendBtn right: 0.5rem !important; */
-html[dir='rtl'] #sendBtn {
-  left: 0.5rem !important;
-  right: auto !important;
-}
-
-/* Mirror paper-plane icon to face the logical end side in RTL */
-html[dir='rtl'] #sendBtn svg {
-  transform: scaleX(-1);
-}
-
-/* Prefer right alignment for RTL content */
-html[dir='rtl'] .message-system {
-  text-align: right;
-}
-
-html[dir='rtl'] .message-ai-content th,
-html[dir='rtl'] .message-ai-content td {
-  text-align: right;
-}
-
-/* Right-align general chat text in RTL, but keep code blocks/table code LTR for readability */
-html[dir='rtl'] .message-ai-content,
-html[dir='rtl'] .message-user-content {
-  text-align: right;
-}
-
-html[dir='rtl'] .message-ai-content pre,
-html[dir='rtl'] .message-ai-content code {
-  direction: ltr;
-  text-align: left;
-}
-
-/* Lists and blockquotes logical flips for RTL */
-html[dir='rtl'] .message-ai-content ul,
-html[dir='rtl'] .message-ai-content ol {
-  margin-right: 1rem;
-  margin-left: 0;
-}
-
-html[dir='rtl'] .message-ai-content blockquote {
-  border-right: 4px solid #d1d5db;
-  border-left: none;
-  padding-right: 1rem;
-  padding-left: 0;
-}
-
-/* Toast placement on logical start/end */
-html[dir='rtl'] .toast-container {
-  left: 12px;
-  right: auto;
-}
-
 /*!
  * IrukaDark — (c) 2025 CORe Inc.
  * License: AGPL-3.0-only. See https://github.com/co-r-e/IrukaDark/blob/HEAD/LICENSE
@@ -1311,12 +1251,6 @@ html:not(.theme-dark) #messageInput:focus {
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
   padding: 4px;
   z-index: 10;
-}
-
-/* Mirror margins around slash suggest to avoid overlapping send button in RTL */
-html[dir='rtl'] .slash-suggest {
-  left: 0.75rem;
-  right: 0.25rem;
 }
 
 .theme-dark .slash-suggest {

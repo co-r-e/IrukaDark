@@ -4,12 +4,6 @@
 
   function applyLang(lang) {
     const t = String(lang || 'en').toLowerCase();
-    // toggle document direction for RTL locales
-    try {
-      const rtl = ['ar', 'he', 'fa', 'ur'];
-      const isRTL = rtl.some((code) => t.startsWith(code));
-      document.documentElement.setAttribute('dir', isRTL ? 'rtl' : 'ltr');
-    } catch {}
     if (t.startsWith('ja')) {
       $('cancelBtn').textContent = 'キャンセル';
       $('okBtn').textContent = '保存';
@@ -42,10 +36,6 @@
       $('cancelBtn').textContent = 'İptal';
       $('okBtn').textContent = 'Kaydet';
       $('xBtn').setAttribute('title', 'Kapat');
-    } else if (t.startsWith('ar')) {
-      $('cancelBtn').textContent = 'إلغاء';
-      $('okBtn').textContent = 'حفظ';
-      $('xBtn').setAttribute('title', 'إغلاق');
     } else {
       $('cancelBtn').textContent = 'Cancel';
       $('okBtn').textContent = 'Save';
