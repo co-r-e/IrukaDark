@@ -49,7 +49,17 @@ class TimerRenderer {
     // Timers & Audio
     this.intervalId = null;
     this.completedTimeoutId = null;
+    this.resetAnimationTimeoutId = null;
+    this.beepTimeoutIds = [];
     this.audioContext = null;
+
+    // Bound event handlers (for removeEventListener)
+    this._handleStart = () => this.start();
+    this._handlePause = () => this.pause();
+    this._handleReset = () => this.reset();
+
+    // Input event handlers (stored per input for cleanup)
+    this._inputHandlers = new Map();
 
     this.init();
   }
@@ -148,36 +158,65 @@ class TimerRenderer {
   // =========================================
 
   bindEvents() {
-    this.btnStart?.addEventListener('click', () => this.start());
-    this.btnPause?.addEventListener('click', () => this.pause());
-    this.btnReset?.addEventListener('click', () => this.reset());
+    this.btnStart?.addEventListener('click', this._handleStart);
+    this.btnPause?.addEventListener('click', this._handlePause);
+    this.btnReset?.addEventListener('click', this._handleReset);
 
     this.bindInputEvents();
     this.bindPresetEvents();
+  }
+
+  unbindEvents() {
+    this.btnStart?.removeEventListener('click', this._handleStart);
+    this.btnPause?.removeEventListener('click', this._handlePause);
+    this.btnReset?.removeEventListener('click', this._handleReset);
+
+    this.unbindInputEvents();
+    this.unbindPresetEvents();
   }
 
   bindInputEvents() {
     const inputs = [this.displayHours, this.displayMinutes, this.displaySeconds].filter(Boolean);
 
     inputs.forEach((input) => {
-      input.addEventListener('change', () => {
-        this.validateInputs();
-        this.markTimeModified();
-      });
-      input.addEventListener('input', () => {
-        input.value = input.value.replace(/[^0-9]/g, '').slice(0, 2);
-      });
-      input.addEventListener('focus', () => {
-        if (this.isEditable()) input.select();
-      });
+      const handlers = {
+        change: () => {
+          this.validateInputs();
+          this.markTimeModified();
+        },
+        input: () => {
+          input.value = input.value.replace(/[^0-9]/g, '').slice(0, 2);
+        },
+        focus: () => {
+          if (this.isEditable()) input.select();
+        },
+        wheel: (e) => this.handleWheelInput(e, input),
+      };
+
+      this._inputHandlers.set(input, handlers);
       input._scrollAccumulator = 0;
-      input.addEventListener('wheel', (e) => this.handleWheelInput(e, input), { passive: false });
+
+      input.addEventListener('change', handlers.change);
+      input.addEventListener('input', handlers.input);
+      input.addEventListener('focus', handlers.focus);
+      input.addEventListener('wheel', handlers.wheel, { passive: false });
     });
   }
 
+  unbindInputEvents() {
+    this._inputHandlers.forEach((handlers, input) => {
+      input.removeEventListener('change', handlers.change);
+      input.removeEventListener('input', handlers.input);
+      input.removeEventListener('focus', handlers.focus);
+      input.removeEventListener('wheel', handlers.wheel);
+    });
+    this._inputHandlers.clear();
+  }
+
   bindPresetEvents() {
+    this._presetHandlers = [];
     this.container.querySelectorAll('.timer-preset-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
+      const handler = () => {
         if (!this.isEditable()) return;
         const minutes = parseInt(btn.dataset.minutes, 10);
         this.hours = Math.floor(minutes / 60);
@@ -185,8 +224,19 @@ class TimerRenderer {
         this.seconds = 0;
         this.updateDisplayValues();
         this.markTimeModified();
-      });
+      };
+      this._presetHandlers.push({ btn, handler });
+      btn.addEventListener('click', handler);
     });
+  }
+
+  unbindPresetEvents() {
+    if (this._presetHandlers) {
+      this._presetHandlers.forEach(({ btn, handler }) => {
+        btn.removeEventListener('click', handler);
+      });
+      this._presetHandlers = [];
+    }
   }
 
   handleWheelInput(e, input) {
@@ -362,13 +412,22 @@ class TimerRenderer {
 
   animateResetButton() {
     if (!this.btnReset) return;
+    this.clearResetAnimationTimeout();
     const duration = TimerRenderer.ANIMATION.RESET_SPIN_DURATION;
     this.btnReset.style.transition = `transform ${duration}ms ease`;
     this.btnReset.style.transform = 'rotate(360deg)';
-    setTimeout(() => {
+    this.resetAnimationTimeoutId = setTimeout(() => {
       this.btnReset.style.transition = 'none';
       this.btnReset.style.transform = 'rotate(0deg)';
+      this.resetAnimationTimeoutId = null;
     }, duration);
+  }
+
+  clearResetAnimationTimeout() {
+    if (this.resetAnimationTimeoutId) {
+      clearTimeout(this.resetAnimationTimeoutId);
+      this.resetAnimationTimeoutId = null;
+    }
   }
 
   // =========================================
@@ -431,6 +490,9 @@ class TimerRenderer {
     const { FREQUENCY, DURATION, INTERVAL, GROUP_PAUSE, BEEPS_PER_GROUP, GROUPS } =
       TimerRenderer.SOUND;
 
+    // Clear any pending beeps before scheduling new ones
+    this.clearBeepTimeouts();
+
     for (let group = 0; group < GROUPS; group++) {
       const groupStart = group * (BEEPS_PER_GROUP * INTERVAL + GROUP_PAUSE);
       for (let i = 0; i < BEEPS_PER_GROUP; i++) {
@@ -440,9 +502,14 @@ class TimerRenderer {
   }
 
   scheduleBeep(delay, frequency, duration) {
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
+      // Remove this timeout from the array
+      const index = this.beepTimeoutIds.indexOf(timeoutId);
+      if (index > -1) this.beepTimeoutIds.splice(index, 1);
+
       try {
         const ctx = this.audioContext;
+        if (!ctx) return;
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
 
@@ -459,6 +526,12 @@ class TimerRenderer {
         console.warn('Failed to play beep:', e);
       }
     }, delay);
+    this.beepTimeoutIds.push(timeoutId);
+  }
+
+  clearBeepTimeouts() {
+    this.beepTimeoutIds.forEach((id) => clearTimeout(id));
+    this.beepTimeoutIds = [];
   }
 
   // =========================================
@@ -468,6 +541,9 @@ class TimerRenderer {
   destroy() {
     this.clearInterval();
     this.clearCompletedTimeout();
+    this.clearResetAnimationTimeout();
+    this.clearBeepTimeouts();
+    this.unbindEvents();
 
     if (this.audioContext) {
       this.audioContext.close().catch(() => {});
@@ -477,10 +553,16 @@ class TimerRenderer {
 }
 
 // Initialize
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    window.timerApp = new TimerRenderer();
-  });
-} else {
+function initTimer() {
+  // Cleanup existing instance if any
+  if (window.timerApp && typeof window.timerApp.destroy === 'function') {
+    window.timerApp.destroy();
+  }
   window.timerApp = new TimerRenderer();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initTimer);
+} else {
+  initTimer();
 }

@@ -3714,3 +3714,180 @@ html:not(.theme-dark) .timer-preset-btn:hover {
 html:not(.theme-dark) .timer-preset-btn:active {
   color: var(--primary);
 }
+
+/* =========================================
+   Stopwatch Styles
+   ========================================= */
+
+.stopwatch-layout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+}
+
+.stopwatch-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 0.5rem 2rem;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Time Display */
+.stopwatch-display-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
+
+.stopwatch-display {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+}
+
+.stopwatch-display-hours,
+.stopwatch-display-minutes,
+.stopwatch-display-seconds {
+  color: #e5e7eb;
+  font-size: clamp(1.5rem, 10vw, 3rem);
+  font-weight: 200;
+  font-family: 'SF Mono', 'Monaco', monospace;
+  min-width: 2ch;
+  text-align: center;
+}
+
+.stopwatch-display-ms {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: clamp(1rem, 6vw, 1.8rem);
+  font-weight: 200;
+  font-family: 'SF Mono', 'Monaco', monospace;
+  min-width: 2ch;
+  text-align: center;
+}
+
+.stopwatch-separator {
+  font-size: clamp(1.5rem, 8vw, 2.5rem);
+  color: rgba(255, 255, 255, 0.2);
+  margin: 0 0.1em;
+}
+
+.stopwatch-separator-ms {
+  font-size: clamp(1rem, 6vw, 1.8rem);
+  color: rgba(255, 255, 255, 0.15);
+}
+
+/* Control Buttons */
+.stopwatch-controls {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.stopwatch-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.stopwatch-btn-start,
+.stopwatch-btn-pause {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e5e7eb;
+  backdrop-filter: blur(10px);
+}
+
+.stopwatch-btn-start {
+  background: linear-gradient(135deg, var(--primary), var(--primary-2));
+  border: none;
+}
+
+.stopwatch-btn-start:hover {
+  background: linear-gradient(135deg, #ff6b85, #e85af0);
+  transform: scale(1.05);
+}
+
+.stopwatch-btn-pause {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.stopwatch-btn-pause:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: scale(1.05);
+}
+
+.stopwatch-btn-reset {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  backdrop-filter: none;
+}
+
+.stopwatch-btn-reset:hover {
+  color: #e5e7eb;
+}
+
+.stopwatch-btn:active {
+  transform: scale(0.95);
+}
+
+/* Light Mode */
+html:not(.theme-dark) .stopwatch-display-hours,
+html:not(.theme-dark) .stopwatch-display-minutes,
+html:not(.theme-dark) .stopwatch-display-seconds {
+  color: #374151;
+}
+
+html:not(.theme-dark) .stopwatch-display-ms {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+html:not(.theme-dark) .stopwatch-separator {
+  color: rgba(0, 0, 0, 0.2);
+}
+
+html:not(.theme-dark) .stopwatch-separator-ms {
+  color: rgba(0, 0, 0, 0.15);
+}
+
+html:not(.theme-dark) .stopwatch-btn-start,
+html:not(.theme-dark) .stopwatch-btn-pause {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #374151;
+}
+
+html:not(.theme-dark) .stopwatch-btn-start {
+  color: white;
+  background: linear-gradient(135deg, var(--primary), var(--primary-2));
+}
+
+html:not(.theme-dark) .stopwatch-btn-start:hover {
+  background: linear-gradient(135deg, #ff6b85, #e85af0);
+}
+
+html:not(.theme-dark) .stopwatch-btn-pause:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+html:not(.theme-dark) .stopwatch-btn-reset {
+  color: #6b7280;
+}
+
+html:not(.theme-dark) .stopwatch-btn-reset:hover {
+  color: #374151;
+}
