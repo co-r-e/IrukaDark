@@ -140,6 +140,7 @@ async function ensureLangLoaded(lang) {
 class IrukaDarkApp {
   // Constants
   static IME_DEBOUNCE_MS = 100; // Time to wait after IME composition ends before allowing Enter key
+  static MAX_CHAT_HISTORY_SIZE = 200; // Maximum number of messages to keep in memory
 
   constructor() {
     this.geminiService = new GeminiService();
@@ -3805,6 +3806,10 @@ ${content}`;
   }
 
   showImageOverlay(imageBase64, mimeType, altText, imgElement) {
+    // AbortController for cleanup on overlay close
+    const abortController = new AbortController();
+    const signal = abortController.signal;
+
     const overlay = document.createElement('div');
     overlay.style.position = 'fixed';
     overlay.style.top = '0';
@@ -3853,18 +3858,30 @@ ${content}`;
         zIndex: '10001',
         color: '#1f2937',
       });
-      btn.addEventListener('mouseenter', () => {
-        btn.style.backgroundColor = 'rgba(255, 255, 255, 1)';
-        btn.style.transform = 'scale(1.1)';
-      });
-      btn.addEventListener('mouseleave', () => {
-        btn.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-        btn.style.transform = 'scale(1)';
-      });
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        onClick();
-      });
+      btn.addEventListener(
+        'mouseenter',
+        () => {
+          btn.style.backgroundColor = 'rgba(255, 255, 255, 1)';
+          btn.style.transform = 'scale(1.1)';
+        },
+        { signal }
+      );
+      btn.addEventListener(
+        'mouseleave',
+        () => {
+          btn.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+          btn.style.transform = 'scale(1)';
+        },
+        { signal }
+      );
+      btn.addEventListener(
+        'click',
+        (e) => {
+          e.stopPropagation();
+          onClick();
+        },
+        { signal }
+      );
       return btn;
     };
 
@@ -3893,9 +3910,13 @@ ${content}`;
     overlay.appendChild(imageContainer);
 
     // Close overlay when clicking anywhere except buttons
-    overlay.addEventListener('click', () => {
-      document.body.removeChild(overlay);
-    });
+    const closeOverlay = () => {
+      abortController.abort(); // Cleanup all event listeners
+      if (overlay.parentNode) {
+        document.body.removeChild(overlay);
+      }
+    };
+    overlay.addEventListener('click', closeOverlay, { signal });
 
     document.body.appendChild(overlay);
   }
@@ -4516,7 +4537,13 @@ ${content}`;
     if (file.type.startsWith('image/')) {
       const img = document.createElement('img');
       const reader = new FileReader();
-      reader.onload = (e) => (img.src = e.target.result);
+      this.activeFileReaders.add(reader);
+      reader.onload = (e) => {
+        img.src = e.target.result;
+        this.activeFileReaders.delete(reader);
+      };
+      reader.onerror = () => this.activeFileReaders.delete(reader);
+      reader.onabort = () => this.activeFileReaders.delete(reader);
       reader.readAsDataURL(file);
       item.appendChild(img);
     } else {
@@ -4714,7 +4741,7 @@ ${content}`;
       const processedContent = this.processUserContent(content);
       const attachmentsHtml = this.generateAttachmentsPreview(attachments);
 
-      this.chatHistoryData.push({ role: 'user', content });
+      this.addToChatHistory({ role: 'user', content });
       // Invalidate cache after modifying history data (optimization: only when history changes)
       this.clearHistoryContextCache();
       messageDiv.innerHTML = `
@@ -4743,7 +4770,7 @@ ${content}`;
       }
 
       const markdownContent = this.renderMarkdown(text);
-      this.chatHistoryData.push({ role: 'assistant', content: text });
+      this.addToChatHistory({ role: 'assistant', content: text });
       // Invalidate cache after modifying history data (optimization: only when history changes)
       this.clearHistoryContextCache();
       // Build DOM to allow badge + accordion below
@@ -4856,7 +4883,7 @@ ${content}`;
           { signal: systemAbortController.signal }
         );
       } catch {}
-      this.chatHistoryData.push({ role: 'user', content });
+      this.addToChatHistory({ role: 'user', content });
       // Invalidate cache after modifying history data (optimization: only when history changes)
       this.clearHistoryContextCache();
     } else if (type === 'system') {
@@ -4919,6 +4946,16 @@ ${content}`;
           this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
         }
       });
+    }
+  }
+
+  // Add message to chat history with size limit to prevent memory leaks
+  addToChatHistory(message) {
+    this.chatHistoryData.push(message);
+    // Trim old messages if exceeding max size
+    const maxSize = IrukaDarkApp.MAX_CHAT_HISTORY_SIZE;
+    if (this.chatHistoryData.length > maxSize) {
+      this.chatHistoryData = this.chatHistoryData.slice(-maxSize);
     }
   }
 
@@ -5593,10 +5630,19 @@ class GeminiService {
   async readTextFile(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
+      this.activeFileReaders.add(reader);
       reader.onload = () => {
+        this.activeFileReaders.delete(reader);
         resolve(reader.result);
       };
-      reader.onerror = reject;
+      reader.onerror = (e) => {
+        this.activeFileReaders.delete(reader);
+        reject(e);
+      };
+      reader.onabort = () => {
+        this.activeFileReaders.delete(reader);
+        reject(new Error('FileReader aborted'));
+      };
       reader.readAsText(file);
     });
   }
@@ -5604,12 +5650,21 @@ class GeminiService {
   async fileToBase64(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
+      this.activeFileReaders.add(reader);
       reader.onload = () => {
+        this.activeFileReaders.delete(reader);
         // data:image/png;base64,... の形式から base64部分のみを取得
         const base64 = reader.result.split(',')[1];
         resolve(base64);
       };
-      reader.onerror = reject;
+      reader.onerror = (e) => {
+        this.activeFileReaders.delete(reader);
+        reject(e);
+      };
+      reader.onabort = () => {
+        this.activeFileReaders.delete(reader);
+        reject(new Error('FileReader aborted'));
+      };
       reader.readAsDataURL(file);
     });
   }
