@@ -2484,6 +2484,31 @@ function bootstrapApp() {
       }
     });
 
+    // Schedule: Select app for scheduled action
+    ipcMain.handle('schedule:select-app', async () => {
+      try {
+        const focusedWindow = BrowserWindow.getFocusedWindow();
+        const result = await dialog.showOpenDialog(focusedWindow, {
+          properties: ['openFile'],
+          defaultPath: '/Applications',
+          message: 'Select an application',
+        });
+
+        if (result.canceled || result.filePaths.length === 0) {
+          return null;
+        }
+
+        const appPath = result.filePaths[0];
+        // Extract app name from path (e.g., "/Applications/Safari.app" -> "Safari")
+        const appName = require('path').basename(appPath, '.app');
+
+        return { path: appPath, name: appName };
+      } catch (err) {
+        console.error('Failed to select app:', err);
+        return null;
+      }
+    });
+
     // File search - lazy load on first use
     ipcMain.handle('launcher:search-files', async (_e, query, limit = 20, offset = 0) => {
       try {

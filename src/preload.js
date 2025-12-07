@@ -181,6 +181,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     executeSystemCommand: (commandId) =>
       ipcRenderer.invoke('launcher:execute-system-command', commandId),
   },
+  // Schedule
+  schedule: {
+    selectApp: () => ipcRenderer.invoke('schedule:select-app'),
+  },
   // Shortcut settings
   getShortcutAssignments: () => ipcRenderer.invoke('settings:get-shortcut-assignments'),
   saveShortcutAssignment: (action, key) =>
