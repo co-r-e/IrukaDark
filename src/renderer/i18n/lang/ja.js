@@ -341,6 +341,17 @@
       snippetsImportReplace: '置換モード',
       snippetsImportReplaceDesc: '既存のスニペットをすべて置換',
       snippetsImportReplaceWarning: 'この操作は元に戻せません',
+      // カスタム指示
+      customInstructions: 'カスタム指示',
+      customInstructionsDesc: 'AIの応答をパーソナライズ',
+      customInstructionsEdit: '編集',
+      customInstructionsUserInfo: 'あなたについて',
+      customInstructionsUserInfoPlaceholder: '例：名前はMasatoです。エンジニアをしています。',
+      customInstructionsAI: 'IrukaDarkへの指示',
+      customInstructionsAIPlaceholder:
+        'IrukaDarkにどのように応答してほしいですか？\n例：わかりやすい日常的な言葉を使うようにしてください。',
+      customInstructionsSaved: 'カスタム指示を保存しました',
+      customInstructionsCleared: 'カスタム指示をクリアしました',
     },
     apiKey: {
       title: 'IrukaDarkへようこそ',

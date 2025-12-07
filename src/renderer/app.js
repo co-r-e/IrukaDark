@@ -5133,6 +5133,9 @@ class GeminiService {
   constructor() {
     this.model = 'gemini-2.5-flash-lite';
     this.lastGeneratedImage = null; // Store last generated image for reference
+    // Custom instructions cache
+    this.customUserInfo = '';
+    this.customAIInstructions = '';
     this.initializeModel();
   }
 
@@ -5143,6 +5146,20 @@ class GeminiService {
         const model = await window.electronAPI.getModel();
         if (model && typeof model === 'string') {
           this.model = model;
+        }
+      }
+      // カスタム指示の取得
+      await this.loadCustomInstructions();
+    } catch (error) {}
+  }
+
+  async loadCustomInstructions() {
+    try {
+      if (window.electronAPI && window.electronAPI.getCustomInstructions) {
+        const result = await window.electronAPI.getCustomInstructions();
+        if (result && result.success) {
+          this.customUserInfo = result.userInfo || '';
+          this.customAIInstructions = result.aiInstructions || '';
         }
       }
     } catch (error) {}
@@ -6051,18 +6068,24 @@ ${trimmed}`;
   }
 
   defaultGenerationConfig() {
-    return { temperature: 0.7, topK: 40, topP: 0.95, maxOutputTokens: 2048 };
+    return { temperature: 0.7, topK: 40, topP: 0.95, maxOutputTokens: 8192 };
   }
 
   buildTextOnlyPrompt(userMessage, historyText = '') {
     const lang =
       (typeof getCurrentUILanguage === 'function' ? getCurrentUILanguage() : 'en') || 'en';
     const tone = typeof getCurrentTone === 'function' ? getCurrentTone() : 'casual';
+
+    // Build custom instructions section
+    const customInstructionsSection = this.buildCustomInstructionsSection(lang);
+
     if (lang === 'ja') {
       if (tone === 'formal') {
-        let prompt = `あなたは親切で知識豊富なAIアシスタントです。ユーザーの質問に日本語で丁寧に回答してください。
-
-ユーザーの質問: ${userMessage}`;
+        let prompt = `あなたは親切で知識豊富なAIアシスタントです。ユーザーの質問に日本語で丁寧に回答してください。`;
+        if (customInstructionsSection) {
+          prompt += `\n${customInstructionsSection}`;
+        }
+        prompt += `\n\nユーザーの質問: ${userMessage}`;
         if (historyText && historyText.trim()) {
           prompt += `
 
@@ -6080,9 +6103,11 @@ ${historyText}
         return prompt;
       } else {
         // casual: やさしく温かみのあるタメ口（常体）
-        let prompt = `あなたは親切でフレンドリーなAIアシスタントです。日本語で、やさしく温かみのあるタメ口（常体）で、簡潔に答えて。
-
-ユーザーの質問: ${userMessage}`;
+        let prompt = `あなたは親切でフレンドリーなAIアシスタントです。日本語で、やさしく温かみのあるタメ口（常体）で、簡潔に答えて。`;
+        if (customInstructionsSection) {
+          prompt += `\n${customInstructionsSection}`;
+        }
+        prompt += `\n\nユーザーの質問: ${userMessage}`;
         if (historyText && historyText.trim()) {
           prompt += `
 
@@ -6103,9 +6128,11 @@ ${historyText}
     } else {
       const { name, code } = getLangMeta(lang);
       if (tone === 'formal') {
-        let prompt = `You are a helpful and knowledgeable AI assistant. Answer the user's question clearly and concisely. Respond strictly in ${name} (${code}).
-
-User question: ${userMessage}`;
+        let prompt = `You are a helpful and knowledgeable AI assistant. Answer the user's question clearly and concisely. Respond strictly in ${name} (${code}).`;
+        if (customInstructionsSection) {
+          prompt += `\n${customInstructionsSection}`;
+        }
+        prompt += `\n\nUser question: ${userMessage}`;
         if (historyText && historyText.trim()) {
           prompt += `
 
@@ -6123,9 +6150,11 @@ Answering guidelines:
         return prompt;
       } else {
         // casual: friendly, conversational, still concise
-        let prompt = `You are a helpful, friendly AI assistant. Answer with a warm, conversational tone. Respond strictly in ${name} (${code}).
-
-User question: ${userMessage}`;
+        let prompt = `You are a helpful, friendly AI assistant. Answer with a warm, conversational tone. Respond strictly in ${name} (${code}).`;
+        if (customInstructionsSection) {
+          prompt += `\n${customInstructionsSection}`;
+        }
+        prompt += `\n\nUser question: ${userMessage}`;
         if (historyText && historyText.trim()) {
           prompt += `
 
@@ -6137,12 +6166,44 @@ Use this context in your answer.`;
         prompt += `
 
 Answering guidelines:
-- Don’t overstate; base answers on solid information
+- Don't overstate; base answers on solid information
 - Add brief steps or rationale when useful
 - Keep it friendly and conversational, but succinct (no emojis)`;
         return prompt;
       }
     }
+  }
+
+  /**
+   * Build custom instructions section for prompt
+   * @param {string} lang - Current UI language
+   * @returns {string} Custom instructions section or empty string
+   */
+  buildCustomInstructionsSection(lang) {
+    const hasUserInfo = this.customUserInfo && this.customUserInfo.trim();
+    const hasAIInstructions = this.customAIInstructions && this.customAIInstructions.trim();
+
+    if (!hasUserInfo && !hasAIInstructions) {
+      return '';
+    }
+
+    let section = '';
+    if (lang === 'ja') {
+      if (hasUserInfo) {
+        section += `\n【ユーザーについて】\n${this.customUserInfo.trim()}`;
+      }
+      if (hasAIInstructions) {
+        section += `\n【カスタム指示】\n${this.customAIInstructions.trim()}`;
+      }
+    } else {
+      if (hasUserInfo) {
+        section += `\n[About the user]\n${this.customUserInfo.trim()}`;
+      }
+      if (hasAIInstructions) {
+        section += `\n[Custom instructions]\n${this.customAIInstructions.trim()}`;
+      }
+    }
+    return section;
   }
 }
 

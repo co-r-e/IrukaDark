@@ -48,6 +48,11 @@ class SettingsUI {
     this.syncPopupWithMain = false;
     this.customPopupIcon = null;
 
+    // Custom Instructions
+    this.customUserInfo = '';
+    this.customAIInstructions = '';
+    this.customInstructionsSaving = false; // Prevent double-click
+
     // Language list for settings
     this.languageList = [
       { code: 'en', label: 'English' },
@@ -168,6 +173,14 @@ class SettingsUI {
         if (window.electronAPI.getCustomPopupIcon) {
           this.customPopupIcon = await window.electronAPI.getCustomPopupIcon();
         }
+        // Load custom instructions
+        if (window.electronAPI.getCustomInstructions) {
+          const result = await window.electronAPI.getCustomInstructions();
+          if (result && result.success) {
+            this.customUserInfo = result.userInfo || '';
+            this.customAIInstructions = result.aiInstructions || '';
+          }
+        }
       }
     } catch (err) {}
   }
@@ -224,6 +237,7 @@ class SettingsUI {
       ${this.renderUpdatesSection()}
       ${this.renderLanguageSection()}
       ${this.renderAppearanceSection()}
+      ${this.renderCustomInstructionsSection()}
       ${this.renderSnippetsSection()}
       <div class="settings-section">
         <div class="settings-section-title" data-i18n="settings.shortcuts">
@@ -359,6 +373,32 @@ class SettingsUI {
                 )
                 .join('')}
             </select>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  renderCustomInstructionsSection() {
+    const t = this.i18n.settings;
+    const hasInstructions = this.customUserInfo || this.customAIInstructions;
+    const statusText = hasInstructions
+      ? this.escapeHtml(t.customInstructionsDesc || 'Personalize how AI responds to you')
+      : '';
+
+    return `
+      <div class="settings-section">
+        <div class="settings-section-title">
+          ${this.escapeHtml(t.customInstructions || 'Custom Instructions')}
+        </div>
+        <div class="settings-item custom-instructions-item">
+          <div class="settings-item-label">
+            ${this.escapeHtml(t.customInstructionsDesc || 'Personalize how AI responds to you')}
+          </div>
+          <div class="settings-item-controls">
+            <button id="customInstructionsEditBtn" class="settings-btn ${hasInstructions ? 'settings-btn-active' : ''}">
+              ${this.escapeHtml(t.customInstructionsEdit || 'Edit')}
+            </button>
           </div>
         </div>
       </div>
@@ -528,6 +568,12 @@ class SettingsUI {
     const importSnippetsBtn = document.getElementById('importSnippetsBtn');
     if (importSnippetsBtn) {
       importSnippetsBtn.addEventListener('click', () => this.handleImportSnippets());
+    }
+
+    // Custom instructions edit button
+    const customInstructionsEditBtn = document.getElementById('customInstructionsEditBtn');
+    if (customInstructionsEditBtn) {
+      customInstructionsEditBtn.addEventListener('click', () => this.showCustomInstructionsPopup());
     }
 
     // Footer links (open external URLs)
@@ -1346,9 +1392,197 @@ class SettingsUI {
     document.getElementById('snippetProgressOverlay').style.display = 'none';
   }
 
+  /**
+   * Show custom instructions popup
+   */
+  showCustomInstructionsPopup() {
+    const popup = document.getElementById('customInstructionsPopup');
+    if (!popup) return;
+
+    const t = this.i18n.settings;
+
+    // Set labels
+    const userInfoLabel = popup.querySelector('.custom-instructions-user-label');
+    if (userInfoLabel) {
+      userInfoLabel.textContent = t.customInstructionsUserInfo || 'About You';
+    }
+
+    const aiLabel = popup.querySelector('.custom-instructions-ai-label');
+    if (aiLabel) {
+      aiLabel.textContent = t.customInstructionsAI || 'How AI Should Respond';
+    }
+
+    // Set placeholders and values
+    const userInfoTextarea = popup.querySelector('#customInstructionsUserInfo');
+    if (userInfoTextarea) {
+      userInfoTextarea.placeholder =
+        t.customInstructionsUserInfoPlaceholder || 'What would you like AI to know about you?';
+      userInfoTextarea.value = this.customUserInfo || '';
+    }
+
+    const aiTextarea = popup.querySelector('#customInstructionsAI');
+    if (aiTextarea) {
+      aiTextarea.placeholder =
+        t.customInstructionsAIPlaceholder || 'How would you like AI to respond?';
+      aiTextarea.value = this.customAIInstructions || '';
+    }
+
+    // Show popup
+    popup.style.display = 'block';
+
+    // Setup popup event handlers
+    this.setupCustomInstructionsPopupHandlers(popup);
+  }
+
+  /**
+   * Setup custom instructions popup event handlers
+   */
+  setupCustomInstructionsPopupHandlers(popup) {
+    // Create AbortController for cleanup
+    if (this.customInstructionsAbortController) {
+      this.customInstructionsAbortController.abort();
+    }
+    this.customInstructionsAbortController = new AbortController();
+    const signal = this.customInstructionsAbortController.signal;
+
+    // Close button
+    const closeBtn = popup.querySelector('.custom-instructions-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => this.hideCustomInstructionsPopup(), { signal });
+    }
+
+    // Save button
+    const saveBtn = popup.querySelector('.custom-instructions-save-btn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => this.saveCustomInstructions(), { signal });
+    }
+
+    // Clear button
+    const clearBtn = popup.querySelector('.custom-instructions-clear-btn');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => this.clearCustomInstructions(), { signal });
+    }
+  }
+
+  /**
+   * Hide custom instructions popup
+   */
+  hideCustomInstructionsPopup() {
+    const popup = document.getElementById('customInstructionsPopup');
+    if (popup) {
+      popup.style.display = 'none';
+    }
+    if (this.customInstructionsAbortController) {
+      this.customInstructionsAbortController.abort();
+      this.customInstructionsAbortController = null;
+    }
+  }
+
+  /**
+   * Save custom instructions
+   */
+  async saveCustomInstructions() {
+    // Prevent double-click
+    if (this.customInstructionsSaving) return;
+    this.customInstructionsSaving = true;
+
+    const popup = document.getElementById('customInstructionsPopup');
+    if (!popup) {
+      this.customInstructionsSaving = false;
+      return;
+    }
+
+    const userInfoTextarea = popup.querySelector('#customInstructionsUserInfo');
+    const aiTextarea = popup.querySelector('#customInstructionsAI');
+
+    const userInfo = userInfoTextarea ? userInfoTextarea.value : '';
+    const aiInstructions = aiTextarea ? aiTextarea.value : '';
+
+    try {
+      const result = await window.electronAPI.setCustomInstructions({
+        userInfo,
+        aiInstructions,
+      });
+
+      if (result && result.success) {
+        this.customUserInfo = userInfo;
+        this.customAIInstructions = aiInstructions;
+        const t = this.i18n?.settings || {};
+        this.showToast(t.customInstructionsSaved || 'Custom instructions saved', 'success');
+        this.hideCustomInstructionsPopup();
+        // Re-render to update button state
+        this.render();
+        this.bindEvents();
+        // Reload custom instructions in GeminiService for immediate effect
+        this.reloadGeminiCustomInstructions();
+      } else {
+        throw new Error(result?.error || 'Failed to save');
+      }
+    } catch (err) {
+      this.showToast(this.i18n?.errorOccurred || 'An error occurred', 'error');
+    } finally {
+      this.customInstructionsSaving = false;
+    }
+  }
+
+  /**
+   * Clear custom instructions
+   */
+  async clearCustomInstructions() {
+    // Prevent double-click
+    if (this.customInstructionsSaving) return;
+    this.customInstructionsSaving = true;
+
+    try {
+      const result = await window.electronAPI.setCustomInstructions({
+        userInfo: '',
+        aiInstructions: '',
+      });
+
+      if (result && result.success) {
+        this.customUserInfo = '';
+        this.customAIInstructions = '';
+        const t = this.i18n?.settings || {};
+        this.showToast(t.customInstructionsCleared || 'Custom instructions cleared', 'success');
+        this.hideCustomInstructionsPopup();
+        // Re-render to update button state
+        this.render();
+        this.bindEvents();
+        // Reload custom instructions in GeminiService for immediate effect
+        this.reloadGeminiCustomInstructions();
+      } else {
+        throw new Error(result?.error || 'Failed to clear');
+      }
+    } catch (err) {
+      this.showToast(this.i18n?.errorOccurred || 'An error occurred', 'error');
+    } finally {
+      this.customInstructionsSaving = false;
+    }
+  }
+
+  /**
+   * Reload custom instructions in GeminiService
+   */
+  reloadGeminiCustomInstructions() {
+    try {
+      if (
+        window.app &&
+        window.app.geminiService &&
+        window.app.geminiService.loadCustomInstructions
+      ) {
+        window.app.geminiService.loadCustomInstructions();
+      }
+    } catch (err) {}
+  }
+
   destroy() {
     this.unbindEvents();
     this.stopListening();
+    // Clean up custom instructions popup
+    if (this.customInstructionsAbortController) {
+      this.customInstructionsAbortController.abort();
+      this.customInstructionsAbortController = null;
+    }
     // Clean up event listeners
     this.languageChangeHandler = null;
     this.themeChangeHandler = null;

@@ -3318,6 +3318,39 @@
         </div>
       </div>
 
+      <!-- Custom Instructions Popup -->
+      <div id="customInstructionsPopup" class="custom-instructions-popup" style="display: none">
+        <button class="custom-instructions-close" aria-label="Close">×</button>
+        <div class="custom-instructions-content">
+          <div class="custom-instructions-field">
+            <label
+              class="custom-instructions-user-label"
+              data-i18n="settings.customInstructionsUserInfo"
+              >About You</label
+            >
+            <textarea
+              id="customInstructionsUserInfo"
+              class="custom-instructions-textarea"
+              rows="3"
+            ></textarea>
+          </div>
+          <div class="custom-instructions-field">
+            <label class="custom-instructions-ai-label" data-i18n="settings.customInstructionsAI"
+              >How AI Should Respond</label
+            >
+            <textarea
+              id="customInstructionsAI"
+              class="custom-instructions-textarea"
+              rows="3"
+            ></textarea>
+          </div>
+          <div class="custom-instructions-actions">
+            <button class="custom-instructions-clear-btn">Clear</button>
+            <button class="custom-instructions-save-btn">Save</button>
+          </div>
+        </div>
+      </div>
+
       <!-- History Footer -->
       <div id="historyFooter" class="tab-footer" style="display: none">
         <div class="search-container">

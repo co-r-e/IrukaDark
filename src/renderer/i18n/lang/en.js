@@ -340,6 +340,17 @@
       snippetsImportReplace: 'Replace Mode',
       snippetsImportReplaceDesc: 'Replace all existing snippets',
       snippetsImportReplaceWarning: 'This action cannot be undone',
+      // Custom Instructions
+      customInstructions: 'Custom Instructions',
+      customInstructionsDesc: 'Personalize how AI responds to you',
+      customInstructionsEdit: 'Edit',
+      customInstructionsUserInfo: 'About You',
+      customInstructionsUserInfoPlaceholder: 'e.g., My name is Masato. I work as an engineer.',
+      customInstructionsAI: 'Instructions for IrukaDark',
+      customInstructionsAIPlaceholder:
+        'How would you like IrukaDark to respond?\ne.g., Use simple, everyday language.',
+      customInstructionsSaved: 'Custom instructions saved',
+      customInstructionsCleared: 'Custom instructions cleared',
     },
     apiKey: {
       title: 'Welcome to IrukaDark',

@@ -195,6 +195,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Gemini API Key
   getGeminiApiKey: () => ipcRenderer.invoke('settings:get-gemini-api-key'),
   saveGeminiApiKey: (apiKey) => ipcRenderer.invoke('settings:save-gemini-api-key', apiKey),
+  // Custom Instructions (ChatGPT-style personalization)
+  getCustomInstructions: () => ipcRenderer.invoke('settings:get-custom-instructions'),
+  setCustomInstructions: (instructions) =>
+    ipcRenderer.invoke('settings:set-custom-instructions', instructions),
 });
 
 // Terminal API

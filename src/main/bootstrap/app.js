@@ -2683,6 +2683,32 @@ function bootstrapApp() {
         return { success: false, error: err.message };
       }
     });
+
+    // Custom Instructions handlers (ChatGPT-style personalization)
+    ipcMain.handle('settings:get-custom-instructions', () => {
+      try {
+        const userInfo = getPref('CUSTOM_USER_INFO') || '';
+        const aiInstructions = getPref('CUSTOM_AI_INSTRUCTIONS') || '';
+        return { success: true, userInfo, aiInstructions };
+      } catch (err) {
+        return { success: false, error: err.message, userInfo: '', aiInstructions: '' };
+      }
+    });
+
+    ipcMain.handle('settings:set-custom-instructions', (_e, instructions) => {
+      try {
+        const { userInfo, aiInstructions } = instructions || {};
+        // Allow empty strings to clear instructions
+        setPref('CUSTOM_USER_INFO', typeof userInfo === 'string' ? userInfo.trim() : '');
+        setPref(
+          'CUSTOM_AI_INSTRUCTIONS',
+          typeof aiInstructions === 'string' ? aiInstructions.trim() : ''
+        );
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    });
   }
 
   function setupAiHandlers() {
@@ -2735,7 +2761,7 @@ function bootstrapApp() {
           temperature: 0.7,
           topK: 40,
           topP: 0.95,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 8192,
         };
         if (isShortcut) {
           const cap = 2048;

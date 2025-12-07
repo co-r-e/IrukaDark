@@ -2533,6 +2533,177 @@ html:not(.theme-dark) .shortcut-change-instruction {
 }
 
 /* ========================================
+   Custom Instructions Popup
+   ChatGPT-style personalization settings
+   ======================================== */
+
+.custom-instructions-popup {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--popup-bg-dark);
+  border: 1px solid var(--popup-border-dark);
+  border-radius: var(--radius-lg);
+  padding: 0;
+  min-width: var(--popup-min-width);
+  max-width: var(--popup-max-width);
+  box-shadow: var(--popup-shadow);
+  z-index: var(--popup-z-index);
+  overflow: hidden;
+  backdrop-filter: blur(var(--popup-blur));
+}
+
+html:not(.theme-dark) .custom-instructions-popup {
+  background: var(--popup-bg-light);
+  border-color: var(--popup-border-light);
+}
+
+.custom-instructions-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+  z-index: 1;
+}
+
+.custom-instructions-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary-dark);
+}
+
+html:not(.theme-dark) .custom-instructions-close:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--text-primary-light);
+}
+
+.custom-instructions-content {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.custom-instructions-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.custom-instructions-user-label,
+.custom-instructions-ai-label {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--text-primary-dark);
+}
+
+html:not(.theme-dark) .custom-instructions-user-label,
+html:not(.theme-dark) .custom-instructions-ai-label {
+  color: var(--text-primary-light);
+}
+
+.custom-instructions-textarea {
+  width: 100%;
+  min-height: 54px;
+  max-height: 80px;
+  padding: 6px 8px;
+  font-size: var(--font-size-xs);
+  font-family: inherit;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  color: var(--text-primary-dark);
+  resize: vertical;
+  transition: border-color 0.15s ease;
+}
+
+html:not(.theme-dark) .custom-instructions-textarea {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: var(--text-primary-light);
+}
+
+.custom-instructions-textarea:focus {
+  outline: none;
+  border-color: var(--primary-600);
+}
+
+.custom-instructions-textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.custom-instructions-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.custom-instructions-clear-btn,
+.custom-instructions-save-btn {
+  flex: 1;
+  padding: 5px 10px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.custom-instructions-clear-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-muted);
+}
+
+html:not(.theme-dark) .custom-instructions-clear-btn {
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+.custom-instructions-clear-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary-dark);
+}
+
+html:not(.theme-dark) .custom-instructions-clear-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-primary-light);
+}
+
+.custom-instructions-save-btn {
+  background: var(--primary-gradient);
+  border: none;
+  color: #ffffff;
+}
+
+.custom-instructions-save-btn:hover {
+  opacity: 0.9;
+  box-shadow: var(--shadow-glow-primary);
+}
+
+/* Settings button active state when custom instructions are set */
+.settings-btn-active {
+  background: var(--primary-gradient);
+  color: #ffffff;
+  border-color: transparent;
+}
+
+.settings-btn-active:hover {
+  opacity: 0.9;
+}
+
+/* ========================================
    API Key Registration Form
    Displays when user has not set up their Gemini API key yet
    ======================================== */
