@@ -6,9 +6,6 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   getModel: () => ipcRenderer.invoke('get-model'),
-  setModel: (model) => ipcRenderer.invoke('set-model', model),
-  getWebSearchModel: () => ipcRenderer.invoke('get-web-search-model'),
-  setWebSearchModel: (model) => ipcRenderer.invoke('set-web-search-model', model),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   getUILanguage: () => ipcRenderer.invoke('get-ui-language'),
   setUILanguage: (lang) => ipcRenderer.invoke('set-ui-language', lang),
@@ -19,8 +16,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getGlassLevel: () => ipcRenderer.invoke('get-glass-level'),
   getWindowOpacity: () => ipcRenderer.invoke('get-window-opacity'),
   setWindowOpacity: (opacity) => ipcRenderer.invoke('set-window-opacity', opacity),
-  getPinAllSpaces: () => ipcRenderer.invoke('get-pin-all-spaces'),
-  setPinAllSpaces: (enabled) => ipcRenderer.invoke('set-pin-all-spaces', enabled),
   getSyncPopupWithMain: () => ipcRenderer.invoke('get-sync-popup-with-main'),
   setSyncPopupWithMain: (enabled) => ipcRenderer.invoke('set-sync-popup-with-main', enabled),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
@@ -60,8 +55,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('shortcut-url-summary-registered', (_e, a) => cb(a)),
   onShortcutUrlDetailedRegistered: (cb) =>
     ipcRenderer.on('shortcut-url-detailed-registered', (_e, a) => cb(a)),
-  onShortcutSlideImageRegistered: (cb) =>
-    ipcRenderer.on('shortcut-slide-image-registered', (_e, a) => cb(a)),
   onGenerateSlideImage: (cb) => ipcRenderer.on('generate-slide-image', (_e, text) => cb(text)),
   onThemeChanged: (cb) => ipcRenderer.on('theme-changed', (_e, theme) => cb(theme)),
   onToneChanged: (cb) => ipcRenderer.on('tone-changed', (_e, tone) => cb(tone)),
@@ -126,16 +119,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setDragging: (isDragging) => ipcRenderer.invoke('ui:set-dragging', isDragging),
   // Clipboard history
   getClipboardHistory: () => ipcRenderer.invoke('clipboard:get-history'),
-  clearClipboardHistory: () => ipcRenderer.invoke('clipboard:clear-history'),
   copyToClipboard: (text) => ipcRenderer.invoke('clipboard:copy', text),
-  deleteClipboardItem: (id) => ipcRenderer.invoke('clipboard:delete-item', id),
-  startClipboardMonitoring: () => ipcRenderer.invoke('clipboard:start-monitoring'),
-  stopClipboardMonitoring: () => ipcRenderer.invoke('clipboard:stop-monitoring'),
-  getClipboardMonitoringStatus: () => ipcRenderer.invoke('clipboard:get-status'),
   onClipboardHistoryUpdated: (cb) =>
     ipcRenderer.on('clipboard:history-updated', (_e, history) => cb(history)),
   getTheme: () => ipcRenderer.invoke('get-ui-theme'),
-  showClipboardContextMenu: () => ipcRenderer.invoke('clipboard:show-context-menu'),
   // Snippet operations
   getSnippetData: () => ipcRenderer.invoke('snippet:get-data'),
   saveSnippetData: (data) => ipcRenderer.invoke('snippet:save-data', data),
@@ -189,8 +176,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getShortcutAssignments: () => ipcRenderer.invoke('settings:get-shortcut-assignments'),
   saveShortcutAssignment: (action, key) =>
     ipcRenderer.invoke('settings:save-shortcut-assignment', action, key),
-  validateShortcut: (key, excludeAction) =>
-    ipcRenderer.invoke('settings:validate-shortcut', key, excludeAction),
   resetShortcutAssignments: () => ipcRenderer.invoke('settings:reset-shortcut-assignments'),
   // Gemini API Key
   getGeminiApiKey: () => ipcRenderer.invoke('settings:get-gemini-api-key'),

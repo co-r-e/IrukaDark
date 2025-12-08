@@ -1195,29 +1195,6 @@ function bootstrapApp() {
       return value;
     });
 
-    ipcMain.handle('set-model', (_e, model) => {
-      const value = String(model || 'gemini-flash-lite-latest').trim();
-      setPref('GEMINI_MODEL', value);
-      prefCache.invalidate('GEMINI_MODEL');
-      return value;
-    });
-
-    ipcMain.handle('get-web-search-model', () => {
-      const cached = prefCache.get('WEB_SEARCH_MODEL');
-      if (cached !== null) return cached || 'gemini-flash-latest';
-
-      const value = getPref('WEB_SEARCH_MODEL') || 'gemini-flash-latest';
-      prefCache.set('WEB_SEARCH_MODEL', value);
-      return value;
-    });
-
-    ipcMain.handle('set-web-search-model', (_e, model) => {
-      const value = String(model || 'gemini-flash-latest').trim();
-      setPref('WEB_SEARCH_MODEL', value);
-      prefCache.invalidate('WEB_SEARCH_MODEL');
-      return value;
-    });
-
     ipcMain.handle('get-tone', () => {
       const cached = prefCache.get('TONE');
       if (cached !== null) return cached || 'casual';
@@ -1350,17 +1327,6 @@ function bootstrapApp() {
       settingsController.handleWindowOpacityChange(normalized);
       prefCache.invalidate('WINDOW_OPACITY');
       return normalized;
-    });
-
-    ipcMain.handle('get-pin-all-spaces', () => {
-      const v = String(getPref('PIN_ALL_SPACES') || '0');
-      return v === '1' || v.toLowerCase() === 'true';
-    });
-
-    ipcMain.handle('set-pin-all-spaces', (_e, enabled) => {
-      settingsController.handlePinAllSpacesChange(!!enabled);
-      prefCache.invalidate('PIN_ALL_SPACES');
-      return !!enabled;
     });
 
     ipcMain.handle('get-sync-popup-with-main', () => {
@@ -2135,44 +2101,8 @@ function bootstrapApp() {
       return clipboardService.getHistory();
     });
 
-    ipcMain.handle('clipboard:clear-history', () => {
-      clipboardService.clearHistory();
-      return true;
-    });
-
     ipcMain.handle('clipboard:copy', (_e, item) => {
       return clipboardService.copyToClipboard(item);
-    });
-
-    ipcMain.handle('clipboard:delete-item', (_e, id) => {
-      clipboardService.deleteItem(id);
-      return true;
-    });
-
-    ipcMain.handle('clipboard:show-context-menu', (event) => {
-      const menu = Menu.buildFromTemplate([
-        {
-          label: 'Clear All',
-          click: () => {
-            clipboardService.clearHistory();
-          },
-        },
-      ]);
-      menu.popup(BrowserWindow.fromWebContents(event.sender));
-    });
-
-    ipcMain.handle('clipboard:start-monitoring', () => {
-      ensureMonitoring();
-      return { monitoring: clipboardService.isMonitoringActive() };
-    });
-
-    ipcMain.handle('clipboard:stop-monitoring', () => {
-      clipboardService.stopMonitoring();
-      return { monitoring: clipboardService.isMonitoringActive() };
-    });
-
-    ipcMain.handle('clipboard:get-status', () => {
-      return { monitoring: clipboardService.isMonitoringActive() };
     });
 
     // ========== Snippet Handlers ==========
@@ -2615,25 +2545,6 @@ function bootstrapApp() {
         return { success: true };
       } catch (err) {
         return { success: false, error: err.message };
-      }
-    });
-
-    // Validate shortcut for conflicts
-    ipcMain.handle('settings:validate-shortcut', (_e, key, excludeAction) => {
-      try {
-        const assignments = getPref('SHORTCUT_ASSIGNMENTS') || {};
-        const allAssignments = { ...DEFAULT_SHORTCUTS, ...assignments };
-
-        // Check if the key is already assigned to another action
-        for (const [action, assignedKey] of Object.entries(allAssignments)) {
-          if (action !== excludeAction && assignedKey === key) {
-            return action; // Return the conflicting action
-          }
-        }
-
-        return null; // No conflict
-      } catch (err) {
-        return null;
       }
     });
 
