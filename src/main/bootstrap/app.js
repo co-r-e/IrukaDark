@@ -56,6 +56,8 @@ const {
   hideClipboardPopupFast,
   spawnVoiceQuery,
   isVoiceQueryActive,
+  windowControl,
+  WINDOW_CONTROL_ACTIONS,
 } = require('../services/macAutomationBridge');
 const { getClipboardHistoryService } = require('../services/clipboardHistory');
 
@@ -1115,6 +1117,60 @@ function bootstrapApp() {
       }
     }
 
+    // Window Control shortcuts (macOS only)
+    const windowControlRegistered = [];
+    if (process.platform === 'darwin') {
+      for (const actionName of Object.keys(WINDOW_CONTROL_ACTIONS)) {
+        const accel = shortcuts[actionName];
+        if (!accel) continue;
+
+        try {
+          const ok = globalShortcut.register(accel, () => {
+            logShortcutEvent('shortcut.trigger', {
+              accel,
+              kind: 'window_control',
+              action: actionName,
+            });
+            (async () => {
+              try {
+                const result = await windowControl(actionName);
+                if (result.status !== 'ok') {
+                  logShortcutEvent('shortcut.windowControl.failed', {
+                    action: actionName,
+                    code: result.code,
+                    message: result.message,
+                  });
+                }
+              } catch (e) {
+                logShortcutEvent('shortcut.windowControl.error', {
+                  action: actionName,
+                  error: e?.message || '',
+                });
+              }
+            })();
+          });
+          if (ok) {
+            windowControlRegistered.push(actionName);
+            logShortcutEvent('shortcut.register.windowControl.success', {
+              accel,
+              action: actionName,
+            });
+          } else {
+            logShortcutEvent('shortcut.register.windowControl.failed', {
+              accel,
+              action: actionName,
+            });
+          }
+        } catch (e) {
+          logShortcutEvent('shortcut.register.windowControl.exception', {
+            accel,
+            action: actionName,
+            error: e?.message || '',
+          });
+        }
+      }
+    }
+
     try {
       const mainWindow = getMainWindow();
       if (mainWindow && !mainWindow.isDestroyed() && !silent) {
@@ -1136,6 +1192,7 @@ function bootstrapApp() {
         slideImageUsed,
         voiceQueryUsed,
         voiceOnlyUsed,
+        windowControlCount: windowControlRegistered.length,
       });
     } catch {}
 

@@ -102,6 +102,27 @@ class SettingsUI {
       toggleMainWindow: 'Alt+Space',
     };
 
+    // Window Control shortcut defaults
+    this.windowControlShortcuts = {
+      windowLeftHalf: 'Control+Alt+Left',
+      windowRightHalf: 'Control+Alt+Right',
+      windowTopHalf: 'Control+Alt+Up',
+      windowBottomHalf: 'Control+Alt+Down',
+      windowMaximize: 'Control+Alt+Return',
+      windowCenter: 'Control+Alt+C',
+      windowTopLeft: 'Control+Alt+U',
+      windowTopRight: 'Control+Alt+I',
+      windowBottomLeft: 'Control+Alt+J',
+      windowBottomRight: 'Control+Alt+K',
+      windowLeftThird: 'Control+Alt+D',
+      windowCenterThird: 'Control+Alt+F',
+      windowRightThird: 'Control+Alt+G',
+      windowLeftTwoThirds: 'Control+Alt+E',
+      windowRightTwoThirds: 'Control+Alt+T',
+      windowNextMonitor: 'Control+Alt+N',
+      windowPreviousMonitor: 'Control+Alt+P',
+    };
+
     this.init();
   }
 
@@ -139,12 +160,17 @@ class SettingsUI {
     try {
       const assignments = await electronAPI.getShortcutAssignments();
       if (assignments && typeof assignments === 'object') {
-        this.shortcuts = { ...this.defaultShortcuts, ...assignments };
+        // Merge default shortcuts, window control shortcuts, and saved assignments
+        this.shortcuts = {
+          ...this.defaultShortcuts,
+          ...this.windowControlShortcuts,
+          ...assignments,
+        };
       } else {
         throw new Error('Invalid shortcuts data received');
       }
     } catch (err) {
-      this.shortcuts = { ...this.defaultShortcuts };
+      this.shortcuts = { ...this.defaultShortcuts, ...this.windowControlShortcuts };
 
       // Notify user if i18n is available
       if (this.i18n && this.i18n.settings && this.i18n.settings.loadError) {
@@ -209,7 +235,11 @@ class SettingsUI {
       .replace(/\bControl\b/g, '⌃')
       .replace(/\bShift\b/g, '⇧')
       .replace(/\bCommand\b/g, '⌘')
-      .replace(/\bCmd\b/g, '⌘');
+      .replace(/\bCmd\b/g, '⌘')
+      .replace(/\bLeft\b/g, '←')
+      .replace(/\bRight\b/g, '→')
+      .replace(/\bUp\b/g, '↑')
+      .replace(/\bDown\b/g, '↓');
   }
 
   /**
@@ -223,7 +253,11 @@ class SettingsUI {
       .replace(/\bOption\b/gi, 'Alt')
       .replace(/⌃/g, 'Control')
       .replace(/⇧/g, 'Shift')
-      .replace(/⌘/g, 'Command');
+      .replace(/⌘/g, 'Command')
+      .replace(/←/g, 'Left')
+      .replace(/→/g, 'Right')
+      .replace(/↑/g, 'Up')
+      .replace(/↓/g, 'Down');
   }
 
   render() {
@@ -245,6 +279,7 @@ class SettingsUI {
         </div>
         ${this.renderShortcutItems()}
       </div>
+      ${this.renderWindowControlSection()}
       ${this.renderFooterSection()}
     `;
 
@@ -438,8 +473,10 @@ class SettingsUI {
     if (!this.i18n || !this.i18n.settings) return '';
 
     const t = this.i18n.settings;
+    // Exclude hidden actions and window control actions (shown in separate section)
+    const windowControlActions = new Set(Object.keys(this.windowControlShortcuts));
     const actions = Object.keys(this.shortcuts).filter(
-      (action) => !this.hiddenShortcutActions.has(action)
+      (action) => !this.hiddenShortcutActions.has(action) && !windowControlActions.has(action)
     );
 
     return actions
@@ -469,6 +506,104 @@ class SettingsUI {
       `;
       })
       .join('');
+  }
+
+  renderWindowControlSection() {
+    if (!this.i18n || !this.i18n.settings) return '';
+
+    const t = this.i18n.settings;
+    const wc = t.windowControl || {};
+
+    // Window control action labels with fallbacks
+    const actionLabels = {
+      windowLeftHalf: wc.leftHalf || 'Left Half',
+      windowRightHalf: wc.rightHalf || 'Right Half',
+      windowTopHalf: wc.topHalf || 'Top Half',
+      windowBottomHalf: wc.bottomHalf || 'Bottom Half',
+      windowMaximize: wc.maximize || 'Maximize',
+      windowCenter: wc.center || 'Center',
+      windowTopLeft: wc.topLeft || 'Top Left',
+      windowTopRight: wc.topRight || 'Top Right',
+      windowBottomLeft: wc.bottomLeft || 'Bottom Left',
+      windowBottomRight: wc.bottomRight || 'Bottom Right',
+      windowLeftThird: wc.leftThird || 'Left Third',
+      windowCenterThird: wc.centerThird || 'Center Third',
+      windowRightThird: wc.rightThird || 'Right Third',
+      windowLeftTwoThirds: wc.leftTwoThirds || 'Left Two Thirds',
+      windowRightTwoThirds: wc.rightTwoThirds || 'Right Two Thirds',
+      windowNextMonitor: wc.nextMonitor || 'Next Monitor',
+      windowPreviousMonitor: wc.previousMonitor || 'Previous Monitor',
+    };
+
+    // Group window control shortcuts by category
+    const halfGroups = ['windowLeftHalf', 'windowRightHalf', 'windowTopHalf', 'windowBottomHalf'];
+    const quarterGroups = [
+      'windowTopLeft',
+      'windowTopRight',
+      'windowBottomLeft',
+      'windowBottomRight',
+    ];
+    const thirdGroups = [
+      'windowLeftThird',
+      'windowCenterThird',
+      'windowRightThird',
+      'windowLeftTwoThirds',
+      'windowRightTwoThirds',
+    ];
+    const otherGroups = [
+      'windowMaximize',
+      'windowCenter',
+      'windowNextMonitor',
+      'windowPreviousMonitor',
+    ];
+
+    const renderGroup = (actions, groupTitle) => {
+      const items = actions
+        .map((action) => {
+          const key = this.shortcuts[action] || this.windowControlShortcuts[action] || '';
+          const label = actionLabels[action] || action;
+          const displayKey = this.displayKey(key);
+
+          const safeAction = this.escapeHtml(action);
+          const safeLabel = this.escapeHtml(label);
+          const safeDisplayKey = this.escapeHtml(displayKey);
+          const safeChangeText = this.escapeHtml(t.change || 'Change');
+
+          return `
+          <div class="settings-item" data-action="${safeAction}">
+            <div class="settings-item-label">${safeLabel}</div>
+            <div class="settings-item-controls">
+              <div class="shortcut-key-display" data-action="${safeAction}">
+                ${safeDisplayKey}
+              </div>
+              <button class="change-key-btn" data-action="${safeAction}" data-i18n="settings.change">
+                ${safeChangeText}
+              </button>
+            </div>
+          </div>
+        `;
+        })
+        .join('');
+
+      return `
+        <div class="settings-group">
+          <div class="settings-group-title">${this.escapeHtml(groupTitle)}</div>
+          ${items}
+        </div>
+      `;
+    };
+
+    return `
+      <div class="settings-section">
+        <div class="settings-section-title" data-i18n="settings.windowControl">
+          ${this.escapeHtml(wc.title || 'Window Control')}
+        </div>
+        ${renderGroup(halfGroups, wc.halfScreen || 'Half Screen')}
+        ${renderGroup(quarterGroups, wc.quarters || 'Quarters')}
+        ${renderGroup(thirdGroups, wc.thirds || 'Thirds')}
+        ${renderGroup(otherGroups, wc.other || 'Other')}
+      </div>
+    `;
   }
 
   renderFooterSection() {

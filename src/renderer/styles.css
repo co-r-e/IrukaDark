@@ -1837,6 +1837,24 @@ html:not(.theme-dark) .settings-section-title {
   border-bottom-color: rgba(0, 0, 0, 0.15);
 }
 
+.settings-group {
+  margin-bottom: 16px;
+}
+
+.settings-group-title {
+  font-size: 10px;
+  font-weight: 500;
+  color: #9ca3af;
+  margin-bottom: 8px;
+  padding-left: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+html:not(.theme-dark) .settings-group-title {
+  color: #6b7280;
+}
+
 .settings-item {
   display: flex;
   flex-direction: column;

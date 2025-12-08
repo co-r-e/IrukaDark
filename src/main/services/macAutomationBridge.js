@@ -1052,6 +1052,170 @@ function isDaemonPopupShowing() {
   return daemonState === 'showing';
 }
 
+// Window Control constants
+const WINDOW_CONTROL_TIMEOUT_MS = 2000;
+
+/**
+ * Window control action mapping from shortcut action names to Swift action names
+ */
+const WINDOW_CONTROL_ACTIONS = {
+  windowLeftHalf: 'left-half',
+  windowRightHalf: 'right-half',
+  windowTopHalf: 'top-half',
+  windowBottomHalf: 'bottom-half',
+  windowMaximize: 'maximize',
+  windowCenter: 'center',
+  windowTopLeft: 'top-left',
+  windowTopRight: 'top-right',
+  windowBottomLeft: 'bottom-left',
+  windowBottomRight: 'bottom-right',
+  windowLeftThird: 'left-third',
+  windowCenterThird: 'center-third',
+  windowRightThird: 'right-third',
+  windowLeftTwoThirds: 'left-two-thirds',
+  windowRightTwoThirds: 'right-two-thirds',
+  windowNextMonitor: 'next-monitor',
+  windowPreviousMonitor: 'previous-monitor',
+};
+
+/**
+ * Execute a window control action
+ * @param {string} action - The action name (e.g., 'windowLeftHalf')
+ * @returns {Promise<{status: string, action?: string, code?: string, message?: string}>}
+ */
+async function windowControl(action) {
+  const swiftAction = WINDOW_CONTROL_ACTIONS[action];
+  if (!swiftAction) {
+    return {
+      status: 'error',
+      code: 'invalid_action',
+      message: `Unknown window control action: ${action}`,
+    };
+  }
+
+  try {
+    const result = await spawnWindowControl(swiftAction);
+    return result.payload || { status: 'error', code: 'no_payload' };
+  } catch (error) {
+    logBridgeEvent('windowControl.error', {
+      action,
+      swiftAction,
+      message: error?.message || '',
+    });
+
+    if (error?.message === 'SWIFT_BRIDGE_NOT_AVAILABLE') {
+      return { status: 'error', code: 'bridge_missing' };
+    }
+    if (error?.message === 'SWIFT_BRIDGE_TIMEOUT') {
+      return { status: 'error', code: 'timeout' };
+    }
+    return { status: 'error', code: 'invoke_failed', message: error?.message };
+  }
+}
+
+/**
+ * Spawn the window-control command
+ * @param {string} action - The Swift action name (e.g., 'left-half')
+ * @returns {Promise<{code: number, signal: string, payload: object, stderr: string}>}
+ */
+function spawnWindowControl(action) {
+  const { promise, resolve, reject } = Promise.withResolvers();
+
+  const executable = resolveExecutablePath();
+  if (!executable) {
+    logBridgeEvent('spawnWindowControl.notFound', { action });
+    reject(new Error('SWIFT_BRIDGE_NOT_AVAILABLE'));
+    return promise;
+  }
+
+  const args = ['window-control', '--action', action];
+
+  const child = spawn(executable, args, {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  logBridgeEvent('spawnWindowControl.start', {
+    action,
+    executable,
+    childPid: child.pid,
+  });
+
+  let stdout = '';
+  let stderr = '';
+  let finished = false;
+
+  const timer = setTimeout(() => {
+    if (finished) return;
+    finished = true;
+    try {
+      child.kill('SIGKILL');
+    } catch {}
+    reject(new Error('SWIFT_BRIDGE_TIMEOUT'));
+  }, WINDOW_CONTROL_TIMEOUT_MS);
+
+  child.stdout.on('data', (chunk) => {
+    stdout += chunk.toString();
+  });
+
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk.toString();
+  });
+
+  child.once('error', (error) => {
+    if (finished) return;
+    finished = true;
+    clearTimeout(timer);
+    logBridgeEvent('spawnWindowControl.error', {
+      action,
+      message: error?.message || '',
+    });
+    reject(error);
+  });
+
+  child.once('exit', (code, signal) => {
+    if (finished) return;
+    finished = true;
+    clearTimeout(timer);
+
+    const payloadRaw = (stdout || '').trim();
+    let payload = null;
+
+    if (payloadRaw) {
+      try {
+        const lastLine = payloadRaw.split('\n').filter(Boolean).pop() || payloadRaw;
+        payload = JSON.parse(lastLine);
+      } catch (e) {
+        logBridgeEvent('spawnWindowControl.invalidJson', {
+          action,
+          stdout: payloadRaw,
+          error: e?.message,
+        });
+      }
+    }
+
+    logBridgeEvent('spawnWindowControl.exit', {
+      action,
+      exitCode: code,
+      signal,
+      payload,
+      stderr: stderr.trim(),
+    });
+
+    resolve({ code, signal, payload, stderr: stderr.trim() });
+  });
+
+  return promise;
+}
+
+/**
+ * Check if an action is a window control action
+ * @param {string} action - The action name
+ * @returns {boolean}
+ */
+function isWindowControlAction(action) {
+  return action in WINDOW_CONTROL_ACTIONS;
+}
+
 module.exports = {
   fetchSelectedText,
   spawnClipboardPopup,
@@ -1069,4 +1233,8 @@ module.exports = {
   spawnVoiceQuery,
   isVoiceQueryActive,
   cancelVoiceQuery,
+  // Window control
+  windowControl,
+  isWindowControlAction,
+  WINDOW_CONTROL_ACTIONS,
 };

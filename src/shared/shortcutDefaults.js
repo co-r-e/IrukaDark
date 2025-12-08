@@ -27,6 +27,24 @@ const DEFAULT_SHORTCUTS = {
   voiceQuery: 'Alt+Shift+X',
   voiceOnly: 'Alt+X',
   rephrase: 'Alt+W',
+  // Window Control shortcuts
+  windowLeftHalf: 'Control+Alt+Left',
+  windowRightHalf: 'Control+Alt+Right',
+  windowTopHalf: 'Control+Alt+Up',
+  windowBottomHalf: 'Control+Alt+Down',
+  windowMaximize: 'Control+Alt+Return',
+  windowCenter: 'Control+Alt+C',
+  windowTopLeft: 'Control+Alt+U',
+  windowTopRight: 'Control+Alt+I',
+  windowBottomLeft: 'Control+Alt+J',
+  windowBottomRight: 'Control+Alt+K',
+  windowLeftThird: 'Control+Alt+D',
+  windowCenterThird: 'Control+Alt+F',
+  windowRightThird: 'Control+Alt+G',
+  windowLeftTwoThirds: 'Control+Alt+E',
+  windowRightTwoThirds: 'Control+Alt+T',
+  windowNextMonitor: 'Control+Alt+N',
+  windowPreviousMonitor: 'Control+Alt+P',
 };
 
 /**
