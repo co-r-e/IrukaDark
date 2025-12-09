@@ -4268,6 +4268,7 @@ class RecordingIndicatorWindow: NSPanel {
 
 // MARK: - Window Control Implementation
 
+/// JSON output structure for window control commands
 struct WindowControlOutput: Encodable {
   let status: String
   let action: String?
@@ -4283,42 +4284,56 @@ struct WindowControlOutput: Encodable {
   }
 }
 
-/// Window Controller using Accessibility API
+/// Window Controller using macOS Accessibility API
+/// Provides window positioning, sizing, and multi-monitor support
 class WindowController {
 
-  // MARK: - Coordinate System Helpers
+  // MARK: - Constants
 
-  /// Get the primary screen height for coordinate conversion
-  /// In macOS, the primary screen (with menu bar) defines the global coordinate system
-  private static func getPrimaryScreenHeight() -> CGFloat {
-    // The primary screen is the one containing the menu bar
-    // NSScreen.screens[0] is always the primary screen
-    return NSScreen.screens.first?.frame.height ?? 0
+  private enum Animation {
+    static let frameDuration: TimeInterval = 0.15
+    static let frameSteps: Int = 12
+    static let positionDuration: TimeInterval = 0.12
+    static let positionSteps: Int = 10
   }
 
-  /// Convert AX (Accessibility) coordinates to AppKit coordinates
-  /// AX: origin at top-left of primary screen, Y increases downward
-  /// AppKit: origin at bottom-left of primary screen, Y increases upward
+  private enum FullScreen {
+    static let pollInterval: TimeInterval = 0.1
+    static let timeout: TimeInterval = 1.0
+    static let settleDelay: TimeInterval = 0.2
+  }
+
+  private enum Tolerance {
+    static let maximizedCheck: CGFloat = 10
+    static let noChangeThreshold: CGFloat = 1
+  }
+
+  // MARK: - Coordinate Conversion
+  // macOS has two coordinate systems:
+  // - AX (Accessibility): Origin at top-left of primary screen, Y increases downward
+  // - AppKit: Origin at bottom-left of primary screen, Y increases upward
+
+  private static func getPrimaryScreenHeight() -> CGFloat {
+    NSScreen.screens.first?.frame.height ?? 0
+  }
+
   private static func axToAppKit(point: CGPoint, height: CGFloat = 0) -> NSPoint {
     let primaryHeight = getPrimaryScreenHeight()
     return NSPoint(x: point.x, y: primaryHeight - point.y - height)
   }
 
-  /// Convert AppKit coordinates to AX (Accessibility) coordinates
   private static func appKitToAX(point: NSPoint, height: CGFloat = 0) -> CGPoint {
     let primaryHeight = getPrimaryScreenHeight()
     return CGPoint(x: point.x, y: primaryHeight - point.y - height)
   }
 
-  /// Convert AppKit frame to AX position and size
   private static func appKitFrameToAX(_ frame: NSRect) -> (position: CGPoint, size: CGSize) {
     let axPosition = appKitToAX(point: frame.origin, height: frame.height)
     return (axPosition, CGSize(width: frame.width, height: frame.height))
   }
 
-  // MARK: - Window Access
+  // MARK: - Window Discovery
 
-  /// Check if the given app is IrukaDark or related Electron development app
   private static func isIrukaDarkApp(_ app: NSRunningApplication) -> Bool {
     let bundleId = app.bundleIdentifier ?? ""
     return bundleId.lowercased().contains("irukadark")
@@ -4326,19 +4341,17 @@ class WindowController {
         || bundleId == "com.github.Electron"
   }
 
-  /// Get the window from an app (focused window or first window as fallback)
-  /// Returns nil if the app has no accessible windows
   private static func getWindowFromApp(_ app: NSRunningApplication) -> AXUIElement? {
     let appElement = AXUIElementCreateApplication(app.processIdentifier)
 
-    // Try to get focused window first
+    // Try focused window first
     var focusedWindow: CFTypeRef?
     if AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &focusedWindow) == .success,
        let window = focusedWindow {
       return (window as! AXUIElement)
     }
 
-    // Fallback: get the first window from window list
+    // Fallback: first window from list
     var windowList: CFTypeRef?
     if AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowList) == .success,
        let windows = windowList as? [AXUIElement],
@@ -4349,304 +4362,281 @@ class WindowController {
     return nil
   }
 
-  /// Get the frontmost window's AXUIElement (excluding IrukaDark)
+  /// Get the frontmost window excluding IrukaDark
   static func getFrontmostWindow() -> AXUIElement? {
     // Check frontmost app first
     if let frontApp = NSWorkspace.shared.frontmostApplication, !isIrukaDarkApp(frontApp) {
       return getWindowFromApp(frontApp)
     }
 
-    // Frontmost is IrukaDark - find the next app with an accessible window
-    let regularApps = NSWorkspace.shared.runningApplications
-      .filter { $0.activationPolicy == .regular && !isIrukaDarkApp($0) }
+    // IrukaDark is frontmost - find topmost non-IrukaDark window via CGWindowList (z-order)
+    guard let windowList = CGWindowListCopyWindowInfo(
+      [.optionOnScreenOnly, .excludeDesktopElements],
+      kCGNullWindowID
+    ) as? [[String: Any]] else {
+      return nil
+    }
 
-    for app in regularApps {
-      // getWindowFromApp returns nil if no windows, so this combines the check
-      if let window = getWindowFromApp(app) {
-        return window
+    for windowInfo in windowList {
+      guard let ownerPID = windowInfo[kCGWindowOwnerPID as String] as? pid_t,
+            let layer = windowInfo[kCGWindowLayer as String] as? Int,
+            layer == 0,  // Normal windows at layer 0
+            let app = NSRunningApplication(processIdentifier: ownerPID),
+            !isIrukaDarkApp(app),
+            let window = getWindowFromApp(app) else {
+        continue
       }
+      return window
     }
 
     return nil
   }
 
-  /// Get window position (in AX coordinates)
+  // MARK: - Window Attributes
+
   static func getWindowPosition(_ window: AXUIElement) -> CGPoint? {
-    var positionValue: CFTypeRef?
-    let result = AXUIElementCopyAttributeValue(window, kAXPositionAttribute as CFString, &positionValue)
-
-    if result == .success, let value = positionValue {
-      var point = CGPoint.zero
-      if AXValueGetValue(value as! AXValue, .cgPoint, &point) {
-        return point
-      }
-    }
-    return nil
+    var value: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(window, kAXPositionAttribute as CFString, &value) == .success,
+          let axValue = value else { return nil }
+    var point = CGPoint.zero
+    return AXValueGetValue(axValue as! AXValue, .cgPoint, &point) ? point : nil
   }
 
-  /// Get window size
   static func getWindowSize(_ window: AXUIElement) -> CGSize? {
-    var sizeValue: CFTypeRef?
-    let result = AXUIElementCopyAttributeValue(window, kAXSizeAttribute as CFString, &sizeValue)
-
-    if result == .success, let value = sizeValue {
-      var size = CGSize.zero
-      if AXValueGetValue(value as! AXValue, .cgSize, &size) {
-        return size
-      }
-    }
-    return nil
+    var value: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(window, kAXSizeAttribute as CFString, &value) == .success,
+          let axValue = value else { return nil }
+    var size = CGSize.zero
+    return AXValueGetValue(axValue as! AXValue, .cgSize, &size) ? size : nil
   }
 
-  /// Set window position (in AX coordinates)
+  @discardableResult
   static func setWindowPosition(_ window: AXUIElement, position: CGPoint) -> Bool {
     var point = position
     guard let value = AXValueCreate(.cgPoint, &point) else { return false }
-    let result = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, value)
-    return result == .success
+    return AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, value) == .success
   }
 
-  /// Set window size
+  @discardableResult
   static func setWindowSize(_ window: AXUIElement, size: CGSize) -> Bool {
     var newSize = size
     guard let value = AXValueCreate(.cgSize, &newSize) else { return false }
-    let result = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, value)
-    return result == .success
+    return AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, value) == .success
+  }
+
+  // MARK: - Full-Screen Management
+
+  static func supportsFullScreen(_ window: AXUIElement) -> Bool {
+    var value: CFTypeRef?
+    return AXUIElementCopyAttributeValue(window, "AXFullScreen" as CFString, &value) == .success
+  }
+
+  static func isFullScreen(_ window: AXUIElement) -> Bool {
+    var value: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(window, "AXFullScreen" as CFString, &value) == .success,
+          let boolValue = value as? Bool else { return false }
+    return boolValue
+  }
+
+  private static func waitForFullScreenChange(window: AXUIElement, expectedState: Bool) -> Bool {
+    let startTime = Date()
+    while Date().timeIntervalSince(startTime) < FullScreen.timeout {
+      if isFullScreen(window) == expectedState {
+        Thread.sleep(forTimeInterval: FullScreen.settleDelay)
+        return true
+      }
+      Thread.sleep(forTimeInterval: FullScreen.pollInterval)
+    }
+    return false
+  }
+
+  @discardableResult
+  static func exitFullScreenIfNeeded(_ window: AXUIElement) -> Bool {
+    guard isFullScreen(window) else { return true }
+    guard AXUIElementSetAttributeValue(window, "AXFullScreen" as CFString, kCFBooleanFalse) == .success else {
+      return false
+    }
+    return waitForFullScreenChange(window: window, expectedState: false)
+  }
+
+  static func enterFullScreen(_ window: AXUIElement) -> Bool {
+    guard !isFullScreen(window), supportsFullScreen(window) else { return !isFullScreen(window) }
+    guard AXUIElementSetAttributeValue(window, "AXFullScreen" as CFString, kCFBooleanTrue) == .success else {
+      return false
+    }
+    return waitForFullScreenChange(window: window, expectedState: true)
+  }
+
+  static func isMaximized(_ window: AXUIElement) -> Bool {
+    guard let screen = getScreenForWindow(window),
+          let position = getWindowPosition(window),
+          let size = getWindowSize(window) else { return false }
+
+    let (expectedPos, expectedSize) = appKitFrameToAX(screen.visibleFrame)
+    let t = Tolerance.maximizedCheck
+
+    return abs(position.x - expectedPos.x) < t &&
+           abs(position.y - expectedPos.y) < t &&
+           abs(size.width - expectedSize.width) < t &&
+           abs(size.height - expectedSize.height) < t
   }
 
   // MARK: - Screen Detection
 
-  /// Get the screen containing the window
   static func getScreenForWindow(_ window: AXUIElement) -> NSScreen? {
-    guard let axPosition = getWindowPosition(window),
-          let size = getWindowSize(window) else {
-      return NSScreen.main
+    guard let position = getWindowPosition(window),
+          let size = getWindowSize(window) else { return NSScreen.main }
+
+    let center = CGPoint(x: position.x + size.width / 2, y: position.y + size.height / 2)
+    let appKitCenter = axToAppKit(point: center)
+
+    // Find containing screen
+    if let screen = NSScreen.screens.first(where: { $0.frame.contains(appKitCenter) }) {
+      return screen
     }
 
-    // Calculate window center in AX coordinates
-    let axCenter = CGPoint(x: axPosition.x + size.width / 2, y: axPosition.y + size.height / 2)
+    // Fallback: nearest screen
+    return NSScreen.screens.min(by: {
+      hypot($0.frame.midX - appKitCenter.x, $0.frame.midY - appKitCenter.y) <
+      hypot($1.frame.midX - appKitCenter.x, $1.frame.midY - appKitCenter.y)
+    }) ?? NSScreen.main
+  }
 
-    // Convert to AppKit coordinates for screen detection
-    let appKitCenter = axToAppKit(point: axCenter)
+  // MARK: - Animation
 
-    // Find which screen contains the center point
-    for screen in NSScreen.screens {
-      if screen.frame.contains(appKitCenter) {
-        return screen
-      }
+  private static func easeOutCubic(_ t: CGFloat) -> CGFloat {
+    let t1 = t - 1
+    return t1 * t1 * t1 + 1
+  }
+
+  private static func animateWindowToFrame(_ window: AXUIElement, targetFrame: NSRect) -> Bool {
+    guard let startPos = getWindowPosition(window),
+          let startSize = getWindowSize(window) else { return false }
+
+    let (targetPos, targetSize) = appKitFrameToAX(targetFrame)
+    let dx = targetPos.x - startPos.x
+    let dy = targetPos.y - startPos.y
+    let dw = targetSize.width - startSize.width
+    let dh = targetSize.height - startSize.height
+
+    // Skip animation if no significant change
+    let t = Tolerance.noChangeThreshold
+    if abs(dx) < t && abs(dy) < t && abs(dw) < t && abs(dh) < t { return true }
+
+    let interval = Animation.frameDuration / Double(Animation.frameSteps)
+
+    for i in 1...Animation.frameSteps {
+      let p = easeOutCubic(CGFloat(i) / CGFloat(Animation.frameSteps))
+      _ = setWindowPosition(window, position: CGPoint(x: startPos.x + dx * p, y: startPos.y + dy * p))
+      _ = setWindowSize(window, size: CGSize(width: startSize.width + dw * p, height: startSize.height + dh * p))
+      if i < Animation.frameSteps { Thread.sleep(forTimeInterval: interval) }
     }
 
-    // Fallback: find the nearest screen
-    return findNearestScreen(to: appKitCenter) ?? NSScreen.main
+    // Ensure exact final values
+    _ = setWindowPosition(window, position: targetPos)
+    _ = setWindowSize(window, size: targetSize)
+    return true
   }
 
-  /// Find the nearest screen to a point (fallback when point is outside all screens)
-  private static func findNearestScreen(to point: NSPoint) -> NSScreen? {
-    var nearestScreen: NSScreen?
-    var minDistance: CGFloat = .infinity
+  private static func animateWindowPosition(_ window: AXUIElement, to target: CGPoint) -> Bool {
+    guard let start = getWindowPosition(window) else { return false }
 
-    for screen in NSScreen.screens {
-      let frame = screen.frame
-      let centerX = frame.midX
-      let centerY = frame.midY
-      let distance = hypot(point.x - centerX, point.y - centerY)
+    let dx = target.x - start.x
+    let dy = target.y - start.y
 
-      if distance < minDistance {
-        minDistance = distance
-        nearestScreen = screen
-      }
+    if abs(dx) < Tolerance.noChangeThreshold && abs(dy) < Tolerance.noChangeThreshold { return true }
+
+    let interval = Animation.positionDuration / Double(Animation.positionSteps)
+
+    for i in 1...Animation.positionSteps {
+      let p = easeOutCubic(CGFloat(i) / CGFloat(Animation.positionSteps))
+      _ = setWindowPosition(window, position: CGPoint(x: start.x + dx * p, y: start.y + dy * p))
+      if i < Animation.positionSteps { Thread.sleep(forTimeInterval: interval) }
     }
 
-    return nearestScreen
+    _ = setWindowPosition(window, position: target)
+    return true
   }
 
-  /// Get visible frame (excluding menu bar and dock)
-  static func getVisibleFrame(for screen: NSScreen) -> NSRect {
-    return screen.visibleFrame
-  }
+  // MARK: - Actions
 
   /// Apply a window control action
   static func applyAction(_ action: WindowControlAction, to window: AXUIElement) -> Bool {
-    guard let currentScreen = getScreenForWindow(window) else { return false }
-
-    let visibleFrame = getVisibleFrame(for: currentScreen)
-
-    var targetFrame: NSRect
-
+    // Handle special actions first
     switch action {
-    case .leftHalf:
-      targetFrame = NSRect(
-        x: visibleFrame.origin.x,
-        y: visibleFrame.origin.y,
-        width: visibleFrame.width / 2,
-        height: visibleFrame.height
-      )
-
-    case .rightHalf:
-      targetFrame = NSRect(
-        x: visibleFrame.origin.x + visibleFrame.width / 2,
-        y: visibleFrame.origin.y,
-        width: visibleFrame.width / 2,
-        height: visibleFrame.height
-      )
-
-    case .topHalf:
-      targetFrame = NSRect(
-        x: visibleFrame.origin.x,
-        y: visibleFrame.origin.y + visibleFrame.height / 2,
-        width: visibleFrame.width,
-        height: visibleFrame.height / 2
-      )
-
-    case .bottomHalf:
-      targetFrame = NSRect(
-        x: visibleFrame.origin.x,
-        y: visibleFrame.origin.y,
-        width: visibleFrame.width,
-        height: visibleFrame.height / 2
-      )
-
-    case .maximize:
-      targetFrame = visibleFrame
-
-    case .center:
-      guard let currentSize = getWindowSize(window) else { return false }
-      let centerX = visibleFrame.origin.x + (visibleFrame.width - currentSize.width) / 2
-      let centerY = visibleFrame.origin.y + (visibleFrame.height - currentSize.height) / 2
-      targetFrame = NSRect(
-        x: centerX,
-        y: centerY,
-        width: currentSize.width,
-        height: currentSize.height
-      )
-
-    case .topLeft:
-      targetFrame = NSRect(
-        x: visibleFrame.origin.x,
-        y: visibleFrame.origin.y + visibleFrame.height / 2,
-        width: visibleFrame.width / 2,
-        height: visibleFrame.height / 2
-      )
-
-    case .topRight:
-      targetFrame = NSRect(
-        x: visibleFrame.origin.x + visibleFrame.width / 2,
-        y: visibleFrame.origin.y + visibleFrame.height / 2,
-        width: visibleFrame.width / 2,
-        height: visibleFrame.height / 2
-      )
-
-    case .bottomLeft:
-      targetFrame = NSRect(
-        x: visibleFrame.origin.x,
-        y: visibleFrame.origin.y,
-        width: visibleFrame.width / 2,
-        height: visibleFrame.height / 2
-      )
-
-    case .bottomRight:
-      targetFrame = NSRect(
-        x: visibleFrame.origin.x + visibleFrame.width / 2,
-        y: visibleFrame.origin.y,
-        width: visibleFrame.width / 2,
-        height: visibleFrame.height / 2
-      )
-
-    case .leftThird:
-      targetFrame = NSRect(
-        x: visibleFrame.origin.x,
-        y: visibleFrame.origin.y,
-        width: visibleFrame.width / 3,
-        height: visibleFrame.height
-      )
-
-    case .centerThird:
-      targetFrame = NSRect(
-        x: visibleFrame.origin.x + visibleFrame.width / 3,
-        y: visibleFrame.origin.y,
-        width: visibleFrame.width / 3,
-        height: visibleFrame.height
-      )
-
-    case .rightThird:
-      targetFrame = NSRect(
-        x: visibleFrame.origin.x + visibleFrame.width * 2 / 3,
-        y: visibleFrame.origin.y,
-        width: visibleFrame.width / 3,
-        height: visibleFrame.height
-      )
-
-    case .leftTwoThirds:
-      targetFrame = NSRect(
-        x: visibleFrame.origin.x,
-        y: visibleFrame.origin.y,
-        width: visibleFrame.width * 2 / 3,
-        height: visibleFrame.height
-      )
-
-    case .rightTwoThirds:
-      targetFrame = NSRect(
-        x: visibleFrame.origin.x + visibleFrame.width / 3,
-        y: visibleFrame.origin.y,
-        width: visibleFrame.width * 2 / 3,
-        height: visibleFrame.height
-      )
-
     case .nextMonitor:
       return moveToNextMonitor(window: window, forward: true)
-
     case .previousMonitor:
       return moveToNextMonitor(window: window, forward: false)
+    case .maximize:
+      // Smart maximize: normal → maximized → full-screen → maximized
+      if isFullScreen(window) { return exitFullScreenIfNeeded(window) }
+      if isMaximized(window) { return enterFullScreen(window) }
+    default:
+      break
     }
 
-    // Convert AppKit frame to AX coordinates
-    let (axPosition, axSize) = appKitFrameToAX(targetFrame)
+    // Exit full-screen for other actions
+    if isFullScreen(window) && !exitFullScreenIfNeeded(window) { return false }
 
-    // Set position first, then size (important for some apps)
-    let posResult = setWindowPosition(window, position: axPosition)
-    let sizeResult = setWindowSize(window, size: axSize)
+    guard let screen = getScreenForWindow(window) else { return false }
+    let vf = screen.visibleFrame  // visible frame
 
-    return posResult && sizeResult
+    let targetFrame: NSRect = {
+      switch action {
+      case .leftHalf:      return NSRect(x: vf.minX, y: vf.minY, width: vf.width / 2, height: vf.height)
+      case .rightHalf:     return NSRect(x: vf.midX, y: vf.minY, width: vf.width / 2, height: vf.height)
+      case .topHalf:       return NSRect(x: vf.minX, y: vf.midY, width: vf.width, height: vf.height / 2)
+      case .bottomHalf:    return NSRect(x: vf.minX, y: vf.minY, width: vf.width, height: vf.height / 2)
+      case .maximize:      return vf
+      case .center:
+        guard let size = getWindowSize(window) else { return vf }
+        return NSRect(x: vf.minX + (vf.width - size.width) / 2,
+                      y: vf.minY + (vf.height - size.height) / 2,
+                      width: size.width, height: size.height)
+      case .topLeft:       return NSRect(x: vf.minX, y: vf.midY, width: vf.width / 2, height: vf.height / 2)
+      case .topRight:      return NSRect(x: vf.midX, y: vf.midY, width: vf.width / 2, height: vf.height / 2)
+      case .bottomLeft:    return NSRect(x: vf.minX, y: vf.minY, width: vf.width / 2, height: vf.height / 2)
+      case .bottomRight:   return NSRect(x: vf.midX, y: vf.minY, width: vf.width / 2, height: vf.height / 2)
+      case .leftThird:     return NSRect(x: vf.minX, y: vf.minY, width: vf.width / 3, height: vf.height)
+      case .centerThird:   return NSRect(x: vf.minX + vf.width / 3, y: vf.minY, width: vf.width / 3, height: vf.height)
+      case .rightThird:    return NSRect(x: vf.minX + vf.width * 2 / 3, y: vf.minY, width: vf.width / 3, height: vf.height)
+      case .leftTwoThirds: return NSRect(x: vf.minX, y: vf.minY, width: vf.width * 2 / 3, height: vf.height)
+      case .rightTwoThirds: return NSRect(x: vf.minX + vf.width / 3, y: vf.minY, width: vf.width * 2 / 3, height: vf.height)
+      case .nextMonitor, .previousMonitor: return vf  // Already handled above
+      }
+    }()
+
+    return animateWindowToFrame(window, targetFrame: targetFrame)
   }
 
-  /// Move window to next/previous monitor
-  static func moveToNextMonitor(window: AXUIElement, forward: Bool) -> Bool {
+  /// Move window to adjacent monitor preserving relative position
+  private static func moveToNextMonitor(window: AXUIElement, forward: Bool) -> Bool {
     let screens = NSScreen.screens
     guard screens.count > 1 else { return false }
 
+    exitFullScreenIfNeeded(window)
+
     guard let currentScreen = getScreenForWindow(window),
           let currentIndex = screens.firstIndex(of: currentScreen),
-          let axPosition = getWindowPosition(window),
-          let size = getWindowSize(window) else {
-      return false
-    }
+          let position = getWindowPosition(window),
+          let size = getWindowSize(window) else { return false }
 
-    let nextIndex: Int
-    if forward {
-      nextIndex = (currentIndex + 1) % screens.count
-    } else {
-      nextIndex = (currentIndex - 1 + screens.count) % screens.count
-    }
+    let nextIndex = forward
+      ? (currentIndex + 1) % screens.count
+      : (currentIndex - 1 + screens.count) % screens.count
 
-    let targetScreen = screens[nextIndex]
-    let currentVisible = getVisibleFrame(for: currentScreen)
-    let targetVisible = getVisibleFrame(for: targetScreen)
+    let currentVF = currentScreen.visibleFrame
+    let targetVF = screens[nextIndex].visibleFrame
 
-    // Convert current AX position to AppKit coordinates
-    let appKitPosition = axToAppKit(point: axPosition, height: size.height)
+    // Calculate relative position and apply to target screen
+    let appKitPos = axToAppKit(point: position, height: size.height)
+    let relX = (appKitPos.x - currentVF.minX) / currentVF.width
+    let relY = (appKitPos.y - currentVF.minY) / currentVF.height
+    let newAppKitPos = NSPoint(x: targetVF.minX + relX * targetVF.width,
+                               y: targetVF.minY + relY * targetVF.height)
 
-    // Calculate relative position within current screen's visible frame
-    let relativeX = (appKitPosition.x - currentVisible.origin.x) / currentVisible.width
-    let relativeY = (appKitPosition.y - currentVisible.origin.y) / currentVisible.height
-
-    // Apply relative position to target screen's visible frame
-    let newAppKitX = targetVisible.origin.x + relativeX * targetVisible.width
-    let newAppKitY = targetVisible.origin.y + relativeY * targetVisible.height
-
-    // Convert back to AX coordinates
-    let newAXPosition = appKitToAX(point: NSPoint(x: newAppKitX, y: newAppKitY), height: size.height)
-
-    return setWindowPosition(window, position: newAXPosition)
+    return animateWindowPosition(window, to: appKitToAX(point: newAppKitPos, height: size.height))
   }
 }
 
