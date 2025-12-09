@@ -30,6 +30,8 @@ Lightweight local AI chat for macOS. Explain or translate selected text, or chat
 - PDF content extraction (attach PDFs for AI analysis)
 - Timer & Stopwatch with audio notifications
 - Schedule feature for task management
+- Window Control with 17 keyboard shortcuts for precise window positioning (half, quarters, thirds, multi-monitor)
+- Custom Instructions to personalize AI response style
 
 ## Beginner Setup (Step‑by‑step)
 
